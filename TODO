@@ -1,0 +1,31 @@
+= This is a rough TODO list, feel free to contribute patches =
+
+Output Subsystem:
+ - Test whether eglMakeCurrent() is thread-aware and can set different context
+   per thread. Comment this behaviour in kmscon_compositor_use().
+   Multiple active context would actually make sense if you have multiple
+   graphic cards as you could render on both cards simultaneously. However, if
+   you have only one card, multiple active contexts are not really needed.
+
+ - Avoid EGL_EGLEXT_PROTOTYPES and GL_GLEXT_PROTOTYPES and instead retrieve
+   function pointers dynamically.
+
+ - How to get bpp and colordepth?
+
+ - Retrieve DRI card from udev or at least make kmscon_compositor_new() accept a
+   path to the DRI card so the user can have udev provide the path.
+
+ - Check whether drmSetMaster() is needed. It can only be called with root
+   priviledges and all my tests worked without it. What are the benefits of
+   calling this?
+
+ - How to reset video after exiting the application? I want the previous VT or
+   application to immediately repaint its screen. Wayland resets the previous
+   DRM framebuffer, but I don't think this helps here?
+
+ - Whats the difference between connector and encoder? Or why are encoders
+   needed at all? The output selection logic simply tries to find the first
+   encoder that provides an available crtc. Should we replace this logic with an
+   additional list of available crtcs so users can choose them, too?
+
+ - Is glFinish() needed before setCrtc or is glFlush sufficient?
