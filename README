@@ -1,0 +1,48 @@
+= KMSCON =
+Kmscon is a simple terminal emulator based on linux kernel mode setting (KMS).
+It is an attempt to replace the in-kernel VT implementation with a userspace
+console.
+
+== Requirements ==
+  Kmscon requires the following software:
+    - mesa with:
+      - EGL library
+      - gbm library
+      - GL library
+
+== Install ==
+  To compile the kmscon binary, use:
+    $ make
+  There is currently no way to install the binary into your system.
+
+== License ==
+  This software is dedicated to the Public Domain. Feel free to modify it to
+  your needs.
+
+== FAQ ==
+  === Why aren't you using GNU autotools? ===
+  Feel free to send me patches. I will apply them immediately.
+
+  === Why didn't you use libvte or similar terminal emulators? ===
+  All existing terminal emulators I found highly depend on X. Also, their code
+  base often is a horrible mess. I haven't had the time to convert them to use
+  other drawing functions than Xlib, yet.
+  If you feel like doing this work, please notify me. I would be glad to adjust
+  my code to work with other terminal emulators.
+
+== Contact ==
+  This software was written by:
+    David Herrmann <dh.herrmann@googlemail.com>
+  If you have any questions, do not hesitate to contact one of the developers.
+
+== Code Base ==
+  The kmscon code is split into several independent subsystems:
+    - output:
+      This code manages the KMS/DRI output and provides OpenGL framebuffers.
+    - evdev:
+      All linux input events are captured here and converted to Unicode
+      characters for input handling.
+    - vte:
+      The terminal emulator library.
+    - main:
+      This connects all subsystems into a usable console application.
