@@ -39,6 +39,9 @@ console.
   The kmscon code is split into several independent subsystems:
     - output:
       This code manages the KMS/DRI output and provides OpenGL framebuffers.
+    - console:
+      This draws the text on the screen and provides an API for any terminal
+      emulator to visualize its contents.
     - evdev:
       All linux input events are captured here and converted to Unicode
       characters for input handling.
