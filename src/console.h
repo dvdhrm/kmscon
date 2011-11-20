@@ -35,3 +35,7 @@ int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len);
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
+
+int kmscon_console_set_res(struct kmscon_console *con, uint32_t x, uint32_t y);
+void kmscon_console_draw(struct kmscon_console *con);
+void kmscon_console_map(struct kmscon_console *con);
