@@ -147,15 +147,13 @@ int main(int argc, char **argv)
 	}
 
 	printf("Wakeing up compositor...\n");
-	kmscon_compositor_wake_up(comp);
-	kmscon_compositor_use(comp);
-
-	printf("Refreshing compositor...\n");
-	ret = kmscon_compositor_refresh(comp);
+	ret = kmscon_compositor_wake_up(comp);
 	if (ret < 0) {
-		printf("Cannot refresh compositor: %d\n", ret);
+		printf("Cannot wakeup compositor: %d\n", ret);
 		goto err_unref;
 	}
+
+	kmscon_compositor_use(comp);
 
 	if (argc < 2) {
 		ret = list_outputs(comp);
