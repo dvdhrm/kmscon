@@ -55,7 +55,7 @@ void kmscon_console_ref(struct kmscon_console *con)
 	++con->ref;
 }
 
-void kmscon_con_unref(struct kmscon_console *con)
+void kmscon_console_unref(struct kmscon_console *con)
 {
 	if (!con || !con->ref)
 		return;
