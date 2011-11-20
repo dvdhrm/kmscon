@@ -19,8 +19,8 @@ all:
 	gcc -o kmscon src/*.c $(CFLAGS)
 
 tests:
-	gcc -o test_output tests/test_output.c src/output.c $(CFLAGS)
-	gcc -o test_console tests/test_console.c src/output.c src/console.c $(CFLAGS)
+	gcc -o test_output tests/test_output.c src/*.c $(CFLAGS)
+	gcc -o test_console tests/test_console.c src/*.c $(CFLAGS)
 
 clean:
 	@rm -vf kmscon test_output test_console
