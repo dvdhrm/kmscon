@@ -26,6 +26,10 @@
 
 #include "console.h"
 
+struct kmscon_cell {
+	struct kmscon_char *ch;
+};
+
 struct kmscon_console {
 	size_t ref;
 
@@ -36,6 +40,10 @@ struct kmscon_console {
 	cairo_t *cr;
 	cairo_surface_t *surf;
 	unsigned char *surf_buf;
+
+	uint32_t lines_x;
+	uint32_t lines_y;
+	struct kmscon_cell *cells;
 };
 
 int kmscon_console_new(struct kmscon_console **out)
@@ -66,6 +74,20 @@ void kmscon_console_ref(struct kmscon_console *con)
 	++con->ref;
 }
 
+static void console_free_cells(struct kmscon_console *con)
+{
+	uint32_t i, size;
+
+	if (con->cells) {
+		size = con->lines_x * con->lines_y;
+
+		for (i = 0; i < size; ++i)
+			kmscon_char_free(con->cells[i].ch);
+
+		free(con->cells);
+	}
+}
+
 /*
  * Drops one reference. If this is the last reference, the whole console is
  * freed and the associated render-images are destroyed.
@@ -84,6 +106,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 		free(con->surf_buf);
 	}
 
+	console_free_cells(con);
 	glDeleteTextures(1, &con->tex);
 	free(con);
 }
@@ -216,4 +239,46 @@ void kmscon_console_map(struct kmscon_console *con)
 		glTexCoord2f(0.0f, con->res_y);
 		glVertex2f(-1.0f, 1.0f);
 	glEnd();
+}
+
+/*
+ * Resize console. x/y must not be 0.
+ * This resizes the whole console buffer and recreates all cells. It tries to
+ * preserve as many content from the previous buffer as possible.
+ */
+int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
+{
+	struct kmscon_cell *cells;
+	uint32_t size, i, j;
+	int ret;
+
+	size = x * y;
+	if (!con || !size || size < x || size < y)
+		return -EINVAL;
+
+	cells = malloc(sizeof(*cells) * size);
+	if (!cells)
+		return -ENOMEM;
+
+	memset(cells, 0, sizeof(*cells) * size);
+
+	for (i = 0; i < size; ++i) {
+		ret = kmscon_char_new(&cells[i].ch);
+		if (ret) {
+			for (j = 0; j < i; ++j)
+				kmscon_char_free(cells[j].ch);
+			goto err_free;
+		}
+	}
+
+	console_free_cells(con);
+	con->lines_x = x;
+	con->lines_y = y;
+	con->cells = cells;
+
+	return 0;
+
+err_free:
+	free(cells);
+	return ret;
 }
