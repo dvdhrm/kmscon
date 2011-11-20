@@ -49,6 +49,7 @@ struct kmscon_console {
 int kmscon_console_new(struct kmscon_console **out)
 {
 	struct kmscon_console *con;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -60,10 +61,18 @@ int kmscon_console_new(struct kmscon_console **out)
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
 
+	ret = kmscon_console_resize(con, 80, 24);
+	if (ret)
+		goto err_free;
+
 	glGenTextures(1, &con->tex);
 
 	*out = con;
 	return 0;
+
+err_free:
+	free(con);
+	return ret;
 }
 
 void kmscon_console_ref(struct kmscon_console *con)
