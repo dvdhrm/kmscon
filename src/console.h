@@ -14,9 +14,21 @@
  * of it.
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 
+struct kmscon_char;
 struct kmscon_console;
+
+/* single printable characters */
+
+int kmscon_char_new(struct kmscon_char **out);
+void kmscon_char_free(struct kmscon_char *ch);
+
+int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len);
+const char *kmscon_char_get_u8(const struct kmscon_char *ch);
+size_t kmscon_char_get_len(const struct kmscon_char *ch);
+int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len);
 
 /* console objects */
 
