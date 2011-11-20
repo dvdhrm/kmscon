@@ -20,8 +20,9 @@ all:
 
 tests:
 	gcc -o test_output tests/test_output.c src/output.c $(CFLAGS)
+	gcc -o test_console tests/test_console.c src/output.c src/console.c $(CFLAGS)
 
 clean:
-	@rm -vf kmscon test_output
+	@rm -vf kmscon test_output test_console
 
 .PHONY: all tests clean
