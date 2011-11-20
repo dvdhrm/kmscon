@@ -29,3 +29,13 @@ Output Subsystem:
    additional list of available crtcs so users can choose them, too?
 
  - Is glFinish() needed before setCrtc or is glFlush sufficient?
+
+Console Subsystem:
+ - Do we need to offer a way to create mipmaps of the cairo image? This would
+   allow faster mappings of the console onto the framebuffers.
+
+ - We need to correctly handle Unicode characters. Every console cell contains
+   one single character, however, Unicode supports combining marks. Our
+   implementation supports them but we need to correctly map our keyboard input
+   to the correct cells. Pango depends on glib so we can probably use the glib
+   functions for UTF-8/Unicode handling.
