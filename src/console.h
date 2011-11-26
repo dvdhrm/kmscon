@@ -14,10 +14,12 @@
  * of it.
  */
 
+#include <cairo.h>
 #include <inttypes.h>
 #include <stdlib.h>
 
 struct kmscon_char;
+struct kmscon_font;
 struct kmscon_console;
 
 /* single printable characters */
@@ -30,6 +32,15 @@ int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len);
 const char *kmscon_char_get_u8(const struct kmscon_char *ch);
 size_t kmscon_char_get_len(const struct kmscon_char *ch);
 int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len);
+
+/* font objects with cached glyphs */
+
+int kmscon_font_new(struct kmscon_font **out);
+void kmscon_font_ref(struct kmscon_font *font);
+void kmscon_font_unref(struct kmscon_font *font);
+
+int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
+					cairo_t *cr, uint32_t x, uint32_t y);
 
 /* console objects */
 
