@@ -206,8 +206,7 @@ void kmscon_console_draw(struct kmscon_console *con)
 
 	cairo_save(con->cr);
 
-	cairo_set_operator(con->cr, CAIRO_OPERATOR_OVER);
-	cairo_scale(con->cr, con->res_x, con->res_y);
+	cairo_set_operator(con->cr, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source_rgba(con->cr, 0.0, 0.0, 0.0, 0.0);
 	cairo_paint(con->cr);
 
