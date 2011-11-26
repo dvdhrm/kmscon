@@ -39,3 +39,9 @@ Console Subsystem:
    implementation supports them but we need to correctly map our keyboard input
    to the correct cells. Pango depends on glib so we can probably use the glib
    functions for UTF-8/Unicode handling.
+
+ - Add glyph caching support with cairo_scaled_font_t. The libvte does this
+   inside vtedraw.c but it is licensed by GPL so we need to rewrite it if we
+   want it.
+   This would speed up our font-draw functions considerably as we would bypass
+   pango if a glyph is already in the hash-table.
