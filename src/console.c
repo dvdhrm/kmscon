@@ -201,6 +201,9 @@ err_free:
  */
 void kmscon_console_draw(struct kmscon_console *con)
 {
+	size_t i, j;
+	double xs, ys, x, y;
+
 	if (!con || !con->cr)
 		return;
 
@@ -210,7 +213,22 @@ void kmscon_console_draw(struct kmscon_console *con)
 	cairo_set_source_rgba(con->cr, 0.0, 0.0, 0.0, 0.0);
 	cairo_paint(con->cr);
 
-	// TODO: draw console here
+	cairo_set_operator(con->cr, CAIRO_OPERATOR_OVER);
+	cairo_set_source_rgba(con->cr, 1.0, 1.0, 1.0, 1.0);
+
+	xs = con->res_x / (double)con->lines_x;
+	ys = con->res_y / (double)con->lines_y;
+
+	y = 0;
+	for (i = 0; i < con->lines_y; ++i) {
+		x = 0;
+		for (j = 0; j < con->lines_x; ++j) {
+			kmscon_font_draw(con->font, con->cells[i].ch, con->cr,
+									x, y);
+			x += xs;
+		}
+		y += ys;
+	}
 
 	cairo_restore(con->cr);
 
