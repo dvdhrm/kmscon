@@ -214,6 +214,12 @@ void kmscon_console_draw(struct kmscon_console *con)
 	// TODO: draw console here
 
 	cairo_restore(con->cr);
+
+	/* refresh GL texture contents */
+	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
+				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 }
 
 /*
