@@ -13,7 +13,7 @@
 # replace it with autotools, I would be glad to apply your patches.
 #
 
-CFLAGS=-g -O0 -Wall `pkg-config --cflags --libs egl gbm gl cairo` -Isrc
+CFLAGS=-g -O0 -Wall `pkg-config --cflags --libs egl gbm gl cairo pango pangocairo` -Isrc
 
 all:
 	gcc -o kmscon src/*.c $(CFLAGS)

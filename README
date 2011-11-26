@@ -9,6 +9,10 @@ console.
       - EGL library
       - gbm library
       - GL library
+    - pango with:
+      - glib
+      - cairo
+      - pango
 
 == Install ==
   To compile the kmscon binary, use:
