@@ -23,6 +23,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -60,6 +61,7 @@ static int map_outputs(struct kmscon_compositor *comp,
 								iter, ret);
 			continue;
 		}
+		sleep(1);
 	}
 
 	return 0;
@@ -126,6 +128,8 @@ int main(int argc, char **argv)
 {
 	struct kmscon_compositor *comp;
 	int ret;
+
+	setlocale(LC_ALL, "");
 
 	ret = kmscon_compositor_new(&comp);
 	if (ret) {
