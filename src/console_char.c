@@ -42,6 +42,7 @@ struct kmscon_char {
 enum glyph_type {
 	GLYPH_NONE,
 	GLYPH_LAYOUT,
+	GLYPH_STR,
 };
 
 struct kmscon_glyph {
@@ -54,6 +55,11 @@ struct kmscon_glyph {
 		struct layout {
 			PangoLayout *layout;
 		} layout;
+		struct str {
+			PangoFont *font;
+			PangoGlyphString *str;
+			uint32_t ascent;
+		} str;
 	} src;
 };
 
@@ -274,6 +280,10 @@ static void kmscon_glyph_reset(struct kmscon_glyph *glyph)
 	case GLYPH_LAYOUT:
 		g_object_unref(glyph->src.layout.layout);
 		break;
+	case GLYPH_STR:
+		g_object_unref(glyph->src.str.font);
+		pango_glyph_string_free(glyph->src.str.str);
+		break;
 	}
 
 	glyph->type = GLYPH_NONE;
@@ -310,6 +320,9 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 						struct kmscon_font *font)
 {
 	PangoLayout *layout;
+	PangoLayoutLine *line;
+	PangoGlyphItem *tmp;
+	PangoGlyphString *str;
 
 	if (!glyph || !font)
 		return -EINVAL;
@@ -319,10 +332,31 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 		return -EINVAL;
 
 	pango_layout_set_text(layout, glyph->ch->buf, glyph->ch->len);
+	line = pango_layout_get_line_readonly(layout, 0);
 
-	kmscon_glyph_reset(glyph);
-	glyph->type = GLYPH_LAYOUT;
-	glyph->src.layout.layout = layout;
+	if (!line || !line->runs || line->runs->next) {
+		kmscon_glyph_reset(glyph);
+		glyph->type = GLYPH_LAYOUT;
+		glyph->src.layout.layout = layout;
+	} else {
+		tmp = line->runs->data;
+		str = pango_glyph_string_copy(tmp->glyphs);
+		if (!str) {
+			g_object_unref(layout);
+			return -ENOMEM;
+		}
+
+		kmscon_glyph_reset(glyph);
+		glyph->type = GLYPH_STR;
+
+		glyph->src.str.str = str;
+		glyph->src.str.font =
+			g_object_ref(tmp->item->analysis.font);
+		glyph->src.str.ascent =
+			PANGO_PIXELS_CEIL(pango_layout_get_baseline(layout));
+
+		g_object_unref(layout);
+	}
 
 	return 0;
 }
@@ -492,12 +526,16 @@ int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
 	if (ret)
 		return ret;
 
-	cairo_move_to(cr, x, y);
-
 	switch (glyph->type) {
 	case GLYPH_LAYOUT:
+		cairo_move_to(cr, x, y);
 		pango_cairo_update_layout(cr, glyph->src.layout.layout);
 		pango_cairo_show_layout(cr, glyph->src.layout.layout);
+		break;
+	case GLYPH_STR:
+		cairo_move_to(cr, x, y + glyph->src.str.ascent);
+		pango_cairo_show_glyph_string(cr, glyph->src.str.font,
+							glyph->src.str.str);
 		break;
 	default:
 		ret = -EFAULT;
