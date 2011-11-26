@@ -48,6 +48,18 @@ struct kmscon_console {
 	struct kmscon_font *font;
 };
 
+static void kmscon_console_free_res(struct kmscon_console *con)
+{
+	if (con && con->cr) {
+		cairo_destroy(con->cr);
+		cairo_surface_destroy(con->surf);
+		free(con->surf_buf);
+		con->cr = NULL;
+		con->surf = NULL;
+		con->surf_buf = NULL;
+	}
+}
+
 int kmscon_console_new(struct kmscon_console **out)
 {
 	struct kmscon_console *con;
@@ -63,15 +75,21 @@ int kmscon_console_new(struct kmscon_console **out)
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
 
-	ret = kmscon_console_resize(con, 80, 24);
+	ret = kmscon_console_set_res(con, 800, 600);
 	if (ret)
 		goto err_free;
+
+	ret = kmscon_console_resize(con, 80, 24);
+	if (ret)
+		goto err_res;
 
 	glGenTextures(1, &con->tex);
 
 	*out = con;
 	return 0;
 
+err_res:
+	kmscon_console_free_res(con);
 err_free:
 	free(con);
 	return ret;
@@ -111,12 +129,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	if (--con->ref)
 		return;
 
-	if (con->cr) {
-		cairo_destroy(con->cr);
-		cairo_surface_destroy(con->surf);
-		free(con->surf_buf);
-	}
-
+	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
 	console_free_cells(con);
 	glDeleteTextures(1, &con->tex);
@@ -125,14 +138,15 @@ void kmscon_console_unref(struct kmscon_console *con)
 
 /*
  * This resets the resolution used for drawing operations. It is recommended to
- * set this to the size of your framebuffer, howevr, you can set this to
+ * set this to the size of your framebuffer, however, you can set this to
  * anything except 0.
  * This image-resolution is used internally to render the console fonts. The
  * kmscon_console_map() function can map this image to any framebuffer size you
  * want. Therefore, this screen resolution is just a performance and quality
  * hint.
- * This function must be called before drawing the console, though. Returns 0 on
- * success, -EINVAL if con, x or y is 0/NULL and -ENOMEM on out-of-mem errors.
+ * By default this is set to 800x600.
+ * Returns 0 on success -EINVAL if con, x or y is 0/NULL and -ENOMEM on
+ * out-of-mem errors.
  */
 int kmscon_console_set_res(struct kmscon_console *con, uint32_t x, uint32_t y)
 {
