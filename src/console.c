@@ -294,6 +294,7 @@ int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 				kmscon_char_free(cells[j].ch);
 			goto err_free;
 		}
+		kmscon_char_set_u8(cells[i].ch, "?", 1);
 	}
 
 	kmscon_font_unref(con->font);
