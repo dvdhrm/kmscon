@@ -329,9 +329,10 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 
 /*
  * Creates a new font
+ * \height is the height in pixel that we have for each character.
  * Returns 0 on success and stores the new font in \out.
  */
-int kmscon_font_new(struct kmscon_font **out)
+int kmscon_font_new(struct kmscon_font **out, uint32_t height)
 {
 	struct kmscon_font *font;
 	int ret;
@@ -340,7 +341,7 @@ int kmscon_font_new(struct kmscon_font **out)
 	PangoLanguage *lang;
 	cairo_font_options_t *opt;
 
-	if (!out)
+	if (!out || !height)
 		return -EINVAL;
 
 	font = malloc(sizeof(*font));
@@ -361,14 +362,14 @@ int kmscon_font_new(struct kmscon_font **out)
 	}
 
 	pango_context_set_base_dir(font->ctx, PANGO_DIRECTION_LTR);
-	pango_cairo_context_set_resolution(font->ctx, 72);
 
-	desc = pango_font_description_from_string("monospace 18");
+	desc = pango_font_description_from_string("monospace");
 	if (!desc) {
 		ret = -EFAULT;
 		goto err_ctx;
 	}
 
+	pango_font_description_set_absolute_size(desc, PANGO_SCALE * height);
 	pango_context_set_font_description(font->ctx, desc);
 	pango_font_description_free(desc);
 

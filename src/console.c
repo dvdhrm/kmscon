@@ -306,7 +306,7 @@ int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 	if (!con || !size || size < x || size < y)
 		return -EINVAL;
 
-	ret = kmscon_font_new(&font);
+	ret = kmscon_font_new(&font, con->res_y / y);
 	if (ret)
 		return ret;
 
