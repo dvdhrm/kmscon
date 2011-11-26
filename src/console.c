@@ -44,6 +44,8 @@ struct kmscon_console {
 	uint32_t lines_x;
 	uint32_t lines_y;
 	struct kmscon_cell *cells;
+
+	struct kmscon_font *font;
 };
 
 int kmscon_console_new(struct kmscon_console **out)
@@ -115,6 +117,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 		free(con->surf_buf);
 	}
 
+	kmscon_font_unref(con->font);
 	console_free_cells(con);
 	glDeleteTextures(1, &con->tex);
 	free(con);
@@ -258,6 +261,7 @@ void kmscon_console_map(struct kmscon_console *con)
 int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 {
 	struct kmscon_cell *cells;
+	struct kmscon_font *font;
 	uint32_t size, i, j;
 	int ret;
 
@@ -265,9 +269,15 @@ int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 	if (!con || !size || size < x || size < y)
 		return -EINVAL;
 
+	ret = kmscon_font_new(&font);
+	if (ret)
+		return ret;
+
 	cells = malloc(sizeof(*cells) * size);
-	if (!cells)
-		return -ENOMEM;
+	if (!cells) {
+		ret = -ENOMEM;
+		goto err_font;
+	}
 
 	memset(cells, 0, sizeof(*cells) * size);
 
@@ -280,6 +290,9 @@ int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 		}
 	}
 
+	kmscon_font_unref(con->font);
+	con->font = font;
+
 	console_free_cells(con);
 	con->lines_x = x;
 	con->lines_y = y;
@@ -289,5 +302,7 @@ int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
 
 err_free:
 	free(cells);
+err_font:
+	kmscon_font_unref(font);
 	return ret;
 }
