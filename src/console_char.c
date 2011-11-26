@@ -61,6 +61,33 @@ int kmscon_char_new(struct kmscon_char **out)
 	return 0;
 }
 
+int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig)
+{
+	struct kmscon_char *ch;
+
+	if (!out || !orig)
+		return -EINVAL;
+
+	ch = malloc(sizeof(*ch));
+	if (!ch)
+		return -ENOMEM;
+
+	memset(ch, 0, sizeof(*ch));
+
+	ch->len = orig->len;
+	ch->size = orig->size;
+	ch->buf = malloc(ch->size);
+	if (!ch->buf) {
+		free(ch);
+		return -ENOMEM;
+	}
+
+	memcpy(ch->buf, orig->buf, ch->size);
+
+	*out = ch;
+	return 0;
+}
+
 void kmscon_char_free(struct kmscon_char *ch)
 {
 	if (!ch)
