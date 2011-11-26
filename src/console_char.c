@@ -212,7 +212,7 @@ static gboolean kmscon_char_equal(gconstpointer a, gconstpointer b)
 	if (ch1->len != ch2->len)
 		return FALSE;
 
-	return (memcpy(ch1->buf, ch2->buf, ch1->len) == 0);
+	return (memcmp(ch1->buf, ch2->buf, ch1->len) == 0);
 }
 
 /*
@@ -462,7 +462,6 @@ static int kmscon_font_lookup(struct kmscon_font *font,
 
 		g_hash_table_insert(font->glyphs, ch, glyph);
 	}
-
 
 	kmscon_glyph_ref(glyph);
 	*out = glyph;
