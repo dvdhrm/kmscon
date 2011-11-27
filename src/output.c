@@ -361,7 +361,7 @@ static int32_t find_crtc(struct kmscon_compositor *comp, drmModeRes *res,
 {
 	int i;
 	struct kmscon_output *iter;
-	uint32_t crtc;
+	uint32_t crtc = 0;
 
 	for (i = 0; i < res->count_crtcs; ++i) {
 		if (enc->possible_crtcs & (1 << i)) {
