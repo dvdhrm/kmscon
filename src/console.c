@@ -17,6 +17,7 @@
 #define GL_GLEXT_PROTOTYPES
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,18 +34,27 @@ struct kmscon_cell {
 struct kmscon_console {
 	size_t ref;
 
+	/* GL texture */
 	GLuint tex;
 	uint32_t res_x;
 	uint32_t res_y;
 
+	/* cairo surface */
 	cairo_t *cr;
 	cairo_surface_t *surf;
 	unsigned char *surf_buf;
 
+	/* console cells */
 	uint32_t lines_x;
 	uint32_t lines_y;
 	struct kmscon_cell *cells;
+	bool cells_dirty;
 
+	/* cursor position */
+	uint32_t cursor_x;
+	uint32_t cursor_y;
+
+	/* active font */
 	struct kmscon_font *font;
 };
 
@@ -74,6 +84,7 @@ int kmscon_console_new(struct kmscon_console **out)
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
+	con->cells_dirty = true;
 
 	ret = kmscon_console_set_res(con, 800, 600);
 	if (ret)
@@ -251,6 +262,9 @@ void kmscon_console_draw(struct kmscon_console *con)
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
 				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+	/* reset dirty flags */
+	con->cells_dirty = false;
 }
 
 /*
@@ -343,4 +357,74 @@ err_free:
 err_font:
 	kmscon_font_unref(font);
 	return ret;
+}
+
+void kmscon_console_cursor_get(struct kmscon_console *con, uint32_t *x,
+								uint32_t *y)
+{
+	if (!con) {
+		if (x)
+			*x = 0;
+		if (y)
+			*y = 0;
+		return;
+	}
+
+	if (x)
+		*x = con->cursor_x;
+
+	if (y)
+		*y = con->cursor_y;
+}
+
+void kmscon_console_cursor_move(struct kmscon_console *con, int32_t x,
+								int32_t y)
+{
+	int32_t tx, ty;
+
+	if (!con)
+		return;
+
+	tx = con->cursor_x;
+	ty = con->cursor_y;
+
+	tx += x;
+	ty += y;
+
+	if (tx < 0)
+		tx = 0;
+	if (ty < 0)
+		ty = 0;
+
+	while (tx >= con->lines_x) {
+		tx -= con->lines_x;
+		ty++;
+	}
+
+	if (ty >= con->lines_y)
+		ty = con->lines_y - 1;
+
+	con->cursor_x += tx;
+	con->cursor_y += ty;
+	con->cells_dirty = true;
+}
+
+void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
+								uint32_t y)
+{
+	if (!con)
+		return;
+
+	con->cursor_x = x;
+	con->cursor_y = y;
+
+	while (con->cursor_x >= con->lines_x) {
+		con->cursor_x -= con->lines_x;
+		con->cursor_y++;
+	}
+
+	if (con->cursor_y >= con->lines_y)
+		con->cursor_y = con->lines_y - 1;
+
+	con->cells_dirty = true;
 }

@@ -53,3 +53,10 @@ void kmscon_console_draw(struct kmscon_console *con);
 void kmscon_console_map(struct kmscon_console *con);
 
 int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y);
+
+void kmscon_console_cursor_get(struct kmscon_console *con, uint32_t *x,
+								uint32_t *y);
+void kmscon_console_cursor_move(struct kmscon_console *con, int32_t x,
+								int32_t y);
+void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
+								uint32_t y);
