@@ -132,6 +132,27 @@ void kmscon_char_free(struct kmscon_char *ch)
 	free(ch);
 }
 
+int kmscon_char_set(struct kmscon_char *ch, const struct kmscon_char *orig)
+{
+	char *buf;
+
+	if (!ch || !orig)
+		return -EINVAL;
+
+	if (ch->size < orig->len) {
+		buf = realloc(ch->buf, orig->len);
+		if (!buf)
+			return -ENOMEM;
+		ch->buf = buf;
+		ch->size = orig->len;
+	}
+
+	memcpy(ch->buf, orig->buf, orig->len);
+	ch->len = orig->len;
+
+	return 0;
+}
+
 int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len)
 {
 	char *buf;
