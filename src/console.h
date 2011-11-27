@@ -61,3 +61,6 @@ void kmscon_console_cursor_move(struct kmscon_console *con, int32_t x,
 								int32_t y);
 void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
 								uint32_t y);
+
+int kmscon_console_write(struct kmscon_console *con,
+						const struct kmscon_char *ch);

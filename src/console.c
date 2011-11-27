@@ -428,3 +428,23 @@ void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
 
 	con->cells_dirty = true;
 }
+
+int kmscon_console_write(struct kmscon_console *con,
+						const struct kmscon_char *ch)
+{
+	int ret;
+	uint32_t pos;
+
+	if (!con || !ch)
+		return -EINVAL;
+
+	pos = con->cursor_y * con->lines_x + con->cursor_x;
+	ret = kmscon_char_set(con->cells[pos].ch, ch);
+	if (ret)
+		return ret;
+
+	kmscon_console_cursor_move(con, 1, 0);
+	con->cells_dirty = true;
+
+	return 0;
+}
