@@ -155,14 +155,22 @@ void kmscon_mode_unref(struct kmscon_mode *mode)
 static int kmscon_mode_bind(struct kmscon_mode *mode,
 						struct kmscon_output *output)
 {
+	struct kmscon_mode *iter;
+
 	if (!mode || !output)
 		return -EINVAL;
 
 	if (mode->output || mode->next)
 		return -EALREADY;
 
-	mode->next = output->modes;
-	output->modes = mode;
+	if (!output->modes) {
+		output->modes = mode;
+	} else {
+		iter = output->modes;
+		while (iter->next)
+			iter = iter->next;
+		iter->next = mode;
+	}
 	++output->count_modes;
 
 	mode->output = output;
