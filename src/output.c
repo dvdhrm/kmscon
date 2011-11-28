@@ -72,6 +72,8 @@ struct kmscon_output {
 	unsigned int cur_rb;
 	struct render_buffer rb[2];
 	GLuint fb;
+
+	drmModeCrtcPtr saved_crtc;
 };
 
 enum compositor_state {
@@ -561,6 +563,8 @@ static void destroy_rb(struct render_buffer *rb,
  * This activates the output in the given mode. This returns -EALREADY if the
  * output is already activated. To switch modes, deactivate and then reactivate
  * the output.
+ * When the output is activated, its previous screen contents and mode are
+ * saved, to be restored when the output is deactivated.
  * Returns 0 on success.
  * This does not work if the compositor is asleep.
  */
@@ -583,15 +587,16 @@ int kmscon_output_activate(struct kmscon_output *output,
 		mode = output->modes;
 
 	comp = output->comp;
+	output->saved_crtc = drmModeGetCrtc(comp->drm_fd, output->crtc_id);
 
 	ret = init_rb(&output->rb[0], comp, &mode->info);
 	if (ret)
-		return ret;
+		goto err_saved;
 
 	ret = init_rb(&output->rb[1], comp, &mode->info);
 	if (ret) {
 		destroy_rb(&output->rb[0], comp);
-		return ret;
+		goto err_saved;
 	}
 
 	output->current = mode;
@@ -625,23 +630,38 @@ err_fb:
 	destroy_rb(&output->rb[1], output->comp);
 	output->active = 0;
 	output->current = NULL;
+err_saved:
+	if (output->saved_crtc) {
+		drmModeFreeCrtc(output->saved_crtc);
+		output->saved_crtc = NULL;
+	}
+
 	return ret;
 }
 
 /*
  * Deactivate the output. This does not disconnect the output so you can
  * reactivate this output again.
+ * When the output is deactivated, the screen contents and mode it had before
+ * it was activated are restored.
  */
 void kmscon_output_deactivate(struct kmscon_output *output)
 {
 	if (!output || !output->active)
 		return;
 
-	/*
-	 * TODO: Do we need to reset the CRTC/connector here? We delete an
-	 * active framebuffer here so the crtc will become blank, but instead
-	 * the previous framebuffer should be restored.
-	 */
+	if (output->saved_crtc) {
+		drmModeSetCrtc(output->comp->drm_fd,
+						output->saved_crtc->crtc_id,
+						output->saved_crtc->buffer_id,
+						output->saved_crtc->x,
+						output->saved_crtc->y,
+						&output->conn_id,
+						1,
+						&output->saved_crtc->mode);
+		drmModeFreeCrtc(output->saved_crtc);
+		output->saved_crtc = NULL;
+	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDeleteFramebuffers(1, &output->fb);
