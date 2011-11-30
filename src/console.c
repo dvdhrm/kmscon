@@ -26,6 +26,8 @@
 
 #include "console.h"
 
+#define get_cell_x_y(_con, _x, _y) ((_con)->cells[(_y) * (_con)->lines_y + (_x)])
+
 struct kmscon_cell {
 	struct kmscon_char *ch;
 };
@@ -237,8 +239,9 @@ void kmscon_console_draw(struct kmscon_console *con)
 	for (i = 0; i < con->lines_y; ++i) {
 		x = 0;
 		for (j = 0; j < con->lines_x; ++j) {
-			kmscon_font_draw(con->font, con->cells[i].ch, con->cr,
-									x, y);
+			kmscon_font_draw(con->font,
+						get_cell_x_y(con, j, i).ch,
+						con->cr, x, y);
 			x += xs;
 		}
 		y += ys;
