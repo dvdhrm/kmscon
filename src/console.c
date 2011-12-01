@@ -226,7 +226,7 @@ err_free:
  */
 void kmscon_console_draw(struct kmscon_console *con)
 {
-	size_t i, j;
+	size_t i, j, pos;
 	double xs, ys, x, y;
 
 	if (!con || !con->cr)
@@ -248,7 +248,8 @@ void kmscon_console_draw(struct kmscon_console *con)
 	for (i = 0; i < con->lines_y; ++i) {
 		x = 0;
 		for (j = 0; j < con->lines_x; ++j) {
-			kmscon_font_draw(con->font, con->cells[i].ch, con->cr,
+			pos = i * con->lines_x + j;
+			kmscon_font_draw(con->font, con->cells[pos].ch, con->cr,
 									x, y);
 			x += xs;
 		}
