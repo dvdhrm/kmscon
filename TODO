@@ -19,10 +19,6 @@ Output Subsystem:
    priviledges and all my tests worked without it. What are the benefits of
    calling this?
 
- - How to reset video after exiting the application? I want the previous VT or
-   application to immediately repaint its screen. Wayland resets the previous
-   DRM framebuffer, but I don't think this helps here?
-
  - Whats the difference between connector and encoder? Or why are encoders
    needed at all? The output selection logic simply tries to find the first
    encoder that provides an available crtc. Should we replace this logic with an
