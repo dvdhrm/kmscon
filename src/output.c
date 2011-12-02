@@ -86,6 +86,7 @@ struct kmscon_output {
 	size_t count_modes;
 	struct kmscon_mode *modes;
 	struct kmscon_mode *current;
+	struct kmscon_mode *def_mode;
 
 	uint32_t conn_id;
 	uint32_t crtc_id;
@@ -189,6 +190,9 @@ static int kmscon_mode_bind(struct kmscon_mode *mode,
 	mode->output = output;
 	kmscon_mode_ref(mode);
 
+	if (!output->def_mode)
+		output->def_mode = mode;
+
 	return 0;
 }
 
@@ -224,6 +228,9 @@ static int kmscon_mode_unbind(struct kmscon_mode *mode)
 	mode->output = NULL;
 	--output->count_modes;
 	kmscon_mode_unref(mode);
+
+	if (output->def_mode == mode)
+		output->def_mode = output->modes;
 
 	return 0;
 }
@@ -522,6 +529,18 @@ struct kmscon_mode *kmscon_output_get_current(struct kmscon_output *output)
 	return output->current;
 }
 
+/*
+ * Returns a pointer to the default mode which will be used if no other mode is
+ * set explicitely. Returns NULL if no default mode is available.
+ */
+struct kmscon_mode *kmscon_output_get_default(struct kmscon_output *output)
+{
+	if (!output)
+		return NULL;
+
+	return output->def_mode;
+}
+
 static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 							drmModeModeInfo *mode)
 {
@@ -605,7 +624,7 @@ int kmscon_output_activate(struct kmscon_output *output,
 		return -EALREADY;
 
 	if (!mode)
-		mode = output->modes;
+		mode = output->def_mode;
 
 	comp = output->comp;
 	output->saved_crtc = drmModeGetCrtc(comp->drm_fd, output->crtc_id);

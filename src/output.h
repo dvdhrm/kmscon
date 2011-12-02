@@ -84,6 +84,7 @@ void kmscon_output_unref(struct kmscon_output *output);
 struct kmscon_output *kmscon_output_next(struct kmscon_output *output);
 struct kmscon_mode *kmscon_output_get_modes(struct kmscon_output *output);
 struct kmscon_mode *kmscon_output_get_current(struct kmscon_output *output);
+struct kmscon_mode *kmscon_output_get_default(struct kmscon_output *output);
 
 int kmscon_output_activate(struct kmscon_output *output,
 						struct kmscon_mode *mode);
