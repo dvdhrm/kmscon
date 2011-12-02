@@ -45,14 +45,23 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include "console.h"
 #include "output.h"
+
+static volatile sig_atomic_t terminate;
+
+static void sig_term(int sig)
+{
+	terminate = 1;
+}
 
 static int map_outputs(struct kmscon_compositor *comp,
 						struct kmscon_console *con)
@@ -82,7 +91,6 @@ static int map_outputs(struct kmscon_compositor *comp,
 								iter, ret);
 			continue;
 		}
-		sleep(1);
 	}
 
 	return 0;
@@ -134,11 +142,13 @@ static int run_console(struct kmscon_compositor *comp)
 		goto err_unref;
 	}
 
-	while (1) {
+	while (!terminate) {
 		kmscon_console_draw(con);
 		map_outputs(comp, con);
 		usleep(10000);
 	}
+
+	printf("Terminating due to user request\n");
 
 err_unref:
 	kmscon_console_unref(con);
@@ -149,8 +159,14 @@ int main(int argc, char **argv)
 {
 	struct kmscon_compositor *comp;
 	int ret;
+	struct sigaction sig;
 
 	setlocale(LC_ALL, "");
+
+	memset(&sig, 0, sizeof(sig));
+	sig.sa_handler = sig_term;
+	sigaction(SIGTERM, &sig, NULL);
+	sigaction(SIGINT, &sig, NULL);
 
 	ret = kmscon_compositor_new(&comp);
 	if (ret) {
