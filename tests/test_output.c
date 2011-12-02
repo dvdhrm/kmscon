@@ -46,13 +46,19 @@
 #define GL_GLEXT_PROTOTYPES
 
 #include <inttypes.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include "output.h"
+
+static void sig_term(int sig)
+{
+}
 
 static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 {
@@ -159,6 +165,12 @@ int main(int argc, char **argv)
 {
 	struct kmscon_compositor *comp;
 	int ret;
+	struct sigaction sig;
+
+	memset(&sig, 0, sizeof(sig));
+	sig.sa_handler = sig_term;
+	sigaction(SIGTERM, &sig, NULL);
+	sigaction(SIGINT, &sig, NULL);
 
 	printf("Creating compositor...\n");
 	ret = kmscon_compositor_new(&comp);
