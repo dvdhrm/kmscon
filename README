@@ -15,18 +15,18 @@ console.
       - pango
 
 == Install ==
-  To compile the kmscon binary, use:
+  To compile the kmscon binary, run the standard autotools commands:
+    $ ./configure [--enable-debug]
     $ make
-  There is currently no way to install the binary into your system.
+    $ make install
+  To compile the test applications, run:
+    $ make check
 
 == License ==
   This software is licensed under the terms of the MIT license. Please see
   ./COPYING for further information.
 
 == FAQ ==
-  === Why aren't you using GNU autotools? ===
-  Feel free to send me patches. I will apply them immediately.
-
   === Why didn't you use libvte or similar terminal emulators? ===
   All existing terminal emulators I found highly depend on X. Also, their code
   base often is a horrible mess. I haven't had the time to convert them to use
