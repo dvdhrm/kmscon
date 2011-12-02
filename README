@@ -20,8 +20,8 @@ console.
   There is currently no way to install the binary into your system.
 
 == License ==
-  This software is dedicated to the Public Domain. Feel free to modify it to
-  your needs.
+  This software is licensed under the terms of the MIT license. Please see
+  ./COPYING for further information.
 
 == FAQ ==
   === Why aren't you using GNU autotools? ===
