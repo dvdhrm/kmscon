@@ -46,7 +46,6 @@
 #include <inttypes.h>
 #include <locale.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -54,6 +53,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include "console.h"
+#include "log.h"
 #include "output.h"
 
 static volatile sig_atomic_t terminate;
@@ -76,7 +76,7 @@ static int map_outputs(struct kmscon_compositor *comp,
 
 		ret = kmscon_output_use(iter);
 		if (ret) {
-			printf("Cannot use output %p: %d\n", iter, ret);
+			log_warning("Cannot use output %p: %d\n", iter, ret);
 			continue;
 		}
 
@@ -87,7 +87,7 @@ static int map_outputs(struct kmscon_compositor *comp,
 
 		ret = kmscon_output_swap(iter);
 		if (ret) {
-			printf("Cannot swap buffers of output %p: %d\n",
+			log_warning("Cannot swap buffers of output %p: %d\n",
 								iter, ret);
 			continue;
 		}
@@ -109,10 +109,10 @@ static int run_console(struct kmscon_compositor *comp)
 
 	iter = kmscon_compositor_get_outputs(comp);
 	for ( ; iter; iter = kmscon_output_next(iter)) {
-		printf("Activating output %p...\n", iter);
+		log_info("Activating output %p...\n", iter);
 		ret = kmscon_output_activate(iter, NULL);
 		if (ret) {
-			printf("Cannot activate output: %d\n", ret);
+			log_err("Cannot activate output: %d\n", ret);
 			continue;
 		}
 
@@ -126,19 +126,19 @@ static int run_console(struct kmscon_compositor *comp)
 	}
 
 	if (max_x == 0 || max_y == 0) {
-		printf("Cannot retrieve output resolution\n");
+		log_err("Cannot retrieve output resolution\n");
 		return -EINVAL;
 	}
 
 	ret = kmscon_console_new(&con);
 	if (ret) {
-		printf("Cannot create console: %d\n", ret);
+		log_err("Cannot create console: %d\n", ret);
 		return ret;
 	}
 
 	ret = kmscon_console_set_res(con, max_x, max_y);
 	if (ret) {
-		printf("Cannot set console resolution: %d\n", ret);
+		log_err("Cannot set console resolution: %d\n", ret);
 		goto err_unref;
 	}
 
@@ -148,7 +148,7 @@ static int run_console(struct kmscon_compositor *comp)
 		usleep(10000);
 	}
 
-	printf("Terminating due to user request\n");
+	log_info("Terminating due to user request\n");
 
 err_unref:
 	kmscon_console_unref(con);
@@ -170,18 +170,18 @@ int main(int argc, char **argv)
 
 	ret = kmscon_compositor_new(&comp);
 	if (ret) {
-		printf("Cannot create compositor: %d\n", ret);
+		log_err("Cannot create compositor: %d\n", ret);
 		return abs(ret);
 	}
 
 	ret = kmscon_compositor_wake_up(comp);
 	if (ret < 0) {
-		printf("Cannot wake up compositor: %d\n", ret);
+		log_err("Cannot wake up compositor: %d\n", ret);
 		goto err_unref;
 	}
 
 	if (ret == 0) {
-		printf("No output available\n");
+		log_err("No output available\n");
 		ret = -EINVAL;
 		goto err_unref;
 	}
