@@ -54,6 +54,7 @@
 
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include "log.h"
 #include "output.h"
 
 static void sig_term(int sig)
@@ -75,15 +76,15 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 		}
 
 		if (i == num) {
-			printf("Ignoring output %d\n", j);
+			log_info("Ignoring output %d\n", j);
 		} else {
-			printf("Activating output %d %p...\n", j, iter);
+			log_info("Activating output %d %p...\n", j, iter);
 			ret = kmscon_output_activate(iter, NULL);
 			if (ret)
-				printf("Cannot activate output %d: %d\n", j,
+				log_err("Cannot activate output %d: %d\n", j,
 									ret);
 			else
-				printf("Successfully activated output %d\n",
+				log_info("Successfully activated output %d\n",
 									j);
 		}
 
@@ -97,7 +98,7 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 
 		ret = kmscon_output_use(iter);
 		if (ret) {
-			printf("Cannot use output %p: %d\n", iter, ret);
+			log_err("Cannot use output %p: %d\n", iter, ret);
 			continue;
 		}
 
@@ -116,17 +117,17 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 
 		ret = kmscon_output_swap(iter);
 		if (ret) {
-			printf("Cannot swap buffers of output %p: %d\n",
+			log_err("Cannot swap buffers of output %p: %d\n",
 								iter, ret);
 			continue;
 		}
 
-		printf("Successfully set screen on output %p\n", iter);
+		log_info("Successfully set screen on output %p\n", iter);
 	}
 
-	printf("Waiting 5 seconds...\n");
+	log_info("Waiting 5 seconds...\n");
 	sleep(5);
-	printf("Exiting...\n");
+	log_info("Exiting...\n");
 
 	return 0;
 }
@@ -137,26 +138,26 @@ static int list_outputs(struct kmscon_compositor *comp)
 	struct kmscon_mode *cur, *mode;
 	int i;
 
-	printf("List of Outputs:\n");
+	log_info("List of Outputs:\n");
 
 	i = 0;
 	iter = kmscon_compositor_get_outputs(comp);
 	for ( ; iter; iter = kmscon_output_next(iter)) {
 		cur = kmscon_output_get_current(iter);
-	
-		printf("Output %d:\n", i++);
-		printf("  active: %d\n", kmscon_output_is_active(iter));
-		printf("  has current: %s\n", cur ? "yes" : "no");
+
+		log_info("Output %d:\n", i++);
+		log_info("  active: %d\n", kmscon_output_is_active(iter));
+		log_info("  has current: %s\n", cur ? "yes" : "no");
 
 		mode = kmscon_output_get_modes(iter);
 		for ( ; mode; mode = kmscon_mode_next(mode)) {
-			printf("  Mode '%s':\n", kmscon_mode_get_name(mode));
-			printf("    x: %u\n", kmscon_mode_get_width(mode));
-			printf("    y: %u\n", kmscon_mode_get_height(mode));
+			log_info("  Mode '%s':\n", kmscon_mode_get_name(mode));
+			log_info("    x: %u\n", kmscon_mode_get_width(mode));
+			log_info("    y: %u\n", kmscon_mode_get_height(mode));
 		}
 	}
 
-	printf("End of Output list\n");
+	log_info("End of Output list\n");
 
 	return 0;
 }
@@ -172,17 +173,17 @@ int main(int argc, char **argv)
 	sigaction(SIGTERM, &sig, NULL);
 	sigaction(SIGINT, &sig, NULL);
 
-	printf("Creating compositor...\n");
+	log_info("Creating compositor...\n");
 	ret = kmscon_compositor_new(&comp);
 	if (ret) {
-		printf("Cannot create compositor: %d\n", ret);
+		log_err("Cannot create compositor: %d\n", ret);
 		return abs(ret);
 	}
 
-	printf("Wakeing up compositor...\n");
+	log_info("Wakeing up compositor...\n");
 	ret = kmscon_compositor_wake_up(comp);
 	if (ret < 0) {
-		printf("Cannot wakeup compositor: %d\n", ret);
+		log_err("Cannot wakeup compositor: %d\n", ret);
 		goto err_unref;
 	}
 
@@ -191,13 +192,13 @@ int main(int argc, char **argv)
 	if (argc < 2) {
 		ret = list_outputs(comp);
 		if (ret) {
-			printf("Cannot list outputs: %d\n", ret);
+			log_err("Cannot list outputs: %d\n", ret);
 			goto err_unref;
 		}
 	} else {
 		ret = set_outputs(comp, argc - 1, &argv[1]);
 		if (ret) {
-			printf("Cannot set outputs: %d\n", ret);
+			log_err("Cannot set outputs: %d\n", ret);
 			goto err_unref;
 		}
 	}
