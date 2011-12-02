@@ -5,13 +5,14 @@ check_PROGRAMS = test_console test_output test_vt
 noinst_LTLIBRARIES = libkmscon-core.la
 
 AM_CFLAGS = \
-	-Wall \
+	-Wall
+AM_CPPFLAGS = \
 	-I $(srcdir)/src
 AM_LDFLAGS = \
 	-Wl,--as-needed
 
 if DEBUG
-AM_CFLAGS += -g
+AM_CFLAGS += -O0 -g
 endif
 
 libkmscon_core_la_SOURCES = \
@@ -23,14 +24,16 @@ libkmscon_core_la_SOURCES = \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h
 
-libkmscon_core_la_CFLAGS = \
-	$(AM_CFLAGS) \
+libkmscon_core_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(CAIRO_CFLAGS) \
 	$(PANGO_CFLAGS)
 libkmscon_core_la_LIBADD = \
+	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
 	$(OPENGL_LIBS) \
@@ -39,24 +42,25 @@ libkmscon_core_la_LIBADD = \
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la
-kmscon_CFLAGS = \
-	$(AM_CFLAGS) \
-	$(CAIRO_CFLAGS)
 
 test_console_SOURCES = tests/test_console.c
-test_console_LDADD = libkmscon-core.la \
+test_console_LDADD = \
+	libkmscon-core.la \
 	$(OPENGL_LIBS)
-test_console_CFLAGS = $(kmscon_CFLAGS) \
-	$(OPENGL_CFLAGS)
+test_console_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(OPENGL_CFLAGS) \
+	$(CAIRO_CFLAGS)
 
 test_output_SOURCES = tests/test_output.c
-test_output_LDADD = libkmscon-core.la \
+test_output_LDADD = \
+	libkmscon-core.la \
 	$(OPENGL_LIBS)
-test_output_CPPFLAGS = $(kmscon_CFLAGS) \
+test_output_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
 	$(OPENGL_CFLAGS)
 
 test_vt_SOURCES = tests/test_vt.c
 test_vt_LDADD = libkmscon-core.la
-test_vt_CPPFLAGS = $(kmscon_CFLAGS)
 
 dist_doc_DATA = README TODO
