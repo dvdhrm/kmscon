@@ -42,7 +42,7 @@ struct kmscon_fd;
 struct kmscon_signal;
 
 typedef void (*kmscon_idle_cb) (struct kmscon_idle *idle, void *data);
-typedef void (*kmscon_fd_cb) (struct kmscon_fd *fd, void *data);
+typedef void (*kmscon_fd_cb) (struct kmscon_fd *fd, int mask, void *data);
 typedef void (*kmscon_signal_cb)
 			(struct kmscon_signal *sig, int signum, void *data);
 

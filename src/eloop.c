@@ -412,19 +412,19 @@ int kmscon_eloop_new_signal(struct kmscon_eloop *loop,
 	return 0;
 }
 
-static void signal_cb(struct kmscon_fd *fd, void *data)
+static void signal_cb(struct kmscon_fd *fd, int mask, void *data)
 {
 	struct kmscon_signal *sig = data;
 	struct signalfd_siginfo signal_info;
 	int len;
 
-	len = read(fd->fd, &signal_info, sizeof(signal_info));
-	if (len != sizeof(signal_info)) {
-		log_warning("eloop: cannot read signalfd\n");
-		return;
+	if (mask & KMSCON_READABLE) {
+		len = read(fd->fd, &signal_info, sizeof(signal_info));
+		if (len != sizeof(signal_info))
+			log_warning("eloop: cannot read signalfd\n");
+		else
+			sig->cb(sig, signal_info.ssi_signo, sig->data);
 	}
-
-	sig->cb(sig, signal_info.ssi_signo, sig->data);
 }
 
 int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
@@ -561,7 +561,7 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 		if (ep[i].events & EPOLLHUP)
 			mask |= KMSCON_HUP;
 
-		fd->cb(fd, fd->data);
+		fd->cb(fd, mask, fd->data);
 	}
 
 	loop->cur_fds = NULL;
