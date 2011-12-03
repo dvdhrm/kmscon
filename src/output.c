@@ -929,8 +929,11 @@ void kmscon_compositor_unref(struct kmscon_compositor *comp)
  */
 void kmscon_compositor_sleep(struct kmscon_compositor *comp)
 {
-	if (comp)
-		comp->state = COMPOSITOR_ASLEEP;
+	if (!comp)
+		return;
+
+	comp->state = COMPOSITOR_ASLEEP;
+	drmDropMaster(comp->drm_fd);
 }
 
 /*
@@ -946,9 +949,13 @@ int kmscon_compositor_wake_up(struct kmscon_compositor *comp)
 
 	if (!comp)
 		return -EINVAL;
-	
+
 	if (comp->state == COMPOSITOR_AWAKE)
 		return comp->count_outputs;
+
+	ret = drmSetMaster(comp->drm_fd);
+	if (ret)
+		return -EACCES;
 
 	comp->state = COMPOSITOR_AWAKE;
 	ret = kmscon_compositor_refresh(comp);
