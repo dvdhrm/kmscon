@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = kmscon
-check_PROGRAMS = test_console test_output
+check_PROGRAMS = test_console test_output test_vt
 noinst_LTLIBRARIES = libkmscon-core.la
 
 AM_CFLAGS = \
@@ -19,7 +19,8 @@ libkmscon_core_la_SOURCES = \
 	src/output.c src/output.h \
 	src/console_char.c \
 	src/log.c src/log.h \
-	src/eloop.c src/eloop.h
+	src/eloop.c src/eloop.h \
+	src/vt.c src/vt.h
 
 libkmscon_core_la_CFLAGS = \
 	$(AM_CFLAGS) \
@@ -52,5 +53,9 @@ test_output_LDADD = libkmscon-core.la \
 	$(OPENGL_LIBS)
 test_output_CPPFLAGS = $(kmscon_CFLAGS) \
 	$(OPENGL_CFLAGS)
+
+test_vt_SOURCES = tests/test_vt.c
+test_vt_LDADD = libkmscon-core.la
+test_vt_CPPFLAGS = $(kmscon_CFLAGS)
 
 dist_doc_DATA = README TODO
