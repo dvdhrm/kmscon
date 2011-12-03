@@ -18,7 +18,8 @@ libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
 	src/output.c src/output.h \
 	src/console_char.c \
-	src/log.c src/log.h
+	src/log.c src/log.h \
+	src/eloop.c src/eloop.h
 
 libkmscon_core_la_CFLAGS = \
 	$(AM_CFLAGS) \
