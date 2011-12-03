@@ -3,7 +3,7 @@
 *.lo
 *.la
 kmscon
-test_*
+/test_*
 Makefile
 Makefile.in
 aclocal.m4
