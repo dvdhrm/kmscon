@@ -69,7 +69,7 @@ int kmscon_eloop_new_idle(struct kmscon_eloop *loop, struct kmscon_idle **out,
 						kmscon_idle_cb cb, void *data);
 int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
 						kmscon_idle_cb cb, void *data);
-void kmsocn_eloop_rm_idle(struct kmscon_idle *idle);
+void kmscon_eloop_rm_idle(struct kmscon_idle *idle);
 
 /* fd sources */
 

@@ -166,7 +166,7 @@ int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
 	return 0;
 }
 
-void kmsocn_eloop_rm_idle(struct kmscon_idle *idle)
+void kmscon_eloop_rm_idle(struct kmscon_idle *idle)
 {
 	struct kmscon_eloop *loop;
 
