@@ -47,8 +47,21 @@ struct kmscon_eloop {
 	int efd;
 	unsigned long ref;
 
+	struct kmscon_idle *idle_list;
+	struct kmscon_idle *cur_idle;
+
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
+};
+
+struct kmscon_idle {
+	unsigned long ref;
+	struct kmscon_eloop *loop;
+	struct kmscon_idle *next;
+	struct kmscon_idle *prev;
+
+	kmscon_idle_cb cb;
+	void *data;
 };
 
 struct kmscon_fd {
@@ -67,6 +80,124 @@ struct kmscon_signal {
 	kmscon_signal_cb cb;
 	void *data;
 };
+
+int kmscon_idle_new(struct kmscon_idle **out)
+{
+	struct kmscon_idle *idle;
+
+	if (!out)
+		return -EINVAL;
+
+	idle = malloc(sizeof(*idle));
+	if (!idle)
+		return -ENOMEM;
+
+	memset(idle, 0, sizeof(*idle));
+	idle->ref = 1;
+
+	*out = idle;
+	return 0;
+}
+
+void kmscon_idle_ref(struct kmscon_idle *idle)
+{
+	if (!idle)
+		return;
+
+	++idle->ref;
+}
+
+void kmscon_idle_unref(struct kmscon_idle *idle)
+{
+	if (!idle || !idle->ref)
+		return;
+
+	if (--idle->ref)
+		return;
+
+	free(idle);
+}
+
+int kmscon_eloop_new_idle(struct kmscon_eloop *loop, struct kmscon_idle **out,
+						kmscon_idle_cb cb, void *data)
+{
+	struct kmscon_idle *idle;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+
+	ret = kmscon_idle_new(&idle);
+	if (ret)
+		return ret;
+
+	ret = kmscon_eloop_add_idle(loop, idle, cb, data);
+	if (ret) {
+		kmscon_idle_unref(idle);
+		return ret;
+	}
+
+	kmscon_idle_unref(idle);
+	*out = idle;
+	return 0;
+}
+
+int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
+						kmscon_idle_cb cb, void *data)
+{
+	if (!loop || !idle || !cb)
+		return -EINVAL;
+
+	if (idle->next || idle->prev || idle->loop)
+		return -EALREADY;
+
+	idle->next = loop->idle_list;
+	if (idle->next)
+		idle->next->prev = idle;
+	loop->idle_list = idle;
+
+	idle->loop = loop;
+	idle->cb = cb;
+	idle->data = data;
+
+	kmscon_idle_ref(idle);
+	kmscon_eloop_ref(loop);
+
+	return 0;
+}
+
+void kmsocn_eloop_rm_idle(struct kmscon_idle *idle)
+{
+	struct kmscon_eloop *loop;
+
+	if (!idle || !idle->loop)
+		return;
+
+	loop = idle->loop;
+
+	/*
+	 * If the loop is currently dispatching, we need to check whether we are
+	 * the current element and correctly set it to the next element.
+	 */
+	if (loop->cur_idle == idle)
+		loop->cur_idle = idle->next;
+
+	if (idle->prev)
+		idle->prev->next = idle->next;
+	if (idle->next)
+		idle->next->prev = idle->prev;
+	if (loop->idle_list == idle)
+		loop->idle_list = idle->next;
+
+	idle->next = NULL;
+	idle->prev = NULL;
+	idle->loop = NULL;
+	idle->cb = NULL;
+	idle->data = NULL;
+
+	kmscon_idle_unref(idle);
+	kmscon_eloop_unref(loop);
+}
 
 int kmscon_fd_new(struct kmscon_fd **out)
 {
@@ -401,6 +532,15 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 	if (!loop)
 		return -EINVAL;
 
+	/* dispatch idle events */
+	loop->cur_idle = loop->idle_list;
+	while (loop->cur_idle) {
+		loop->cur_idle->cb(loop->cur_idle, loop->cur_idle->data);
+		if (loop->cur_idle)
+			loop->cur_idle = loop->cur_idle->next;
+	}
+
+	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0)
 		return -errno;

@@ -37,9 +37,11 @@
 #include <stdlib.h>
 
 struct kmscon_eloop;
+struct kmscon_idle;
 struct kmscon_fd;
 struct kmscon_signal;
 
+typedef void (*kmscon_idle_cb) (struct kmscon_idle *idle, void *data);
 typedef void (*kmscon_fd_cb) (struct kmscon_fd *fd, void *data);
 typedef void (*kmscon_signal_cb)
 			(struct kmscon_signal *sig, int signum, void *data);
@@ -56,6 +58,18 @@ void kmscon_eloop_unref(struct kmscon_eloop *loop);
 
 int kmscon_eloop_get_fd(struct kmscon_eloop *loop);
 int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout);
+
+/* idle sources */
+
+int kmscon_idle_new(struct kmscon_idle **out);
+void kmscon_idle_ref(struct kmscon_idle *idle);
+void kmscon_idle_unref(struct kmscon_idle *idle);
+
+int kmscon_eloop_new_idle(struct kmscon_eloop *loop, struct kmscon_idle **out,
+						kmscon_idle_cb cb, void *data);
+int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
+						kmscon_idle_cb cb, void *data);
+void kmsocn_eloop_rm_idle(struct kmscon_idle *idle);
 
 /* fd sources */
 
