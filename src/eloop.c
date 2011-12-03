@@ -499,6 +499,7 @@ int kmscon_eloop_new(struct kmscon_eloop **out)
 		return -errno;
 	}
 
+	log_debug("eloop: create eloop object\n");
 	*out = loop;
 	return 0;
 }
@@ -519,6 +520,7 @@ void kmscon_eloop_unref(struct kmscon_eloop *loop)
 	if (--loop->ref)
 		return;
 
+	log_debug("eloop: destroy eloop object\n");
 	close(loop->efd);
 	free(loop);
 }
@@ -542,8 +544,12 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
-	if (count < 0)
+	if (count < 0) {
+		log_warning("eloop: epoll_wait dispatching failed\n");
 		return -errno;
+	}
+
+	log_debug("eloop: dispatch %d fd event(s)\n", count);
 
 	loop->cur_fds = ep;
 	loop->cur_fds_cnt = count;
