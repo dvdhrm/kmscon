@@ -91,12 +91,15 @@ struct kmscon_font {
 	PangoContext *ctx;
 };
 
-int kmscon_char_new(struct kmscon_char **out)
+static int new_char(struct kmscon_char **out, size_t size)
 {
 	struct kmscon_char *ch;
 
 	if (!out)
 		return -EINVAL;
+
+	if (!size)
+		size = KMSCON_CHAR_SIZE;
 
 	ch = malloc(sizeof(*ch));
 	if (!ch)
@@ -104,7 +107,7 @@ int kmscon_char_new(struct kmscon_char **out)
 
 	memset(ch, 0, sizeof(*ch));
 
-	ch->size = KMSCON_CHAR_SIZE;
+	ch->size = size;
 	ch->buf = malloc(ch->size);
 	if (!ch->buf) {
 		free(ch);
@@ -117,28 +120,53 @@ int kmscon_char_new(struct kmscon_char **out)
 	return 0;
 }
 
+int kmscon_char_new(struct kmscon_char **out)
+{
+	return new_char(out, 0);
+}
+
+int kmscon_char_new_u8(struct kmscon_char **out, const char *str, size_t len)
+{
+	int ret;
+	struct kmscon_char *ch;
+
+	if (!len)
+		return kmscon_char_new(out);
+
+	if (!out || !str)
+		return -EINVAL;
+
+	ret = new_char(&ch, len);
+	if (ret)
+		return ret;
+
+	ret = kmscon_char_set_u8(ch, str, len);
+	if (ret) {
+		kmscon_char_free(ch);
+		return ret;
+	}
+
+	*out = ch;
+	return 0;
+}
+
 int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig)
 {
 	struct kmscon_char *ch;
+	int ret;
 
 	if (!out || !orig)
 		return -EINVAL;
 
-	ch = malloc(sizeof(*ch));
-	if (!ch)
-		return -ENOMEM;
+	ret = new_char(&ch, orig->size);
+	if (ret)
+		return ret;
 
-	memset(ch, 0, sizeof(*ch));
-
-	ch->len = orig->len;
-	ch->size = orig->size;
-	ch->buf = malloc(ch->size);
-	if (!ch->buf) {
-		free(ch);
-		return -ENOMEM;
+	ret = kmscon_char_set_u8(ch, orig->buf, orig->len);
+	if (ret) {
+		kmscon_char_free(ch);
+		return ret;
 	}
-
-	memcpy(ch->buf, orig->buf, ch->size);
 
 	*out = ch;
 	return 0;
@@ -155,23 +183,7 @@ void kmscon_char_free(struct kmscon_char *ch)
 
 int kmscon_char_set(struct kmscon_char *ch, const struct kmscon_char *orig)
 {
-	char *buf;
-
-	if (!ch || !orig)
-		return -EINVAL;
-
-	if (ch->size < orig->len) {
-		buf = realloc(ch->buf, orig->len);
-		if (!buf)
-			return -ENOMEM;
-		ch->buf = buf;
-		ch->size = orig->len;
-	}
-
-	memcpy(ch->buf, orig->buf, orig->len);
-	ch->len = orig->len;
-
-	return 0;
+	return kmscon_char_set_u8(ch, orig->buf, orig->len);
 }
 
 int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len)

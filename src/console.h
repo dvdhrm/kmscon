@@ -46,6 +46,7 @@ struct kmscon_console;
 /* single printable characters */
 
 int kmscon_char_new(struct kmscon_char **out);
+int kmscon_char_new_u8(struct kmscon_char **out, const char *str, size_t len);
 int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig);
 void kmscon_char_free(struct kmscon_char *ch);
 
