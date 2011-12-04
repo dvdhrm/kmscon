@@ -41,6 +41,7 @@
 
 struct kmscon_char;
 struct kmscon_font;
+struct kmscon_buffer;
 struct kmscon_console;
 
 /* single printable characters */
@@ -64,6 +65,14 @@ void kmscon_font_unref(struct kmscon_font *font);
 
 int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
 					cairo_t *cr, uint32_t x, uint32_t y);
+
+/* console buffer with cell objects */
+
+int kmscon_buffer_new(struct kmscon_buffer **out, uint32_t x, uint32_t y);
+void kmscon_buffer_ref(struct kmscon_buffer *buf);
+void kmscon_buffer_unref(struct kmscon_buffer *buf);
+
+int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y);
 
 /* console objects */
 
