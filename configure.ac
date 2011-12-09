@@ -10,11 +10,20 @@ AC_CONFIG_HEADER(config.h)
 AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-bzip2 no-dist-gzip tar-pax -Wall -Werror])
 AM_SILENT_RULES([yes])
 
+# Don't add a default "-g -O2" if CFLAGS wasn't specified
+: ${CFLAGS=""}
+
+AC_USE_SYSTEM_EXTENSIONS
+AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
+
 LT_PREREQ(2.2)
 LT_INIT
 
-AC_PROG_CC
-AM_PROG_CC_C_O
+PKG_CHECK_MODULES([DRM], [libdrm])
+AC_SUBST(DRM_CFLAGS)
+AC_SUBST(DRM_LIBS)
 
 PKG_CHECK_MODULES([EGL], [egl])
 AC_SUBST(EGL_CFLAGS)
