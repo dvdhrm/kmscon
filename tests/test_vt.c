@@ -28,6 +28,9 @@
  * Test VT Layer
  * This opens a new VT and prints some text on it. You can then change the VT
  * and change back. This is only to test the VT subsystem and event engine.
+ * This automatically switches to the new VT. Currently, the display gets
+ * freezed then because we aren't painting to the framebuffer yet. Use
+ * ctrl+alt+FX (or some equivalent) to switch back to X/VT.
  */
 
 #include <errno.h>
@@ -85,6 +88,10 @@ int main(int argc, char **argv)
 		goto err_vt;
 	}
 
+	ret = kmscon_vt_enter(vt);
+	if (ret)
+		log_warning("Cannot switch to VT\n");
+
 	while (!terminate) {
 		ret = kmscon_eloop_dispatch(loop, -1);
 		if (ret) {
@@ -92,6 +99,13 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	log_debug("Terminating\n");
+
+	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
+	ret = kmscon_vt_leave(vt);
+	if (ret == -EINPROGRESS)
+		kmscon_eloop_dispatch(loop, 1000);
 
 err_vt:
 	kmscon_vt_unref(vt);
