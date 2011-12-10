@@ -79,6 +79,7 @@ struct kmscon_vt {
 
 	int fd;
 	struct termios saved_attribs;
+	int saved_kbd_mode;
 	kmscon_vt_cb cb;
 	void *data;
 
@@ -244,6 +245,16 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id)
 	if (tcsetattr(vt->fd, TCSANOW, &raw_attribs) < 0)
 		log_warning("vt: cannot put terminal into raw mode\n");
 
+	if (ioctl(vt->fd, KDGKBMODE, &vt->saved_kbd_mode)) {
+		log_warning("vt: cannot get keyboard mode\n");
+		vt->saved_kbd_mode = K_UNICODE;
+	}
+
+#ifdef K_OFF
+	if (ioctl(vt->fd, KDSKBMODE, K_OFF))
+		log_info("vt: cannot disable keyboard completely\n");
+#endif
+
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("vt: cannot set graphics mode\n");
 		ret = -errno;
@@ -285,6 +296,7 @@ void kmscon_vt_close(struct kmscon_vt *vt)
 
 	ioctl(vt->fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
+	ioctl(vt->fd, KDSKBMODE, vt->saved_kbd_mode);
 
 	kmscon_vt_disconnect_eloop(vt);
 	close(vt->fd);
