@@ -78,6 +78,8 @@ struct kmscon_vt {
 	unsigned long ref;
 
 	int fd;
+	int num;
+	int saved_num;
 	struct termios saved_attribs;
 	int saved_kbd_mode;
 	kmscon_vt_cb cb;
@@ -102,6 +104,8 @@ int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data)
 	memset(vt, 0, sizeof(*vt));
 	vt->ref = 1;
 	vt->fd = -1;
+	vt->num = -1;
+	vt->saved_num = -1;
 	vt->cb = cb;
 	vt->data = data;
 
@@ -178,10 +182,13 @@ static void vt_input(struct kmscon_fd *fd, int mask, void *data)
 	tcflush(vt->fd, TCIFLUSH);
 }
 
-static int open_tty(int id)
+static int open_tty(int id, int *tty_fd, int *tty_num)
 {
 	int fd;
 	char filename[16];
+
+	if (!tty_fd || !tty_num)
+		return -EINVAL;
 
 	if (id == KMSCON_VT_NEW) {
 		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY);
@@ -211,23 +218,37 @@ static int open_tty(int id)
 		return -errno;
 	}
 
-	return fd;
+	*tty_fd = fd;
+	*tty_num = id;
+	return 0;
 }
 
 int kmscon_vt_open(struct kmscon_vt *vt, int id)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
-	int ret, fd;
+	struct vt_stat vts;
+	int ret;
 	sigset_t mask;
 
 	if (vt->fd >= 0)
 		return -EALREADY;
 
-	fd = open_tty(id);
-	if (fd < 0)
-		return fd;
-	vt->fd = fd;
+	ret = open_tty(id, &vt->fd, &vt->num);
+	if (ret)
+		return ret;
+
+	/*
+	 * Get the number of the VT which is active now, so we have something
+	 * to switch back to in kmscon_vt_switch_leave.
+	 */
+	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	if (ret) {
+		log_warning("vt: cannot find the current VT\n");
+		vt->saved_num = -1;
+	} else {
+		vt->saved_num = vts.v_active;
+	}
 
 	if (tcgetattr(vt->fd, &vt->saved_attribs) < 0) {
 		log_err("vt: cannot get terminal attributes\n");
@@ -299,8 +320,11 @@ void kmscon_vt_close(struct kmscon_vt *vt)
 	ioctl(vt->fd, KDSKBMODE, vt->saved_kbd_mode);
 
 	kmscon_vt_disconnect_eloop(vt);
+
 	close(vt->fd);
 	vt->fd = -1;
+	vt->num = -1;
+	vt->saved_num = -1;
 }
 
 int kmscon_vt_connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *loop)
@@ -350,4 +374,46 @@ void kmscon_vt_disconnect_eloop(struct kmscon_vt *vt)
 	vt->sig1 = NULL;
 	vt->sig2 = NULL;
 	vt->efd = NULL;
+}
+
+/* Switch to this VT and make it the active VT. */
+int kmscon_vt_switch_enter(struct kmscon_vt *vt)
+{
+	int ret;
+
+	if (!vt || vt->fd < 0 || vt->num < 0)
+		return -EINVAL;
+
+	ret = ioctl(vt->fd, VT_ACTIVATE, vt->num);
+	if (ret)
+		return -EFAULT;
+
+	return 0;
+}
+
+/*
+ * Switch back to the VT from which we started.
+ * Note: VT switches need to be processed by the eloop in order to work, so
+ * make sure to give it enough time after this function.
+ */
+int kmscon_vt_switch_leave(struct kmscon_vt *vt)
+{
+	int ret;
+	struct vt_stat vts;
+
+	if (!vt || vt->fd < 0 || vt->saved_num < 0)
+		return -EINVAL;
+
+	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	if (ret)
+		return -EFAULT;
+
+	if (vt->saved_num == vts.v_active)
+		return -EALREADY;
+
+	ret = ioctl(vt->fd, VT_ACTIVATE, vt->saved_num);
+	if (ret)
+		return -EFAULT;
+
+	return 0;
 }

@@ -85,6 +85,10 @@ int main(int argc, char **argv)
 		goto err_vt;
 	}
 
+	ret = kmscon_vt_switch_enter(vt);
+	if (ret)
+		log_warning("Cannot switch to VT\n");
+
 	while (!terminate) {
 		ret = kmscon_eloop_dispatch(loop, -1);
 		if (ret) {
@@ -92,6 +96,12 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	ret = kmscon_vt_switch_leave(vt);
+	if (!ret)
+		kmscon_eloop_dispatch(loop, -1);
+	else if (ret != -EALREADY)
+		log_warning("Cannot switch back from VT\n");
 
 err_vt:
 	kmscon_vt_unref(vt);
