@@ -64,4 +64,6 @@ void kmscon_vt_close(struct kmscon_vt *vt);
 int kmscon_vt_connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *loop);
 void kmscon_vt_disconnect_eloop(struct kmscon_vt *vt);
 
+int kmscon_vt_switch_enter(struct kmscon_vt *vt);
+int kmscon_vt_switch_leave(struct kmscon_vt *vt);
 #endif /* KMSCON_VT_H */
