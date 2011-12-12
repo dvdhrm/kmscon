@@ -47,10 +47,9 @@ AC_SUBST(PANGO_LIBS)
 
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
-              [AS_HELP_STRING([--enable-debug],
-                              [whether to build with debugging on)])],
-                              [debug="$enableval"; AC_DEFINE([DEBUG], [0], [Debug])],
-                              [debug=no])
+              [AS_HELP_STRING([--enable-debug], [whether to build with debugging on)])],
+              [debug="$enableval"],
+              [debug=no; AC_DEFINE([NDEBUG], [1], [No Debug])])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 AC_MSG_RESULT([$debug])
 
