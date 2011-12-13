@@ -25,6 +25,7 @@ libkmscon_core_la_SOURCES = \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
+	src/input.c src/input.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h
 
@@ -35,14 +36,16 @@ libkmscon_core_la_CPPFLAGS = \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(CAIRO_CFLAGS) \
-	$(PANGO_CFLAGS)
+	$(PANGO_CFLAGS) \
+	$(UDEV_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
 	$(OPENGL_LIBS) \
 	$(CAIRO_LIBS) \
-	$(PANGO_LIBS)
+	$(PANGO_LIBS) \
+	$(UDEV_LIBS)
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la

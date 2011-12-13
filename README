@@ -5,6 +5,7 @@ console.
 
 == Requirements ==
   Kmscon requires the following software:
+    - udev
     - mesa with:
       - EGL library
       - gbm library

@@ -45,6 +45,10 @@ PKG_CHECK_MODULES([PANGO], [pango pangocairo])
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
+PKG_CHECK_MODULES([UDEV], [libudev])
+AC_SUBST(UDEV_CFLAGS)
+AC_SUBST(UDEV_LIBS)
+
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug], [whether to build with debugging on)])],
