@@ -1,7 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = kmscon
-check_PROGRAMS = test_console test_output test_vt test_buffer test_terminal
+check_PROGRAMS = test_console test_output test_vt test_buffer test_terminal \
+	test_input
 noinst_LTLIBRARIES = libkmscon-core.la
 
 AM_CFLAGS = \
@@ -75,5 +76,8 @@ test_buffer_LDADD = libkmscon-core.la
 
 test_terminal_SOURCES = tests/test_terminal.c
 test_terminal_LDADD = libkmscon-core.la
+
+test_input_SOURCES = tests/test_input.c
+test_input_LDADD = libkmscon-core.la
 
 dist_doc_DATA = README TODO
