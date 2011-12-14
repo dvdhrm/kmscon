@@ -41,3 +41,8 @@ Console Subsystem:
    want it.
    This would speed up our font-draw functions considerably as we would bypass
    pango if a glyph is already in the hash-table.
+
+VT Subsystem:
+ - Set KDSKBMODE to K_OFF to avoid getting input from the VT subsystem. This
+   also discards the VT-switch events so we should first implement our own
+   VT-switching mechanisms and then use this K_OFF switch.
