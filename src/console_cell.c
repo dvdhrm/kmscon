@@ -34,13 +34,7 @@
  * is the scrollback-buffer.
  * The linked-list allows fast rotations but prevents fast access. Therefore,
  * modifications of the scrollback-buffer is prohibited.
- * For fast access to the current screen buffer, we use an array (cache) of
- * pointers to the first n lines.
  * The current screen position can be any line of the scrollback-buffer.
- *
- * Y-resize simply adjusts the cache to point to the new lines. X-resize only
- * modifies the current screen buffer. The scrollback-buffer is not modified to
- * improve performance.
  *
  * Cells
  * A single cell describes a single character that is printed in that cell. The
@@ -59,6 +53,7 @@
 
 #define DEFAULT_WIDTH 80
 #define DEFAULT_HEIGHT 24
+#define DEFAULT_SCROLLBACK 128
 
 struct cell {
 	struct kmscon_char *ch;
@@ -79,13 +74,35 @@ struct kmscon_buffer {
 	unsigned int count;
 	struct line *first;
 	struct line *last;
+	unsigned int max_scrollback;
 
 	unsigned int size_x;
 	unsigned int size_y;
-	unsigned int max_scrollback;
-	struct line **cache;
 	struct line *current;
 };
+
+static void destroy_cell(struct cell *cell)
+{
+	if (!cell)
+		return;
+
+	kmscon_char_free(cell->ch);
+}
+
+static int init_cell(struct cell *cell)
+{
+	int ret = 0;
+
+	if (!cell)
+		return -EINVAL;
+
+	if (cell->ch)
+		kmscon_char_reset(cell->ch);
+	else
+		ret = kmscon_char_new_u8(&cell->ch, "?", 1);
+
+	return ret;
+}
 
 static void free_line(struct line *line)
 {
@@ -94,12 +111,60 @@ static void free_line(struct line *line)
 	if (!line)
 		return;
 
-	for (i = 0; i < line->size; ++i) {
-		kmscon_char_free(line->cells[i].ch);
-	}
+	for (i = 0; i < line->size; ++i)
+		destroy_cell(&line->cells[i]);
 
 	free(line->cells);
 	free(line);
+}
+
+static int new_line(struct line **out)
+{
+	struct line *line;
+
+	if (!out)
+		return -EINVAL;
+
+	line = malloc(sizeof(*line));
+	if (!line)
+		return -ENOMEM;
+
+	memset(line, 0, sizeof(*line));
+	*out = line;
+	return 0;
+}
+
+static int resize_line(struct line *line, unsigned int width)
+{
+	struct cell *tmp;
+	unsigned int i;
+	int ret;
+
+	if (!line)
+		return -EINVAL;
+
+	if (!width)
+		width = DEFAULT_WIDTH;
+
+	if (line->size < width) {
+		tmp = realloc(line->cells, width * sizeof(struct cell));
+		if (!tmp)
+			return -ENOMEM;
+
+		memset(&tmp[line->size], 0,
+				(width - line->size) * sizeof(struct cell));
+		line->cells = tmp;
+		line->size = width;
+	}
+
+	for (i = 0; i < width; ++i) {
+		ret = init_cell(&line->cells[i]);
+		if (ret)
+			return ret;
+	}
+
+	line->num = width;
+	return 0;
 }
 
 /*
@@ -107,19 +172,13 @@ static void free_line(struct line *line)
  * The line is filled with blanks. If the maximum number of lines is already
  * reached, the first line is removed and pushed to the tail.
  */
-static int push_line(struct kmscon_buffer *buf)
+static int push_line(struct kmscon_buffer *buf, unsigned int width)
 {
 	struct line *line;
-	struct cell *tmp;
-	unsigned int i, width;
 	int ret;
 
 	if (!buf)
 		return -EINVAL;
-
-	width = buf->size_x;
-	if (!width)
-		width = DEFAULT_WIDTH;
 
 	if (buf->count > (buf->size_y + buf->max_scrollback)) {
 		line = buf->first;
@@ -134,34 +193,14 @@ static int push_line(struct kmscon_buffer *buf)
 		line->prev = NULL;
 		--buf->count;
 	} else {
-		line = malloc(sizeof(*line));
-		if (!line)
-			return -ENOMEM;
-
-		memset(line, 0, sizeof(*line));
-	}
-
-	if (line->size < width) {
-		tmp = realloc(line->cells, width * sizeof(struct cell));
-		if (!tmp)
-			goto err_free;
-		memset(&tmp[line->size], 0,
-				(width - line->size) * sizeof(struct cell));
-		line->cells = tmp;
-		line->size = width;
-	}
-
-	line->num = width;
-	for (i = 0; i < line->num; ++i) {
-		if (line->cells[i].ch) {
-			ret = kmscon_char_set_u8(line->cells[i].ch, "?", 1);
-		} else {
-			ret = kmscon_char_new_u8(&line->cells[i].ch, "?", 1);
-		}
-
+		ret = new_line(&line);
 		if (ret)
-			goto err_free;
+			return ret;
 	}
+
+	ret = resize_line(line, width);
+	if (ret)
+		goto err_free;
 
 	if (buf->last) {
 		line->prev = buf->last;
@@ -173,51 +212,11 @@ static int push_line(struct kmscon_buffer *buf)
 	}
 	++buf->count;
 
-	if (buf->cache) {
-		for (i = 0; i < buf->size_y; ++i)
-			buf->cache[i] = buf->cache[i]->next;
-	}
-
 	return 0;
 
 err_free:
 	free_line(line);
-	return -ENOMEM;
-}
-
-static int resize_line(struct line *line, unsigned int width)
-{
-	unsigned int i;
-	struct cell *tmp;
-	int ret;
-
-	if (!line)
-		return -EINVAL;
-
-	if (!width)
-		width = DEFAULT_WIDTH;
-
-	if (line->size < width) {
-		tmp = realloc(line->cells, sizeof(struct cell) * width);
-		if (!tmp)
-			return -ENOMEM;
-
-		memset(&tmp[line->size], 0,
-				(width - line->size) * sizeof(struct cell));
-		line->cells = tmp;
-		line->size = width;
-	}
-
-	for (i = line->num; i < width; ++i) {
-		if (!line->cells[i].ch) {
-			ret = kmscon_char_new_u8(&line->cells[i].ch, "?", 1);
-			if (ret)
-				return -ENOMEM;
-		}
-	}
-	line->num = width;
-
-	return 0;
+	return ret;
 }
 
 int kmscon_buffer_new(struct kmscon_buffer **out, uint32_t x, uint32_t y)
@@ -234,6 +233,7 @@ int kmscon_buffer_new(struct kmscon_buffer **out, uint32_t x, uint32_t y)
 
 	memset(buf, 0, sizeof(*buf));
 	buf->ref = 1;
+	buf->max_scrollback = DEFAULT_SCROLLBACK;
 
 	ret = kmscon_buffer_resize(buf, x, y);
 	if (ret)
@@ -271,15 +271,32 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 		free_line(tmp);
 	}
 
-	free(buf->cache);
 	free(buf);
 }
 
+/*
+ * Resize the current console buffer
+ * This adjusts the x/y size of the viewable part of the buffer. It does never
+ * modify the scroll-back buffer as this would take too long.
+ *
+ * y-resize:
+ * We simply move the \current position up in the scroll-back buffer so resizing
+ * looks like scrolling up in the buffer. If there are no more scroll-back
+ * lines, we push empty lines to the bottom so no scrolling appears.
+ * If pushing a line fails we simply leave the buffer in the current position so
+ * only partial resizing appeared but the buffer is still fully operational.
+ *
+ * x-resize:
+ * We only resize the visible lines to have at least width \x. If resizing fails
+ * we leave the buffer in the current state. This may make some lines shorter
+ * than others but there is currently no better way to handle memory failures
+ * here.
+ */
 int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y)
 {
-	struct line **cache, *iter;
-	unsigned int old_x, old_y, i;
-	int ret, j;
+	unsigned int i;
+	struct line *iter;
+	int ret;
 
 	if (!buf)
 		return -EINVAL;
@@ -289,47 +306,23 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y)
 	if (!y)
 		y = DEFAULT_HEIGHT;
 
-	old_x = buf->size_x;
-	old_y = buf->size_y;
-	buf->size_x = x;
-	buf->size_y = y;
+	while (buf->count < y) {
+		ret = push_line(buf, x);
+		if (ret)
+			return ret;
+	}
 
-	if (old_y != y) {
-		while (buf->count < y) {
-			ret = push_line(buf);
-			if (ret)
-				goto err_reset;
-		}
-
-		cache = realloc(buf->cache, sizeof(struct line*) * y);
-		if (!cache) {
-			ret = -ENOMEM;
-			goto err_reset;
-		}
-
-		memset(cache, 0, sizeof(struct line*) * y);
+	if (buf->size_x != x) {
 		iter = buf->last;
-		for (j = (y - 1); j >= 0; --j) {
-			cache[j] = iter;
+		for (i = 0; i < buf->size_y; ++i) {
+			ret = resize_line(iter, x);
+			if (ret)
+				return ret;
 			iter = iter->prev;
 		}
-
-		buf->cache = cache;
 	}
 
-	if (old_x != x) {
-		for (i = 0; i < buf->size_y; ++i) {
-			ret = resize_line(buf->cache[i], x);
-			if (ret)
-				goto err_reset;
-		}
-	}
-
+	buf->size_x = x;
+	buf->size_y = y;
 	return 0;
-
-err_reset:
-	buf->size_x = old_x;
-	buf->size_y = old_y;
-	/* TODO: improve error recovery and correctly reset the buffer */
-	return ret;
 }
