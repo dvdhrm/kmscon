@@ -181,6 +181,14 @@ void kmscon_char_free(struct kmscon_char *ch)
 	free(ch);
 }
 
+void kmscon_char_reset(struct kmscon_char *ch)
+{
+	if (!ch)
+		return;
+
+	ch->len = 0;
+}
+
 int kmscon_char_set(struct kmscon_char *ch, const struct kmscon_char *orig)
 {
 	return kmscon_char_set_u8(ch, orig->buf, orig->len);

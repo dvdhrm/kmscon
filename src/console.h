@@ -50,6 +50,7 @@ int kmscon_char_new(struct kmscon_char **out);
 int kmscon_char_new_u8(struct kmscon_char **out, const char *str, size_t len);
 int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig);
 void kmscon_char_free(struct kmscon_char *ch);
+void kmscon_char_reset(struct kmscon_char *ch);
 
 int kmscon_char_set(struct kmscon_char *ch, const struct kmscon_char *orig);
 int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len);
