@@ -99,7 +99,7 @@ static int init_cell(struct cell *cell)
 	if (cell->ch)
 		kmscon_char_reset(cell->ch);
 	else
-		ret = kmscon_char_new_u8(&cell->ch, "?", 1);
+		ret = kmscon_char_new(&cell->ch);
 
 	return ret;
 }
@@ -325,4 +325,40 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y)
 	buf->size_x = x;
 	buf->size_y = y;
 	return 0;
+}
+
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
+			void *dcr, unsigned int width, unsigned int height)
+{
+	cairo_t *cr;
+	double xs, ys, cx, cy;
+	unsigned int i, j;
+	struct line *iter;
+	struct cell *cell;
+	struct kmscon_char *ch;
+
+	if (!buf || !font || !dcr)
+		return;
+
+	cr = dcr;
+	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+	cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0);
+
+	xs = width / (double)buf->size_x;
+	ys = height / (double)buf->size_y;
+
+	iter = buf->last;
+	cy = (buf->size_y - 1) * ys;
+	for (i = 0; i < buf->size_y; ++i) {
+		cx = 0;
+		for (j = 0; j < iter->num; ++j) {
+			cell = &iter->cells[j];
+			ch = cell->ch;
+
+			kmscon_font_draw(font, ch, cr, cx, cy);
+			cx += xs;
+		}
+		cy -= ys;
+		iter = iter->prev;
+	}
 }

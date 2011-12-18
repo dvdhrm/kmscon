@@ -74,6 +74,8 @@ void kmscon_buffer_ref(struct kmscon_buffer *buf);
 void kmscon_buffer_unref(struct kmscon_buffer *buf);
 
 int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y);
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
+			void *dcr, unsigned int width, unsigned int height);
 
 /* console objects */
 
@@ -84,15 +86,3 @@ void kmscon_console_unref(struct kmscon_console *con);
 int kmscon_console_set_res(struct kmscon_console *con, uint32_t x, uint32_t y);
 void kmscon_console_draw(struct kmscon_console *con);
 void kmscon_console_map(struct kmscon_console *con);
-
-int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y);
-
-void kmscon_console_cursor_get(struct kmscon_console *con, uint32_t *x,
-								uint32_t *y);
-void kmscon_console_cursor_move(struct kmscon_console *con, int32_t x,
-								int32_t y);
-void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
-								uint32_t y);
-
-int kmscon_console_write(struct kmscon_console *con,
-						const struct kmscon_char *ch);

@@ -48,10 +48,6 @@
 
 #include "console.h"
 
-struct kmscon_cell {
-	struct kmscon_char *ch;
-};
-
 struct kmscon_console {
 	size_t ref;
 
@@ -66,14 +62,7 @@ struct kmscon_console {
 	unsigned char *surf_buf;
 
 	/* console cells */
-	uint32_t lines_x;
-	uint32_t lines_y;
-	struct kmscon_cell *cells;
-	bool cells_dirty;
-
-	/* cursor position */
-	uint32_t cursor_x;
-	uint32_t cursor_y;
+	struct kmscon_buffer *cells;
 
 	/* active font */
 	struct kmscon_font *font;
@@ -105,13 +94,16 @@ int kmscon_console_new(struct kmscon_console **out)
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
-	con->cells_dirty = true;
 
-	ret = kmscon_console_set_res(con, 800, 600);
+	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_resize(con, 80, 24);
+	ret = kmscon_console_set_res(con, 800, 600);
+	if (ret)
+		goto err_buf;
+
+	ret = kmscon_font_new(&con->font, con->res_y / 24);
 	if (ret)
 		goto err_res;
 
@@ -122,6 +114,8 @@ int kmscon_console_new(struct kmscon_console **out)
 
 err_res:
 	kmscon_console_free_res(con);
+err_buf:
+	kmscon_buffer_unref(con->cells);
 err_free:
 	free(con);
 	return ret;
@@ -133,20 +127,6 @@ void kmscon_console_ref(struct kmscon_console *con)
 		return;
 
 	++con->ref;
-}
-
-static void console_free_cells(struct kmscon_console *con)
-{
-	uint32_t i, size;
-
-	if (con->cells) {
-		size = con->lines_x * con->lines_y;
-
-		for (i = 0; i < size; ++i)
-			kmscon_char_free(con->cells[i].ch);
-
-		free(con->cells);
-	}
 }
 
 /*
@@ -163,7 +143,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 
 	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
-	console_free_cells(con);
+	kmscon_buffer_unref(con->cells);
 	glDeleteTextures(1, &con->tex);
 	free(con);
 }
@@ -247,9 +227,6 @@ err_free:
  */
 void kmscon_console_draw(struct kmscon_console *con)
 {
-	size_t i, j, pos;
-	double xs, ys, x, y;
-
 	if (!con || !con->cr)
 		return;
 
@@ -262,20 +239,8 @@ void kmscon_console_draw(struct kmscon_console *con)
 	cairo_set_operator(con->cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_rgba(con->cr, 1.0, 1.0, 1.0, 1.0);
 
-	xs = con->res_x / (double)con->lines_x;
-	ys = con->res_y / (double)con->lines_y;
-
-	y = 0;
-	for (i = 0; i < con->lines_y; ++i) {
-		x = 0;
-		for (j = 0; j < con->lines_x; ++j) {
-			pos = i * con->lines_x + j;
-			kmscon_font_draw(con->font, con->cells[pos].ch, con->cr,
-									x, y);
-			x += xs;
-		}
-		y += ys;
-	}
+	kmscon_buffer_draw(con->cells, con->font, con->cr, con->res_x,
+								con->res_y);
 
 	cairo_restore(con->cr);
 
@@ -283,10 +248,6 @@ void kmscon_console_draw(struct kmscon_console *con)
 	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
 				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-
-	/* reset dirty flags */
-	con->cells_dirty = false;
 }
 
 /*
@@ -324,149 +285,4 @@ void kmscon_console_map(struct kmscon_console *con)
 		glTexCoord2f(0.0f, con->res_y);
 		glVertex2f(-1.0f, 1.0f);
 	glEnd();
-}
-
-/*
- * Resize console. x/y must not be 0.
- * This resizes the whole console buffer and recreates all cells. It tries to
- * preserve as many content from the previous buffer as possible.
- */
-int kmscon_console_resize(struct kmscon_console *con, uint32_t x, uint32_t y)
-{
-	struct kmscon_cell *cells;
-	struct kmscon_font *font;
-	uint32_t size, i, j;
-	int ret;
-
-	size = x * y;
-	if (!con || !size || size < x || size < y)
-		return -EINVAL;
-
-	ret = kmscon_font_new(&font, con->res_y / y);
-	if (ret)
-		return ret;
-
-	cells = malloc(sizeof(*cells) * size);
-	if (!cells) {
-		ret = -ENOMEM;
-		goto err_font;
-	}
-
-	memset(cells, 0, sizeof(*cells) * size);
-
-	for (i = 0; i < size; ++i) {
-		ret = kmscon_char_new(&cells[i].ch);
-		if (ret) {
-			for (j = 0; j < i; ++j)
-				kmscon_char_free(cells[j].ch);
-			goto err_free;
-		}
-		kmscon_char_set_u8(cells[i].ch, "?", 1);
-	}
-
-	kmscon_font_unref(con->font);
-	con->font = font;
-
-	console_free_cells(con);
-	con->lines_x = x;
-	con->lines_y = y;
-	con->cells = cells;
-
-	return 0;
-
-err_free:
-	free(cells);
-err_font:
-	kmscon_font_unref(font);
-	return ret;
-}
-
-void kmscon_console_cursor_get(struct kmscon_console *con, uint32_t *x,
-								uint32_t *y)
-{
-	if (!con) {
-		if (x)
-			*x = 0;
-		if (y)
-			*y = 0;
-		return;
-	}
-
-	if (x)
-		*x = con->cursor_x;
-
-	if (y)
-		*y = con->cursor_y;
-}
-
-void kmscon_console_cursor_move(struct kmscon_console *con, int32_t x,
-								int32_t y)
-{
-	int32_t tx, ty;
-
-	if (!con)
-		return;
-
-	tx = con->cursor_x;
-	ty = con->cursor_y;
-
-	tx += x;
-	ty += y;
-
-	if (tx < 0)
-		tx = 0;
-	if (ty < 0)
-		ty = 0;
-
-	while (tx >= con->lines_x) {
-		tx -= con->lines_x;
-		ty++;
-	}
-
-	if (ty >= con->lines_y)
-		ty = con->lines_y - 1;
-
-	con->cursor_x += tx;
-	con->cursor_y += ty;
-	con->cells_dirty = true;
-}
-
-void kmscon_console_cursor_goto(struct kmscon_console *con, uint32_t x,
-								uint32_t y)
-{
-	if (!con)
-		return;
-
-	con->cursor_x = x;
-	con->cursor_y = y;
-
-	while (con->cursor_x >= con->lines_x) {
-		con->cursor_x -= con->lines_x;
-		con->cursor_y++;
-	}
-
-	if (con->cursor_y >= con->lines_y)
-		con->cursor_y = con->lines_y - 1;
-
-	con->cells_dirty = true;
-}
-
-int kmscon_console_write(struct kmscon_console *con,
-						const struct kmscon_char *ch)
-{
-	int ret;
-	uint32_t pos;
-
-	if (!con || !ch)
-		return -EINVAL;
-
-	pos = con->cursor_y * con->lines_x + con->cursor_x;
-	ret = kmscon_char_set(con->cells[pos].ch, ch);
-	if (ret)
-		return ret;
-
-	kmscon_console_cursor_move(con, 1, 0);
-	con->cells_dirty = true;
-
-	return 0;
 }
