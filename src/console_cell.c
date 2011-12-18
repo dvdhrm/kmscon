@@ -43,6 +43,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -79,6 +80,7 @@ struct kmscon_buffer {
 	unsigned int size_x;
 	unsigned int size_y;
 	struct line *current;
+	bool stick;
 };
 
 static void destroy_cell(struct cell *cell)
@@ -184,7 +186,8 @@ static int push_line(struct kmscon_buffer *buf, unsigned int width)
 		line = buf->first;
 
 		buf->first = line->next;
-		buf->first->prev = NULL;
+		if (buf->first)
+			buf->first->prev = NULL;
 
 		if (buf->current == line)
 			buf->current = buf->first;
@@ -211,6 +214,11 @@ static int push_line(struct kmscon_buffer *buf, unsigned int width)
 		buf->last = line;
 	}
 	++buf->count;
+
+	if (!buf->current)
+		buf->current = buf->first;
+	else if (!buf->stick && buf->count > buf->size_y)
+		buf->current = buf->current->next;
 
 	return 0;
 
@@ -279,13 +287,6 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
  * This adjusts the x/y size of the viewable part of the buffer. It does never
  * modify the scroll-back buffer as this would take too long.
  *
- * y-resize:
- * We simply move the \current position up in the scroll-back buffer so resizing
- * looks like scrolling up in the buffer. If there are no more scroll-back
- * lines, we push empty lines to the bottom so no scrolling appears.
- * If pushing a line fails we simply leave the buffer in the current position so
- * only partial resizing appeared but the buffer is still fully operational.
- *
  * x-resize:
  * We only resize the visible lines to have at least width \x. If resizing fails
  * we leave the buffer in the current state. This may make some lines shorter
@@ -306,7 +307,8 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y)
 	if (!y)
 		y = DEFAULT_HEIGHT;
 
-	while (buf->count < y) {
+	/* push at least one line into the buffer so we have \current */
+	if (!buf->count) {
 		ret = push_line(buf, x);
 		if (ret)
 			return ret;
@@ -324,6 +326,18 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y)
 
 	buf->size_x = x;
 	buf->size_y = y;
+
+	/* correctly move \current to new top position */
+	if (!buf->stick) {
+		buf->current = buf->last;
+		for (i = 1; i < buf->size_y; ++i) {
+			if (!buf->current->prev)
+				break;
+
+			buf->current = buf->current->prev;
+		}
+	}
+
 	return 0;
 }
 
@@ -347,9 +361,12 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 	xs = width / (double)buf->size_x;
 	ys = height / (double)buf->size_y;
 
-	iter = buf->last;
-	cy = (buf->size_y - 1) * ys;
+	iter = buf->current;
+	cy = 0;
 	for (i = 0; i < buf->size_y; ++i) {
+		if (!iter)
+			break;
+
 		cx = 0;
 		for (j = 0; j < iter->num; ++j) {
 			cell = &iter->cells[j];
@@ -358,7 +375,8 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 			kmscon_font_draw(font, ch, cr, cx, cy);
 			cx += xs;
 		}
-		cy -= ys;
-		iter = iter->prev;
+
+		cy += ys;
+		iter = iter->next;
 	}
 }
