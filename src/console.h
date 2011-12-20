@@ -35,7 +35,6 @@
  * of it.
  */
 
-#include <cairo.h>
 #include <inttypes.h>
 #include <stdlib.h>
 
@@ -65,7 +64,7 @@ void kmscon_font_ref(struct kmscon_font *font);
 void kmscon_font_unref(struct kmscon_font *font);
 
 int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
-					cairo_t *cr, uint32_t x, uint32_t y);
+					void *dcr, uint32_t x, uint32_t y);
 
 /* console buffer with cell objects */
 

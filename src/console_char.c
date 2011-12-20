@@ -576,10 +576,11 @@ err_char:
  * Returns 0 on success.
  */
 int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
-					cairo_t *cr, uint32_t x, uint32_t y)
+					void *dcr, uint32_t x, uint32_t y)
 {
 	struct kmscon_glyph *glyph;
 	int ret;
+	cairo_t *cr = dcr;
 
 	if (!font || !ch || !cr)
 		return -EINVAL;
