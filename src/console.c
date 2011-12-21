@@ -63,6 +63,12 @@ struct kmscon_console {
 
 	/* console cells */
 	struct kmscon_buffer *cells;
+	unsigned int cells_x;
+	unsigned int cells_y;
+
+	/* cursor */
+	unsigned int cursor_x;
+	unsigned int cursor_y;
 
 	/* active font */
 	struct kmscon_font *font;
@@ -98,6 +104,9 @@ int kmscon_console_new(struct kmscon_console **out)
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
 		goto err_free;
+
+	con->cells_x = kmscon_buffer_get_width(con->cells);
+	con->cells_y = kmscon_buffer_get_height(con->cells);
 
 	ret = kmscon_console_set_res(con, 800, 600);
 	if (ret)
@@ -285,4 +294,23 @@ void kmscon_console_map(struct kmscon_console *con)
 		glTexCoord2f(0.0f, con->res_y);
 		glVertex2f(-1.0f, 1.0f);
 	glEnd();
+}
+
+void kmscon_console_write(struct kmscon_console *con,
+						const struct kmscon_char *ch)
+{
+	if (!con)
+		return;
+
+	if (con->cursor_x == con->cells_x) {
+		con->cursor_x = 0;
+		con->cursor_y++;
+		if (con->cursor_y == con->cells_y) {
+			con->cursor_y--;
+			kmscon_buffer_rotate(con->cells);
+		}
+	}
+
+	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch);
+	con->cursor_x++;
 }

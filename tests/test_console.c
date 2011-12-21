@@ -198,6 +198,8 @@ static void destroy_eloop(struct console *con)
 static int setup_eloop(struct console *con)
 {
 	int ret;
+	unsigned int i;
+	struct kmscon_char *ch;
 
 	ret = kmscon_eloop_new(&con->loop);
 	if (ret)
@@ -228,6 +230,15 @@ static int setup_eloop(struct console *con)
 	ret = kmscon_console_new(&con->con);
 	if (ret)
 		goto err_loop;
+
+	ret = kmscon_char_new_u8(&ch, "J", 1);
+	if (ret)
+		goto err_loop;
+
+	for (i = 0; i < 80 * 24 - 1; ++i)
+		kmscon_console_write(con->con, ch);
+
+	kmscon_char_free(ch);
 
 	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
