@@ -97,7 +97,6 @@ struct line {
 	struct line *next;
 	struct line *prev;
 
-	unsigned int num;
 	unsigned int size;
 	struct cell *cells;
 };
@@ -128,17 +127,12 @@ static void destroy_cell(struct cell *cell)
 
 static int init_cell(struct cell *cell)
 {
-	int ret = 0;
-
 	if (!cell)
 		return -EINVAL;
 
-	if (cell->ch)
-		kmscon_char_reset(cell->ch);
-	else
-		ret = kmscon_char_new(&cell->ch);
+	memset(cell, 0, sizeof(*cell));
 
-	return ret;
+	return kmscon_char_new(&cell->ch);
 }
 
 static void free_line(struct line *line)
@@ -174,7 +168,6 @@ static int new_line(struct line **out)
 static int resize_line(struct line *line, unsigned int width)
 {
 	struct cell *tmp;
-	unsigned int i;
 	int ret;
 
 	if (!line)
@@ -188,19 +181,21 @@ static int resize_line(struct line *line, unsigned int width)
 		if (!tmp)
 			return -ENOMEM;
 
-		memset(&tmp[line->size], 0,
-				(width - line->size) * sizeof(struct cell));
 		line->cells = tmp;
-		line->size = width;
+
+		while (line->size < width) {
+			ret = init_cell(&line->cells[line->size]);
+			if (ret)
+				return ret;
+			line->size++;
+		}
+	} else if (line->size > width) {
+		while (line->size > width) {
+			line->size--;
+			destroy_cell(&line->cells[line->size]);
+		}
 	}
 
-	for (i = 0; i < width; ++i) {
-		ret = init_cell(&line->cells[i]);
-		if (ret)
-			return ret;
-	}
-
-	line->num = width;
 	return 0;
 }
 
@@ -458,8 +453,8 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 		if (!line)
 			break;
 
-		if (line->num < buf->size_x)
-			num = line->num;
+		if (line->size < buf->size_x)
+			num = line->size;
 		else
 			num = buf->size_x;
 
@@ -518,7 +513,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	}
 	line = buf->current[y];
 
-	if (x >= line->num) {
+	if (x >= line->size) {
 		ret = resize_line(line, buf->size_x);
 		if (ret) {
 			log_warning("console: cannot resize line (%d); "
@@ -555,7 +550,7 @@ void kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 	if (!line)
 		goto err_out;
 
-	if (x >= line->num)
+	if (x >= line->size)
 		goto err_out;
 
 	kmscon_char_set(ch, line->cells[x].ch);
