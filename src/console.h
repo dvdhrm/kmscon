@@ -68,13 +68,23 @@ int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
 
 /* console buffer with cell objects */
 
-int kmscon_buffer_new(struct kmscon_buffer **out, uint32_t x, uint32_t y);
+int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
+							unsigned int y);
 void kmscon_buffer_ref(struct kmscon_buffer *buf);
 void kmscon_buffer_unref(struct kmscon_buffer *buf);
 
-int kmscon_buffer_resize(struct kmscon_buffer *buf, uint32_t x, uint32_t y);
+int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
+							unsigned int y);
 void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 			void *dcr, unsigned int width, unsigned int height);
+
+unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf);
+unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf);
+void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
+				unsigned int y, const struct kmscon_char *ch);
+void kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
+				unsigned int y, struct kmscon_char *ch);
+void kmscon_buffer_rotate(struct kmscon_buffer *buf);
 
 /* console objects */
 
