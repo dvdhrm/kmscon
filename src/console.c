@@ -157,6 +157,45 @@ void kmscon_console_unref(struct kmscon_console *con)
 	free(con);
 }
 
+unsigned int kmscon_console_get_width(struct kmscon_console *con)
+{
+	if (!con)
+		return 0;
+
+	return con->cells_x;
+}
+
+unsigned int kmscon_console_get_height(struct kmscon_console *con)
+{
+	if (!con)
+		return 0;
+
+	return con->cells_y;
+}
+
+int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
+								unsigned int y)
+{
+	int ret;
+
+	if (!con)
+		return -EINVAL;
+
+	ret = kmscon_buffer_resize(con->cells, x, y);
+	if (ret)
+		return ret;
+
+	con->cells_x = kmscon_buffer_get_width(con->cells);
+	con->cells_y = kmscon_buffer_get_height(con->cells);
+
+	if (con->cursor_x > con->cells_x)
+		con->cursor_x = con->cells_x;
+	if (con->cursor_y > con->cells_y)
+		con->cursor_y = con->cells_y;
+
+	return 0;
+}
+
 /*
  * This resets the resolution used for drawing operations. It is recommended to
  * set this to the size of your framebuffer, however, you can set this to
@@ -302,10 +341,10 @@ void kmscon_console_write(struct kmscon_console *con,
 	if (!con)
 		return;
 
-	if (con->cursor_x == con->cells_x) {
+	if (con->cursor_x >= con->cells_x) {
 		con->cursor_x = 0;
 		con->cursor_y++;
-		if (con->cursor_y == con->cells_y) {
+		if (con->cursor_y >= con->cells_y) {
 			con->cursor_y--;
 			kmscon_buffer_rotate(con->cells);
 		}
