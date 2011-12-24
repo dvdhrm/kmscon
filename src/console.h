@@ -59,10 +59,12 @@ int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len);
 
 /* font objects with cached glyphs */
 
-int kmscon_font_new(struct kmscon_font **out, uint32_t height);
+int kmscon_font_new(struct kmscon_font **out, unsigned int height);
 void kmscon_font_ref(struct kmscon_font *font);
 void kmscon_font_unref(struct kmscon_font *font);
 
+unsigned int kmscon_font_get_height(struct kmscon_font *font);
+unsigned int kmscon_font_get_width(struct kmscon_font *font);
 int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
 					void *dcr, uint32_t x, uint32_t y);
 

@@ -50,6 +50,7 @@
 #include <pango/pango.h>
 #include <pango/pangocairo.h>
 #include "console.h"
+#include "log.h"
 
 /* maximum size of a single character */
 #define KMSCON_CHAR_SIZE 6
@@ -69,6 +70,7 @@ enum glyph_type {
 struct kmscon_glyph {
 	size_t ref;
 	struct kmscon_char *ch;
+	unsigned int width;
 
 	int type;
 
@@ -87,9 +89,14 @@ struct kmscon_glyph {
 struct kmscon_font {
 	size_t ref;
 
+	unsigned int width;
+	unsigned int height;
 	GHashTable *glyphs;
 	PangoContext *ctx;
 };
+
+static int kmscon_font_lookup(struct kmscon_font *font,
+		const struct kmscon_char *key, struct kmscon_glyph **out);
 
 static int new_char(struct kmscon_char **out, size_t size)
 {
@@ -349,6 +356,7 @@ static void kmscon_glyph_reset(struct kmscon_glyph *glyph)
 	}
 
 	glyph->type = GLYPH_NONE;
+	glyph->width = 0;
 }
 
 static void kmscon_glyph_ref(struct kmscon_glyph *glyph)
@@ -385,6 +393,7 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 	PangoLayoutLine *line;
 	PangoGlyphItem *tmp;
 	PangoGlyphString *str;
+	PangoRectangle rec;
 
 	if (!glyph || !font)
 		return -EINVAL;
@@ -394,6 +403,7 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 		return -EINVAL;
 
 	pango_layout_set_text(layout, glyph->ch->buf, glyph->ch->len);
+	pango_layout_get_extents(layout, NULL, &rec);
 	line = pango_layout_get_line_readonly(layout, 0);
 
 	if (!line || !line->runs || line->runs->next) {
@@ -420,6 +430,59 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 		g_object_unref(layout);
 	}
 
+	glyph->width = PANGO_PIXELS(rec.width);
+	return 0;
+}
+
+/*
+ * Measure font width
+ * We simply draw all ASCII characters and use the average width as default
+ * character width.
+ * This has the side effect that all ASCII characters are already cached and the
+ * console will speed up.
+ */
+static int measure_width(struct kmscon_font *font)
+{
+	unsigned int i, num, width;
+	int ret;
+	struct kmscon_char *ch;
+	char buf;
+	struct kmscon_glyph *glyph;
+
+	if (!font)
+		return -EINVAL;
+
+	ret = kmscon_char_new(&ch);
+	if (ret)
+		return ret;
+
+	num = 0;
+	for (i = 0; i < 127; ++i) {
+		buf = i;
+		ret = kmscon_char_set_u8(ch, &buf, 1);
+		if (ret)
+			continue;
+
+		ret = kmscon_font_lookup(font, ch, &glyph);
+		if (ret)
+			continue;
+
+		if (glyph->width > 0) {
+			width += glyph->width;
+			num++;
+		}
+
+		kmscon_glyph_unref(glyph);
+	}
+
+	kmscon_char_free(ch);
+
+	if (!num)
+		return -EFAULT;
+
+	font->width = width / num + 1;
+	log_debug("font: width is %u\n", font->width);
+
 	return 0;
 }
 
@@ -428,7 +491,7 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
  * \height is the height in pixel that we have for each character.
  * Returns 0 on success and stores the new font in \out.
  */
-int kmscon_font_new(struct kmscon_font **out, uint32_t height)
+int kmscon_font_new(struct kmscon_font **out, unsigned int height)
 {
 	struct kmscon_font *font;
 	int ret;
@@ -440,10 +503,13 @@ int kmscon_font_new(struct kmscon_font **out, uint32_t height)
 	if (!out || !height)
 		return -EINVAL;
 
+	log_debug("font: new font (height %u)\n", height);
+
 	font = malloc(sizeof(*font));
 	if (!font)
 		return -ENOMEM;
 	font->ref = 1;
+	font->height = height;
 
 	map = pango_cairo_font_map_get_default();
 	if (!map) {
@@ -496,9 +562,15 @@ int kmscon_font_new(struct kmscon_font **out, uint32_t height)
 		goto err_ctx;
 	}
 
+	ret = measure_width(font);
+	if (ret)
+		goto err_hash;
+
 	*out = font;
 	return 0;
 
+err_hash:
+	g_hash_table_unref(font->glyphs);
 err_ctx:
 	g_object_unref(font->ctx);
 err_free:
@@ -525,6 +597,23 @@ void kmscon_font_unref(struct kmscon_font *font)
 	g_hash_table_unref(font->glyphs);
 	g_object_unref(font->ctx);
 	free(font);
+	log_debug("font: destroying font\n");
+}
+
+unsigned int kmscon_font_get_width(struct kmscon_font *font)
+{
+	if (!font)
+		return 0;
+
+	return font->width;
+}
+
+unsigned int kmscon_font_get_height(struct kmscon_font *font)
+{
+	if (!font)
+		return 0;
+
+	return font->height;
 }
 
 /*
