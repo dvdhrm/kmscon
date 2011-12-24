@@ -217,7 +217,7 @@ int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len)
 
 const char *kmscon_char_get_u8(const struct kmscon_char *ch)
 {
-	if (!ch || !ch->len)
+	if (!ch)
 		return NULL;
 
 	return ch->buf;
