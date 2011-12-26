@@ -480,7 +480,7 @@ static int measure_width(struct kmscon_font *font)
 	if (!num)
 		return -EFAULT;
 
-	font->width = width / num + 1;
+	font->width = width / num;
 	log_debug("font: width is %u\n", font->width);
 
 	return 0;
