@@ -65,6 +65,7 @@ struct console {
 	struct kmscon_eloop *loop;
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
+	struct kmscon_fd *stdin_fd;
 	struct kmscon_compositor *comp;
 	struct kmscon_vt *vt;
 	struct kmscon_console *con;
@@ -73,6 +74,44 @@ struct console {
 	uint32_t max_x;
 	uint32_t max_y;
 };
+
+static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
+{
+	struct console *con = data;
+	char buf[512];
+	int ret;
+	unsigned int i, len;
+	struct kmscon_char *ch;
+
+	if (!con || !fd)
+		return;
+
+	ret = read(0, buf, sizeof(buf));
+	if (ret < 0) {
+		log_info("stdin read error: %d\n", errno);
+	} else if (!ret) {
+		log_info("stdin closed\n");
+		kmscon_eloop_rm_fd(fd);
+	} else {
+		len = ret;
+		log_debug("stdin input read (len: %d)\n", len);
+
+		ret = kmscon_char_new_u8(&ch, NULL, 0);
+		if (ret)
+			return;
+
+		for (i = 0; i < len; ++i) {
+			if (buf[i] == '\n') {
+				kmscon_console_newline(con->con);
+			} else {
+				kmscon_char_set_u8(ch, &buf[i], 1);
+				kmscon_console_write(con->con, ch);
+			}
+		}
+
+		kmscon_char_free(ch);
+	}
+}
 
 static void map_outputs(struct console *con)
 {
@@ -174,6 +213,38 @@ static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
 	return true;
 }
 
+static const char help_text[] =
+"test_console - KMS based console test\n"
+"This application can be used to test the console subsystem. It copies stdin "
+"to the console so you can use it to print arbitrary text like this:\n"
+"    ls -la / | sudo ./test_console\n"
+"Please be aware that the application needs root rights to access the VT. "
+"If no VT support is compiled in you can run it without root rights but you "
+"should not start it from inside X!\n\n";
+
+static void print_help(struct console *con)
+{
+	int ret;
+	unsigned int i, len;
+	struct kmscon_char *ch;
+
+	ret = kmscon_char_new_u8(&ch, NULL, 0);
+	if (ret)
+		return;
+
+	len = sizeof(help_text) - 1;
+	for (i = 0; i < len; ++i) {
+		if (help_text[i] == '\n') {
+			kmscon_console_newline(con->con);
+		} else {
+			kmscon_char_set_u8(ch, &help_text[i], 1);
+			kmscon_console_write(con->con, ch);
+		}
+	}
+
+	kmscon_char_free(ch);
+}
+
 static void destroy_eloop(struct console *con)
 {
 	kmscon_eloop_rm_idle(con->idle);
@@ -181,6 +252,7 @@ static void destroy_eloop(struct console *con)
 	kmscon_compositor_unref(con->comp);
 	kmscon_console_unref(con->con);
 	kmscon_vt_unref(con->vt);
+	kmscon_eloop_rm_fd(con->stdin_fd);
 	kmscon_eloop_rm_signal(con->sig_int);
 	kmscon_eloop_rm_signal(con->sig_term);
 	kmscon_eloop_unref(con->loop);
@@ -189,8 +261,6 @@ static void destroy_eloop(struct console *con)
 static int setup_eloop(struct console *con)
 {
 	int ret;
-	unsigned int i;
-	struct kmscon_char *ch;
 
 	ret = kmscon_eloop_new(&con->loop);
 	if (ret)
@@ -203,6 +273,11 @@ static int setup_eloop(struct console *con)
 
 	ret = kmscon_eloop_new_signal(con->loop, &con->sig_int, SIGINT,
 							sig_term, NULL);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_eloop_new_fd(con->loop, &con->stdin_fd, 0,
+					KMSCON_READABLE, stdin_cb, con);
 	if (ret)
 		goto err_loop;
 
@@ -222,15 +297,6 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_char_new_u8(&ch, "J", 1);
-	if (ret)
-		goto err_loop;
-
-	for (i = 0; i < 80 * 24 - 1; ++i)
-		kmscon_console_write(con->con, ch);
-
-	kmscon_char_free(ch);
-
 	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
@@ -239,6 +305,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
+	print_help(con);
 	return 0;
 
 err_loop:
