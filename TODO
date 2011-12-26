@@ -8,7 +8,10 @@ Output Subsystem:
    you have only one card, multiple active contexts are not really needed.
 
  - Avoid EGL_EGLEXT_PROTOTYPES and GL_GLEXT_PROTOTYPES and instead retrieve
-   function pointers dynamically.
+   function pointers dynamically. This may also fix invalid function pointers if
+   no GL context is available and we deinitialize the console subsystem. Or we
+   may need to use proper dependencies here. The GL context shouldn't be
+   destroyed as long as a console uses it.
 
  - How to get bpp and colordepth?
 

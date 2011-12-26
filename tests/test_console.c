@@ -249,8 +249,8 @@ static void destroy_eloop(struct console *con)
 {
 	kmscon_eloop_rm_idle(con->idle);
 	kmscon_idle_unref(con->idle);
-	kmscon_compositor_unref(con->comp);
 	kmscon_console_unref(con->con);
+	kmscon_compositor_unref(con->comp);
 	kmscon_vt_unref(con->vt);
 	kmscon_eloop_rm_fd(con->stdin_fd);
 	kmscon_eloop_rm_signal(con->sig_int);
@@ -293,11 +293,11 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_console_new(&con->con);
+	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_compositor_new(&con->comp);
+	ret = kmscon_console_new(&con->con);
 	if (ret)
 		goto err_loop;
 
@@ -327,6 +327,8 @@ int main(int argc, char **argv)
 		return abs(ret);
 	}
 
+	log_info("Starting console\n");
+
 	schedule_draw(&con);
 
 	while (!terminate) {
@@ -334,6 +336,8 @@ int main(int argc, char **argv)
 		if (ret)
 			break;
 	}
+
+	log_info("Stopping console\n");
 
 	destroy_eloop(&con);
 	return abs(ret);

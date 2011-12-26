@@ -233,6 +233,11 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
  * Pass 0 for each parameter if you want to use the current value. Therefore:
  * kmscon_console_resize(con, 0, 0, 0) has no effect as it doesn't change
  * anything.
+ * If you called this once you must make sure that the GL context stays alive
+ * for as long as this console object does. Otherwise, on deinitialization we
+ * may call invalid OpenGL functions.
+ * TODO: Use proper dependencies here. Maybe pass in a kmscon_output or similar
+ * so we correctly activate GL contexts.
  */
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height)
