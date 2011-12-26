@@ -47,14 +47,16 @@
 #include <GL/glext.h>
 
 #include "console.h"
+#include "log.h"
 
 struct kmscon_console {
 	size_t ref;
 
-	/* GL texture */
+	/* GL texture and font */
 	GLuint tex;
-	uint32_t res_x;
-	uint32_t res_y;
+	unsigned int res_x;
+	unsigned int res_y;
+	struct kmscon_font *font;
 
 	/* cairo surface */
 	cairo_t *cr;
@@ -69,21 +71,79 @@ struct kmscon_console {
 	/* cursor */
 	unsigned int cursor_x;
 	unsigned int cursor_y;
-
-	/* active font */
-	struct kmscon_font *font;
 };
 
 static void kmscon_console_free_res(struct kmscon_console *con)
 {
 	if (con && con->cr) {
+		glDeleteTextures(1, &con->tex);
 		cairo_destroy(con->cr);
 		cairo_surface_destroy(con->surf);
 		free(con->surf_buf);
+		con->tex = 0;
 		con->cr = NULL;
 		con->surf = NULL;
 		con->surf_buf = NULL;
 	}
+}
+
+static int kmscon_console_new_res(struct kmscon_console *con)
+{
+	unsigned char *buf;
+	cairo_t *cr;
+	cairo_surface_t *surface;
+	int stride, ret;
+	cairo_format_t format = CAIRO_FORMAT_ARGB32;
+
+	if (!con)
+		return -EINVAL;
+
+	stride = cairo_format_stride_for_width(format, con->res_x);
+
+	buf = malloc(stride * con->res_y);
+	if (!buf)
+		return -ENOMEM;
+
+	surface = cairo_image_surface_create_for_data(buf, format, con->res_x,
+							con->res_y, stride);
+	if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	cr = cairo_create(surface);
+	if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
+		ret = -EFAULT;
+		goto err_cairo;
+	}
+
+	if (con->cr) {
+		glDeleteTextures(1, &con->tex);
+		con->tex = 0;
+		cairo_destroy(con->cr);
+		cairo_surface_destroy(con->surf);
+		free(con->surf_buf);
+	}
+
+	con->surf_buf = buf;
+	con->surf = surface;
+	con->cr = cr;
+
+	glGenTextures(1, &con->tex);
+	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
+				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+
+	log_debug("console: new resolution %ux%u\n", con->res_x, con->res_y);
+	return 0;
+
+err_cairo:
+	cairo_destroy(cr);
+err_free:
+	cairo_surface_destroy(surface);
+	free(buf);
+	return ret;
 }
 
 int kmscon_console_new(struct kmscon_console **out)
@@ -100,6 +160,7 @@ int kmscon_console_new(struct kmscon_console **out)
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
+	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
@@ -108,23 +169,9 @@ int kmscon_console_new(struct kmscon_console **out)
 	con->cells_x = kmscon_buffer_get_width(con->cells);
 	con->cells_y = kmscon_buffer_get_height(con->cells);
 
-	ret = kmscon_console_set_res(con, 800, 600);
-	if (ret)
-		goto err_buf;
-
-	ret = kmscon_font_new(&con->font, con->res_y / 24);
-	if (ret)
-		goto err_res;
-
-	glGenTextures(1, &con->tex);
-
 	*out = con;
 	return 0;
 
-err_res:
-	kmscon_console_free_res(con);
-err_buf:
-	kmscon_buffer_unref(con->cells);
 err_free:
 	free(con);
 	return ret;
@@ -153,8 +200,8 @@ void kmscon_console_unref(struct kmscon_console *con)
 	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
-	glDeleteTextures(1, &con->tex);
 	free(con);
+	log_debug("console: destroing console\n");
 }
 
 unsigned int kmscon_console_get_width(struct kmscon_console *con)
@@ -173,13 +220,40 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 	return con->cells_y;
 }
 
+/*
+ * Resize console to \x and \y. The \height argument is just a quality hint for
+ * internal rendering. It is supposed to be the maximal height in pixels of your
+ * output. The internal texture will have this height (the width is computed
+ * automatically from the font and height). You can still use *_map() to map
+ * this texture to arbitrary outputs but if you have huge resolutions, this
+ * would result in bad quality if you do not specify a proper height here.
+ *
+ * You need to have an active GL context when calling this. You must call this
+ * before calling *_draw(). Otherwise *_draw() will not work.
+ * Pass 0 for each parameter if you want to use the current value. Therefore:
+ * kmscon_console_resize(con, 0, 0, 0) has no effect as it doesn't change
+ * anything.
+ */
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
-								unsigned int y)
+					unsigned int y, unsigned int height)
 {
 	int ret;
+	struct kmscon_font *font;
 
 	if (!con)
 		return -EINVAL;
+
+	if (!x)
+		x = con->cells_x;
+	if (!y)
+		y = con->cells_y;
+	if (!height)
+		height = con->res_y;
+
+	if (x == con->cells_x && y == con->cells_y && height == con->res_y)
+		return 0;
+
+	log_debug("console: resizing to %ux%u:%u\n", x, y, height);
 
 	ret = kmscon_buffer_resize(con->cells, x, y);
 	if (ret)
@@ -193,76 +267,24 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (con->cursor_y > con->cells_y)
 		con->cursor_y = con->cells_y;
 
-	return 0;
-}
-
-/*
- * This resets the resolution used for drawing operations. It is recommended to
- * set this to the size of your framebuffer, however, you can set this to
- * anything except 0.
- * This image-resolution is used internally to render the console fonts. The
- * kmscon_console_map() function can map this image to any framebuffer size you
- * want. Therefore, this screen resolution is just a performance and quality
- * hint.
- * By default this is set to 800x600.
- * Returns 0 on success -EINVAL if con, x or y is 0/NULL and -ENOMEM on
- * out-of-mem errors.
- */
-int kmscon_console_set_res(struct kmscon_console *con, uint32_t x, uint32_t y)
-{
-	unsigned char *buf;
-	cairo_t *cr;
-	cairo_surface_t *surface;
-	int stride, ret;
-	cairo_format_t format = CAIRO_FORMAT_ARGB32;
-
-	if (!con || !x || !y)
-		return -EINVAL;
-
-	stride = cairo_format_stride_for_width(format, x);
-
-	buf = malloc(stride * y);
-	if (!buf)
-		return -ENOMEM;
-
-	surface = cairo_image_surface_create_for_data(buf, format, x, y,
-								stride);
-	if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
-		ret = -ENOMEM;
-		goto err_free;
+	ret = kmscon_font_new(&font, height / con->cells_y);
+	if (ret) {
+		log_err("console: cannot create new font: %d\n", ret);
+		return ret;
 	}
 
-	cr = cairo_create(surface);
-	if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
-		ret = -EFAULT;
-		goto err_cairo;
+	kmscon_font_unref(con->font);
+	con->font = font;
+	con->res_x = con->cells_x * kmscon_font_get_width(con->font);
+	con->res_y = height;
+
+	ret = kmscon_console_new_res(con);
+	if (ret) {
+		log_err("console: cannot create drawing buffers: %d\n", ret);
+		return ret;
 	}
-
-	if (con->cr) {
-		cairo_destroy(con->cr);
-		cairo_surface_destroy(con->surf);
-		free(con->surf_buf);
-	}
-
-	con->res_x = x;
-	con->res_y = y;
-	con->surf_buf = buf;
-	con->surf = surface;
-	con->cr = cr;
-
-	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
-				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
 	return 0;
-
-err_cairo:
-	cairo_destroy(cr);
-err_free:
-	cairo_surface_destroy(surface);
-	free(buf);
-	return ret;
 }
 
 /*

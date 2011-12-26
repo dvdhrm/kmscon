@@ -126,9 +126,8 @@ static void activate_outputs(struct console *con)
 	struct kmscon_output *iter;
 	struct kmscon_mode *mode;
 	int ret;
-	uint32_t x, y;
+	uint32_t y;
 
-	con->max_x = 0;
 	con->max_y = 0;
 
 	iter = kmscon_compositor_get_outputs(con->comp);
@@ -140,20 +139,12 @@ static void activate_outputs(struct console *con)
 		}
 
 		mode = kmscon_output_get_current(iter);
-		x = kmscon_mode_get_width(mode);
 		y = kmscon_mode_get_height(mode);
-		if (x > con->max_x)
-			con->max_x = x;
 		if (y > con->max_y)
 			con->max_y = y;
 	}
 
-	if (con->max_x == 0)
-		con->max_x = 800;
-	if (con->max_y == 0)
-		con->max_y = 600;
-
-	kmscon_console_set_res(con->con, con->max_x, con->max_y);
+	kmscon_console_resize(con->con, 0, 0, con->max_y);
 	schedule_draw(con);
 }
 

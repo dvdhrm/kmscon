@@ -97,9 +97,8 @@ void kmscon_console_unref(struct kmscon_console *con);
 unsigned int kmscon_console_get_width(struct kmscon_console *con);
 unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
-							unsigned int y);
+					unsigned int y, unsigned int height);
 
-int kmscon_console_set_res(struct kmscon_console *con, uint32_t x, uint32_t y);
 void kmscon_console_draw(struct kmscon_console *con);
 void kmscon_console_map(struct kmscon_console *con);
 
