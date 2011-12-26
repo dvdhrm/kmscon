@@ -42,6 +42,14 @@ Console Subsystem:
    This would speed up our font-draw functions considerably as we would bypass
    pango if a glyph is already in the hash-table.
 
+ - Consider switching to freetype2 and fontconfig. This would drop *lots* of
+   dependencies including pango, glib, cairo...
+   Freetype2 also provides a fast glyph cache and is much more lightweight than
+   pango.
+
+ - We use "monospace" font by default but we should instead provide some way to
+   allow the user to choose a font.
+
 VT Subsystem:
  - Set KDSKBMODE to K_OFF to avoid getting input from the VT subsystem. This
    also discards the VT-switch events so we should first implement our own
