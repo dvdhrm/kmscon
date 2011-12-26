@@ -345,6 +345,9 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 	if (!y)
 		y = DEFAULT_HEIGHT;
 
+	if (buf->size_x == x && buf->size_y == y)
+		return 0;
+
 	/* Resize y size by adjusting the current buffer size */
 	if (y < buf->size_y) {
 		/*
