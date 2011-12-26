@@ -375,3 +375,16 @@ void kmscon_console_write(struct kmscon_console *con,
 	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch);
 	con->cursor_x++;
 }
+
+void kmscon_console_newline(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	con->cursor_x = 0;
+	con->cursor_y++;
+	if (con->cursor_y >= con->cells_y) {
+		con->cursor_y--;
+		kmscon_buffer_rotate(con->cells);
+	}
+}

@@ -104,3 +104,4 @@ void kmscon_console_map(struct kmscon_console *con);
 
 void kmscon_console_write(struct kmscon_console *con,
 						const struct kmscon_char *ch);
+void kmscon_console_newline(struct kmscon_console *con);
