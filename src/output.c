@@ -490,6 +490,17 @@ static int kmscon_output_connect(struct kmscon_output *output, drmModeRes *res,
 }
 
 /*
+ * Returns true if the output is active and the related compositor is awake.
+ */
+bool kmscon_output_is_awake(struct kmscon_output *output)
+{
+	if (!output)
+		return NULL;
+
+	return output->active && !kmscon_compositor_is_asleep(output->comp);
+}
+
+/*
  * Returns the next output in the list. If there is no next output or the
  * output is not bound to any compositor, then it returns NULL.
  * This does not take a reference of the next output nor drop a reference of

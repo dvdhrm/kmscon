@@ -81,6 +81,7 @@ int kmscon_output_new(struct kmscon_output **out);
 void kmscon_output_ref(struct kmscon_output *output);
 void kmscon_output_unref(struct kmscon_output *output);
 
+bool kmscon_output_is_awake(struct kmscon_output *output);
 struct kmscon_output *kmscon_output_next(struct kmscon_output *output);
 struct kmscon_mode *kmscon_output_get_modes(struct kmscon_output *output);
 struct kmscon_mode *kmscon_output_get_current(struct kmscon_output *output);
