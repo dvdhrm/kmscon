@@ -323,9 +323,11 @@ static struct xkb_sym_interpret *find_sym_interpret(struct xkb_desc *desc,
 		/*
 		 * If the interpret specified UseModMapMods=level1, the sym
 		 * must be in the first level of its group.
+		 * Note: [xserver] and [Lib] do different things here, and it
+		 * doesn't seem to matter much. So it's commented for now.
 		 */
-		if (si->match&XkbSI_LevelOneOnly && level != 0)
-			continue;
+		/* if (si->match&XkbSI_LevelOneOnly && level != 0) */
+		/* 	continue; */
 
 		if (!are_modifiers_matching(si->mods, si->match, key_modmap))
 			continue;
