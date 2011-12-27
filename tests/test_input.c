@@ -25,12 +25,14 @@
 
 #include <errno.h>
 #include <linux/input.h>
+#include <locale.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 
 #include "eloop.h"
 #include "input.h"
@@ -57,10 +59,53 @@ static void sig_quit(struct kmscon_signal *sig, int signum, void *data)
 	}
 }
 
-static void input_arrived(struct kmscon_input *input, uint16_t type,
-				uint16_t code, int32_t value, void *data)
+static void print_modifiers(uint8_t mods)
 {
-	printf("got (type %x) (code %x) (value %x)\n", type, code, value);
+	if (mods & XKB_COMMON_SHIFT_MASK)
+		printf("SHIFT ");
+	if (mods & XKB_COMMON_LOCK_MASK)
+		printf("LOCK ");
+	if (mods & XKB_COMMON_CONTROL_MASK)
+		printf("CONTROL ");
+	if (mods & XKB_COMMON_MOD1_MASK)
+		printf("MOD1 ");
+	if (mods & XKB_COMMON_MOD2_MASK)
+		printf("MOD2 ");
+	if (mods & XKB_COMMON_MOD3_MASK)
+		printf("MOD3 ");
+	if (mods & XKB_COMMON_MOD4_MASK)
+		printf("MOD4 ");
+	if (mods & XKB_COMMON_MOD5_MASK)
+		printf("MOD5 ");
+	printf("\n");
+}
+
+static void input_arrived(struct kmscon_input *input,
+				struct kmscon_input_event *ev, void *data)
+{
+	int len;
+	char s[16];
+	char utf8[MB_CUR_MAX + 1];
+
+	if (ev->unicode == 0) {
+		xkb_keysym_to_string(ev->keysym, s, sizeof(s));
+		printf("sym %s ", s);
+	} else {
+		/*
+		 * Just a proof-of-concept hack. This works because glibc uses
+		 * UTF-32 (= UCS-4) as the internal wchar_t encoding.
+		 */
+		len = wctomb(utf8, (wchar_t)ev->unicode);
+		if (len <= 0) {
+			log_info("Bad unicode char\n");
+			return;
+		} else {
+			utf8[len] = '\0';
+		}
+
+		printf("utf8 %s ", utf8);
+	}
+	print_modifiers(ev->modifiers);
 }
 
 int main(int argc, char **argv)
@@ -69,6 +114,12 @@ int main(int argc, char **argv)
 	struct kmscon_eloop *loop;
 	struct kmscon_input *input;
 	struct kmscon_signal *sigint, *sigquit;
+
+	if (!setlocale(LC_ALL, "en_US.UTF-8")) {
+		log_err("Cannot set locale: %m\n");
+		ret = -EFAULT;
+		goto err_out;
+	}
 
 	ret = kmscon_eloop_new(&loop);
 	if (ret) {

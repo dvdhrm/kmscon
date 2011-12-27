@@ -45,13 +45,26 @@
  *   reacting to VT changes.
  */
 
+#ifndef KMSCON_INPUT_H
+#define KMSCON_INPUT_H
+
 #include <inttypes.h>
 #include <stdbool.h>
+#include <X11/extensions/XKBcommon.h>
+#include <X11/keysym.h>
 #include "eloop.h"
 
 struct kmscon_input;
-typedef void (*kmscon_input_cb) (struct kmscon_input *input, uint16_t type,
-				uint16_t code, int32_t value, void *data);
+
+struct kmscon_input_event {
+	uint16_t keycode;  /* linux keycode - KEY_* - linux/input.h */
+	uint32_t keysym;   /* X keysym - XK_* - X11/keysym.h */
+	uint8_t modifiers; /* xkbcommon modifiers - XKB_COMMON_*_MASK */
+	uint32_t unicode;  /* UCS-4 unicode value, 0 if none */
+};
+
+typedef void (*kmscon_input_cb) (struct kmscon_input *input,
+				struct kmscon_input_event *ev, void *data);
 
 int kmscon_input_new(struct kmscon_input **out);
 void kmscon_input_ref(struct kmscon_input *input);
@@ -64,3 +77,5 @@ void kmscon_input_disconnect_eloop(struct kmscon_input *input);
 void kmscon_input_sleep(struct kmscon_input *input);
 void kmscon_input_wake_up(struct kmscon_input *input);
 bool kmscon_input_is_asleep(struct kmscon_input *input);
+
+#endif /* KMSCON_INPUT_H */

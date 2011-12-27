@@ -49,8 +49,9 @@
 #include <unistd.h>
 
 #include "eloop.h"
-#include "log.h"
 #include "input.h"
+#include "input-private.h"
+#include "log.h"
 
 enum input_state {
 	INPUT_ASLEEP,
@@ -65,6 +66,8 @@ struct kmscon_input_device {
 	int rfd;
 	char *devnode;
 	struct kmscon_fd *fd;
+
+	struct xkb_state xkb_state;
 };
 
 struct kmscon_input {
@@ -79,9 +82,29 @@ struct kmscon_input {
 	struct udev *udev;
 	struct udev_monitor *monitor;
 	struct kmscon_fd *monitor_fd;
+
+	struct xkb_desc *xkb_desc;
 };
 
 static void remove_device(struct kmscon_input *input, const char *node);
+
+static void notify_key(struct kmscon_input_device *device,
+				uint16_t type, uint16_t code, int32_t value)
+{
+	struct kmscon_input_event ev;
+	bool has_event;
+	struct kmscon_input *input;
+
+	if (type != EV_KEY)
+		return;
+
+	input = device->input;
+	has_event = process_evdev_key(input->xkb_desc, &device->xkb_state,
+							value, code, &ev);
+
+	if (has_event)
+		input->cb(input, &ev, input->data);
+}
 
 static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
 {
@@ -109,8 +132,8 @@ static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
 		} else {
 			n = len / sizeof(*ev);
 			for (i = 0; i < n; i++)
-				input->cb(input, ev[i].type, ev[i].code,
-						ev[i].value, input->data);
+				notify_key(device, ev[i].type, ev[i].code,
+								ev[i].value);
 		}
 	}
 }
@@ -131,6 +154,10 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 						device->devnode, errno);
 		return -errno;
 	}
+
+	/* this rediscovers the xkb state if sth changed during sleep */
+	reset_xkb_state(device->input->xkb_desc, &device->xkb_state,
+								device->rfd);
 
 	ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
 		device->rfd, KMSCON_READABLE, device_data_arrived, device);
@@ -214,6 +241,11 @@ int kmscon_input_new(struct kmscon_input **out)
 	int ret;
 	struct kmscon_input *input;
 
+	/* TODO: Make configurable */
+	static const char *layout = "us,ru,il";
+	static const char *variant = "intl,,biblical";
+	static const char *options = "grp:menu_toggle";
+
 	if (!out)
 		return -EINVAL;
 
@@ -227,11 +259,17 @@ int kmscon_input_new(struct kmscon_input **out)
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
 
+	ret = new_xkb_desc(layout, variant, options, &input->xkb_desc);
+	if (ret) {
+		log_warning("input: cannot create xkb description\n");
+		goto err_free;
+	}
+
 	input->udev = udev_new();
 	if (!input->udev) {
 		log_warning("input: cannot create udev object\n");
 		ret = -EFAULT;
-		goto err_free;
+		goto err_xkb;
 	}
 
 	input->monitor = udev_monitor_new_from_netlink(input->udev, "udev");
@@ -263,6 +301,8 @@ err_monitor:
 	udev_monitor_unref(input->monitor);
 err_udev:
 	udev_unref(input->udev);
+err_xkb:
+	free_xkb_desc(input->xkb_desc);
 err_free:
 	free(input);
 	return ret;
@@ -287,6 +327,7 @@ void kmscon_input_unref(struct kmscon_input *input)
 	kmscon_input_disconnect_eloop(input);
 	udev_monitor_unref(input->monitor);
 	udev_unref(input->udev);
+	free_xkb_desc(input->xkb_desc);
 	free(input);
 	log_debug("input: destroying input object\n");
 }

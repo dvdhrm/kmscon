@@ -49,6 +49,10 @@ PKG_CHECK_MODULES([UDEV], [libudev])
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
 
+PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
+AC_SUBST(XKBCOMMON_CFLAGS)
+AC_SUBST(XKBCOMMON_LIBS)
+
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug], [whether to build with debugging on)])],

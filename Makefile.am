@@ -8,7 +8,8 @@ noinst_LTLIBRARIES = libkmscon-core.la
 AM_CFLAGS = \
 	-Wall
 AM_CPPFLAGS = \
-	-I $(srcdir)/src
+	-I $(srcdir)/src \
+	-I $(srcdir)/external
 AM_LDFLAGS = \
 	-Wl,--as-needed
 
@@ -27,6 +28,8 @@ libkmscon_core_la_SOURCES = \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
 	src/input.c src/input.h \
+	src/input-xkb.c src/input-private.h \
+	external/imKStoUCS.c external\imKStoUCS.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h
 
@@ -38,7 +41,8 @@ libkmscon_core_la_CPPFLAGS = \
 	$(OPENGL_CFLAGS) \
 	$(CAIRO_CFLAGS) \
 	$(PANGO_CFLAGS) \
-	$(UDEV_CFLAGS)
+	$(UDEV_CFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
@@ -46,7 +50,8 @@ libkmscon_core_la_LIBADD = \
 	$(OPENGL_LIBS) \
 	$(CAIRO_LIBS) \
 	$(PANGO_LIBS) \
-	$(UDEV_LIBS)
+	$(UDEV_LIBS) \
+	$(XKBCOMMON_LIBS)
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la
@@ -78,6 +83,11 @@ test_terminal_SOURCES = tests/test_terminal.c
 test_terminal_LDADD = libkmscon-core.la
 
 test_input_SOURCES = tests/test_input.c
-test_input_LDADD = libkmscon-core.la
+test_input_LDADD = \
+	libkmscon-core.la \
+	$(XKBCOMMON_LIBS)
+test_input_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 
 dist_doc_DATA = README TODO
