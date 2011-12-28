@@ -72,6 +72,7 @@ static void init_compat(struct xkb_desc *desc);
 static void init_key_types(struct xkb_desc *desc);
 static void init_actions(struct xkb_desc *desc);
 static void init_indicators(struct xkb_desc *desc);
+static void init_autorepeat(struct xkb_desc *desc);
 static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode);
 static int allocate_key_acts(struct xkb_desc *desc, uint8_t keycode);
 static struct xkb_sym_interpret *find_sym_interpret(struct xkb_desc *desc,
@@ -82,6 +83,7 @@ static uint8_t virtual_and_real_to_mask(struct xkb_desc *desc, uint16_t vmods,
 							uint8_t real_mods);
 static uint8_t virtual_to_real_mods(struct xkb_desc *desc, uint16_t vmods);
 static void init_action(struct xkb_desc *desc, union xkb_action *action);
+
 static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
 				KeyCode keycode, enum key_state key_state,
 				union xkb_action *action);
@@ -91,6 +93,8 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 				KeyCode keycode, enum key_state key_state,
 					struct xkb_group_action *action);
+
+static bool should_key_repeat(struct xkb_desc *desc, KeyCode keycode);
 static uint8_t wrap_group_keycode(struct xkb_desc *desc, KeyCode keycode,
 								int16_t group);
 static uint8_t wrap_group_control(struct xkb_desc *desc, int16_t group);
@@ -127,6 +131,7 @@ int new_xkb_desc(const char *layout, const char *variant, const char *options,
 	init_key_types(desc);
 	init_actions(desc);
 	init_indicators(desc);
+	init_autorepeat(desc);
 
 	*out = desc;
 	return 0;
@@ -458,6 +463,49 @@ static void init_indicators(struct xkb_desc *desc)
 	}
 }
 
+/*
+ * We don't do soft repeat currently, but we use the controls to filter out
+ * which evdev repeats to send.
+ */
+static void init_autorepeat(struct xkb_desc *desc)
+{
+	/*
+	 * This is taken from <xserver>/include/site.h
+	 * If a bit is off for a keycode, it should not repeat.
+	 */
+	static const char DEFAULT_AUTOREPEATS[XkbPerKeyBitArraySize] = {
+		0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+	memcpy(desc->ctrls->per_key_repeat,
+				DEFAULT_AUTOREPEATS, XkbPerKeyBitArraySize);
+
+	desc->ctrls->enabled_ctrls |= XkbRepeatKeysMask;
+}
+
+/* Whether to send out a repeat event for the key. */
+static bool should_key_repeat(struct xkb_desc *desc, KeyCode keycode)
+{
+	unsigned const char *pkr;
+
+	/* Repeats globally disabled. */
+	if ((desc->ctrls->enabled_ctrls & XkbRepeatKeysMask) == 0)
+		return false;
+
+	/* Repeats disabled for the specific key. */
+	pkr = desc->ctrls->per_key_repeat;
+	if ((pkr[keycode/8] & (0x01 << (keycode%8))) == 0)
+		return false;
+
+	/* Don't repeat modifiers. */
+	if (desc->map->modmap[keycode] != 0)
+		return false;
+
+	return true;
+}
+
 static uint8_t virtual_to_real_mods(struct xkb_desc *desc, uint16_t vmods)
 {
 	int i;
@@ -620,6 +668,10 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 		return false;
 	/* Active keycode. */
 	if (XkbKeyNumSyms(desc, keycode) == 0)
+		return false;
+	/* Unwanted repeat. */
+	if (key_state == KEY_STATE_REPEATED &&
+					!should_key_repeat(desc, keycode))
 		return false;
 
 	group = wrap_group_keycode(desc, keycode, state->group);
