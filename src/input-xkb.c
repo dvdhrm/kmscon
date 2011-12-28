@@ -74,6 +74,8 @@ static void init_actions(struct xkb_desc *desc);
 static void init_indicators(struct xkb_desc *desc);
 static void init_autorepeat(struct xkb_desc *desc);
 static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode);
+static int init_compat_for_keysym(struct xkb_desc *desc, KeyCode keycode,
+					uint8_t group, uint16_t level);
 static int allocate_key_acts(struct xkb_desc *desc, uint8_t keycode);
 static struct xkb_sym_interpret *find_sym_interpret(struct xkb_desc *desc,
 			uint32_t sym, uint16_t level, uint8_t key_modmap);
@@ -167,17 +169,11 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 {
 	int ret;
 	int i, bit;
-	bool allocated;
 
-	uint32_t sym;
 	uint8_t group;
 	uint16_t level;
 	int num_groups;
 	int num_levels;
-
-	struct xkb_sym_interpret *si;
-	union xkb_action *action;
-	uint8_t key_modmap;
 
 	/*
 	 * It's possible that someone had set some actions for the keycode
@@ -188,7 +184,6 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 	if (XkbKeyHasActions(desc, keycode))
 		return 0;
 
-	key_modmap = desc->map->modmap[keycode];
 	num_groups = XkbKeyNumGroups(desc, keycode);
 
 	/*
@@ -196,35 +191,14 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 	 * which is used in some symbol interpretations.
 	 */
 
-	allocated = false;
 	for (group=0, i=0; group < num_groups; group++) {
 		num_levels = XkbKeyGroupWidth(desc, keycode, group);
 
 		for (level=0; level < num_levels; level++) {
-			sym = XkbKeySymEntry(desc, keycode, level, group);
-			si = find_sym_interpret(desc, sym, level, key_modmap);
-
-			if (!si)
-				continue;
-
-			/* Set the key action mapping. */
-			if (si->act.type != XkbSA_NoAction) {
-				if (!allocated) {
-					ret = allocate_key_acts(desc, keycode);
-					if (ret)
-						return ret;
-					allocated = true;
-				}
-
-				action = XkbKeyActionEntry(desc, keycode,
-								level, group);
-				*action = (union xkb_action)si->act;
-			}
-
-			/* Set the key virtual modifier mapping. */
-			if (si->virtual_mod != XkbNoModifier)
-				desc->server->vmodmap[keycode] |=
-						0x01 << si->virtual_mod;
+			ret = init_compat_for_keysym(desc, keycode,
+								group, level);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -236,6 +210,39 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 	for (i=0, bit=0x01; i < XkbNumVirtualMods; i++, bit<<=1)
 		if (bit&desc->server->vmodmap[keycode])
 			desc->server->vmods[i] |= desc->map->modmap[keycode];
+
+	return 0;
+}
+
+static int init_compat_for_keysym(struct xkb_desc *desc, KeyCode keycode,
+						uint8_t group, uint16_t level)
+{
+	int ret;
+	uint8_t key_modmap;
+	uint32_t sym;
+	struct xkb_sym_interpret *si;
+	union xkb_action *action;
+
+	key_modmap = desc->map->modmap[keycode];
+	sym = XkbKeySymEntry(desc, keycode, level, group);
+	si = find_sym_interpret(desc, sym, level, key_modmap);
+
+	if (!si)
+		return 0;
+
+	/* Set the key action mapping. */
+	if (si->act.type != XkbSA_NoAction) {
+		ret = allocate_key_acts(desc, keycode);
+		if (ret)
+			return ret;
+
+		action = XkbKeyActionEntry(desc, keycode, level, group);
+		*action = (union xkb_action)si->act;
+	}
+
+	/* Set the key virtual modifier mapping. */
+	if (si->virtual_mod != XkbNoModifier)
+		desc->server->vmodmap[keycode] |= 0x01 << si->virtual_mod;
 
 	return 0;
 }
