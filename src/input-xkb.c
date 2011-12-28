@@ -631,7 +631,7 @@ uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
 			continue;
 
 		/*
-		 * Must march exactly after we masked it with the key_type's
+		 * Must match exactly after we masked it with the key_type's
 		 * mask.
 		 */
 		if (entry->mods.mask == masked_mods)
@@ -659,7 +659,7 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 	uint16_t shift_level;
 	uint32_t sym;
 	union xkb_action *action;
-	bool state_changed;
+	bool state_changed, event_filled;
 
 	keycode = code + desc->min_key_code;
 
@@ -685,13 +685,14 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 							key_state, action);
 	}
 
+	event_filled = false;
 	if (key_state != KEY_STATE_RELEASED) {
 		out->keycode = code;
 		out->keysym = sym;
 		out->modifiers = state->mods;
 		out->unicode = KeysymToUcs4(sym);
 		
-		return true;
+		event_filled = true;
 	}
 
 	if (state_changed) {
@@ -702,7 +703,7 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 		update_effective_group(desc, state);
 	}
 
-	return false;
+	return event_filled;
 }
 
 /*
