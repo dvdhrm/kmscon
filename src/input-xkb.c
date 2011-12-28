@@ -224,7 +224,7 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 			/* Set the key virtual modifier mapping. */
 			if (si->virtual_mod != XkbNoModifier)
 				desc->server->vmodmap[keycode] |=
-							0x01<<si->virtual_mod;
+						0x01 << si->virtual_mod;
 		}
 	}
 
@@ -243,7 +243,7 @@ static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
 /*
  * Allocate slots for a keycode in the key-action mapping array. xkbcommon
  * doesn't do this by itself for actions from compat (that is almost all of
- * them.
+ * them).
  * See [xserver] XKBMAlloc.c:XkbResizeKeyActions() for the equivalent.
  */
 static int allocate_key_acts(struct xkb_desc *desc, uint8_t keycode)
@@ -353,15 +353,15 @@ static struct xkb_sym_interpret *find_sym_interpret(struct xkb_desc *desc,
 static bool are_modifiers_matching(uint8_t mods, unsigned char match,
 							uint8_t to_mods)
 {
-	switch (match&XkbSI_OpMask) {
+	switch (match & XkbSI_OpMask) {
 	case XkbSI_NoneOf:
-		return (mods&to_mods) == 0;
+		return (mods & to_mods) == 0;
 	case XkbSI_AnyOfOrNone:
 		return true;
 	case XkbSI_AnyOf:
-		return (mods&to_mods) != 0;
+		return (mods & to_mods) != 0;
 	case XkbSI_AllOf:
-		return (mods&to_mods) == mods;
+		return (mods & to_mods) == mods;
 	case XkbSI_Exactly:
 		return mods == to_mods;
 	}
@@ -491,12 +491,12 @@ static bool should_key_repeat(struct xkb_desc *desc, KeyCode keycode)
 	unsigned const char *pkr;
 
 	/* Repeats globally disabled. */
-	if ((desc->ctrls->enabled_ctrls & XkbRepeatKeysMask) == 0)
+	if (!(desc->ctrls->enabled_ctrls & XkbRepeatKeysMask))
 		return false;
 
 	/* Repeats disabled for the specific key. */
 	pkr = desc->ctrls->per_key_repeat;
-	if ((pkr[keycode/8] & (0x01 << (keycode%8))) == 0)
+	if (!(pkr[keycode / 8] & (0x01 << (keycode % 8))))
 		return false;
 
 	/* Don't repeat modifiers. */
@@ -515,7 +515,7 @@ static uint8_t virtual_to_real_mods(struct xkb_desc *desc, uint16_t vmods)
 	mods = 0x00;
 
 	for (i=0, bit=0x01; i < XkbNumVirtualMods; i++, bit<<=1)
-		if (vmods&bit)
+		if (vmods & bit)
 			mods |= desc->server->vmods[i];
 
 	return mods;
@@ -563,7 +563,7 @@ void reset_xkb_state(struct xkb_desc *desc, struct xkb_state *state,
 
 	/* The LED_* constants specifiy the bit location. */
 	for (i=0, bit=0x01; i < LED_MAX; i++, bit<<=1) {
-		if ((leds&bit) == 0)
+		if (!(leds & bit))
 			continue;
 
 		im = NULL;
@@ -612,7 +612,7 @@ static struct xkb_indicator_map *find_indicator_map(struct xkb_desc *desc,
  * the modifiers to shift the keycode; this is determined by the key_type
  * object mapped to the (keycode, group) pair.
  */
-uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
+static uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
 						uint8_t mods, uint8_t group)
 {
 	int i;
@@ -756,7 +756,7 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 	uint8_t saved_mods;
 	uint8_t flags = action->flags;
 
-	if (action->flags&XkbSA_UseModMapMods)
+	if (flags & XkbSA_UseModMapMods)
 		mods = desc->map->modmap[keycode];
 	else
 		mods = action->mask;
@@ -772,7 +772,7 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 			state->base_mods |= mods;
 		} else if (key_state == KEY_STATE_RELEASED) {
 			state->base_mods &= ~mods;
-			if (flags&XkbSA_ClearLocks)
+			if (flags & XkbSA_ClearLocks)
 				state->locked_mods &= ~mods;
 		}
 
@@ -781,17 +781,17 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 		if (key_state == KEY_STATE_PRESSED) {
 			state->base_mods |= mods;
 		} else if (key_state == KEY_STATE_RELEASED) {
-			if (flags&XkbSA_ClearLocks) {
+			if (flags & XkbSA_ClearLocks) {
 				saved_mods = state->locked_mods;
 				state->locked_mods &= ~mods;
-				mods &= ~(mods&saved_mods);
+				mods &= ~(mods & saved_mods);
 			}
-			if (flags&XkbSA_LatchToLock) {
+			if (flags & XkbSA_LatchToLock) {
 				saved_mods = mods;
-				mods = (mods&state->latched_mods);
+				mods = (mods & state->latched_mods);
 				state->locked_mods |= mods;
 				state->latched_mods &= ~mods;
-				mods = saved_mods&(~mods);
+				mods = saved_mods & (~mods);
 			}
 			state->latched_mods |= mods;
 		}
@@ -837,24 +837,25 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 	switch (action->type) {
 	case XkbSA_SetGroup:
 		if (key_state == KEY_STATE_PRESSED) {
-			if (flags&XkbSA_GroupAbsolute)
+			if (flags & XkbSA_GroupAbsolute)
 				state->base_group = group;
 			else
 				state->base_group += action->group;
 		} else if (key_state == KEY_STATE_RELEASED) {
-			if (flags&XkbSA_ClearLocks)
+			if (flags & XkbSA_ClearLocks)
 				state->locked_group = 0;
 		}
 
 		break;
 	case XkbSA_LatchGroup:
 		if (key_state == KEY_STATE_PRESSED) {
-			if (flags&XkbSA_GroupAbsolute)
+			if (flags & XkbSA_GroupAbsolute)
 				state->base_group = group;
 			else
 				state->base_group += action->group;
 		} else if (key_state == KEY_STATE_RELEASED) {
-			if (flags&XkbSA_LatchToLock && state->latched_group) {
+			if ((flags & XkbSA_LatchToLock) &&
+						state->latched_group) {
 				state->locked_group += group;
 				state->latched_group -= group;
 			} else {
@@ -865,7 +866,7 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 		break;
 	case XkbSA_LockGroup:
 		if (key_state == KEY_STATE_PRESSED) {
-			if (flags&XkbSA_GroupAbsolute)
+			if (flags & XkbSA_GroupAbsolute)
 				state->locked_group = group;
 			else
 				state->locked_group += group;
@@ -891,11 +892,11 @@ static uint8_t wrap_group(int16_t group, int num_groups, uint8_t group_info)
 	switch (XkbOutOfRangeGroupAction(group_info)) {
 	case XkbWrapIntoRange:
 		/* This is the default, common method. */
-		return group%num_groups;
+		return group % num_groups;
 
 	case XkbClampIntoRange:
 		/* This one seems to be unused. */
-		return num_groups-1;
+		return num_groups - 1;
 
 	case XkbRedirectIntoRange:
 		/* This one seems to be unused. */
@@ -929,8 +930,8 @@ static uint8_t wrap_group_control(struct xkb_desc *desc, int16_t group)
 /*
  * Wrap the effective global group to a legal group for the keycode, according
  * to the rule specified for the key.
- * (Some groups keycodes may have more groups than others, and so the active
- * effective group may make no sense for a certain keycode).
+ * (Some keycodes may have more groups than others, and so the effective
+ * group may not make sense for a certain keycode).
  */
 static uint8_t wrap_group_keycode(struct xkb_desc *desc, KeyCode keycode,
 								int16_t group)
@@ -951,7 +952,8 @@ static uint8_t wrap_group_keycode(struct xkb_desc *desc, KeyCode keycode,
 static void update_effective_mods(struct xkb_desc *desc,
 						struct xkb_state *state)
 {
-	state->mods = state->base_mods|state->latched_mods|state->locked_mods;
+	state->mods = state->base_mods | state->latched_mods |
+							state->locked_mods;
 }
 
 /*
