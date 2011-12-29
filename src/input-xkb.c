@@ -832,9 +832,14 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 	uint8_t flags = action->flags;
 
 	/*
-	 * Note: action->group is signed and may be negative if GroupAbsolute
-	 * is not set. A group itself cannot be negative.
+	 * action->group is signed and may be negative if GroupAbsolute
+	 * is not set. A group itself cannot be negative and is unsigend.
+	 * Therefore we extend these to int16 to avoid underflow and
+	 * signedness issues. Be careful!
 	 */
+	int16_t base_group = state->base_group;
+	int16_t latched_group = state->latched_group;
+	int16_t locked_group = state->locked_group;
 
 	/*
 	 * FIXME: Some actions here should be conditioned "and no keys are
@@ -845,28 +850,27 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 	case XkbSA_SetGroup:
 		if (key_state == KEY_STATE_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
-				state->base_group = group;
+				base_group = group;
 			else
-				state->base_group += action->group;
+				base_group += group;
 		} else if (key_state == KEY_STATE_RELEASED) {
 			if (flags & XkbSA_ClearLocks)
-				state->locked_group = 0;
+				locked_group = 0;
 		}
 
 		break;
 	case XkbSA_LatchGroup:
 		if (key_state == KEY_STATE_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
-				state->base_group = group;
+				base_group = group;
 			else
-				state->base_group += action->group;
+				base_group += group;
 		} else if (key_state == KEY_STATE_RELEASED) {
-			if ((flags & XkbSA_LatchToLock) &&
-						state->latched_group) {
-				state->locked_group += group;
-				state->latched_group -= group;
+			if ((flags & XkbSA_LatchToLock) && latched_group) {
+				locked_group += group;
+				latched_group -= group;
 			} else {
-				state->latched_group += group;
+				latched_group += group;
 			}
 		}
 
@@ -874,14 +878,18 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 	case XkbSA_LockGroup:
 		if (key_state == KEY_STATE_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
-				state->locked_group = group;
+				locked_group = group;
 			else
-				state->locked_group += group;
+				locked_group += group;
 		}
 
 		break;
 	}
 
+	/* Bring what was changed back into range. */
+	state->base_group = wrap_group_control(desc, base_group);
+	state->locked_group = wrap_group_control(desc, locked_group);
+	state->latched_group = wrap_group_control(desc, latched_group);
 	update_effective_group(desc, state);
 	return true;
 }
@@ -898,8 +906,14 @@ static uint8_t wrap_group(int16_t group, int num_groups, uint8_t group_info)
 
 	switch (XkbOutOfRangeGroupAction(group_info)) {
 	case XkbWrapIntoRange:
-		/* This is the default, common method. */
-		return group % num_groups;
+		/*
+		 * C99 says a negative dividend in a modulo operation
+		 * will always give a negative result.
+		 */
+		if (group < 0)
+			return num_groups + (group % num_groups);
+		else
+			return group % num_groups;
 
 	case XkbClampIntoRange:
 		/* This one seems to be unused. */
@@ -907,7 +921,7 @@ static uint8_t wrap_group(int16_t group, int num_groups, uint8_t group_info)
 
 	case XkbRedirectIntoRange:
 		/* This one seems to be unused. */
-		group = XkbOutOfRangeGroupInfo(group_info);
+		group = XkbOutOfRangeGroupNumber(group_info);
 		/* If it's _still_ out of range, use the first group. */
 		if (group >= num_groups)
 			return 0;
@@ -928,7 +942,7 @@ static uint8_t wrap_group_control(struct xkb_desc *desc, int16_t group)
 	int num_groups;
 	uint8_t group_info;
 
-	num_groups = XkbNumKbdGroups;
+	num_groups = desc->ctrls->num_groups;
 	group_info = desc->ctrls->groups_wrap;
 
 	return wrap_group(group, num_groups, group_info);
@@ -971,11 +985,6 @@ static void update_effective_group(struct xkb_desc *desc,
 						struct xkb_state *state)
 {
 	int16_t group;
-
-	/* Bring what was changed back into range. */
-	state->base_group = wrap_group_control(desc, state->base_group);
-	state->locked_group = wrap_group_control(desc, state->locked_group);
-	state->latched_group = wrap_group_control(desc, state->latched_group);
 
 	/* Update the effective group. */
 	group = state->base_group + state->locked_group + state->latched_group;

@@ -244,7 +244,7 @@ int kmscon_input_new(struct kmscon_input **out)
 	/* TODO: Make configurable */
 	static const char *layout = "us,ru,il";
 	static const char *variant = "intl,,biblical";
-	static const char *options = "grp:menu_toggle";
+	static const char *options = "grp:menu_toggle,grp:ctrl_shift_toggle";
 
 	if (!out)
 		return -EINVAL;
