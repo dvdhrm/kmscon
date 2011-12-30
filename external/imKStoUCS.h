@@ -62,6 +62,11 @@
  *   - Changed the return type to uint32_t to match libxkbcommon.
  */
 
-#include <stdint.h>
+#ifndef KMSCON_IMKSTOUCS_H
+#define KMSCON_IMKSTOUCS_H
+
+#include <inttypes.h>
 
 uint32_t KeysymToUcs4(uint32_t keysym);
+
+#endif

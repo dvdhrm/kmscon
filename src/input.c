@@ -50,7 +50,7 @@
 
 #include "eloop.h"
 #include "input.h"
-#include "input-private.h"
+#include "input_xkb.h"
 #include "log.h"
 
 enum input_state {
@@ -99,8 +99,8 @@ static void notify_key(struct kmscon_input_device *device,
 		return;
 
 	input = device->input;
-	has_event = process_evdev_key(input->xkb_desc, &device->xkb_state,
-							value, code, &ev);
+	has_event = kmscon_xkb_process_evdev_key(input->xkb_desc,
+					&device->xkb_state, value, code, &ev);
 
 	if (has_event)
 		input->cb(input, &ev, input->data);
@@ -156,7 +156,7 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	}
 
 	/* this rediscovers the xkb state if sth changed during sleep */
-	reset_xkb_state(device->input->xkb_desc, &device->xkb_state,
+	kmscon_xkb_reset_state(device->input->xkb_desc, &device->xkb_state,
 								device->rfd);
 
 	ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
@@ -259,7 +259,7 @@ int kmscon_input_new(struct kmscon_input **out)
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
 
-	ret = new_xkb_desc(layout, variant, options, &input->xkb_desc);
+	ret = kmscon_xkb_new_desc(layout, variant, options, &input->xkb_desc);
 	if (ret) {
 		log_warning("input: cannot create xkb description\n");
 		goto err_free;
@@ -302,7 +302,7 @@ err_monitor:
 err_udev:
 	udev_unref(input->udev);
 err_xkb:
-	free_xkb_desc(input->xkb_desc);
+	kmscon_xkb_free_desc(input->xkb_desc);
 err_free:
 	free(input);
 	return ret;
@@ -327,7 +327,7 @@ void kmscon_input_unref(struct kmscon_input *input)
 	kmscon_input_disconnect_eloop(input);
 	udev_monitor_unref(input->monitor);
 	udev_unref(input->udev);
-	free_xkb_desc(input->xkb_desc);
+	kmscon_xkb_free_desc(input->xkb_desc);
 	free(input);
 	log_debug("input: destroying input object\n");
 }

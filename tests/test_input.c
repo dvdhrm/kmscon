@@ -34,6 +34,9 @@
 #include <unistd.h>
 #include <wchar.h>
 
+#include <X11/extensions/XKBcommon.h>
+#include <X11/keysym.h>
+
 #include "eloop.h"
 #include "input.h"
 #include "log.h"

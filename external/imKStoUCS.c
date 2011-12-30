@@ -62,7 +62,7 @@
  *   - Changed the return type to uint32_t to match libxkbcommon.
  */
 
-#include <X11/extensions/XKBcommon.h>
+#include "imKStoUCS.h"
 
 static unsigned short const keysym_to_unicode_1a1_1ff[] = {
             0x0104, 0x02d8, 0x0141, 0x0000, 0x013d, 0x015a, 0x0000, /* 0x01a0-0x01a7 */

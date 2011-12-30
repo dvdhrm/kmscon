@@ -50,8 +50,6 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
-#include <X11/extensions/XKBcommon.h>
-#include <X11/keysym.h>
 #include "eloop.h"
 
 struct kmscon_input;
@@ -65,6 +63,17 @@ struct kmscon_input_event {
 
 typedef void (*kmscon_input_cb) (struct kmscon_input *input,
 				struct kmscon_input_event *ev, void *data);
+
+/*
+ * These are the values sent by the kernel in the /value/ field of the
+ * /input_event/ struct.
+ * See Documentation/input/event-codes.txt in the kernel tree.
+ */
+enum kmscon_key_state {
+	KMSCON_KEY_RELEASED = 0,
+	KMSCON_KEY_PRESSED = 1,
+	KMSCON_KEY_REPEATED = 2,
+};
 
 int kmscon_input_new(struct kmscon_input **out);
 void kmscon_input_ref(struct kmscon_input *input);

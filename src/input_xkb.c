@@ -58,12 +58,14 @@
  *	/usr/include/X11/keysymdef.h
  */
 
-#include <string.h>
 #include <errno.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <linux/input.h>
 
-#include "input-private.h"
+#include "input_xkb.h"
 #include "log.h"
 #include "imKStoUCS.h"
 
@@ -87,13 +89,13 @@ static uint8_t virtual_to_real_mods(struct xkb_desc *desc, uint16_t vmods);
 static void init_action(struct xkb_desc *desc, union xkb_action *action);
 
 static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
-				union xkb_action *action);
+			KeyCode keycode, enum kmscon_key_state key_state,
+						union xkb_action *action);
 static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
+			KeyCode keycode, enum kmscon_key_state key_state,
 					struct xkb_mod_action *action);
 static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
+			KeyCode keycode, enum kmscon_key_state key_state,
 					struct xkb_group_action *action);
 
 static bool should_key_repeat(struct xkb_desc *desc, KeyCode keycode);
@@ -111,7 +113,8 @@ static struct xkb_indicator_map *find_indicator_map(struct xkb_desc *desc,
  * Create a ready-to-use xkb description object. This is used in most places
  * having to do with XKB.
  */
-int new_xkb_desc(const char *layout, const char *variant, const char *options,
+int kmscon_xkb_new_desc(const char *layout, const char *variant,
+							const char *options,
 							struct xkb_desc **out)
 {
 	struct xkb_desc *desc;
@@ -139,7 +142,7 @@ int new_xkb_desc(const char *layout, const char *variant, const char *options,
 	return 0;
 }
 
-void free_xkb_desc(struct xkb_desc *desc)
+void kmscon_xkb_free_desc(struct xkb_desc *desc)
 {
 	if (!desc)
 		return;
@@ -544,7 +547,7 @@ static uint8_t virtual_and_real_to_mask(struct xkb_desc *desc,
  * We don't reset the locked group, this should survive a VT switch, etc. The
  * locked modifiers are reset according to the keyboard LEDs.
  */
-void reset_xkb_state(struct xkb_desc *desc, struct xkb_state *state,
+void kmscon_xkb_reset_state(struct xkb_desc *desc, struct xkb_state *state,
 								int evdev_fd)
 {
 	int i;
@@ -657,9 +660,11 @@ static uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
  * (e.g. a key release). The return value indicated whether the input_event
  * was filled out or not.
  */
-bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
-				enum key_state key_state, uint16_t code,
-				struct kmscon_input_event *out)
+bool kmscon_xkb_process_evdev_key(struct xkb_desc *desc,
+						struct xkb_state *state,
+						enum kmscon_key_state key_state,
+						uint16_t code,
+						struct kmscon_input_event *out)
 {
 	KeyCode keycode;
         uint8_t group;
@@ -677,7 +682,7 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 	if (XkbKeyNumSyms(desc, keycode) == 0)
 		return false;
 	/* Unwanted repeat. */
-	if (key_state == KEY_STATE_REPEATED &&
+	if (key_state == KMSCON_KEY_REPEATED &&
 					!should_key_repeat(desc, keycode))
 		return false;
 
@@ -686,19 +691,19 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
 	sym = XkbKeySymEntry(desc, keycode, shift_level, group);
 
 	state_changed = false;
-	if (key_state != KEY_STATE_REPEATED) {
+	if (key_state != KMSCON_KEY_REPEATED) {
 		action = XkbKeyActionEntry(desc, keycode, shift_level, group);
 		state_changed = process_action(desc, state, keycode,
 							key_state, action);
 	}
 
 	event_filled = false;
-	if (key_state != KEY_STATE_RELEASED) {
+	if (key_state != KMSCON_KEY_RELEASED) {
 		out->keycode = code;
 		out->keysym = sym;
 		out->modifiers = state->mods;
 		out->unicode = KeysymToUcs4(sym);
-		
+
 		event_filled = true;
 	}
 
@@ -718,7 +723,7 @@ bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
  * was changed.
  */
 static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
+			KeyCode keycode, enum kmscon_key_state key_state,
 						union xkb_action *action)
 {
 	if (!action)
@@ -756,7 +761,7 @@ static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
  * See [Lib] Table 17.1 for logic.
  * */
 static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
+			KeyCode keycode, enum kmscon_key_state key_state,
 						struct xkb_mod_action *action)
 {
 	uint8_t mods;
@@ -775,9 +780,9 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 
 	switch (action->type) {
 	case XkbSA_SetMods:
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			state->base_mods |= mods;
-		} else if (key_state == KEY_STATE_RELEASED) {
+		} else if (key_state == KMSCON_KEY_RELEASED) {
 			state->base_mods &= ~mods;
 			if (flags & XkbSA_ClearLocks)
 				state->locked_mods &= ~mods;
@@ -785,9 +790,9 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 
 		break;
 	case XkbSA_LatchMods:
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			state->base_mods |= mods;
-		} else if (key_state == KEY_STATE_RELEASED) {
+		} else if (key_state == KMSCON_KEY_RELEASED) {
 			if (flags & XkbSA_ClearLocks) {
 				saved_mods = state->locked_mods;
 				state->locked_mods &= ~mods;
@@ -806,10 +811,10 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
 		break;
 	case XkbSA_LockMods:
 		/* We fake a little here and toggle both on and off on keypress. */
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			state->base_mods |= mods;
 			state->locked_mods ^= mods;
-		} else if (key_state == KEY_STATE_RELEASED) {
+		} else if (key_state == KMSCON_KEY_RELEASED) {
 			state->base_mods &= ~mods;
 		}
 
@@ -825,7 +830,7 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
  * See [Lib] Table 17.4 for logic.
  */
 static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
-				KeyCode keycode, enum key_state key_state,
+			KeyCode keycode, enum kmscon_key_state key_state,
 					struct xkb_group_action *action)
 {
 	int16_t group = action->group;
@@ -848,24 +853,24 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 
 	switch (action->type) {
 	case XkbSA_SetGroup:
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
 				base_group = group;
 			else
 				base_group += group;
-		} else if (key_state == KEY_STATE_RELEASED) {
+		} else if (key_state == KMSCON_KEY_RELEASED) {
 			if (flags & XkbSA_ClearLocks)
 				locked_group = 0;
 		}
 
 		break;
 	case XkbSA_LatchGroup:
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
 				base_group = group;
 			else
 				base_group += group;
-		} else if (key_state == KEY_STATE_RELEASED) {
+		} else if (key_state == KMSCON_KEY_RELEASED) {
 			if ((flags & XkbSA_LatchToLock) && latched_group) {
 				locked_group += group;
 				latched_group -= group;
@@ -876,7 +881,7 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
 
 		break;
 	case XkbSA_LockGroup:
-		if (key_state == KEY_STATE_PRESSED) {
+		if (key_state == KMSCON_KEY_PRESSED) {
 			if (flags & XkbSA_GroupAbsolute)
 				locked_group = group;
 			else

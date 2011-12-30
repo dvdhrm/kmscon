@@ -22,28 +22,27 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <stdint.h>
 
+#ifndef KMSCON_INPUT_XKB_H
+#define KMSCON_INPUT_XKB_H
+
+#include <inttypes.h>
+#include <X11/extensions/XKBcommon.h>
 #include "input.h"
 
-/*
- * These are the values sent by the kernel in the /value/ field of the
- * /input_event/ struct.
- * See Documentation/input/event-codes.txt in the kernel tree.
- */
-enum key_state {
-	KEY_STATE_RELEASED = 0,
-	KEY_STATE_PRESSED = 1,
-	KEY_STATE_REPEATED = 2,
-};
+int kmscon_xkb_new_desc(const char *layout, const char *variant,
+						const char *options,
+						struct xkb_desc **out);
+void kmscon_xkb_free_desc(struct xkb_desc *desc);
 
-int new_xkb_desc(const char *layout, const char *variant, const char *options,
-							struct xkb_desc **out);
-void free_xkb_desc(struct xkb_desc *desc);
+void kmscon_xkb_reset_state(struct xkb_desc *desc,
+						struct xkb_state *state,
+						int evdev_fd);
 
-void reset_xkb_state(struct xkb_desc *desc, struct xkb_state *state,
-								int evdev_fd);
+bool kmscon_xkb_process_evdev_key(struct xkb_desc *desc,
+						struct xkb_state *state,
+						enum kmscon_key_state key_state,
+						uint16_t code,
+						struct kmscon_input_event *out);
 
-bool process_evdev_key(struct xkb_desc *desc, struct xkb_state *state,
-				enum key_state key_state, uint16_t code,
-				struct kmscon_input_event *out);
+#endif /* KMSCON_INPUT_XKB_H */
