@@ -54,11 +54,13 @@
 
 struct kmscon_input;
 
+#define KMSCON_INPUT_INVALID 0xffffffff
+
 struct kmscon_input_event {
 	uint16_t keycode;  /* linux keycode - KEY_* - linux/input.h */
 	uint32_t keysym;   /* X keysym - XK_* - X11/keysym.h */
 	uint8_t modifiers; /* xkbcommon modifiers - XKB_COMMON_*_MASK */
-	uint32_t unicode;  /* UCS-4 unicode value, 0 if none */
+	uint32_t unicode;  /* UCS-4 unicode value or KMSCON_INPUT_INVALID */
 };
 
 typedef void (*kmscon_input_cb) (struct kmscon_input *input,

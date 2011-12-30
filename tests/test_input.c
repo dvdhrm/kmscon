@@ -90,7 +90,7 @@ static void input_arrived(struct kmscon_input *input,
 	char s[16];
 	char utf8[MB_CUR_MAX + 1];
 
-	if (ev->unicode == 0) {
+	if (ev->unicode == KMSCON_INPUT_INVALID) {
 		xkb_keysym_to_string(ev->keysym, s, sizeof(s));
 		printf("sym %s ", s);
 	} else {

@@ -704,6 +704,9 @@ bool kmscon_xkb_process_evdev_key(struct xkb_desc *desc,
 		out->modifiers = state->mods;
 		out->unicode = KeysymToUcs4(sym);
 
+		if (out->unicode == 0)
+			out->unicode = KMSCON_INPUT_INVALID;
+
 		event_filled = true;
 	}
 
