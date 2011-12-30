@@ -54,12 +54,23 @@
 
 struct kmscon_input;
 
+enum kmscon_modifier {
+	KMSCON_SHIFT_MASK	= (1 << 0),
+	KMSCON_LOCK_MASK	= (1 << 1),
+	KMSCON_CONTROL_MASK	= (1 << 2),
+	KMSCON_MOD1_MASK	= (1 << 3),
+	KMSCON_MOD2_MASK	= (1 << 4),
+	KMSCON_MOD3_MASK	= (1 << 5),
+	KMSCON_MOD4_MASK	= (1 << 6),
+	KMSCON_MOD5_MASK	= (1 << 7),
+};
+
 #define KMSCON_INPUT_INVALID 0xffffffff
 
 struct kmscon_input_event {
 	uint16_t keycode;  /* linux keycode - KEY_* - linux/input.h */
 	uint32_t keysym;   /* X keysym - XK_* - X11/keysym.h */
-	uint8_t modifiers; /* xkbcommon modifiers - XKB_COMMON_*_MASK */
+	unsigned int mods; /* active modifiers - kmscon_modifier mask */
 	uint32_t unicode;  /* UCS-4 unicode value or KMSCON_INPUT_INVALID */
 };
 

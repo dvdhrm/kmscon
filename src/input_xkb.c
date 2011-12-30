@@ -701,7 +701,8 @@ bool kmscon_xkb_process_evdev_key(struct xkb_desc *desc,
 	if (key_state != KMSCON_KEY_RELEASED) {
 		out->keycode = code;
 		out->keysym = sym;
-		out->modifiers = state->mods;
+		/* 1-to-1 match - this might change. */
+		out->mods = state->mods;
 		out->unicode = KeysymToUcs4(sym);
 
 		if (out->unicode == 0)

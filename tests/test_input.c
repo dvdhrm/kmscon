@@ -62,23 +62,23 @@ static void sig_quit(struct kmscon_signal *sig, int signum, void *data)
 	}
 }
 
-static void print_modifiers(uint8_t mods)
+static void print_modifiers(unsigned int mods)
 {
-	if (mods & XKB_COMMON_SHIFT_MASK)
+	if (mods & KMSCON_SHIFT_MASK)
 		printf("SHIFT ");
-	if (mods & XKB_COMMON_LOCK_MASK)
+	if (mods & KMSCON_LOCK_MASK)
 		printf("LOCK ");
-	if (mods & XKB_COMMON_CONTROL_MASK)
+	if (mods & KMSCON_CONTROL_MASK)
 		printf("CONTROL ");
-	if (mods & XKB_COMMON_MOD1_MASK)
+	if (mods & KMSCON_MOD1_MASK)
 		printf("MOD1 ");
-	if (mods & XKB_COMMON_MOD2_MASK)
+	if (mods & KMSCON_MOD2_MASK)
 		printf("MOD2 ");
-	if (mods & XKB_COMMON_MOD3_MASK)
+	if (mods & KMSCON_MOD3_MASK)
 		printf("MOD3 ");
-	if (mods & XKB_COMMON_MOD4_MASK)
+	if (mods & KMSCON_MOD4_MASK)
 		printf("MOD4 ");
-	if (mods & XKB_COMMON_MOD5_MASK)
+	if (mods & KMSCON_MOD5_MASK)
 		printf("MOD5 ");
 	printf("\n");
 }
@@ -108,7 +108,7 @@ static void input_arrived(struct kmscon_input *input,
 
 		printf("utf8 %s ", utf8);
 	}
-	print_modifiers(ev->modifiers);
+	print_modifiers(ev->mods);
 }
 
 int main(int argc, char **argv)
