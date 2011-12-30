@@ -180,14 +180,18 @@ int main(int argc, char **argv)
 		return abs(ret);
 	}
 
+	ret = kmscon_compositor_use(comp);
+	if (ret) {
+		log_err("Cannot use compositor: %d\n", ret);
+		goto err_unref;
+	}
+
 	log_info("Wakeing up compositor...\n");
 	ret = kmscon_compositor_wake_up(comp);
 	if (ret < 0) {
 		log_err("Cannot wakeup compositor: %d\n", ret);
 		goto err_unref;
 	}
-
-	kmscon_compositor_use(comp);
 
 	if (argc < 2) {
 		ret = list_outputs(comp);
