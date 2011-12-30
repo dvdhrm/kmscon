@@ -985,8 +985,10 @@ bool kmscon_compositor_is_asleep(struct kmscon_compositor *comp)
 }
 
 /*
- * This activates the EGL/GL context of this compositor. This fails if the
- * compositor is asleep.
+ * This activates the EGL/GL context of this compositor. This works even if the
+ * compositor is asleep. Moreover, most other subsystems that need an GL context
+ * require this function to be called before they are used.
+ *
  * You must call this before trying to enable outputs. A new compositor is not
  * enabled by default.
  * Returns 0 on success.
@@ -997,9 +999,6 @@ bool kmscon_compositor_is_asleep(struct kmscon_compositor *comp)
  */
 int kmscon_compositor_use(struct kmscon_compositor *comp)
 {
-	if (kmscon_compositor_is_asleep(comp))
-		return -EINVAL;
-
 	if (!eglMakeCurrent(comp->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 							comp->context))
 		return -EFAULT;
