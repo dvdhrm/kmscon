@@ -202,9 +202,7 @@ static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
 		if (ret == 0) {
 			log_info("No output found\n");
 		} else if (ret > 0) {
-			ret = kmscon_compositor_use(con->comp);
-			if (!ret)
-				activate_outputs(con);
+			activate_outputs(con);
 		}
 	} else {
 		kmscon_compositor_sleep(con->comp);
@@ -281,15 +279,19 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
+	ret = kmscon_compositor_new(&con->comp);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_compositor_use(con->comp);
+	if (ret)
+		goto err_loop;
+
 	ret = kmscon_vt_new(&con->vt, vt_switch, con);
 	if (ret)
 		goto err_loop;
 
 	ret = kmscon_vt_open(con->vt, KMSCON_VT_NEW, con->loop);
-	if (ret)
-		goto err_loop;
-
-	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
 
