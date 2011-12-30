@@ -285,11 +285,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_vt_open(con->vt, KMSCON_VT_NEW);
-	if (ret)
-		goto err_loop;
-
-	ret = kmscon_vt_connect_eloop(con->vt, con->loop);
+	ret = kmscon_vt_open(con->vt, KMSCON_VT_NEW, con->loop);
 	if (ret)
 		goto err_loop;
 

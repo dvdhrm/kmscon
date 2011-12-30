@@ -144,6 +144,7 @@ static void vt_enter(struct kmscon_signal *sig, int signum, void *data)
 	log_debug("vt: entering VT\n");
 
 	ioctl(vt->fd, VT_RELDISP, VT_ACKACQ);
+
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS))
 		log_warning("vt: cannot set graphics mode on vt\n");
 
@@ -157,7 +158,6 @@ static void vt_leave(struct kmscon_signal *sig, int signum, void *data)
 
 	if (!vt || vt->fd < 0)
 		return;
-
 
 	if (vt->cb && !vt->cb(vt, KMSCON_VT_LEAVE, vt->data)) {
 		log_debug("vt: leaving VT denied\n");
@@ -179,6 +179,50 @@ static void vt_input(struct kmscon_fd *fd, int mask, void *data)
 
 	/* we ignore input from the VT because we get it from evdev */
 	tcflush(vt->fd, TCIFLUSH);
+}
+
+static int connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *eloop)
+{
+	int ret;
+
+	if (!vt || !eloop || vt->fd < 0)
+		return -EINVAL;
+
+	ret = kmscon_eloop_new_signal(eloop, &vt->sig1, SIGUSR1, vt_leave, vt);
+	if (ret)
+		return ret;
+
+	ret = kmscon_eloop_new_signal(eloop, &vt->sig2, SIGUSR2, vt_enter, vt);
+	if (ret)
+		goto err_sig1;
+
+	ret = kmscon_eloop_new_fd(eloop, &vt->efd, vt->fd, KMSCON_READABLE,
+								vt_input, vt);
+	if (ret)
+		goto err_sig2;
+
+	return 0;
+
+err_sig2:
+	kmscon_eloop_rm_signal(vt->sig2);
+	vt->sig2 = NULL;
+err_sig1:
+	kmscon_eloop_rm_signal(vt->sig1);
+	vt->sig1 = NULL;
+	return ret;
+}
+
+static void disconnect_eloop(struct kmscon_vt *vt)
+{
+	if (!vt)
+		return;
+
+	kmscon_eloop_rm_signal(vt->sig1);
+	kmscon_eloop_rm_signal(vt->sig2);
+	kmscon_eloop_rm_fd(vt->efd);
+	vt->sig1 = NULL;
+	vt->sig2 = NULL;
+	vt->efd = NULL;
 }
 
 static int open_tty(int id, int *tty_fd, int *tty_num)
@@ -222,7 +266,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-int kmscon_vt_open(struct kmscon_vt *vt, int id)
+int kmscon_vt_open(struct kmscon_vt *vt, int id, struct kmscon_eloop *eloop)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -236,6 +280,10 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id)
 	ret = open_tty(id, &vt->fd, &vt->num);
 	if (ret)
 		return ret;
+
+	ret = connect_eloop(vt, eloop);
+	if (ret)
+		goto err_fd;
 
 	/*
 	 * Get the number of the VT which is active now, so we have something
@@ -252,7 +300,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id)
 	if (tcgetattr(vt->fd, &vt->saved_attribs) < 0) {
 		log_err("vt: cannot get terminal attributes\n");
 		ret = -EFAULT;
-		goto err_fd;
+		goto err_eloop;
 	}
 
 	/* Ignore control characters and disable echo */
@@ -293,6 +341,8 @@ err_text:
 	ioctl(vt->fd, KDSETMODE, KD_TEXT);
 err_reset:
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
+err_eloop:
+	disconnect_eloop(vt);
 err_fd:
 	close(vt->fd);
 	vt->fd = -1;
@@ -306,61 +356,12 @@ void kmscon_vt_close(struct kmscon_vt *vt)
 
 	ioctl(vt->fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
-
-	kmscon_vt_disconnect_eloop(vt);
+	disconnect_eloop(vt);
 	close(vt->fd);
+
 	vt->fd = -1;
 	vt->num = -1;
 	vt->saved_num = -1;
-}
-
-int kmscon_vt_connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *loop)
-{
-	int ret;
-
-	if (!vt || !loop || vt->fd < 0)
-		return -EINVAL;
-
-	if (vt->sig1 || vt->sig2)
-		return -EALREADY;
-
-	ret = kmscon_eloop_new_signal(loop, &vt->sig1, SIGUSR1, vt_leave,
-									vt);
-	if (ret)
-		return ret;
-
-	ret = kmscon_eloop_new_signal(loop, &vt->sig2, SIGUSR2, vt_enter,
-									vt);
-	if (ret)
-		goto err_sig1;
-
-	ret = kmscon_eloop_new_fd(loop, &vt->efd, vt->fd, KMSCON_READABLE,
-								vt_input, vt);
-	if (ret)
-		goto err_sig2;
-
-	return 0;
-
-err_sig2:
-	kmscon_eloop_rm_signal(vt->sig2);
-	vt->sig2 = NULL;
-err_sig1:
-	kmscon_eloop_rm_signal(vt->sig1);
-	vt->sig1 = NULL;
-	return ret;
-}
-
-void kmscon_vt_disconnect_eloop(struct kmscon_vt *vt)
-{
-	if (!vt)
-		return;
-
-	kmscon_eloop_rm_signal(vt->sig1);
-	kmscon_eloop_rm_signal(vt->sig2);
-	kmscon_eloop_rm_fd(vt->efd);
-	vt->sig1 = NULL;
-	vt->sig2 = NULL;
-	vt->efd = NULL;
 }
 
 /* Switch to this VT and make it the active VT. */

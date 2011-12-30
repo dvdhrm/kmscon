@@ -76,15 +76,9 @@ int main(int argc, char **argv)
 		goto err_sig;
 	}
 
-	ret = kmscon_vt_open(vt, KMSCON_VT_NEW);
+	ret = kmscon_vt_open(vt, KMSCON_VT_NEW, loop);
 	if (ret) {
 		log_err("Cannot open VT\n");
-		goto err_vt;
-	}
-
-	ret = kmscon_vt_connect_eloop(vt, loop);
-	if (ret) {
-		log_err("Cannot connect VT\n");
 		goto err_vt;
 	}
 
