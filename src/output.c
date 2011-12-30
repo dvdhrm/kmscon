@@ -54,6 +54,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
+#include "log.h"
 #include "output.h"
 
 struct kmscon_mode {
@@ -279,6 +280,8 @@ int kmscon_output_new(struct kmscon_output **out)
 	if (!out)
 		return -EINVAL;
 
+	log_debug("output: creating output object\n");
+
 	output = malloc(sizeof(*output));
 	if (!output)
 		return -ENOMEM;
@@ -317,6 +320,7 @@ void kmscon_output_unref(struct kmscon_output *output)
 	 */
 
 	free(output);
+	log_debug("output: destroying output object\n");
 }
 
 /*
@@ -460,8 +464,10 @@ static int kmscon_output_connect(struct kmscon_output *output, drmModeRes *res,
 			break;
 	}
 
-	if (crtc < 0)
+	if (crtc < 0) {
+		log_warning("output: no free CRTC left to connect output\n");
 		return -EINVAL;
+	}
 
 	/* copy all modes into the output modes-list */
 	for (i = 0; i < conn->count_modes; ++i) {
@@ -479,8 +485,10 @@ static int kmscon_output_connect(struct kmscon_output *output, drmModeRes *res,
 		kmscon_mode_unref(mode);
 	}
 
-	if (!output->count_modes)
+	if (!output->count_modes) {
+		log_warning("output: no suitable mode available for output\n");
 		return -EINVAL;
+	}
 
 	output->conn_id = conn->connector_id;
 	output->crtc_id = crtc;
@@ -561,12 +569,15 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 	rb->bo = gbm_bo_create(comp->gbm, mode->hdisplay, mode->vdisplay,
 				GBM_BO_FORMAT_XRGB8888,
 				GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!rb->bo)
+	if (!rb->bo) {
+		log_warning("output: cannot create gbm buffer object\n");
 		return -EFAULT;
+	}
 
 	rb->image = eglCreateImageKHR(comp->display, NULL,
 					EGL_NATIVE_PIXMAP_KHR, rb->bo, NULL);
 	if (!rb->image) {
+		log_warning("output: cannot create EGL image\n");
 		ret = -EFAULT;
 		goto err_bo;
 	}
@@ -585,6 +596,7 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 	ret = drmModeAddFB(comp->drm_fd, mode->hdisplay, mode->vdisplay,
 					24, 32, stride, handle, &rb->fb);
 	if (ret) {
+		log_warning("output: cannot add DRM framebuffer object\n");
 		ret = -EFAULT;
 		goto err_rb;
 	}
@@ -637,6 +649,9 @@ int kmscon_output_activate(struct kmscon_output *output,
 	if (!mode)
 		mode = output->def_mode;
 
+	log_debug("output: activating output with res %ux%u\n",
+				mode->info.hdisplay, mode->info.vdisplay);
+
 	comp = output->comp;
 	output->saved_crtc = drmModeGetCrtc(comp->drm_fd, output->crtc_id);
 
@@ -660,6 +675,7 @@ int kmscon_output_activate(struct kmscon_output *output,
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
 						GL_FRAMEBUFFER_COMPLETE) {
+		log_warning("output: invalid GL framebuffer state\n");
 		ret = -EFAULT;
 		goto err_fb;
 	}
@@ -720,6 +736,7 @@ void kmscon_output_deactivate(struct kmscon_output *output)
 	destroy_rb(&output->rb[1], output->comp);
 	output->current = NULL;
 	output->active = 0;
+	log_debug("output: deactivated output\n");
 }
 
 /*
@@ -777,16 +794,20 @@ int kmscon_output_swap(struct kmscon_output *output)
 	ret = drmModeSetCrtc(output->comp->drm_fd, output->crtc_id,
 		output->rb[output->cur_rb].fb, 0, 0, &output->conn_id, 1,
 						&output->current->info);
-	if (ret)
+	if (ret) {
+		log_warning("output: cannot set CRTC\n");
 		ret = -EFAULT;
+	}
 
 	output->cur_rb ^= 1;
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 			GL_RENDERBUFFER, output->rb[output->cur_rb].rb);
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE)
+						GL_FRAMEBUFFER_COMPLETE) {
+		log_warning("output: invalid GL framebuffer state\n");
 		ret = -EFAULT;
+	}
 
 	return ret;
 }
@@ -807,34 +828,41 @@ static int compositor_init(struct kmscon_compositor *comp)
 
 	/* TODO: Retrieve this path dynamically */
 	comp->drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
-	if (comp->drm_fd < 0)
+	if (comp->drm_fd < 0) {
+		log_warning("output: cannot open dri/card0: %d\n", errno);
 		return -errno;
+	}
 
 	comp->gbm = gbm_create_device(comp->drm_fd);
 	if (!comp->gbm) {
+		log_warning("output: cannot allocate gbm device\n");
 		ret = -EFAULT;
 		goto err_drm;
 	}
 
 	comp->display = eglGetDisplay((EGLNativeDisplayType)comp->gbm);
 	if (!comp->display) {
+		log_warning("output: cannot get EGL display\n");
 		ret = -EFAULT;
 		goto err_gbm;
 	}
 
 	ret = eglInitialize(comp->display, &major, &minor);
 	if (!ret) {
+		log_warning("output: cannot initialize EGL display\n");
 		ret = -EFAULT;
 		goto err_gbm;
 	}
 
 	ext = eglQueryString(comp->display, EGL_EXTENSIONS);
 	if (!ext || !strstr(ext, "EGL_KHR_surfaceless_opengl")) {
+		log_warning("output: surfaceless EGL not supported\n");
 		ret = -ENOTSUP;
 		goto err_display;
 	}
 
 	if (!eglBindAPI(EGL_OPENGL_API)) {
+		log_warning("output: cannot bind EGL OpenGL API\n");
 		ret = -EFAULT;
 		goto err_display;
 	}
@@ -842,6 +870,7 @@ static int compositor_init(struct kmscon_compositor *comp)
 	comp->context = eglCreateContext(comp->display, NULL,
 							EGL_NO_CONTEXT, NULL);
 	if (!comp->context) {
+		log_warning("output: cannot create EGL context\n");
 		ret = -EFAULT;
 		goto err_display;
 	}
@@ -884,6 +913,8 @@ int kmscon_compositor_new(struct kmscon_compositor **out)
 	if (!out)
 		return -EINVAL;
 
+	log_debug("output: creating compositor\n");
+
 	comp = malloc(sizeof(*comp));
 	if (!comp)
 		return -ENOMEM;
@@ -923,6 +954,7 @@ void kmscon_compositor_unref(struct kmscon_compositor *comp)
 
 	compositor_deinit(comp);
 	free(comp);
+	log_debug("output: destroying compositor\n");
 }
 
 /*
@@ -936,6 +968,7 @@ void kmscon_compositor_sleep(struct kmscon_compositor *comp)
 	if (!comp)
 		return;
 
+	log_debug("output: putting compositor asleep\n");
 	comp->state = COMPOSITOR_ASLEEP;
 	drmDropMaster(comp->drm_fd);
 }
@@ -957,9 +990,13 @@ int kmscon_compositor_wake_up(struct kmscon_compositor *comp)
 	if (comp->state == COMPOSITOR_AWAKE)
 		return comp->count_outputs;
 
+	log_debug("output: waking up compositor\n");
+
 	ret = drmSetMaster(comp->drm_fd);
-	if (ret)
+	if (ret) {
+		log_warning("output: cannot acquire DRM master privs\n");
 		return -EACCES;
+	}
 
 	comp->state = COMPOSITOR_AWAKE;
 	ret = kmscon_compositor_refresh(comp);
@@ -1000,8 +1037,10 @@ bool kmscon_compositor_is_asleep(struct kmscon_compositor *comp)
 int kmscon_compositor_use(struct kmscon_compositor *comp)
 {
 	if (!eglMakeCurrent(comp->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-							comp->context))
+							comp->context)) {
+		log_warning("output: cannot use EGL context\n");
 		return -EFAULT;
+	}
 
 	return 0;
 }
@@ -1100,8 +1139,10 @@ int kmscon_compositor_refresh(struct kmscon_compositor *comp)
 		return -EINVAL;
 
 	res = drmModeGetResources(comp->drm_fd);
-	if (!res)
+	if (!res) {
+		log_warning("output: cannot retrieve DRM resources\n");
 		return -EACCES;
+	}
 
 	for (output = comp->outputs; output; output = output->next)
 		output->available = 0;
