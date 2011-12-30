@@ -212,12 +212,11 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 	if (!buf)
 		return -ENOMEM;
 
-	log_debug("console: new buffer with size %ux%u\n", buf->size_x,
-								buf->size_y);
-
 	memset(buf, 0, sizeof(*buf));
 	buf->ref = 1;
 	buf->sb_max = DEFAULT_SCROLLBACK;
+
+	log_debug("console: new buffer object\n");
 
 	ret = kmscon_buffer_resize(buf, x, y);
 	if (ret)
@@ -250,8 +249,6 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 	if (--buf->ref)
 		return;
 
-	log_debug("console: destroying buffer object\n");
-
 	for (iter = buf->sb_first; iter; ) {
 		tmp = iter;
 		iter = iter->next;
@@ -263,6 +260,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 
 	free(buf->current);
 	free(buf);
+	log_debug("console: destroying buffer object\n");
 }
 
 /*
