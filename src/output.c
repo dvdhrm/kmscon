@@ -810,13 +810,6 @@ static int compositor_init(struct kmscon_compositor *comp)
 	if (comp->drm_fd < 0)
 		return -errno;
 
-	/* TODO: When do we need this? */
-	/*ret = drmSetMaster(comp->drm_fd);
-	if (ret) {
-		ret = -EACCES;
-		goto err_drm;
-	}*/
-
 	comp->gbm = gbm_create_device(comp->drm_fd);
 	if (!comp->gbm) {
 		ret = -EFAULT;
@@ -974,6 +967,8 @@ int kmscon_compositor_wake_up(struct kmscon_compositor *comp)
 		return ret;
 
 	comp->state = COMPOSITOR_ASLEEP;
+	drmDropMaster(comp->drm_fd);
+
 	return ret;
 }
 

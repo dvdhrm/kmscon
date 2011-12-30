@@ -18,10 +18,6 @@ Output Subsystem:
  - Retrieve DRI card from udev or at least make kmscon_compositor_new() accept a
    path to the DRI card so the user can have udev provide the path.
 
- - Check whether drmSetMaster() is needed. It can only be called with root
-   priviledges and all my tests worked without it. What are the benefits of
-   calling this?
-
  - Whats the difference between connector and encoder? Or why are encoders
    needed at all? The output selection logic simply tries to find the first
    encoder that provides an available crtc. Should we replace this logic with an
