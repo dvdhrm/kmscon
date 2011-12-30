@@ -57,3 +57,15 @@ VT Subsystem:
 Input Subsystem:
  - Add simple blacklist based on device names to input subsystem to avoid adding
    all devices.
+
+ - Make the selection of layouts, variants and options configurable. A simple
+   "us" layout should be the default.
+
+ - Figure out how to best support dead keys. Xlib handles dead keys through the
+   somewhat elaborate "Compose" mechanism; it covers all bases but requires
+   parsing system and user text files and is locale dependent. Alternatively,
+   we could hardcode a transformation table to cover basic use cases.
+
+ - See if there's a way to properly release the xkb description. Maybe patch
+   libxkbcommon. As a bonus remove the annoying stderr messages it spits out
+   every time.
