@@ -47,18 +47,18 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
-
 #include "eloop.h"
 
 struct kmscon_input;
-struct kmscon_input_device;
-typedef void (*kmscon_input_cb) (uint16_t type, uint16_t code, int32_t value);
+typedef void (*kmscon_input_cb) (struct kmscon_input *input, uint16_t type,
+				uint16_t code, int32_t value, void *data);
 
-int kmscon_input_new(struct kmscon_input **out, kmscon_input_cb cb);
+int kmscon_input_new(struct kmscon_input **out);
 void kmscon_input_ref(struct kmscon_input *input);
 void kmscon_input_unref(struct kmscon_input *input);
 
-int kmscon_input_connect_eloop(struct kmscon_input *input, struct kmscon_eloop *loop);
+int kmscon_input_connect_eloop(struct kmscon_input *input,
+		struct kmscon_eloop *eloop, kmscon_input_cb cb, void *data);
 void kmscon_input_disconnect_eloop(struct kmscon_input *input);
 
 void kmscon_input_sleep(struct kmscon_input *input);

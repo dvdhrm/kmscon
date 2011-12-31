@@ -41,13 +41,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <libudev.h>
 #include <linux/input.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
+#include "eloop.h"
 #include "log.h"
 #include "input.h"
 
@@ -56,60 +57,160 @@ enum input_state {
 	INPUT_AWAKE,
 };
 
-struct kmscon_input {
-	size_t ref;
-	enum input_state state;
-	struct kmscon_input_device *devices;
-
-	/*
-	 * We need to keep a reference to the eloop for sleeping, waking up and
-	 * hotplug. Avoiding this makes things harder.
-	 */
-	struct kmscon_eloop *loop;
-
-	struct udev *udev;
-	struct udev_monitor *monitor;
-	struct kmscon_fd *monitor_fd;
-
-	kmscon_input_cb cb;
-};
-
 struct kmscon_input_device {
 	size_t ref;
-	struct kmscon_input *input;
 	struct kmscon_input_device *next;
+	struct kmscon_input *input;
 
 	int rfd;
 	char *devnode;
 	struct kmscon_fd *fd;
 };
 
-/* kmscon_input_device prototypes */
-int kmscon_input_device_new(struct kmscon_input_device **out,
-						struct kmscon_input *input,
-						const char *devnode);
-void kmscon_input_device_ref(struct kmscon_input_device *device);
-void kmscon_input_device_unref(struct kmscon_input_device *device);
+struct kmscon_input {
+	size_t ref;
+	enum input_state state;
+	struct kmscon_input_device *devices;
 
-int kmscon_input_device_open(struct kmscon_input_device *device);
-void kmscon_input_device_close(struct kmscon_input_device *device);
+	struct kmscon_eloop *eloop;
+	kmscon_input_cb cb;
+	void *data;
 
-int kmscon_input_device_connect_eloop(struct kmscon_input_device *device);
-void kmscon_input_device_disconnect_eloop(struct kmscon_input_device *device);
-void kmscon_input_device_sleep(struct kmscon_input_device *device);
-int kmscon_input_device_wake_up(struct kmscon_input_device *device);
+	struct udev *udev;
+	struct udev_monitor *monitor;
+	struct kmscon_fd *monitor_fd;
+};
 
-/* internal procedures prototypes */
-static int init_input(struct kmscon_input *input);
-static void device_changed(struct kmscon_fd *fd, int mask, void *data);
-static int add_initial_devices(struct kmscon_input *input);
-static int add_device(struct kmscon_input *input, struct udev_device *udev_device);
-static void device_added(struct kmscon_input *input, struct udev_device *udev_device);
-static void device_removed(struct kmscon_input *input, struct udev_device *udev_device);
-static int remove_device(struct kmscon_input *input, struct udev_device *udev_device);
-static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data);
+static void remove_device(struct kmscon_input *input, const char *node);
 
-int kmscon_input_new(struct kmscon_input **out, kmscon_input_cb cb)
+static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
+{
+	int i;
+	ssize_t len, n;
+	struct kmscon_input_device *device = data;
+	struct kmscon_input *input = device->input;
+	struct input_event ev[16];
+
+	len = sizeof(ev);
+	while (len == sizeof(ev)) {
+		len = read(device->rfd, &ev, sizeof(ev));
+		if (len < 0) {
+			if (errno == EWOULDBLOCK)
+				break;
+
+			log_warning("input: reading device %s failed %d\n",
+						device->devnode, errno);
+			remove_device(input, device->devnode);
+		} else if (len == 0) {
+			log_debug("input: EOF device %s\n", device->devnode);
+			remove_device(input, device->devnode);
+		} else if (len % sizeof(*ev)) {
+			log_warning("input: read invalid input_event\n");
+		} else {
+			n = len / sizeof(*ev);
+			for (i = 0; i < n; i++)
+				input->cb(input, ev[i].type, ev[i].code,
+						ev[i].value, input->data);
+		}
+	}
+}
+
+int kmscon_input_device_wake_up(struct kmscon_input_device *device)
+{
+	int ret;
+
+	if (!device || !device->input || !device->input->eloop)
+		return -EINVAL;
+
+	if (device->fd)
+		return 0;
+
+	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK, O_RDONLY);
+	if (device->rfd < 0) {
+		log_warning("input: cannot open input device %s: %d\n",
+						device->devnode, errno);
+		return -errno;
+	}
+
+	ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
+		device->rfd, KMSCON_READABLE, device_data_arrived, device);
+	if (ret) {
+		close(device->rfd);
+		device->rfd = -1;
+		return ret;
+	}
+
+	return 0;
+}
+
+void kmscon_input_device_sleep(struct kmscon_input_device *device)
+{
+	if (!device)
+		return;
+
+	if (device->rfd < 0)
+		return;
+
+	kmscon_eloop_rm_fd(device->fd);
+	device->fd = NULL;
+	close(device->rfd);
+	device->rfd = -1;
+}
+
+static int kmscon_input_device_new(struct kmscon_input_device **out,
+			struct kmscon_input *input, const char *devnode)
+{
+	struct kmscon_input_device *device;
+
+	if (!out || !input)
+		return -EINVAL;
+
+	log_debug("input: new input device %s\n", devnode);
+
+	device = malloc(sizeof(*device));
+	if (!device)
+		return -ENOMEM;
+
+	memset(device, 0, sizeof(*device));
+	device->ref = 1;
+
+	device->devnode = strdup(devnode);
+	if (!device->devnode) {
+		free(device);
+		return -ENOMEM;
+	}
+
+	kmscon_input_ref(input);
+	device->input = input;
+	device->rfd = -1;
+
+	*out = device;
+	return 0;
+}
+
+static void kmscon_input_device_ref(struct kmscon_input_device *device)
+{
+	if (!device)
+		return;
+
+	++device->ref;
+}
+
+static void kmscon_input_device_unref(struct kmscon_input_device *device)
+{
+	if (!device || !device->ref)
+		return;
+
+	if (--device->ref)
+		return;
+
+	kmscon_input_device_sleep(device);
+	log_debug("input: destroying input device %s\n", device->devnode);
+	free(device->devnode);
+	free(device);
+}
+
+int kmscon_input_new(struct kmscon_input **out)
 {
 	int ret;
 	struct kmscon_input *input;
@@ -121,19 +222,51 @@ int kmscon_input_new(struct kmscon_input **out, kmscon_input_cb cb)
 	if (!input)
 		return -ENOMEM;
 
+	log_debug("input: creating input object\n");
+
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
-	input->cb = cb;
 
-	ret = init_input(input);
+	input->udev = udev_new();
+	if (!input->udev) {
+		log_warning("input: cannot create udev object\n");
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	input->monitor = udev_monitor_new_from_netlink(input->udev, "udev");
+	if (!input->monitor) {
+		log_warning("input: cannot create udev monitor\n");
+		ret = -EFAULT;
+		goto err_udev;
+	}
+
+	ret = udev_monitor_filter_add_match_subsystem_devtype(input->monitor,
+								"input", NULL);
 	if (ret) {
-		free(input);
-		return ret;
+		log_warning("input: cannot add udev filter\n");
+		ret = -EFAULT;
+		goto err_monitor;
+	}
+
+	ret = udev_monitor_enable_receiving(input->monitor);
+	if (ret) {
+		log_warning("input: cannot start udev monitor\n");
+		ret = -EFAULT;
+		goto err_monitor;
 	}
 
 	*out = input;
 	return 0;
+
+err_monitor:
+	udev_monitor_unref(input->monitor);
+err_udev:
+	udev_unref(input->udev);
+err_free:
+	free(input);
+	return ret;
 }
 
 void kmscon_input_ref(struct kmscon_input *input)
@@ -144,122 +277,112 @@ void kmscon_input_ref(struct kmscon_input *input)
 	++input->ref;
 }
 
-static int init_input(struct kmscon_input *input)
+void kmscon_input_unref(struct kmscon_input *input)
+{
+	if (!input || !input->ref)
+		return;
+
+	if (--input->ref)
+		return;
+
+	kmscon_input_disconnect_eloop(input);
+	udev_monitor_unref(input->monitor);
+	udev_unref(input->udev);
+	free(input);
+	log_debug("input: destroying input object\n");
+}
+
+static void add_device(struct kmscon_input *input,
+					struct udev_device *udev_device)
 {
 	int ret;
+	struct kmscon_input_device *device;
+	const char *value, *node;
 
-	input->udev = udev_new();
-	if (!input->udev)
-		return -EFAULT;
-
-	input->monitor = udev_monitor_new_from_netlink(input->udev, "udev");
-	if (!input->monitor) {
-		ret = -EFAULT;
-		goto err_udev;
-	}
-
-	ret = udev_monitor_filter_add_match_subsystem_devtype(input->monitor,
-								"input", NULL);
-	if (ret)
-		goto err_monitor;
+	if (!input || !udev_device)
+		return;
 
 	/*
-	 * There's no way to query the state of the monitor, so just start it
-	 * from here.
+	 * TODO: Here should go a proper filtering of input devices we're
+	 * interested in. Currently, we add all kinds of devices. A simple
+	 * blacklist should be the easiest way.
 	 */
-	ret = udev_monitor_enable_receiving(input->monitor);
-	if (ret)
-		goto err_monitor;
 
-	return 0;
-
-err_monitor:
-	udev_monitor_unref(input->monitor);
-err_udev:
-	udev_unref(input->udev);
-	return ret;
-}
-
-/*
- * This takes a ref of the loop, but it most likely not what should be
- * keeping it alive.
- */
-int kmscon_input_connect_eloop(struct kmscon_input *input, struct kmscon_eloop *loop)
-{
-	int ret;
-	int fd;
-
-	if (!input || !loop || !input->monitor)
-		return -EINVAL;
-
-	if (input->loop)
-		return -EALREADY;
-
-	input->loop = loop;
-	kmscon_eloop_ref(loop);
-
-	fd = udev_monitor_get_fd(input->monitor);
-
-	ret = kmscon_eloop_new_fd(loop, &input->monitor_fd, fd, KMSCON_READABLE,
-							device_changed, input);
-	if (ret)
-		goto err_loop;
-
-	/* XXX: What if a device is added NOW? */
-
-	ret = add_initial_devices(input);
-	if (ret)
-		goto err_fd;
-
-	return 0;
-
-err_fd:
-	kmscon_eloop_rm_fd(input->monitor_fd);
-	input->monitor_fd = NULL;
-err_loop:
-	kmscon_eloop_unref(loop);
-	input->loop = NULL;
-	return ret;
-}
-
-static int add_initial_devices(struct kmscon_input *input)
-{
-	int ret;
-
-	struct udev_enumerate *e;
-	struct udev_list_entry *first;
-	struct udev_list_entry *item;
-	struct udev_device *udev_device;
-	const char *syspath;
-
-	e = udev_enumerate_new(input->udev);
-	if (!e)
-		return -EFAULT;
-
-	ret = udev_enumerate_add_match_subsystem(e, "input");
-	if (ret)
-		goto err_enum;
-
-	ret = udev_enumerate_scan_devices(e);
-	if (ret)
-		goto err_enum;
-
-	first = udev_enumerate_get_list_entry(e);
-	udev_list_entry_foreach(item, first) {
-		syspath = udev_list_entry_get_name(item);
-
-		udev_device = udev_device_new_from_syspath(input->udev, syspath);
-		if (!udev_device)
-			continue;
-
-		add_device(input, udev_device);
-
-		udev_device_unref(udev_device);
+	node = udev_device_get_devnode(udev_device);
+	if (!node) {
+		log_warning("input: cannot get udev node for input device\n");
+		return;
 	}
 
-err_enum:
-	udev_enumerate_unref(e);
-	return ret;
+	value = udev_device_get_property_value(udev_device,
+							"ID_INPUT_KEYBOARD");
+	if (!value || strcmp(value, "1")) {
+		log_debug("input: ignoring non-keyboard device %s\n", node);
+		return;
+	}
+
+	ret = kmscon_input_device_new(&device, input, node);
+	if (ret) {
+		log_warning("input: cannot create input device for %s\n",
+									node);
+		return;
+	}
+
+	if (input->state == INPUT_AWAKE) {
+		ret = kmscon_input_device_wake_up(device);
+		if (ret) {
+			log_warning("input: cannot wake up new device %s\n",
+									node);
+			kmscon_input_device_unref(device);
+			return;
+		}
+	}
+
+	device->next = input->devices;
+	input->devices = device;
+	log_debug("input: added device %s\n", node);
+}
+
+static void remove_device(struct kmscon_input *input, const char *node)
+{
+	struct kmscon_input_device *iter, *prev;
+
+	if (!input || !node || !input->devices)
+		return;
+
+	iter = input->devices;
+	prev = NULL;
+
+	while (iter) {
+		if (!strcmp(iter->devnode, node)) {
+			if (prev == NULL)
+				input->devices = iter->next;
+			else
+				prev->next = iter->next;
+
+			kmscon_input_device_unref(iter);
+			log_debug("input: removed device %s\n", node);
+			break;
+		}
+
+		prev = iter;
+		iter = iter->next;
+	}
+}
+
+static void remove_device_udev(struct kmscon_input *input,
+					struct udev_device *udev_device)
+{
+	const char *node;
+
+	if (!udev_device)
+		return;
+
+	node = udev_device_get_devnode(udev_device);
+	if (!node)
+		return;
+
+	remove_device(input, node);
 }
 
 static void device_changed(struct kmscon_fd *fd, int mask, void *data)
@@ -268,156 +391,120 @@ static void device_changed(struct kmscon_fd *fd, int mask, void *data)
 	struct udev_device *udev_device;
 	const char *action;
 
-	if (!input || !input->monitor)
-	       return;
-
 	udev_device = udev_monitor_receive_device(input->monitor);
 	if (!udev_device)
-		goto err_device;
+		return;
 
 	action = udev_device_get_action(udev_device);
-	if (!action)
+	if (!action) {
+		log_warning("input: cannot get action field of new device\n");
 		goto err_device;
+	}
 
-	/*
-	 * XXX: need to do something with the others? (change, online,
-	 * offline)
-	 */
 	if (!strcmp(action, "add"))
-		device_added(input,  udev_device);
+		add_device(input, udev_device);
 	else if (!strcmp(action, "remove"))
-		device_removed(input, udev_device);
+		remove_device_udev(input, udev_device);
 
 err_device:
 	udev_device_unref(udev_device);
 }
 
-static void device_added(struct kmscon_input *input,
-				struct udev_device *udev_device)
-{
-	add_device(input, udev_device);
-}
-
-static void device_removed(struct kmscon_input *input,
-				struct udev_device *udev_device)
-{
-	remove_device(input, udev_device);
-}
-
-static int add_device(struct kmscon_input *input, struct udev_device *udev_device)
+static void add_initial_devices(struct kmscon_input *input)
 {
 	int ret;
-	struct kmscon_input_device *device;
-	const char *value, *devnode;
+	struct udev_enumerate *e;
+	struct udev_list_entry *first;
+	struct udev_list_entry *item;
+	struct udev_device *udev_device;
+	const char *syspath;
 
-	if (!input || !udev_device)
+	e = udev_enumerate_new(input->udev);
+	if (!e) {
+		log_warning("input: cannot create udev enumeration\n");
+		return;
+	}
+
+	ret = udev_enumerate_add_match_subsystem(e, "input");
+	if (ret) {
+		log_warning("input: cannot add match to udev enumeration\n");
+		goto err_enum;
+	}
+
+	ret = udev_enumerate_scan_devices(e);
+	if (ret) {
+		log_warning("input: cannot scan udev enumeration\n");
+		goto err_enum;
+	}
+
+	first = udev_enumerate_get_list_entry(e);
+	udev_list_entry_foreach(item, first) {
+		syspath = udev_list_entry_get_name(item);
+		if (!syspath)
+			continue;
+
+		udev_device = udev_device_new_from_syspath(input->udev, syspath);
+		if (!udev_device) {
+			log_warning("input: cannot create device "
+							"from udev path\n");
+			continue;
+		}
+
+		add_device(input, udev_device);
+		udev_device_unref(udev_device);
+	}
+
+err_enum:
+	udev_enumerate_unref(e);
+}
+
+int kmscon_input_connect_eloop(struct kmscon_input *input,
+		struct kmscon_eloop *eloop, kmscon_input_cb cb, void *data)
+{
+	int ret;
+	int fd;
+
+	if (!input || !eloop || !cb)
 		return -EINVAL;
 
-	/*
-	 * TODO: Here should go a proper filtering of input devices we're
-	 * interested in. Maybe also seats, etc?
-	 */
-	value = udev_device_get_property_value(udev_device, "ID_INPUT_KEYBOARD");
-	if (!value || strcmp(value, "1") != 0)
-		return 0;
+	if (input->eloop)
+		return -EALREADY;
 
-	devnode = udev_device_get_devnode(udev_device);
-	if (!devnode)
-		return -EFAULT;
-
-	ret = kmscon_input_device_new(&device, input, devnode);
+	fd = udev_monitor_get_fd(input->monitor);
+	ret = kmscon_eloop_new_fd(eloop, &input->monitor_fd, fd,
+				KMSCON_READABLE, device_changed, input);
 	if (ret)
 		return ret;
 
-	if (input->state == INPUT_AWAKE) {
-		ret = kmscon_input_device_wake_up(device);
-		if (ret) {
-			log_warning("input: cannot wake up new device %s: %s\n",
-							devnode, strerror(-ret));
-			goto err_device;
-		}
-	}
+	kmscon_eloop_ref(eloop);
+	input->eloop = eloop;
+	input->cb = cb;
+	input->data = data;
 
-	device->next = input->devices;
-	input->devices = device;
-
-	log_debug("input: added device %s\n", devnode);
+	add_initial_devices(input);
 
 	return 0;
-
-err_device:
-	kmscon_input_device_unref(device);
-	return ret;
-}
-
-static int remove_device(struct kmscon_input *input, struct udev_device *udev_device)
-{
-	struct kmscon_input_device *iter, *prev;
-	const char *devnode;
-
-	if (!input || !udev_device)
-		return -EINVAL;
-
-	if (!input->devices)
-		return 0;
-
-	devnode = udev_device_get_devnode(udev_device);
-	if (!devnode)
-		return -EFAULT;
-
-	iter = input->devices;
-	prev = NULL;
-	while (iter) {
-		if (!strcmp(iter->devnode, devnode)) {
-			if (prev == NULL)
-				input->devices = iter->next;
-			else
-				prev->next = iter->next;
-			kmscon_input_device_unref(iter);
-			log_debug("input: removed device %s\n", devnode);
-			break;
-		}
-
-		prev = iter;
-		iter = iter->next;
-	}
-
-	return 0;
-}
-
-void kmscon_input_unref(struct kmscon_input *input)
-{
-	struct kmscon_input_device *iter, *next;
-
-	if (!input || !input->ref)
-		return;
-
-	if (--input->ref)
-		return;
-
-	iter = input->devices;
-	while (iter) {
-		next = iter->next;
-		kmscon_input_device_unref(iter);
-		iter = next;
-	}
-
-	kmscon_input_disconnect_eloop(input);
-	udev_monitor_unref(input->monitor);
-	udev_unref(input->udev);
-
-	free(input);
 }
 
 void kmscon_input_disconnect_eloop(struct kmscon_input *input)
 {
-	if (!input || !input->loop)
+	struct kmscon_input_device *tmp;
+
+	if (!input || !input->eloop)
 		return;
+
+	while (input->devices) {
+		tmp = input->devices;
+		input->devices = tmp->next;
+		kmscon_input_device_unref(tmp);
+	}
 
 	kmscon_eloop_rm_fd(input->monitor_fd);
 	input->monitor_fd = NULL;
-	kmscon_eloop_unref(input->loop);
-	input->loop = NULL;
+	kmscon_eloop_unref(input->eloop);
+	input->eloop = NULL;
+	input->cb = NULL;
+	input->data = NULL;
 }
 
 void kmscon_input_sleep(struct kmscon_input *input)
@@ -435,17 +522,34 @@ void kmscon_input_sleep(struct kmscon_input *input)
 
 void kmscon_input_wake_up(struct kmscon_input *input)
 {
-	struct kmscon_input_device *iter;
+	struct kmscon_input_device *iter, *prev, *tmp;
+	int ret;
 
 	if (!input)
 		return;
 
-	 /*
-	  * XXX: should probably catch errors here and do something about
-	  * them.
-	  */
-	for (iter = input->devices; iter; iter = iter->next)
-		kmscon_input_device_wake_up(iter);
+	prev = NULL;
+	iter = input->devices;
+
+	while (iter) {
+		ret = kmscon_input_device_wake_up(iter);
+		if (ret) {
+			if (!prev)
+				input->devices = iter->next;
+			else
+				prev->next = iter->next;
+
+			tmp = iter;
+			iter = iter->next;
+
+			log_warning("input: device %s does not wake up, "
+					"removing device\n", tmp->devnode);
+			kmscon_input_device_unref(tmp);
+		} else {
+			prev = iter;
+			iter = iter->next;
+		}
+	}
 
 	input->state = INPUT_AWAKE;
 }
@@ -456,156 +560,4 @@ bool kmscon_input_is_asleep(struct kmscon_input *input)
 		return false;
 
 	return input->state == INPUT_ASLEEP;
-}
-
-int kmscon_input_device_new(struct kmscon_input_device **out,
-						struct kmscon_input *input,
-						const char *devnode)
-{
-	struct kmscon_input_device *device;
-
-	if (!out || !input)
-		return -EINVAL;
-
-	device = malloc(sizeof(*device));
-	if (!device)
-		return -ENOMEM;
-
-	memset(device, 0, sizeof(*device));
-	device->ref = 1;
-	device->input = input;
-	device->rfd = -1;
-
-	device->devnode = strdup(devnode);
-	if (!device->devnode) {
-		free(device);
-		return -ENOMEM;
-	}
-
-	*out = device;
-	return 0;
-}
-
-void kmscon_input_device_ref(struct kmscon_input_device *device)
-{
-	if (!device)
-		return;
-
-	++device->ref;
-}
-
-void kmscon_input_device_unref(struct kmscon_input_device *device)
-{
-	if (!device || !device->ref)
-		return;
-
-	if (--device->ref)
-		return;
-
-	kmscon_input_device_close(device);
-	free(device->devnode);
-	free(device);
-}
-
-int kmscon_input_device_open(struct kmscon_input_device *device)
-{
-	if (!device || !device->devnode)
-		return -EINVAL;
-
-	if (device->rfd >= 0)
-		return -EALREADY;
-
-	device->rfd = open(device->devnode, O_CLOEXEC, O_RDONLY);
-	if (device->rfd < 0)
-		return -errno;
-
-	return 0;
-}
-
-void kmscon_input_device_close(struct kmscon_input_device *device)
-{
-	if (!device)
-		return;
-
-	if (device->rfd < 0)
-		return;
-
-	kmscon_input_device_disconnect_eloop(device);
-	close(device->rfd);
-	device->rfd = -1;
-}
-
-int kmscon_input_device_connect_eloop(struct kmscon_input_device *device)
-{
-	int ret;
-
-	if (!device || !device->input || !device->input->loop)
-		return -EINVAL;
-
-	if (device->fd)
-		return -EALREADY;
-
-	ret = kmscon_eloop_new_fd(device->input->loop, &device->fd,
-						device->rfd, KMSCON_READABLE,
-						device_data_arrived, device);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
-{
-	int i;
-	ssize_t len, n;
-	struct kmscon_input_device *device = data;
-	/* 16 is what xf86-input-evdev uses (NUM_EVENTS) */
-	struct input_event ev[16];
-
-	len = sizeof(ev);
-	while (len == sizeof(ev)) {
-		/* we're always supposed to get full events */
-		len = read(device->rfd, &ev, sizeof(ev));
-		if (len <= 0 || len%sizeof(*ev) != 0)
-			break;
-
-		/* this shouldn't happen */
-		if (device->input->state != INPUT_AWAKE)
-			continue;
-
-		n = len/sizeof(*ev);
-		for (i=0; i < n; i++)
-			device->input->cb(ev[i].type, ev[i].code, ev[i].value);
-	}
-}
-
-void kmscon_input_device_disconnect_eloop(struct kmscon_input_device *device)
-{
-	if (!device || !device->fd)
-		return;
-
-	kmscon_eloop_rm_fd(device->fd);
-	device->fd = NULL;
-}
-
-void kmscon_input_device_sleep(struct kmscon_input_device *device)
-{
-	kmscon_input_device_close(device);
-}
-
-int kmscon_input_device_wake_up(struct kmscon_input_device *device)
-{
-	int ret;
-
-	ret = kmscon_input_device_open(device);
-	if (ret && ret != -EALREADY)
-		return ret;
-
-	ret = kmscon_input_device_connect_eloop(device);
-	if (ret && ret != -EALREADY) {
-		kmscon_input_device_close(device);
-		return ret;
-	}
-
-	return 0;
 }
