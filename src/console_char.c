@@ -157,6 +157,44 @@ int kmscon_char_new_u8(struct kmscon_char **out, const char *str, size_t len)
 	return 0;
 }
 
+int kmscon_char_new_ucs4(struct kmscon_char **out, const uint32_t *str,
+								size_t len)
+{
+	int ret;
+	struct kmscon_char *ch;
+	char *str8;
+	glong siz;
+
+	if (!len)
+		return kmscon_char_new(out);
+
+	if (!out || !str)
+		return -EINVAL;
+
+	str8 = g_ucs4_to_utf8(str, len, NULL, &siz, NULL);
+	if (!str8 || siz < 0)
+		return -EFAULT;
+
+	ret = new_char(&ch, siz);
+	if (ret)
+		goto err_free;
+
+	ret = kmscon_char_set_u8(ch, str8, siz);
+	if (ret)
+		goto err_char;
+
+	g_free(str8);
+	*out = ch;
+
+	return 0;
+
+err_char:
+	kmscon_char_free(ch);
+err_free:
+	g_free(str8);
+	return ret;
+}
+
 int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig)
 {
 	struct kmscon_char *ch;
@@ -220,6 +258,28 @@ int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len)
 	ch->len = len;
 
 	return 0;
+}
+
+int kmscon_char_set_ucs4(struct kmscon_char *ch, const uint32_t *str,
+								size_t len)
+{
+	char *str8;
+	glong siz;
+	int ret;
+
+	if (!ch)
+		return -EINVAL;
+
+	str8 = g_ucs4_to_utf8(str, len, NULL, &siz, NULL);
+	if (!str8 || siz < 0) {
+		g_free(str8);
+		return -EFAULT;
+	}
+
+	ret = kmscon_char_set_u8(ch, str8, siz);
+	g_free(str8);
+
+	return ret;
 }
 
 const char *kmscon_char_get_u8(const struct kmscon_char *ch)
