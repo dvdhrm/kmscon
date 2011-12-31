@@ -148,7 +148,7 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	if (device->fd)
 		return 0;
 
-	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK, O_RDONLY);
+	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
 	if (device->rfd < 0) {
 		log_warning("input: cannot open input device %s: %d\n",
 						device->devnode, errno);
