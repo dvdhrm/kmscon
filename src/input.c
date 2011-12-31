@@ -309,10 +309,8 @@ static void add_device(struct kmscon_input *input,
 	 */
 
 	node = udev_device_get_devnode(udev_device);
-	if (!node) {
-		log_warning("input: cannot get udev node for input device\n");
+	if (!node)
 		return;
-	}
 
 	value = udev_device_get_property_value(udev_device,
 							"ID_INPUT_KEYBOARD");
