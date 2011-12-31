@@ -38,16 +38,19 @@
 #include <string.h>
 
 #include "eloop.h"
+#include "input.h"
 #include "log.h"
 #include "output.h"
 #include "terminal.h"
 #include "vt.h"
 
 struct app {
+	struct kmscon_char *ch;
 	struct kmscon_eloop *eloop;
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
 	struct kmscon_compositor *comp;
+	struct kmscon_input *input;
 	struct kmscon_vt *vt;
 	struct kmscon_terminal *term;
 };
@@ -57,6 +60,24 @@ static volatile sig_atomic_t terminate;
 static void sig_term(struct kmscon_signal *sig, int signum, void *data)
 {
 	terminate = 1;
+}
+
+static void read_input(struct kmscon_input *input,
+				struct kmscon_input_event *ev, void *data)
+{
+	struct app *app = data;
+	int ret;
+
+	if (ev->unicode == KMSCON_INPUT_INVALID)
+		return;
+
+	ret = kmscon_char_set_ucs4(app->ch, &ev->unicode, 1);
+	if (ret) {
+		log_warning("Cannot convert UCS4 to UTF8\n");
+		return;
+	}
+
+	kmscon_terminal_input(app->term, app->ch);
 }
 
 static void activate_outputs(struct app *app)
@@ -95,7 +116,10 @@ static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
 			log_info("test: running without active outputs\n");
 		else if (ret > 0)
 			activate_outputs(app);
+
+		kmscon_input_wake_up(app->input);
 	} else if (action == KMSCON_VT_LEAVE) {
+		kmscon_input_sleep(app->input);
 		kmscon_terminal_rm_all_outputs(app->term);
 		kmscon_compositor_sleep(app->comp);
 	}
@@ -107,15 +131,21 @@ static void destroy_app(struct app *app)
 {
 	kmscon_terminal_unref(app->term);
 	kmscon_vt_unref(app->vt);
+	kmscon_input_unref(app->input);
 	kmscon_compositor_unref(app->comp);
 	kmscon_eloop_rm_signal(app->sig_int);
 	kmscon_eloop_rm_signal(app->sig_term);
 	kmscon_eloop_unref(app->eloop);
+	kmscon_char_free(app->ch);
 }
 
 static int setup_app(struct app *app)
 {
 	int ret;
+
+	ret = kmscon_char_new(&app->ch);
+	if (ret)
+		goto err_loop;
 
 	ret = kmscon_eloop_new(&app->eloop);
 	if (ret)
@@ -139,6 +169,10 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
+	ret = kmscon_input_new(&app->input);
+	if (ret)
+		goto err_loop;
+
 	ret = kmscon_vt_new(&app->vt, vt_switch, app);
 	if (ret)
 		goto err_loop;
@@ -152,6 +186,11 @@ static int setup_app(struct app *app)
 		goto err_loop;
 
 	ret = kmscon_terminal_connect_eloop(app->term, app->eloop);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_input_connect_eloop(app->input, app->eloop, read_input,
+									app);
 	if (ret)
 		goto err_loop;
 
