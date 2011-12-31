@@ -296,7 +296,7 @@ int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
 void kmscon_eloop_rm_fd(struct kmscon_fd *fd)
 {
 	struct kmscon_eloop *loop;
-	int i;
+	size_t i;
 
 	if (!fd || !fd->loop)
 		return;

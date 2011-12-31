@@ -1131,8 +1131,8 @@ int kmscon_compositor_refresh(struct kmscon_compositor *comp)
 {
 	drmModeConnector *conn;
 	drmModeRes *res;
-	size_t i;
-	int cid;
+	int i;
+	uint32_t cid;
 	struct kmscon_output *output, *tmp;
 
 	if (!comp || comp->state != COMPOSITOR_AWAKE)
