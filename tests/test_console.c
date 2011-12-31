@@ -96,6 +96,7 @@ static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
 	} else if (!ret) {
 		log_info("stdin closed\n");
 		kmscon_eloop_rm_fd(fd);
+		con->stdin_fd = NULL;
 	} else {
 		len = ret;
 		log_debug("stdin input read (len: %d)\n", len);
