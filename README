@@ -36,9 +36,9 @@ console.
   my code to work with other terminal emulators.
 
 == Contact ==
-  This software was written by:
+  This software is maintained by:
     David Herrmann <dh.herrmann@googlemail.com>
-  If you have any questions, do not hesitate to contact one of the developers.
+  If you have any questions, do not hesitate to contact one of the maintainers.
 
 == Code Base ==
   The kmscon code is split into several independent subsystems:

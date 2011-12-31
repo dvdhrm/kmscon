@@ -53,3 +53,7 @@ VT Subsystem:
  - Set KDSKBMODE to K_OFF to avoid getting input from the VT subsystem. This
    also discards the VT-switch events so we should first implement our own
    VT-switching mechanisms and then use this K_OFF switch.
+
+Input Subsystem:
+ - Add simple blacklist based on device names to input subsystem to avoid adding
+   all devices.
