@@ -180,7 +180,6 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 		return -ENOMEM;
 	}
 
-	kmscon_input_ref(input);
 	device->input = input;
 	device->rfd = -1;
 
