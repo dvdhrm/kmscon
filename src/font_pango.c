@@ -1,5 +1,5 @@
 /*
- * kmscon - Console Characters
+ * kmscon - Font Management - Pango backend
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,20 +25,10 @@
  */
 
 /*
- * Console Characters
- * A console always has a fixed width and height measured in number of
- * characters. This interfaces describes a single character.
- *
- * To be Unicode compatible, the most straightforward way would be using a UCS
- * number for each character and printing them. However, Unicode allows
- * combining marks, that is, a single printable character is constructed of
- * multiple characters. We support this by allowing to append characters to an
- * existing character. This should only be used with combining chars, though.
- * Otherwise you end up with multiple printable characters in a cell and the
- * output may get corrupted.
- *
- * We store each character (sequence) as UTF8 string because the pango library
- * accepts only UTF8. Hence, we avoid conversion to UCS or wide-characters.
+ * Pango Font Management
+ * This is the font backend using the pango library in conjunction with cairo as
+ * output. See glyph type for detailed information on the caching algorithms
+ * used.
  */
 
 #include <errno.h>
@@ -49,7 +39,7 @@
 #include <glib.h>
 #include <pango/pango.h>
 #include <pango/pangocairo.h>
-#include "console.h"
+#include "font.h"
 #include "log.h"
 #include "unicode.h"
 
@@ -78,6 +68,11 @@ struct kmscon_glyph {
 	} src;
 };
 
+struct kmscon_font_factory {
+	unsigned long ref;
+	struct kmscon_symbol_table *st;
+};
+
 struct kmscon_font {
 	size_t ref;
 	struct kmscon_symbol_table *st;
@@ -88,8 +83,8 @@ struct kmscon_font {
 	PangoContext *ctx;
 };
 
-static int kmscon_font_lookup(struct kmscon_font *font, kmscon_symbol_t key,
-						struct kmscon_glyph **out);
+static int kmscon_font_lookup(struct kmscon_font *font,
+			kmscon_symbol_t key, struct kmscon_glyph **out);
 
 /*
  * Glyphs
@@ -232,6 +227,48 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 	return 0;
 }
 
+int kmscon_font_factory_new(struct kmscon_font_factory **out,
+					struct kmscon_symbol_table *st)
+{
+	struct kmscon_font_factory *ff;
+
+	if (!out)
+		return -EINVAL;
+
+	ff = malloc(sizeof(*ff));
+	if (!ff)
+		return -ENOMEM;
+
+	memset(ff, 0, sizeof(*ff));
+	ff->ref = 1;
+	ff->st = st;
+
+	kmscon_symbol_table_ref(ff->st);
+	*out = ff;
+
+	return 0;
+}
+
+void kmscon_font_factory_ref(struct kmscon_font_factory *ff)
+{
+	if (!ff)
+		return;
+
+	++ff->ref;
+}
+
+void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
+{
+	if (!ff || !ff->ref)
+		return;
+
+	if (--ff->ref)
+		return;
+
+	kmscon_symbol_table_unref(ff->st);
+	free(ff);
+}
+
 /*
  * Measure font width
  * We simply draw all ASCII characters and use the average width as default
@@ -279,8 +316,9 @@ static int measure_width(struct kmscon_font *font)
  * \height is the height in pixel that we have for each character.
  * Returns 0 on success and stores the new font in \out.
  */
-int kmscon_font_new(struct kmscon_font **out, unsigned int height,
-					struct kmscon_symbol_table *st)
+
+int kmscon_font_factory_load(struct kmscon_font_factory *ff,
+	struct kmscon_font **out, unsigned int width, unsigned int height)
 {
 	struct kmscon_font *font;
 	int ret;
@@ -289,7 +327,7 @@ int kmscon_font_new(struct kmscon_font **out, unsigned int height,
 	PangoLanguage *lang;
 	cairo_font_options_t *opt;
 
-	if (!out || !height)
+	if (!ff || !out || !height)
 		return -EINVAL;
 
 	log_debug("font: new font (height %u)\n", height);
@@ -299,7 +337,7 @@ int kmscon_font_new(struct kmscon_font **out, unsigned int height,
 		return -ENOMEM;
 	font->ref = 1;
 	font->height = height;
-	font->st = st;
+	font->st = ff->st;
 
 	map = pango_cairo_font_map_get_default();
 	if (!map) {

@@ -38,6 +38,7 @@
 
 #include "console.h"
 #include "eloop.h"
+#include "font.h"
 #include "log.h"
 #include "terminal.h"
 #include "unicode.h"
@@ -117,7 +118,7 @@ static void print_help(struct kmscon_terminal *term)
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-						struct kmscon_symbol_table *st)
+					struct kmscon_font_factory *ff)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -138,7 +139,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_new(&term->console, st);
+	ret = kmscon_console_new(&term->console, ff);
 	if (ret)
 		goto err_idle;
 

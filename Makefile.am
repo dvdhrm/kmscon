@@ -22,9 +22,9 @@ endif
 libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
 	src/output.c src/output.h \
-	src/console_char.c \
 	src/console_cell.c \
 	src/unicode.c src/unicode.h \
+	src/font_pango.c src/font.h \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \

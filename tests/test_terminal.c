@@ -49,6 +49,7 @@ struct app {
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
 	struct kmscon_symbol_table *st;
+	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
 	struct kmscon_input *input;
 	struct kmscon_vt *vt;
@@ -128,6 +129,7 @@ static void destroy_app(struct app *app)
 	kmscon_vt_unref(app->vt);
 	kmscon_input_unref(app->input);
 	kmscon_compositor_unref(app->comp);
+	kmscon_font_factory_unref(app->ff);
 	kmscon_symbol_table_unref(app->st);
 	kmscon_eloop_rm_signal(app->sig_int);
 	kmscon_eloop_rm_signal(app->sig_term);
@@ -156,6 +158,10 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
+	ret = kmscon_font_factory_new(&app->ff, app->st);
+	if (ret)
+		goto err_loop;
+
 	ret = kmscon_compositor_new(&app->comp);
 	if (ret)
 		goto err_loop;
@@ -176,7 +182,7 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_new(&app->term, app->st);
+	ret = kmscon_terminal_new(&app->term, app->ff);
 	if (ret)
 		goto err_loop;
 

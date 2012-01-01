@@ -55,6 +55,7 @@
 #include <GL/glext.h>
 #include "console.h"
 #include "eloop.h"
+#include "font.h"
 #include "log.h"
 #include "output.h"
 #include "unicode.h"
@@ -68,6 +69,7 @@ struct console {
 	struct kmscon_signal *sig_int;
 	struct kmscon_fd *stdin_fd;
 	struct kmscon_symbol_table *st;
+	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
 	struct kmscon_vt *vt;
 	struct kmscon_console *con;
@@ -239,6 +241,7 @@ static void destroy_eloop(struct console *con)
 	kmscon_console_unref(con->con);
 	kmscon_compositor_unref(con->comp);
 	kmscon_vt_unref(con->vt);
+	kmscon_font_factory_unref(con->ff);
 	kmscon_symbol_table_unref(con->st);
 	kmscon_eloop_rm_fd(con->stdin_fd);
 	kmscon_eloop_rm_signal(con->sig_int);
@@ -273,6 +276,10 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
+	ret = kmscon_font_factory_new(&con->ff, con->st);
+	if (ret)
+		goto err_loop;
+
 	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
@@ -289,7 +296,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_console_new(&con->con, con->st);
+	ret = kmscon_console_new(&con->con, con->ff);
 	if (ret)
 		goto err_loop;
 

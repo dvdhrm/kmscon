@@ -1,5 +1,5 @@
 /*
- * kmscon - Terminal
+ * kmscon - Font Management
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,35 +25,35 @@
  */
 
 /*
- * Terminal
- * This provides the basic terminal object. This ties together the vt emulation
- * and the output console.
+ * Font Management
+ * A font factory helps loading and initializing fonts. The font object is used
+ * to draw glyphs onto the screen.
+ * Efficient caching is used to allow fast drawing operations.
  */
 
-#ifndef KMSCON_TERMINAL_H
-#define KMSCON_TERMINAL_H
+#ifndef KMSCON_FONT_H
+#define KMSCON_FONT_H
 
 #include <stdlib.h>
-#include "console.h"
-#include "font.h"
-#include "output.h"
 #include "unicode.h"
 
-struct kmscon_terminal;
+struct kmscon_font_factory;
+struct kmscon_font;
 
-int kmscon_terminal_new(struct kmscon_terminal **out,
-					struct kmscon_font_factory *ff);
-void kmscon_terminal_ref(struct kmscon_terminal *term);
-void kmscon_terminal_unref(struct kmscon_terminal *term);
+int kmscon_font_factory_new(struct kmscon_font_factory **out,
+					struct kmscon_symbol_table *st);
+void kmscon_font_factory_ref(struct kmscon_font_factory *ff);
+void kmscon_font_factory_unref(struct kmscon_font_factory *ff);
 
-int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
-						struct kmscon_eloop *eloop);
-void kmscon_terminal_disconnect_eloop(struct kmscon_terminal *term);
+int kmscon_font_factory_load(struct kmscon_font_factory *ff,
+	struct kmscon_font **out, unsigned int width, unsigned int height);
 
-int kmscon_terminal_add_output(struct kmscon_terminal *term,
-						struct kmscon_output *output);
-void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term);
+void kmscon_font_ref(struct kmscon_font *font);
+void kmscon_font_unref(struct kmscon_font *font);
 
-void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch);
+unsigned int kmscon_font_get_height(struct kmscon_font *font);
+unsigned int kmscon_font_get_width(struct kmscon_font *font);
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch,
+					void *dcr, uint32_t x, uint32_t y);
 
-#endif /* KMSCON_TERMINAL_H */
+#endif /* KMSCON_FONT_H */

@@ -37,23 +37,11 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include "font.h"
 #include "unicode.h"
 
-struct kmscon_font;
 struct kmscon_buffer;
 struct kmscon_console;
-
-/* font objects with cached glyphs */
-
-int kmscon_font_new(struct kmscon_font **out, unsigned int height,
-					struct kmscon_symbol_table *st);
-void kmscon_font_ref(struct kmscon_font *font);
-void kmscon_font_unref(struct kmscon_font *font);
-
-unsigned int kmscon_font_get_height(struct kmscon_font *font);
-unsigned int kmscon_font_get_width(struct kmscon_font *font);
-int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch,
-					void *dcr, uint32_t x, uint32_t y);
 
 /* console buffer with cell objects */
 
@@ -78,7 +66,7 @@ void kmscon_buffer_rotate(struct kmscon_buffer *buf);
 /* console objects */
 
 int kmscon_console_new(struct kmscon_console **out,
-					struct kmscon_symbol_table *st);
+					struct kmscon_font_factory *ff);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
 

@@ -47,12 +47,13 @@
 #include <GL/glext.h>
 
 #include "console.h"
+#include "font.h"
 #include "log.h"
 #include "unicode.h"
 
 struct kmscon_console {
 	size_t ref;
-	struct kmscon_symbol_table *st;
+	struct kmscon_font_factory *ff;
 
 	/* GL texture and font */
 	GLuint tex;
@@ -149,7 +150,7 @@ err_free:
 }
 
 int kmscon_console_new(struct kmscon_console **out,
-					struct kmscon_symbol_table *st)
+					struct kmscon_font_factory *ff)
 {
 	struct kmscon_console *con;
 	int ret;
@@ -163,7 +164,7 @@ int kmscon_console_new(struct kmscon_console **out,
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
-	con->st = st;
+	con->ff = ff;
 	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
@@ -173,7 +174,7 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->cells_x = kmscon_buffer_get_width(con->cells);
 	con->cells_y = kmscon_buffer_get_height(con->cells);
 
-	kmscon_symbol_table_ref(con->st);
+	kmscon_font_factory_ref(con->ff);
 	*out = con;
 
 	return 0;
@@ -206,7 +207,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
-	kmscon_symbol_table_unref(con->st);
+	kmscon_font_factory_unref(con->ff);
 	free(con);
 	log_debug("console: destroing console\n");
 }
@@ -279,7 +280,8 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (con->cursor_y > con->cells_y)
 		con->cursor_y = con->cells_y;
 
-	ret = kmscon_font_new(&font, height / con->cells_y, con->st);
+	ret = kmscon_font_factory_load(con->ff, &font, 0,
+							height / con->cells_y);
 	if (ret) {
 		log_err("console: cannot create new font: %d\n", ret);
 		return ret;
