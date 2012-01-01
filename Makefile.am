@@ -24,6 +24,7 @@ libkmscon_core_la_SOURCES = \
 	src/output.c src/output.h \
 	src/console_char.c \
 	src/console_cell.c \
+	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
