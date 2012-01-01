@@ -25,6 +25,9 @@ Output Subsystem:
 
  - Is glFinish() needed before setCrtc or is glFlush sufficient?
 
+ - Check whether ARB_texture_non_power_of_two is supported. We used it
+   everywhere.
+
 Console Subsystem:
  - Do we need to offer a way to create mipmaps of the cairo image? This would
    allow faster mappings of the console onto the framebuffers.
