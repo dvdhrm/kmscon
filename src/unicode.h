@@ -54,6 +54,8 @@
 struct kmscon_symbol_table;
 typedef uint32_t kmscon_symbol_t;
 
+extern const kmscon_symbol_t kmscon_symbol_default;
+
 int kmscon_symbol_table_new(struct kmscon_symbol_table **out);
 void kmscon_symbol_table_ref(struct kmscon_symbol_table *st);
 void kmscon_symbol_table_unref(struct kmscon_symbol_table *st);
@@ -63,5 +65,8 @@ kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
 					kmscon_symbol_t sym, uint32_t ucs4);
 const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
 					kmscon_symbol_t *sym, size_t *size);
+const char *kmscon_symbol_get_u8(const struct kmscon_symbol_table *st,
+					kmscon_symbol_t sym, size_t *size);
+void kmscon_symbol_free_u8(const char *s);
 
 #endif /* KMSCON_UNICODE_H */

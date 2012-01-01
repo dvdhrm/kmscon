@@ -52,7 +52,8 @@
 #define KMSCON_UCS4_MAXLEN 10
 #define KMSCON_UCS4_MAX 0x7fffffffUL
 
-static const kmscon_symbol_t default_symbol = 0;
+const kmscon_symbol_t kmscon_symbol_default = 0;
+static const char default_u8[] = { 0 };
 
 struct kmscon_symbol_table {
 	unsigned long ref;
@@ -253,5 +254,35 @@ const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
 def_value:
 	if (size)
 		*size = 1;
-	return &default_symbol;
+	return &kmscon_symbol_default;
+}
+
+const char *kmscon_symbol_get_u8(const struct kmscon_symbol_table *st,
+					kmscon_symbol_t sym, size_t *size)
+{
+	const uint32_t *ucs4;
+	gchar *val;
+	glong len;
+
+	if (!st)
+		goto def_value;
+
+	ucs4 = kmscon_symbol_get(st, &sym, size);
+	val = g_ucs4_to_utf8(ucs4, *size, NULL, &len, NULL);
+	if (!val || len < 0)
+		goto def_value;
+
+	*size = len;
+	return val;
+
+def_value:
+	if (size)
+		*size = 1;
+	return default_u8;
+}
+
+void kmscon_symbol_free_u8(const char *s)
+{
+	if (s != default_u8)
+		g_free((char*)s);
 }
