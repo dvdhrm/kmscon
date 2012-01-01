@@ -51,6 +51,7 @@
 #include <pango/pangocairo.h>
 #include "console.h"
 #include "log.h"
+#include "unicode.h"
 
 /* maximum size of a single character */
 #define KMSCON_CHAR_SIZE 6
@@ -69,7 +70,7 @@ enum glyph_type {
 
 struct kmscon_glyph {
 	size_t ref;
-	struct kmscon_char *ch;
+	kmscon_symbol_t ch;
 	unsigned int width;
 
 	int type;
@@ -88,6 +89,7 @@ struct kmscon_glyph {
 
 struct kmscon_font {
 	size_t ref;
+	struct kmscon_symbol_table *st;
 
 	unsigned int width;
 	unsigned int height;
@@ -95,8 +97,8 @@ struct kmscon_font {
 	PangoContext *ctx;
 };
 
-static int kmscon_font_lookup(struct kmscon_font *font,
-		const struct kmscon_char *key, struct kmscon_glyph **out);
+static int kmscon_font_lookup(struct kmscon_font *font, kmscon_symbol_t key,
+						struct kmscon_glyph **out);
 
 static int new_char(struct kmscon_char **out, size_t size)
 {
@@ -323,34 +325,6 @@ int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len)
 }
 
 /*
- * Create a hash for a kmscon_char. This uses a simple hash technique described
- * by Daniel J. Bernstein.
- */
-static guint kmscon_char_hash(gconstpointer key)
-{
-	guint val = 5381;
-	size_t i;
-	const struct kmscon_char *ch = (void*)key;
-
-	for (i = 0; i < ch->len; ++i)
-		val = val * 33 + ch->buf[i];
-
-	return val;
-}
-
-/* compare two kmscon_char for equality */
-static gboolean kmscon_char_equal(gconstpointer a, gconstpointer b)
-{
-	const struct kmscon_char *ch1 = (void*)a;
-	const struct kmscon_char *ch2 = (void*)b;
-
-	if (ch1->len != ch2->len)
-		return FALSE;
-
-	return (memcmp(ch1->buf, ch2->buf, ch1->len) == 0);
-}
-
-/*
  * Glyphs
  * Glyphs are for internal use only! The outside world uses kmscon_char
  * objects in combination with kmscon_font to draw characters. Internally, we
@@ -369,31 +343,24 @@ static gboolean kmscon_char_equal(gconstpointer a, gconstpointer b)
  *     any text you want. It uses a PangoLayout internally and recalculates the
  *     character sizes each time we draw them.
  */
-static int kmscon_glyph_new(struct kmscon_glyph **out,
-						const struct kmscon_char *ch)
+static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t ch)
 {
 	struct kmscon_glyph *glyph;
-	int ret;
 
-	if (!out || !ch || !ch->len)
+	if (!out)
 		return -EINVAL;
 
 	glyph = malloc(sizeof(*glyph));
 	if (!glyph)
 		return -ENOMEM;
+
+	memset(glyph, 0, sizeof(*glyph));
 	glyph->ref = 1;
 	glyph->type = GLYPH_NONE;
-
-	ret = kmscon_char_dup(&glyph->ch, ch);
-	if (ret)
-		goto err_free;
+	glyph->ch = ch;
 
 	*out = glyph;
 	return 0;
-
-err_free:
-	free(glyph);
-	return ret;
 }
 
 /*
@@ -436,7 +403,6 @@ static void kmscon_glyph_unref(struct kmscon_glyph *glyph)
 		return;
 
 	kmscon_glyph_reset(glyph);
-	kmscon_char_free(glyph->ch);
 	free(glyph);
 }
 
@@ -454,6 +420,8 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 	PangoGlyphItem *tmp;
 	PangoGlyphString *str;
 	PangoRectangle rec;
+	size_t len;
+	const char *val;
 
 	if (!glyph || !font)
 		return -EINVAL;
@@ -462,7 +430,10 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 	if (!layout)
 		return -EINVAL;
 
-	pango_layout_set_text(layout, glyph->ch->buf, glyph->ch->len);
+	val = kmscon_symbol_get_u8(font->st, glyph->ch, &len);
+	pango_layout_set_text(layout, val, len);
+	kmscon_symbol_free_u8(val);
+
 	pango_layout_get_extents(layout, NULL, &rec);
 	line = pango_layout_get_line_readonly(layout, 0);
 
@@ -505,23 +476,15 @@ static int measure_width(struct kmscon_font *font)
 {
 	unsigned int i, num, width;
 	int ret;
-	struct kmscon_char *ch;
-	char buf;
+	kmscon_symbol_t ch;
 	struct kmscon_glyph *glyph;
 
 	if (!font)
 		return -EINVAL;
 
-	ret = kmscon_char_new(&ch);
-	if (ret)
-		return ret;
-
 	num = 0;
 	for (i = 0; i < 127; ++i) {
-		buf = i;
-		ret = kmscon_char_set_u8(ch, &buf, 1);
-		if (ret)
-			continue;
+		ch = kmscon_symbol_make(i);
 
 		ret = kmscon_font_lookup(font, ch, &glyph);
 		if (ret)
@@ -534,8 +497,6 @@ static int measure_width(struct kmscon_font *font)
 
 		kmscon_glyph_unref(glyph);
 	}
-
-	kmscon_char_free(ch);
 
 	if (!num)
 		return -EFAULT;
@@ -551,7 +512,8 @@ static int measure_width(struct kmscon_font *font)
  * \height is the height in pixel that we have for each character.
  * Returns 0 on success and stores the new font in \out.
  */
-int kmscon_font_new(struct kmscon_font **out, unsigned int height)
+int kmscon_font_new(struct kmscon_font **out, unsigned int height,
+					struct kmscon_symbol_table *st)
 {
 	struct kmscon_font *font;
 	int ret;
@@ -570,6 +532,7 @@ int kmscon_font_new(struct kmscon_font **out, unsigned int height)
 		return -ENOMEM;
 	font->ref = 1;
 	font->height = height;
+	font->st = st;
 
 	map = pango_cairo_font_map_get_default();
 	if (!map) {
@@ -614,9 +577,8 @@ int kmscon_font_new(struct kmscon_font **out, unsigned int height)
 		cairo_font_options_destroy(opt);
 	}
 
-	font->glyphs = g_hash_table_new_full(kmscon_char_hash,
-			kmscon_char_equal, (GDestroyNotify) kmscon_char_free,
-					(GDestroyNotify) kmscon_glyph_unref);
+	font->glyphs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+				NULL, (GDestroyNotify) kmscon_glyph_unref);
 	if (!font->glyphs) {
 		ret = -ENOMEM;
 		goto err_ctx;
@@ -626,7 +588,9 @@ int kmscon_font_new(struct kmscon_font **out, unsigned int height)
 	if (ret)
 		goto err_hash;
 
+	kmscon_symbol_table_ref(font->st);
 	*out = font;
+
 	return 0;
 
 err_hash:
@@ -656,6 +620,7 @@ void kmscon_font_unref(struct kmscon_font *font)
 
 	g_hash_table_unref(font->glyphs);
 	g_object_unref(font->ctx);
+	kmscon_symbol_table_unref(font->st);
 	free(font);
 	log_debug("font: destroying font\n");
 }
@@ -682,30 +647,25 @@ unsigned int kmscon_font_get_height(struct kmscon_font *font)
  * Returns 0 on success and stores the glyph with a new reference in \out.
  */
 static int kmscon_font_lookup(struct kmscon_font *font,
-		const struct kmscon_char *key, struct kmscon_glyph **out)
+			kmscon_symbol_t key, struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;
-	struct kmscon_char *ch;
 	int ret;
 
-	if (!font || !key || !out)
+	if (!font || !out)
 		return -EINVAL;
 
-	glyph = g_hash_table_lookup(font->glyphs, key);
+	glyph = g_hash_table_lookup(font->glyphs, GUINT_TO_POINTER(key));
 	if (!glyph) {
-		ret = kmscon_char_dup(&ch, key);
-		if (ret)
-			return ret;
-
 		ret = kmscon_glyph_new(&glyph, key);
 		if (ret)
-			goto err_char;
+			return ret;
 
 		ret = kmscon_glyph_set(glyph, font);
 		if (ret)
 			goto err_glyph;
 
-		g_hash_table_insert(font->glyphs, ch, glyph);
+		g_hash_table_insert(font->glyphs, GUINT_TO_POINTER(key), glyph);
 	}
 
 	kmscon_glyph_ref(glyph);
@@ -714,8 +674,6 @@ static int kmscon_font_lookup(struct kmscon_font *font,
 
 err_glyph:
 	kmscon_glyph_unref(glyph);
-err_char:
-	kmscon_char_free(ch);
 	return ret;
 }
 
@@ -724,8 +682,8 @@ err_char:
  * The glyph will be drawn with the upper-left corner at x/y.
  * Returns 0 on success.
  */
-int kmscon_font_draw(struct kmscon_font *font, const struct kmscon_char *ch,
-					void *dcr, uint32_t x, uint32_t y)
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, void *dcr,
+							uint32_t x, uint32_t y)
 {
 	struct kmscon_glyph *glyph;
 	int ret;

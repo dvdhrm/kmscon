@@ -45,15 +45,7 @@
 static void print_buf(struct kmscon_buffer *buf)
 {
 	unsigned int width, height, x, y;
-	struct kmscon_char *ch;
-	int ret;
-	const char *c;
-
-	ret = kmscon_char_new(&ch);
-	if (ret) {
-		log_warning("Cannot allocate character\n");
-		return;
-	}
+	kmscon_symbol_t ch;
 
 	width = kmscon_buffer_get_width(buf);
 	height = kmscon_buffer_get_height(buf);
@@ -68,9 +60,8 @@ static void print_buf(struct kmscon_buffer *buf)
 	for (y = 0; y < height; ++y) {
 		printf("x");
 		for (x = 0; x < width; ++x) {
-			kmscon_buffer_read(buf, x, y, ch);
-			c = kmscon_char_get_u8(ch);
-			printf("%c", c ? *c : ' ');
+			ch = kmscon_buffer_read(buf, x, y);
+			printf("%c", ch ? ch : ' ');
 		}
 		printf("x\n");
 	}
@@ -79,22 +70,15 @@ static void print_buf(struct kmscon_buffer *buf)
 	for (x = 0; x < width; ++x)
 		printf("x");
 	printf("x\n");
-
-	kmscon_char_free(ch);
 }
 
 static void test1(struct kmscon_buffer *buf)
 {
-	int ret;
-	struct kmscon_char *ch;
+	kmscon_symbol_t ch;
 
 	log_info("Test1:\n");
 
-	ret = kmscon_char_new_u8(&ch, "?", 1);
-	if (ret) {
-		log_err("Cannot create character\n");
-		return;
-	}
+	ch = kmscon_symbol_make('?');
 
 	kmscon_buffer_write(buf, 0, 0, ch);
 	kmscon_buffer_write(buf, 9, 2, ch);
@@ -109,8 +93,6 @@ static void test1(struct kmscon_buffer *buf)
 	print_buf(buf);
 	kmscon_buffer_rotate(buf);
 	print_buf(buf);
-
-	kmscon_char_free(ch);
 }
 
 static void test2()

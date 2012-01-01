@@ -35,6 +35,7 @@
 
 #include <stdlib.h>
 #include "console.h"
+#include "unicode.h"
 
 struct kmscon_vte;
 
@@ -43,6 +44,6 @@ void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con);
-void kmscon_vte_input(struct kmscon_vte *vte, const struct kmscon_char *ch);
+void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch);
 
 #endif /* KMSCON_VTE_H */

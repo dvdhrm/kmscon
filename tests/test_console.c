@@ -57,6 +57,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "output.h"
+#include "unicode.h"
 #include "vt.h"
 
 static volatile sig_atomic_t terminate;
@@ -66,6 +67,7 @@ struct console {
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
 	struct kmscon_fd *stdin_fd;
+	struct kmscon_symbol_table *st;
 	struct kmscon_compositor *comp;
 	struct kmscon_vt *vt;
 	struct kmscon_console *con;
@@ -81,7 +83,7 @@ static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
 	char buf[512];
 	int ret;
 	unsigned int i, len;
-	struct kmscon_char *ch;
+	kmscon_symbol_t ch;
 
 	if (!con || !fd)
 		return;
@@ -96,20 +98,14 @@ static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
 		len = ret;
 		log_debug("stdin input read (len: %d)\n", len);
 
-		ret = kmscon_char_new_u8(&ch, NULL, 0);
-		if (ret)
-			return;
-
 		for (i = 0; i < len; ++i) {
 			if (buf[i] == '\n') {
 				kmscon_console_newline(con->con);
 			} else {
-				kmscon_char_set_u8(ch, &buf[i], 1);
+				ch = buf[i];
 				kmscon_console_write(con->con, ch);
 			}
 		}
-
-		kmscon_char_free(ch);
 	}
 }
 
@@ -222,25 +218,18 @@ static const char help_text[] =
 
 static void print_help(struct console *con)
 {
-	int ret;
 	unsigned int i, len;
-	struct kmscon_char *ch;
-
-	ret = kmscon_char_new_u8(&ch, NULL, 0);
-	if (ret)
-		return;
+	kmscon_symbol_t ch;
 
 	len = sizeof(help_text) - 1;
 	for (i = 0; i < len; ++i) {
 		if (help_text[i] == '\n') {
 			kmscon_console_newline(con->con);
 		} else {
-			kmscon_char_set_u8(ch, &help_text[i], 1);
+			ch = help_text[i];
 			kmscon_console_write(con->con, ch);
 		}
 	}
-
-	kmscon_char_free(ch);
 }
 
 static void destroy_eloop(struct console *con)
@@ -250,6 +239,7 @@ static void destroy_eloop(struct console *con)
 	kmscon_console_unref(con->con);
 	kmscon_compositor_unref(con->comp);
 	kmscon_vt_unref(con->vt);
+	kmscon_symbol_table_unref(con->st);
 	kmscon_eloop_rm_fd(con->stdin_fd);
 	kmscon_eloop_rm_signal(con->sig_int);
 	kmscon_eloop_rm_signal(con->sig_term);
@@ -279,6 +269,10 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
+	ret = kmscon_symbol_table_new(&con->st);
+	if (ret)
+		goto err_loop;
+
 	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
@@ -295,7 +289,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_console_new(&con->con);
+	ret = kmscon_console_new(&con->con, con->st);
 	if (ret)
 		goto err_loop;
 

@@ -36,10 +36,12 @@
 #include <stdlib.h>
 #include "console.h"
 #include "output.h"
+#include "unicode.h"
 
 struct kmscon_terminal;
 
-int kmscon_terminal_new(struct kmscon_terminal **out);
+int kmscon_terminal_new(struct kmscon_terminal **out,
+					struct kmscon_symbol_table *st);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 
@@ -51,7 +53,6 @@ int kmscon_terminal_add_output(struct kmscon_terminal *term,
 						struct kmscon_output *output);
 void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term);
 
-void kmscon_terminal_input(struct kmscon_terminal *term,
-						const struct kmscon_char *ch);
+void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch);
 
 #endif /* KMSCON_TERMINAL_H */

@@ -84,13 +84,14 @@
 
 #include "console.h"
 #include "log.h"
+#include "unicode.h"
 
 #define DEFAULT_WIDTH 80
 #define DEFAULT_HEIGHT 24
 #define DEFAULT_SCROLLBACK 128
 
 struct cell {
-	struct kmscon_char *ch;
+	kmscon_symbol_t ch;
 };
 
 struct line {
@@ -121,8 +122,6 @@ static void destroy_cell(struct cell *cell)
 {
 	if (!cell)
 		return;
-
-	kmscon_char_free(cell->ch);
 }
 
 static int init_cell(struct cell *cell)
@@ -131,8 +130,7 @@ static int init_cell(struct cell *cell)
 		return -EINVAL;
 
 	memset(cell, 0, sizeof(*cell));
-
-	return kmscon_char_new(&cell->ch);
+	return 0;
 }
 
 static void free_line(struct line *line)
@@ -487,12 +485,12 @@ unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf)
 }
 
 void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
-				unsigned int y, const struct kmscon_char *ch)
+				unsigned int y, kmscon_symbol_t ch)
 {
 	struct line *line;
 	int ret;
 
-	if (!buf || !ch)
+	if (!buf)
 		return;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
@@ -523,42 +521,30 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		}
 	}
 
-	ret = kmscon_char_set(line->cells[x].ch, ch);
-	if (ret) {
-		log_warning("console: cannot copy character (%d); "
-						"dropping input\n", ret);
-		return;
-	}
+	line->cells[x].ch = ch;
 }
 
-void kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
-				unsigned int y, struct kmscon_char *ch)
+kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
+								unsigned int y)
 {
 	struct line *line;
 
-	if (!ch)
-		return;
-
 	if (!buf)
-		goto err_out;
+		return kmscon_symbol_default;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
 		log_warning("console: reading out of buffer bounds\n");
-		goto err_out;
+		return kmscon_symbol_default;
 	}
 
 	line = buf->current[y];
 	if (!line)
-		goto err_out;
+		return kmscon_symbol_default;
 
 	if (x >= line->size)
-		goto err_out;
+		return kmscon_symbol_default;
 
-	kmscon_char_set(ch, line->cells[x].ch);
-	return;
-
-err_out:
-	kmscon_char_reset(ch);
+	return line->cells[x].ch;
 }
 
 void kmscon_buffer_rotate(struct kmscon_buffer *buf)

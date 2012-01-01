@@ -40,6 +40,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "terminal.h"
+#include "unicode.h"
 #include "vte.h"
 
 struct term_out {
@@ -105,24 +106,18 @@ static const char help_text[] =
 
 static void print_help(struct kmscon_terminal *term)
 {
-	int ret;
 	unsigned int i, len;
-	struct kmscon_char *ch;
-
-	ret = kmscon_char_new_u8(&ch, NULL, 0);
-	if (ret)
-		return;
+	kmscon_symbol_t ch;
 
 	len = sizeof(help_text) - 1;
 	for (i = 0; i < len; ++i) {
-		kmscon_char_set_u8(ch, &help_text[i], 1);
+		ch = kmscon_symbol_make(help_text[i]);
 		kmscon_terminal_input(term, ch);
 	}
-
-	kmscon_char_free(ch);
 }
 
-int kmscon_terminal_new(struct kmscon_terminal **out)
+int kmscon_terminal_new(struct kmscon_terminal **out,
+						struct kmscon_symbol_table *st)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -143,7 +138,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out)
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_new(&term->console);
+	ret = kmscon_console_new(&term->console, st);
 	if (ret)
 		goto err_idle;
 
@@ -265,8 +260,7 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 	}
 }
 
-void kmscon_terminal_input(struct kmscon_terminal *term,
-						const struct kmscon_char *ch)
+void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
 {
 	kmscon_vte_input(term->vte, ch);
 	schedule_redraw(term);

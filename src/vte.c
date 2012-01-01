@@ -36,6 +36,7 @@
 
 #include "console.h"
 #include "log.h"
+#include "unicode.h"
 #include "vte.h"
 
 struct kmscon_vte {
@@ -94,28 +95,13 @@ void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con)
 	kmscon_console_ref(vte->con);
 }
 
-void kmscon_vte_input(struct kmscon_vte *vte, const struct kmscon_char *ch)
+void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch)
 {
-	size_t len;
-	const char *val;
-
 	if (!vte || !vte->con)
 		return;
 
-	len = kmscon_char_get_len(ch);
-	val = kmscon_char_get_u8(ch);
-
-	if (len == 1) {
-		if (*val == '\n')
-			kmscon_console_newline(vte->con);
-		else
-			goto write_default;
-	} else {
-		goto write_default;
-	}
-
-	return;
-
-write_default:
-	kmscon_console_write(vte->con, ch);
+	if (ch == '\n')
+		kmscon_console_newline(vte->con);
+	else
+		kmscon_console_write(vte->con, ch);
 }

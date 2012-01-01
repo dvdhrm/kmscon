@@ -45,10 +45,10 @@
 #include "vt.h"
 
 struct app {
-	struct kmscon_char *ch;
 	struct kmscon_eloop *eloop;
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
+	struct kmscon_symbol_table *st;
 	struct kmscon_compositor *comp;
 	struct kmscon_input *input;
 	struct kmscon_vt *vt;
@@ -66,18 +66,13 @@ static void read_input(struct kmscon_input *input,
 				struct kmscon_input_event *ev, void *data)
 {
 	struct app *app = data;
-	int ret;
+	kmscon_symbol_t ch;
 
 	if (ev->unicode == KMSCON_INPUT_INVALID)
 		return;
 
-	ret = kmscon_char_set_ucs4(app->ch, &ev->unicode, 1);
-	if (ret) {
-		log_warning("Cannot convert UCS4 to UTF8\n");
-		return;
-	}
-
-	kmscon_terminal_input(app->term, app->ch);
+	ch = kmscon_symbol_make(ev->unicode);
+	kmscon_terminal_input(app->term, ch);
 }
 
 static void activate_outputs(struct app *app)
@@ -133,19 +128,15 @@ static void destroy_app(struct app *app)
 	kmscon_vt_unref(app->vt);
 	kmscon_input_unref(app->input);
 	kmscon_compositor_unref(app->comp);
+	kmscon_symbol_table_unref(app->st);
 	kmscon_eloop_rm_signal(app->sig_int);
 	kmscon_eloop_rm_signal(app->sig_term);
 	kmscon_eloop_unref(app->eloop);
-	kmscon_char_free(app->ch);
 }
 
 static int setup_app(struct app *app)
 {
 	int ret;
-
-	ret = kmscon_char_new(&app->ch);
-	if (ret)
-		goto err_loop;
 
 	ret = kmscon_eloop_new(&app->eloop);
 	if (ret)
@@ -158,6 +149,10 @@ static int setup_app(struct app *app)
 
 	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
 							sig_term, NULL);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_symbol_table_new(&app->st);
 	if (ret)
 		goto err_loop;
 
@@ -181,7 +176,7 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_new(&app->term);
+	ret = kmscon_terminal_new(&app->term, app->st);
 	if (ret)
 		goto err_loop;
 
