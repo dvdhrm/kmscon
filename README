@@ -5,20 +5,20 @@ console.
 
 == Requirements ==
   Kmscon requires the following software:
-    - udev
-    - mesa with:
-      - EGL library
-      - gbm library
-      - GL library
-    - pango with:
-      - glib
-      - cairo
-      - pango
-    - libxkbcommon
+    - libdrm: accessing the kernel graphics layer
+    - mesa: providing an OpenGL implementation (must be compiled with EGL, gbm
+            and GL libraries)
+    - udev: providing input device hotplug
+    - libxkbcommon: keyboard handling
+    - glib: only for Unicode handling
+    - One of:
+      - freetype2: drawing generic text
+      - pango: drawing text with pango (use --enable-pango)
+               Pango requires: glib, cairo, pangocairo, pango and freetype2
 
 == Install ==
   To compile the kmscon binary, run the standard autotools commands:
-    $ ./configure [--enable-debug]
+    $ ./configure [--enable-debug] [--enable-pango]
     $ make
     $ make install
   To compile the test applications, run:
@@ -48,10 +48,23 @@ console.
     - console:
       This draws the text on the screen and provides an API for any terminal
       emulator to visualize its contents.
-    - evdev:
+    - eloop:
+      Main loop implementation.
+    - log:
+      Log file handling.
+    - unicode:
+      Provides basic Unicode handling.
+    - font:
+      Font loading, caching and drawing operations.
+    - input:
       All linux input events are captured here and converted to Unicode
       characters for input handling.
+    - vt:
+      The linux VT subsystem integration. This allows to run the application in
+      a classic linux VT like X does.
     - vte:
       The terminal emulator library.
+    - terminal:
+      Connects the console, output, input and vte handling into a real terminal.
     - main:
       This connects all subsystems into a usable console application.
