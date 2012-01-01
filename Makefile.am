@@ -24,7 +24,6 @@ libkmscon_core_la_SOURCES = \
 	src/output.c src/output.h \
 	src/console_cell.c \
 	src/unicode.c src/unicode.h \
-	src/font_pango.c src/font.h \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
@@ -34,25 +33,35 @@ libkmscon_core_la_SOURCES = \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h
 
+if USE_PANGO
+libkmscon_core_la_SOURCES += \
+	src/font_pango.c src/font.h
+else
+libkmscon_core_la_SOURCES += \
+	src/font_freetype.c src/font.h
+endif
+
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
-	$(CAIRO_CFLAGS) \
 	$(PANGO_CFLAGS) \
 	$(UDEV_CFLAGS) \
-	$(XKBCOMMON_CFLAGS)
+	$(FREETYPE2_CFLAGS) \
+	$(XKBCOMMON_CFLAGS) \
+	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
 	$(OPENGL_LIBS) \
-	$(CAIRO_LIBS) \
 	$(PANGO_LIBS) \
 	$(UDEV_LIBS) \
-	$(XKBCOMMON_LIBS)
+	$(FREETYPE2_LIBS) \
+	$(XKBCOMMON_LIBS) \
+	$(GLIB_LIBS)
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la
@@ -63,8 +72,7 @@ test_console_LDADD = \
 	$(OPENGL_LIBS)
 test_console_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(OPENGL_CFLAGS) \
-	$(CAIRO_CFLAGS)
+	$(OPENGL_CFLAGS)
 
 test_output_SOURCES = tests/test_output.c
 test_output_LDADD = \

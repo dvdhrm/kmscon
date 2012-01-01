@@ -37,14 +37,6 @@ PKG_CHECK_MODULES([OPENGL], [gl])
 AC_SUBST(OPENGL_CFLAGS)
 AC_SUBST(OPENGL_LIBS)
 
-PKG_CHECK_MODULES([CAIRO], [cairo])
-AC_SUBST(CAIRO_CFLAGS)
-AC_SUBST(CAIRI_LIBS)
-
-PKG_CHECK_MODULES([PANGO], [pango pangocairo])
-AC_SUBST(PANGO_CFLAGS)
-AC_SUBST(PANGO_LIBS)
-
 PKG_CHECK_MODULES([UDEV], [libudev])
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
@@ -52,6 +44,33 @@ AC_SUBST(UDEV_LIBS)
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
 AC_SUBST(XKBCOMMON_CFLAGS)
 AC_SUBST(XKBCOMMON_LIBS)
+
+PKG_CHECK_MODULES([GLIB], [glib-2.0])
+AC_SUBST(GLIB_CFLAGS)
+AC_SUBST(GLIB_LIBS)
+
+PKG_CHECK_MODULES([FREETYPE2], [freetype2])
+AC_SUBST(FREETYPE2_CFLAGS)
+AC_SUBST(FREETYPE2_LIBS)
+
+PKG_CHECK_MODULES([PANGO], [pango pangocairo cairo],
+                  [have_pango=yes], [have_pango=no])
+AC_SUBST(PANGO_CFLAGS)
+AC_SUBST(PANGO_LIBS)
+
+AC_MSG_CHECKING([whether to use pango font backend])
+AC_ARG_ENABLE([pango],
+              [AS_HELP_STRING([--enable-pango], [whether to use pango font backend])],
+              [force_pango="$enableval";
+               AC_DEFINE([USE_PANGO], [1], [Define if pango should be used])],
+              [force_pango=no])
+AC_MSG_RESULT([$force_pango])
+
+if test x$force_pango = xyes -a $have_pango = xno ; then
+	AC_ERROR([Pango library not found])
+fi
+
+AM_CONDITIONAL([USE_PANGO], [test x$force_pango = xyes])
 
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
