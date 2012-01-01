@@ -39,28 +39,9 @@
 #include <stdlib.h>
 #include "unicode.h"
 
-struct kmscon_char;
 struct kmscon_font;
 struct kmscon_buffer;
 struct kmscon_console;
-
-/* single printable characters */
-
-int kmscon_char_new(struct kmscon_char **out);
-int kmscon_char_new_u8(struct kmscon_char **out, const char *str, size_t len);
-int kmscon_char_new_ucs4(struct kmscon_char **out, const uint32_t *str,
-								size_t len);
-int kmscon_char_dup(struct kmscon_char **out, const struct kmscon_char *orig);
-void kmscon_char_free(struct kmscon_char *ch);
-void kmscon_char_reset(struct kmscon_char *ch);
-
-int kmscon_char_set(struct kmscon_char *ch, const struct kmscon_char *orig);
-int kmscon_char_set_u8(struct kmscon_char *ch, const char *str, size_t len);
-int kmscon_char_set_ucs4(struct kmscon_char *ch, const uint32_t *str,
-								size_t len);
-const char *kmscon_char_get_u8(const struct kmscon_char *ch);
-size_t kmscon_char_get_len(const struct kmscon_char *ch);
-int kmscon_char_append_u8(struct kmscon_char *ch, const char *str, size_t len);
 
 /* font objects with cached glyphs */
 
