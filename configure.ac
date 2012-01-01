@@ -74,11 +74,14 @@ AM_CONDITIONAL([USE_PANGO], [test x$force_pango = xyes])
 
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
-              [AS_HELP_STRING([--enable-debug], [whether to build with debugging on)])],
-              [debug="$enableval"],
-              [debug=no; AC_DEFINE([NDEBUG], [1], [No Debug])])
+              [AS_HELP_STRING([--enable-debug], [whether to build with debugging on])],
+              [debug="$enableval"], [debug=no])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 AC_MSG_RESULT([$debug])
+
+if test ! x$debug = xyes ; then
+	AC_DEFINE([NDEBUG], [1], [No Debug])
+fi
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
