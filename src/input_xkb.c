@@ -667,7 +667,7 @@ bool kmscon_xkb_process_evdev_key(struct xkb_desc *desc,
 						struct kmscon_input_event *out)
 {
 	KeyCode keycode;
-        uint8_t group;
+	uint8_t group;
 	uint16_t shift_level;
 	uint32_t sym;
 	union xkb_action *action;

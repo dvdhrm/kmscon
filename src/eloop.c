@@ -545,7 +545,7 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
-		log_warning("eloop: epoll_wait dispatching failed\n");
+		log_warning("eloop: epoll_wait dispatching failed: %m\n");
 		return -errno;
 	}
 
