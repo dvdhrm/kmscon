@@ -234,9 +234,10 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 		return -EINVAL;
 
 	if (id == KMSCON_VT_NEW) {
-		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY);
+		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
-			fd = open("/dev/tty1", O_NONBLOCK | O_NOCTTY);
+			fd = open("/dev/tty1", O_NONBLOCK | O_NOCTTY |
+								O_CLOEXEC);
 			if (fd < 0) {
 				log_err("vt: cannot find unused tty\n");
 				return -errno;
@@ -255,7 +256,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	filename[sizeof(filename) - 1] = 0;
 	log_debug("vt: using tty %s\n", filename);
 
-	fd = open(filename, O_RDWR | O_NOCTTY);
+	fd = open(filename, O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		log_err("vt: cannot open vt\n");
 		return -errno;
