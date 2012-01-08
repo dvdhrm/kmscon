@@ -36,14 +36,26 @@
 #include <stdlib.h>
 #include "console.h"
 #include "unicode.h"
+#include "eloop.h"
 
 struct kmscon_vte;
 
-int kmscon_vte_new(struct kmscon_vte **out);
+typedef void (*kmscon_vte_changed_cb) (struct kmscon_vte *vte, void *data);
+typedef void (*kmscon_vte_closed_cb) (struct kmscon_vte *vte, void *data);
+
+int kmscon_vte_new(struct kmscon_vte **out,
+				kmscon_vte_changed_cb changed_cb, void *data);
 void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 
+int kmscon_vte_open(struct kmscon_vte *vte, struct kmscon_eloop *eloop,
+				kmscon_vte_closed_cb closed_cb, void *data);
+void kmscon_vte_close(struct kmscon_vte *vte);
+
 void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con);
-void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch);
+void kmscon_vte_resize(struct kmscon_vte *vte);
+
+void kmscon_vte_input(struct kmscon_vte *vte, struct kmscon_input_event *ev);
+void kmscon_vte_putc(struct kmscon_vte *vte, kmscon_symbol_t ch);
 
 #endif /* KMSCON_VTE_H */
