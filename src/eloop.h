@@ -50,6 +50,7 @@ enum kmscon_eloop_flags {
 	KMSCON_READABLE = 0x01,
 	KMSCON_WRITEABLE = 0x02,
 	KMSCON_HUP = 0x04,
+	KMSCON_ERR = 0x08,
 };
 
 int kmscon_eloop_new(struct kmscon_eloop **out);
