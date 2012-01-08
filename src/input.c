@@ -240,11 +240,7 @@ int kmscon_input_new(struct kmscon_input **out)
 {
 	int ret;
 	struct kmscon_input *input;
-
-	/* TODO: Make configurable */
-	static const char *layout = "us,ru,il";
-	static const char *variant = "intl,,biblical";
-	static const char *options = "grp:menu_toggle,grp:ctrl_shift_toggle";
+	static const char *layout, *variant, *options;
 
 	if (!out)
 		return -EINVAL;
@@ -258,6 +254,11 @@ int kmscon_input_new(struct kmscon_input **out)
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
+
+	/* TODO: Make properly configurable */
+	layout = getenv("KMSCON_XKB_LAYOUT") ?: "us";
+	variant = getenv("KMSCON_XKB_VARIANT") ?: "";
+	options = getenv("KMSCON_XKB_OPTIONS") ?: "";
 
 	ret = kmscon_xkb_new_desc(layout, variant, options, &input->xkb_desc);
 	if (ret) {
