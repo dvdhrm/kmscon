@@ -30,6 +30,7 @@
  * prefixes.
  */
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,5 +50,9 @@ void log_printf(const char *format, ...)
 __attribute__ ((format (printf, 1, 0)))
 void log_vprintf(const char *format, va_list list)
 {
+	int saved_errno = errno;
+
 	vfprintf(stderr, format, list);
+
+	errno = saved_errno;
 }
