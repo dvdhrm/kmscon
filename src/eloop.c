@@ -566,6 +566,8 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 			mask |= KMSCON_WRITEABLE;
 		if (ep[i].events & EPOLLHUP)
 			mask |= KMSCON_HUP;
+		if (ep[i].events & EPOLLERR)
+			mask |= KMSCON_ERR;
 
 		fd->cb(fd, mask, fd->data);
 	}
