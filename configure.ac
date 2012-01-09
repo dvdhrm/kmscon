@@ -67,7 +67,7 @@ AC_ARG_ENABLE([pango],
 AC_MSG_RESULT([$force_pango])
 
 if test x$force_pango = xyes -a $have_pango = xno ; then
-	AC_ERROR([Pango library not found])
+        AC_ERROR([Pango library not found])
 fi
 
 AM_CONDITIONAL([USE_PANGO], [test x$force_pango = xyes])
@@ -80,7 +80,7 @@ AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 AC_MSG_RESULT([$debug])
 
 if test ! x$debug = xyes ; then
-	AC_DEFINE([NDEBUG], [1], [No Debug])
+        AC_DEFINE([NDEBUG], [1], [No Debug])
 fi
 
 AC_CONFIG_FILES([Makefile])

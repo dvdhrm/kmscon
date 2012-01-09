@@ -286,6 +286,7 @@ static int measure_width(struct kmscon_font *font)
 	if (!font)
 		return -EINVAL;
 
+	width = 0;
 	num = 0;
 	for (i = 0; i < 127; ++i) {
 		ch = kmscon_symbol_make(i);

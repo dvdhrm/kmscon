@@ -209,7 +209,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	kmscon_buffer_unref(con->cells);
 	kmscon_font_factory_unref(con->ff);
 	free(con);
-	log_debug("console: destroing console\n");
+	log_debug("console: destroying console\n");
 }
 
 unsigned int kmscon_console_get_width(struct kmscon_console *con)

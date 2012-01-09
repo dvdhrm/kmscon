@@ -296,7 +296,7 @@ int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
 void kmscon_eloop_rm_fd(struct kmscon_fd *fd)
 {
 	struct kmscon_eloop *loop;
-	int i;
+	size_t i;
 
 	if (!fd || !fd->loop)
 		return;
@@ -545,7 +545,7 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
-		log_warning("eloop: epoll_wait dispatching failed\n");
+		log_warning("eloop: epoll_wait dispatching failed: %m\n");
 		return -errno;
 	}
 
