@@ -221,9 +221,12 @@ static int fork_pty_child(int master, struct winsize *ws)
 		goto err_out;
 	}
 
-	ret = ioctl(slave, TIOCSWINSZ, ws);
-	if (ret)
-		log_warning("vte: cannot set slave pty window size: %m");
+	if (ws) {
+		ret = ioctl(slave, TIOCSWINSZ, ws);
+		if (ret)
+			log_warning("vte: cannot set slave pty "
+							"window size: %m");
+	}
 
 	if (dup2(slave, STDIN_FILENO) != STDIN_FILENO ||
 			dup2(slave, STDOUT_FILENO) != STDOUT_FILENO ||
