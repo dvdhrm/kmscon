@@ -181,6 +181,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
 	kmscon_terminal_disconnect_eloop(term);
+	kmscon_idle_unref(term->redraw);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
 }
