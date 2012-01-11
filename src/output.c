@@ -1046,20 +1046,6 @@ int kmscon_compositor_use(struct kmscon_compositor *comp)
 }
 
 /*
- * Returns the DRM file descriptor or -1 on failure.
- * The DRM descriptor can be used to react on DRI events. This descriptor must
- * not be closed or modified in any way by the application. The only thing you
- * are allowed to do is watching for events via epoll, select or similar.
- */
-int kmscon_compositor_get_fd(struct kmscon_compositor *comp)
-{
-	if (!comp)
-		return -1;
-
-	return comp->drm_fd;
-}
-
-/*
  * Returns a pointer to the first output that is bound to the compositor. You
  * can use kmscon_output_next() to iterate through the single linked list of
  * outputs.

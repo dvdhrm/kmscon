@@ -109,7 +109,6 @@ int kmscon_compositor_wake_up(struct kmscon_compositor *comp);
 bool kmscon_compositor_is_asleep(struct kmscon_compositor *comp);
 int kmscon_compositor_use(struct kmscon_compositor *comp);
 
-int kmscon_compositor_get_fd(struct kmscon_compositor *comp);
 struct kmscon_output *kmscon_compositor_get_outputs(
 					struct kmscon_compositor *comp);
 int kmscon_compositor_refresh(struct kmscon_compositor *comp);
