@@ -86,8 +86,6 @@
 #include "log.h"
 #include "unicode.h"
 
-#define DEFAULT_WIDTH 80
-#define DEFAULT_HEIGHT 24
 #define DEFAULT_SCROLLBACK 128
 
 struct cell {
@@ -172,7 +170,7 @@ static int resize_line(struct line *line, unsigned int width)
 		return -EINVAL;
 
 	if (!width)
-		width = DEFAULT_WIDTH;
+		width = KMSCON_DEFAULT_WIDTH;
 
 	if (line->size < width) {
 		tmp = realloc(line->cells, width * sizeof(struct cell));
@@ -337,9 +335,9 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 		return -EINVAL;
 
 	if (!x)
-		x = DEFAULT_WIDTH;
+		x = KMSCON_DEFAULT_WIDTH;
 	if (!y)
-		y = DEFAULT_HEIGHT;
+		y = KMSCON_DEFAULT_HEIGHT;
 
 	if (buf->size_x == x && buf->size_y == y)
 		return 0;

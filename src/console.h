@@ -43,6 +43,9 @@
 struct kmscon_buffer;
 struct kmscon_console;
 
+#define KMSCON_DEFAULT_WIDTH 80
+#define KMSCON_DEFAULT_HEIGHT 24
+
 /* console buffer with cell objects */
 
 int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,

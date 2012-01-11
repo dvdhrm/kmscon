@@ -39,6 +39,7 @@
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
+#include "input.h"
 #include "log.h"
 #include "terminal.h"
 #include "unicode.h"
@@ -59,6 +60,9 @@ struct kmscon_terminal {
 	struct kmscon_console *console;
 	struct kmscon_idle *redraw;
 	struct kmscon_vte *vte;
+
+	kmscon_terminal_closed_cb closed_cb;
+	void *closed_data;
 };
 
 static void draw_all(struct kmscon_idle *idle, void *data)
@@ -101,20 +105,10 @@ static void schedule_redraw(struct kmscon_terminal *term)
 		log_warning("terminal: cannot schedule redraw\n");
 }
 
-static const char help_text[] =
-"terminal subsystem - KMS based console test\n"
-"This is some default text to test the drawing operations.\n\n";
-
-static void print_help(struct kmscon_terminal *term)
+void vte_changed(struct kmscon_vte *vte, void *data)
 {
-	unsigned int i, len;
-	kmscon_symbol_t ch;
-
-	len = sizeof(help_text) - 1;
-	for (i = 0; i < len; ++i) {
-		ch = kmscon_symbol_make(help_text[i]);
-		kmscon_terminal_input(term, ch);
-	}
+	struct kmscon_terminal *term = data;
+	schedule_redraw(term);
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
@@ -143,11 +137,10 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_idle;
 
-	ret = kmscon_vte_new(&term->vte);
+	ret = kmscon_vte_new(&term->vte, vte_changed, term);
 	if (ret)
 		goto err_con;
 	kmscon_vte_bind(term->vte, term->console);
-	print_help(term);
 
 	*out = term;
 	return 0;
@@ -177,16 +170,16 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	if (--term->ref)
 		return;
 
+	term->closed_cb = NULL;
+	kmscon_terminal_close(term);
 	kmscon_terminal_rm_all_outputs(term);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
-	kmscon_terminal_disconnect_eloop(term);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
 }
 
-int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
-						struct kmscon_eloop *eloop)
+int connect_eloop(struct kmscon_terminal *term, struct kmscon_eloop *eloop)
 {
 	if (!term || !eloop)
 		return -EINVAL;
@@ -200,13 +193,67 @@ int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
 	return 0;
 }
 
-void kmscon_terminal_disconnect_eloop(struct kmscon_terminal *term)
+void disconnect_eloop(struct kmscon_terminal *term)
 {
 	if (!term)
 		return;
 
 	kmscon_eloop_unref(term->eloop);
 	term->eloop = NULL;
+}
+
+static void vte_closed(struct kmscon_vte *vte, void *data)
+{
+	struct kmscon_terminal *term = data;
+	kmscon_terminal_close(term);
+}
+
+int kmscon_terminal_open(struct kmscon_terminal *term,
+				struct kmscon_eloop *eloop,
+				kmscon_terminal_closed_cb closed_cb, void *data)
+{
+	int ret;
+
+	if (!term)
+		return -EINVAL;
+
+	ret = connect_eloop(term, eloop);
+	if (ret == -EALREADY) {
+		disconnect_eloop(term);
+		ret = connect_eloop(term, eloop);
+	}
+	if (ret)
+		return ret;
+
+	ret = kmscon_vte_open(term->vte, eloop, vte_closed, term);
+	if (ret) {
+		disconnect_eloop(term);
+		return ret;
+	}
+
+	term->closed_cb = closed_cb;
+	term->closed_data = data;
+	return 0;
+}
+
+void kmscon_terminal_close(struct kmscon_terminal *term)
+{
+	kmscon_terminal_closed_cb cb;
+	void *data;
+
+	if (!term)
+		return;
+
+	cb = term->closed_cb;
+	data = term->closed_data;
+	term->closed_data = NULL;
+	term->closed_cb = NULL;
+
+	disconnect_eloop(term);
+	kmscon_vte_close(term->vte);
+
+	if (cb)
+		cb(term, data);
 }
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
@@ -239,6 +286,7 @@ int kmscon_terminal_add_output(struct kmscon_terminal *term,
 	if (term->max_height < height) {
 		term->max_height = height;
 		kmscon_console_resize(term->console, 0, 0, term->max_height);
+		kmscon_vte_resize(term->vte);
 	}
 
 	schedule_redraw(term);
@@ -261,8 +309,8 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 	}
 }
 
-void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
+void kmscon_terminal_input(struct kmscon_terminal *term,
+					struct kmscon_input_event *ev)
 {
-	kmscon_vte_input(term->vte, ch);
-	schedule_redraw(term);
+	kmscon_vte_input(term->vte, ev);
 }
