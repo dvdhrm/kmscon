@@ -1,5 +1,5 @@
 /*
- * kmscon - KMS/DRI output handling
+ * kmscon - KMS/DRM output handling
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,7 +25,7 @@
  */
 
 /*
- * KMS/DRI Output Handling
+ * KMS/DRM Output Handling
  * This provides the compositor, output and mode objects and creates OpenGL
  * contexts available for drawing directly to the graphics framebuffer.
  */

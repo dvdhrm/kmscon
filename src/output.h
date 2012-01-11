@@ -1,5 +1,5 @@
 /*
- * kmscon - KMS/DRI output handling
+ * kmscon - KMS/DRM output handling
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,7 +25,7 @@
  */
 
 /*
- * KMS/DRI Output Handling
+ * KMS/DRM Output Handling
  * This module provides a compositor object which manages the different outputs.
  * Each output object belongs to a connected monitor.
  * After creating a compositor object it will create a list of all available
@@ -34,7 +34,7 @@
  * drawing to it using double-buffering.
  * You can connect as many outputs as you want.
  *
- * To allow other applications to access the DRI you can put a compositor asleep
+ * To allow other applications to access the DRM you can put a compositor asleep
  * and wake it up. When the compositor is asleep, the OpenGL context and
  * framebuffers are still available, however, you cannot add or remove outputs
  * unless the compositor is awake. You also cannot modify output modes or other
