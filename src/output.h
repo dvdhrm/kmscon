@@ -56,6 +56,9 @@
  * framebuffer is destroyed and a new one is created.
  */
 
+#ifndef KMSCON_OUTPUT_H
+#define KMSCON_OUTPUT_H
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -110,3 +113,5 @@ int kmscon_compositor_get_fd(struct kmscon_compositor *comp);
 struct kmscon_output *kmscon_compositor_get_outputs(
 					struct kmscon_compositor *comp);
 int kmscon_compositor_refresh(struct kmscon_compositor *comp);
+
+#endif /* KMSCON_OUTPUT_H */
