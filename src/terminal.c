@@ -37,8 +37,10 @@
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
+#include "input.h"
 #include "log.h"
 #include "output.h"
+#include "pty.h"
 #include "terminal.h"
 #include "unicode.h"
 #include "vte.h"
@@ -59,6 +61,10 @@ struct kmscon_terminal {
 	struct kmscon_console *console;
 	struct kmscon_idle *redraw;
 	struct kmscon_vte *vte;
+	struct kmscon_pty *pty;
+
+	kmscon_terminal_closed_cb closed_cb;
+	void *closed_data;
 };
 
 static void draw_all(struct kmscon_idle *idle, void *data)
@@ -100,20 +106,17 @@ static void schedule_redraw(struct kmscon_terminal *term)
 		log_warning("terminal: cannot schedule redraw\n");
 }
 
-static const char help_text[] =
-"terminal subsystem - KMS based console test\n"
-"This is some default text to test the drawing operations.\n\n";
-
-static void print_help(struct kmscon_terminal *term)
+static void pty_output(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 {
-	unsigned int i, len;
-	kmscon_symbol_t ch;
+	size_t i;
+	struct kmscon_terminal *term = data;
 
-	len = sizeof(help_text) - 1;
-	for (i = 0; i < len; ++i) {
-		ch = kmscon_symbol_make(help_text[i]);
-		kmscon_terminal_input(term, ch);
-	}
+	/* FIXME: UTF-8. */
+	for (i=0; i < len; i++)
+		if (u8[i] < 128)
+			kmscon_vte_input(term->vte, u8[i]);
+
+	schedule_redraw(term);
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
@@ -147,13 +150,18 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_con;
 	kmscon_vte_bind(term->vte, term->console);
-	print_help(term);
+
+	ret = kmscon_pty_new(&term->pty, pty_output, term);
+	if (ret)
+		goto err_vte;
 
 	kmscon_compositor_ref(term->comp);
 	*out = term;
 
 	return 0;
 
+err_vte:
+	kmscon_vte_unref(term->vte);
 err_con:
 	kmscon_console_unref(term->console);
 err_idle:
@@ -179,18 +187,19 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	if (--term->ref)
 		return;
 
+	term->closed_cb = NULL;
+	kmscon_terminal_close(term);
 	kmscon_terminal_rm_all_outputs(term);
+	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
-	kmscon_terminal_disconnect_eloop(term);
 	kmscon_idle_unref(term->redraw);
 	kmscon_compositor_unref(term->comp);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
 }
 
-int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
-						struct kmscon_eloop *eloop)
+int connect_eloop(struct kmscon_terminal *term, struct kmscon_eloop *eloop)
 {
 	if (!term || !eloop)
 		return -EINVAL;
@@ -204,13 +213,70 @@ int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
 	return 0;
 }
 
-void kmscon_terminal_disconnect_eloop(struct kmscon_terminal *term)
+void disconnect_eloop(struct kmscon_terminal *term)
 {
 	if (!term)
 		return;
 
 	kmscon_eloop_unref(term->eloop);
 	term->eloop = NULL;
+}
+
+static void pty_closed(struct kmscon_pty *pty, void *data)
+{
+	struct kmscon_terminal *term = data;
+	kmscon_terminal_close(term);
+}
+
+int kmscon_terminal_open(struct kmscon_terminal *term,
+				struct kmscon_eloop *eloop,
+				kmscon_terminal_closed_cb closed_cb, void *data)
+{
+	int ret;
+	unsigned short width, height;
+
+	if (!term)
+		return -EINVAL;
+
+	ret = connect_eloop(term, eloop);
+	if (ret == -EALREADY) {
+		disconnect_eloop(term);
+		ret = connect_eloop(term, eloop);
+	}
+	if (ret)
+		return ret;
+
+	width = kmscon_console_get_width(term->console);
+	height = kmscon_console_get_height(term->console);
+	ret = kmscon_pty_open(term->pty, eloop, width, height, pty_closed, term);
+	if (ret) {
+		disconnect_eloop(term);
+		return ret;
+	}
+
+	term->closed_cb = closed_cb;
+	term->closed_data = data;
+	return 0;
+}
+
+void kmscon_terminal_close(struct kmscon_terminal *term)
+{
+	kmscon_terminal_closed_cb cb;
+	void *data;
+
+	if (!term)
+		return;
+
+	cb = term->closed_cb;
+	data = term->closed_data;
+	term->closed_data = NULL;
+	term->closed_cb = NULL;
+
+	disconnect_eloop(term);
+	kmscon_pty_close(term->pty);
+
+	if (cb)
+		cb(term, data);
 }
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
@@ -267,6 +333,7 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 
 void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
 {
-	kmscon_vte_input(term->vte, ch);
-	schedule_redraw(term);
+	/* FIXME: UTF-8. */
+	if (ch < 128)
+		kmscon_pty_input(term->pty, (char *)&ch, 1);
 }

@@ -41,14 +41,18 @@
 
 struct kmscon_terminal;
 
+typedef void (*kmscon_terminal_closed_cb) (struct kmscon_terminal *term,
+								void *data);
+
 int kmscon_terminal_new(struct kmscon_terminal **out,
 	struct kmscon_font_factory *ff, struct kmscon_compositor *comp);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 
-int kmscon_terminal_connect_eloop(struct kmscon_terminal *term,
-						struct kmscon_eloop *eloop);
-void kmscon_terminal_disconnect_eloop(struct kmscon_terminal *term);
+int kmscon_terminal_open(struct kmscon_terminal *term,
+				struct kmscon_eloop *eloop,
+				kmscon_terminal_closed_cb closed_cb, void *data);
+void kmscon_terminal_close(struct kmscon_terminal *term);
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
 						struct kmscon_output *output);
