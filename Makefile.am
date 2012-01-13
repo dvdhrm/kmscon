@@ -31,7 +31,8 @@ libkmscon_core_la_SOURCES = \
 	src/input_xkb.c src/input_xkb.h \
 	external/imKStoUCS.c external\imKStoUCS.h \
 	src/vte.c src/vte.h \
-	src/terminal.c src/terminal.h
+	src/terminal.c src/terminal.h \
+	src/pty.c src/pty.h
 
 if USE_PANGO
 libkmscon_core_la_SOURCES += \
