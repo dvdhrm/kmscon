@@ -30,13 +30,6 @@
  * contexts available for drawing directly to the graphics framebuffer.
  */
 
-/*
- * TODO: Avoid using this hack and instead retrieve EGL and GL extension
- * pointers dynamically on initialization.
- */
-#define EGL_EGLEXT_PROTOTYPES
-#define GL_GLEXT_PROTOTYPES
-
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -46,11 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
 #include <gbm.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
@@ -66,9 +55,7 @@ struct kmscon_mode {
 };
 
 struct render_buffer {
-	GLuint rb;
 	struct gbm_bo *bo;
-	EGLImageKHR image;
 	uint32_t fb;
 };
 
@@ -92,9 +79,8 @@ struct kmscon_output {
 	uint32_t conn_id;
 	uint32_t crtc_id;
 
-	unsigned int cur_rb;
 	struct render_buffer rb[2];
-	GLuint fb;
+	struct kmscon_framebuffer *fb;
 
 	drmModeCrtcPtr saved_crtc;
 };
@@ -113,8 +99,7 @@ struct kmscon_compositor {
 
 	int drm_fd;
 	struct gbm_device *gbm;
-	EGLDisplay display;
-	EGLContext context;
+	struct kmscon_context *ctx;
 };
 
 /*
@@ -574,18 +559,6 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 		return -EFAULT;
 	}
 
-	rb->image = eglCreateImageKHR(comp->display, NULL,
-					EGL_NATIVE_PIXMAP_KHR, rb->bo, NULL);
-	if (!rb->image) {
-		log_warning("output: cannot create EGL image\n");
-		ret = -EFAULT;
-		goto err_bo;
-	}
-
-	glGenRenderbuffers(1, &rb->rb);
-	glBindRenderbuffer(GL_RENDERBUFFER, rb->rb);
-	glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, rb->image);
-
 	stride = gbm_bo_get_pitch(rb->bo);
 	handle = gbm_bo_get_handle(rb->bo).u32;
 
@@ -598,15 +571,11 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 	if (ret) {
 		log_warning("output: cannot add DRM framebuffer object\n");
 		ret = -EFAULT;
-		goto err_rb;
+		goto err_bo;
 	}
 
 	return 0;
 
-err_rb:
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glDeleteRenderbuffers(1, &rb->rb);
-	eglDestroyImageKHR(comp->display, rb->image);
 err_bo:
 	gbm_bo_destroy(rb->bo);
 	return ret;
@@ -616,9 +585,6 @@ static void destroy_rb(struct render_buffer *rb,
 					struct kmscon_compositor *comp)
 {
 	drmModeRmFB(comp->drm_fd, rb->fb);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glDeleteRenderbuffers(1, &rb->rb);
-	eglDestroyImageKHR(comp->display, rb->image);
 	gbm_bo_destroy(rb->bo);
 }
 
@@ -667,22 +633,15 @@ int kmscon_output_activate(struct kmscon_output *output,
 
 	output->current = mode;
 	output->active = 1;
-	output->cur_rb = 0;
-	glGenFramebuffers(1, &output->fb);
-	glBindFramebuffer(GL_FRAMEBUFFER, output->fb);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-					GL_RENDERBUFFER, output->rb[0].rb);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-		log_warning("output: invalid GL framebuffer state\n");
-		ret = -EFAULT;
-		goto err_fb;
-	}
+	ret = kmscon_framebuffer_new(&output->fb, comp->ctx, output->rb[0].bo,
+							output->rb[1].bo);
+	if (ret)
+		goto err_rb;
 
-	glViewport(0, 0, mode->info.hdisplay, mode->info.vdisplay);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	kmscon_context_viewport(output->comp->ctx, mode->info.hdisplay,
+							mode->info.vdisplay);
+	kmscon_context_clear(output->comp->ctx);
 
 	ret = kmscon_output_swap(output);
 	if (ret)
@@ -691,8 +650,8 @@ int kmscon_output_activate(struct kmscon_output *output,
 	return 0;
 
 err_fb:
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDeleteFramebuffers(1, &output->fb);
+	kmscon_framebuffer_destroy(output->fb);
+err_rb:
 	destroy_rb(&output->rb[0], output->comp);
 	destroy_rb(&output->rb[1], output->comp);
 	output->active = 0;
@@ -730,8 +689,7 @@ void kmscon_output_deactivate(struct kmscon_output *output)
 		output->saved_crtc = NULL;
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDeleteFramebuffers(1, &output->fb);
+	kmscon_framebuffer_destroy(output->fb);
 	destroy_rb(&output->rb[0], output->comp);
 	destroy_rb(&output->rb[1], output->comp);
 	output->current = NULL;
@@ -763,9 +721,7 @@ int kmscon_output_use(struct kmscon_output *output)
 	if (kmscon_compositor_is_asleep(output->comp))
 		return -EINVAL;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, output->fb);
-	glViewport(0, 0, output->current->info.hdisplay,
-					output->current->info.vdisplay);
+	kmscon_framebuffer_use(output->fb);
 
 	return 0;
 }
@@ -780,7 +736,7 @@ int kmscon_output_use(struct kmscon_output *output)
  */
 int kmscon_output_swap(struct kmscon_output *output)
 {
-	int ret;
+	int ret, num;
 
 	if (!output || !output->active)
 		return -EINVAL;
@@ -788,117 +744,28 @@ int kmscon_output_swap(struct kmscon_output *output)
 	if (kmscon_compositor_is_asleep(output->comp))
 		return -EINVAL;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, output->fb);
-	glFinish();
+	kmscon_context_flush(output->comp->ctx);
+	num = kmscon_framebuffer_swap(output->fb);
+	if (num < 0)
+		return num;
+	if (num > 1)
+		num = 1;
 
+	num ^= 1;
 	ret = drmModeSetCrtc(output->comp->drm_fd, output->crtc_id,
-		output->rb[output->cur_rb].fb, 0, 0, &output->conn_id, 1,
+			output->rb[num].fb, 0, 0, &output->conn_id, 1,
 						&output->current->info);
 	if (ret) {
 		log_warning("output: cannot set CRTC\n");
 		ret = -EFAULT;
 	}
 
-	output->cur_rb ^= 1;
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-			GL_RENDERBUFFER, output->rb[output->cur_rb].rb);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-		log_warning("output: invalid GL framebuffer state\n");
-		ret = -EFAULT;
-	}
+	kmscon_context_viewport(output->comp->ctx,
+					output->current->info.hdisplay,
+					output->current->info.vdisplay);
+	kmscon_context_clear(output->comp->ctx);
 
 	return ret;
-}
-
-/*
- * Initializes the compositor object. This opens the DRI device, initializes
- * EGL and creates a GL context. It does not activate the GL context. You need
- * to call kmscon_compositor_use() to activate the context.
- * Returns 0 on success.
- */
-static int compositor_init(struct kmscon_compositor *comp)
-{
-	EGLint major, minor;
-	int ret;
-	const char *ext;
-
-	comp->state = COMPOSITOR_ASLEEP;
-
-	/* TODO: Retrieve this path dynamically */
-	comp->drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
-	if (comp->drm_fd < 0) {
-		log_warning("output: cannot open dri/card0: %d\n", errno);
-		return -errno;
-	}
-
-	comp->gbm = gbm_create_device(comp->drm_fd);
-	if (!comp->gbm) {
-		log_warning("output: cannot allocate gbm device\n");
-		ret = -EFAULT;
-		goto err_drm;
-	}
-
-	comp->display = eglGetDisplay((EGLNativeDisplayType)comp->gbm);
-	if (!comp->display) {
-		log_warning("output: cannot get EGL display\n");
-		ret = -EFAULT;
-		goto err_gbm;
-	}
-
-	ret = eglInitialize(comp->display, &major, &minor);
-	if (!ret) {
-		log_warning("output: cannot initialize EGL display\n");
-		ret = -EFAULT;
-		goto err_gbm;
-	}
-
-	ext = eglQueryString(comp->display, EGL_EXTENSIONS);
-	if (!ext || !strstr(ext, "EGL_KHR_surfaceless_opengl")) {
-		log_warning("output: surfaceless EGL not supported\n");
-		ret = -ENOTSUP;
-		goto err_display;
-	}
-
-	if (!eglBindAPI(EGL_OPENGL_API)) {
-		log_warning("output: cannot bind EGL OpenGL API\n");
-		ret = -EFAULT;
-		goto err_display;
-	}
-
-	comp->context = eglCreateContext(comp->display, NULL,
-							EGL_NO_CONTEXT, NULL);
-	if (!comp->context) {
-		log_warning("output: cannot create EGL context\n");
-		ret = -EFAULT;
-		goto err_display;
-	}
-
-	return 0;
-
-err_display:
-	eglTerminate(comp->display);
-err_gbm:
-	gbm_device_destroy(comp->gbm);
-err_drm:
-	close(comp->drm_fd);
-	return ret;
-}
-
-/*
- * Counterpart of compositor_init(). Must not be called if compositor_init()
- * failed.
- */
-static void compositor_deinit(struct kmscon_compositor *comp)
-{
-	while (comp->outputs)
-		kmscon_output_unbind(comp->outputs);
-
-	eglDestroyContext(comp->display, comp->context);
-	eglTerminate(comp->display);
-	gbm_device_destroy(comp->gbm);
-	close(comp->drm_fd);
 }
 
 /*
@@ -921,15 +788,37 @@ int kmscon_compositor_new(struct kmscon_compositor **out)
 
 	memset(comp, 0, sizeof(*comp));
 	comp->ref = 1;
+	comp->state = COMPOSITOR_ASLEEP;
 
-	ret = compositor_init(comp);
-	if (ret) {
-		free(comp);
-		return ret;
+	/* TODO: Retrieve this path dynamically */
+	comp->drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
+	if (comp->drm_fd < 0) {
+		log_warning("output: cannot open /dev/dri/card0: %m\n");
+		ret = -errno;
+		goto err_free;
 	}
+
+	comp->gbm = gbm_create_device(comp->drm_fd);
+	if (!comp->gbm) {
+		log_warning("output: cannot allocate gbm device\n");
+		ret = -EFAULT;
+		goto err_drm;
+	}
+
+	ret = kmscon_context_new(&comp->ctx, comp->gbm);
+	if (ret)
+		goto err_gbm;
 
 	*out = comp;
 	return 0;
+
+err_gbm:
+	gbm_device_destroy(comp->gbm);
+err_drm:
+	close(comp->drm_fd);
+err_free:
+	free(comp);
+	return ret;
 }
 
 void kmscon_compositor_ref(struct kmscon_compositor *comp)
@@ -952,14 +841,19 @@ void kmscon_compositor_unref(struct kmscon_compositor *comp)
 	if (--comp->ref)
 		return;
 
-	compositor_deinit(comp);
+	while (comp->outputs)
+		kmscon_output_unbind(comp->outputs);
+
+	kmscon_context_destroy(comp->ctx);
+	gbm_device_destroy(comp->gbm);
+	close(comp->drm_fd);
 	free(comp);
 	log_debug("output: destroying compositor\n");
 }
 
 /*
  * This puts the compositor asleep. While the compositor is asleep, no access
- * to the DRI are made so other applications may use the DRM.
+ * to the DRM are made so other applications may use the DRM.
  * You shouldn't access the compositor and its outputs while it is asleep as
  * almost all functions will return -EINVAL while asleep.
  */
@@ -1036,13 +930,10 @@ bool kmscon_compositor_is_asleep(struct kmscon_compositor *comp)
  */
 int kmscon_compositor_use(struct kmscon_compositor *comp)
 {
-	if (!eglMakeCurrent(comp->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
-							comp->context)) {
-		log_warning("output: cannot use EGL context\n");
-		return -EFAULT;
-	}
+	if (!comp)
+		return -EINVAL;
 
-	return 0;
+	return kmscon_context_use(comp->ctx);
 }
 
 /*

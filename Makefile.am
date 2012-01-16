@@ -22,6 +22,7 @@ endif
 libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
 	src/output.c src/output.h \
+	src/output_context.c \
 	src/console_cell.c \
 	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \

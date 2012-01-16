@@ -64,7 +64,9 @@
 #include <stdlib.h>
 
 struct kmscon_mode;
+struct kmscon_framebuffer;
 struct kmscon_output;
+struct kmscon_context;
 struct kmscon_compositor;
 
 /* output modes */
@@ -77,6 +79,15 @@ struct kmscon_mode *kmscon_mode_next(struct kmscon_mode *mode);
 const char *kmscon_mode_get_name(const struct kmscon_mode *mode);
 uint32_t kmscon_mode_get_width(const struct kmscon_mode *mode);
 uint32_t kmscon_mode_get_height(const struct kmscon_mode *mode);
+
+/* framebuffer */
+
+int kmscon_framebuffer_new(struct kmscon_framebuffer **out,
+			struct kmscon_context *ctx, void *bo1, void *bo2);
+void kmscon_framebuffer_destroy(struct kmscon_framebuffer *fb);
+
+void kmscon_framebuffer_use(struct kmscon_framebuffer *fb);
+int kmscon_framebuffer_swap(struct kmscon_framebuffer *fb);
 
 /* compositor outputs */
 
@@ -97,6 +108,17 @@ bool kmscon_output_is_active(struct kmscon_output *output);
 
 int kmscon_output_use(struct kmscon_output *output);
 int kmscon_output_swap(struct kmscon_output *output);
+
+/* drawing contexts */
+
+int kmscon_context_new(struct kmscon_context **out, void *gbm);
+void kmscon_context_destroy(struct kmscon_context *ctx);
+int kmscon_context_use(struct kmscon_context *ctx);
+bool kmscon_context_is_active(struct kmscon_context *ctx);
+void kmscon_context_flush(struct kmscon_context *ctx);
+void kmscon_context_viewport(struct kmscon_context *ctx,
+				unsigned int width, unsigned int height);
+void kmscon_context_clear(struct kmscon_context *ctx);
 
 /* compositors */
 
