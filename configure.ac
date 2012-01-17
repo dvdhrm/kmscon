@@ -41,6 +41,10 @@ PKG_CHECK_MODULES([UDEV], [libudev])
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
 
+PKG_CHECK_MODULES([XPROTO], [xproto])
+AC_SUBST(XPROTO_CFLAGS)
+AC_SUBST(XPROTO_LIBS)
+
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
                   [have_xkbcommon=yes], [have_xkbcommon=no])
 AC_SUBST(XKBCOMMON_CFLAGS)
