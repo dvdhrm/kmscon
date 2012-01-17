@@ -41,7 +41,8 @@ PKG_CHECK_MODULES([UDEV], [libudev])
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
 
-PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
+PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
+                  [have_xkbcommon=yes], [have_xkbcommon=no])
 AC_SUBST(XKBCOMMON_CFLAGS)
 AC_SUBST(XKBCOMMON_LIBS)
 
@@ -57,6 +58,18 @@ PKG_CHECK_MODULES([PANGO], [pango pangocairo cairo],
                   [have_pango=yes], [have_pango=no])
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
+
+AC_MSG_CHECKING([whether to use xkbcommon keyboard backend])
+AC_ARG_ENABLE([xkbcommon],
+            [AS_HELP_STRING([--disable-xkbcommon], [disable xkbcommon keyboard backend])])
+if test x$enable_xkbcommon != xno ; then
+        if test x$enable_xkbcommon = xyes -a x$have_xkbcommon = xno ; then
+                AC_ERROR([--enable-xkbcommon given but library not found])
+        fi
+        enable_xkbcommon=$have_xkbcommon
+fi
+AM_CONDITIONAL([USE_XKBCOMMON], [test x$enable_xkbcommon = xyes])
+AC_MSG_RESULT([$enable_xkbcommon])
 
 AC_MSG_CHECKING([whether to use pango font backend])
 AC_ARG_ENABLE([pango],
