@@ -101,9 +101,4 @@ test_terminal_SOURCES = tests/test_terminal.c
 test_terminal_LDADD = libkmscon-core.la
 
 test_input_SOURCES = tests/test_input.c
-test_input_LDADD = \
-	libkmscon-core.la \
-	$(XKBCOMMON_LIBS)
-test_input_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(XKBCOMMON_CFLAGS)
+test_input_LDADD = libkmscon-core.la
