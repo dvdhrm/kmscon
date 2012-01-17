@@ -49,9 +49,17 @@ libkmscon_core_la_SOURCES = \
 	src/input.c src/input.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h \
-	src/kbd_xkb.c src/kbd.h \
-	external/imKStoUCS.c external\imKStoUCS.h \
 	src/pty.c src/pty.h
+
+if USE_XKBCOMMON
+libkmscon_core_la_SOURCES += \
+	src/kbd_xkb.c src/kbd.h \
+	external/imKStoUCS.c external/imKStoUCS.h
+else
+libkmscon_core_la_SOURCES += \
+	src/kbd_dumb.c src/kbd.h \
+	external/imKStoUCS.c external/imKStoUCS.h
+endif
 
 if USE_PANGO
 libkmscon_core_la_SOURCES += \
