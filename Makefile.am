@@ -47,10 +47,10 @@ libkmscon_core_la_SOURCES = \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
 	src/input.c src/input.h \
-	src/input_xkb.c src/input_xkb.h \
-	external/imKStoUCS.c external\imKStoUCS.h \
 	src/vte.c src/vte.h \
-	src/terminal.c src/terminal.h
+	src/terminal.c src/terminal.h \
+	src/kbd_xkb.c src/kbd.h \
+	external/imKStoUCS.c external\imKStoUCS.h
 
 if USE_PANGO
 libkmscon_core_la_SOURCES += \
