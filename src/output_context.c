@@ -43,20 +43,86 @@
 #include "log.h"
 #include "output.h"
 
+/* OpenGL extension definitions */
+typedef void (*PFNGLGENRENDERBUFFERSPROC)
+					(GLsizei n, GLuint *renderbuffers);
+typedef void (*PFNGLBINDRENDERBUFFERPROC)
+					(GLenum target, GLuint renderbuffer);
+typedef void (*PFNGLDELETERENDERBUFFERSPROC)
+				(GLsizei n, const GLuint *renderbuffers);
+
+typedef void (*PFNGLFRAMEBUFFERRENDERBUFFERPROC) (GLenum target,
+	GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
+typedef GLenum (*PFNGLCHECKFRAMEBUFFERSTATUSPROC) (GLenum target);
+typedef void (*PFNGLGENFRAMEBUFFERSPROC)
+					(GLsizei n, GLuint *framebuffers);
+typedef void (*PFNGLBINDFRAMEBUFFERPROC)
+					(GLenum target, GLuint framebuffer);
+typedef void (*PFNGLDELETEFRAMEBUFFERSPROC)
+				(GLsizei n, const GLuint *framebuffers);
+
+typedef GLuint (*PFNGLCREATESHADERPROC) (GLenum type);
+typedef void (*PFNGLDELETESHADERPROC) (GLuint shader);
+typedef void (*PFNGLGETSHADERSOURCEPROC)
+	(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *source);
+typedef void (*PFNGLCOMPILESHADERPROC) (GLuint shader);
+typedef void (*PFNGLGETSHADERIVPROC)
+				(GLuint shader, GLenum pname, GLint *params);
+typedef void (*PFNGLGETSHADERINFOLOGPROC)
+	(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+
+typedef GLuint (*PFNGLCREATEPROGRAMPROC) (void);
+typedef void (*PFNGLDELETEPROGRAMPROC) (GLuint program);
+typedef void (*PFNGLATTACHSHADERPROC) (GLuint program, GLuint shader);
+typedef void (*PFNGLBINDATTRIBLOCATIONPROC)
+			(GLuint program, GLuint index, const GLchar *name);
+typedef void (*PFNGLLINKPROGRAMPROC) (GLuint program);
+typedef void (*PFNGLGETPROGRAMIVPROC)
+				(GLuint program, GLenum pname, GLint *params);
+typedef void (*PFNGLGETPROGRAMINFOLOGPROC)
+	(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+typedef GLint (*PFNGLGETUNIFORMLOCATIONPROC)
+					(GLuint program, const GLchar *name);
+
 struct kmscon_context {
 	EGLDisplay display;
 	EGLContext context;
+
+	GLuint program;
+	GLuint vshader;
+	GLuint fshader;
+	GLuint uni_projection;
+	GLuint uni_texture;
+
 	PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC proc_rbuf_storage;
 	PFNEGLCREATEIMAGEKHRPROC proc_create_image;
 	PFNEGLDESTROYIMAGEKHRPROC proc_destroy_image;
+
 	PFNGLGENRENDERBUFFERSPROC proc_gen_renderbuffers;
 	PFNGLBINDRENDERBUFFERPROC proc_bind_renderbuffer;
 	PFNGLDELETERENDERBUFFERSPROC proc_delete_renderbuffers;
+
 	PFNGLFRAMEBUFFERRENDERBUFFERPROC proc_framebuffer_renderbuffer;
 	PFNGLCHECKFRAMEBUFFERSTATUSPROC proc_check_framebuffer_status;
 	PFNGLGENFRAMEBUFFERSPROC proc_gen_framebuffers;
 	PFNGLBINDFRAMEBUFFERPROC proc_bind_framebuffer;
 	PFNGLDELETEFRAMEBUFFERSPROC proc_delete_framebuffers;
+
+	PFNGLCREATESHADERPROC proc_create_shader;
+	PFNGLDELETESHADERPROC proc_delete_shader;
+	PFNGLSHADERSOURCEPROC proc_shader_source;
+	PFNGLCOMPILESHADERPROC proc_compile_shader;
+	PFNGLGETSHADERIVPROC proc_get_shader_iv;
+	PFNGLGETSHADERINFOLOGPROC proc_get_shader_info_log;
+
+	PFNGLCREATEPROGRAMPROC proc_create_program;
+	PFNGLDELETEPROGRAMPROC proc_delete_program;
+	PFNGLATTACHSHADERPROC proc_attach_shader;
+	PFNGLBINDATTRIBLOCATIONPROC proc_bind_attrib_location;
+	PFNGLLINKPROGRAMPROC proc_link_program;
+	PFNGLGETPROGRAMIVPROC proc_get_program_iv;
+	PFNGLGETPROGRAMINFOLOGPROC proc_get_program_info_log;
+	PFNGLGETUNIFORMLOCATIONPROC proc_get_uniform_location;
 };
 
 struct renderbuffer {
@@ -91,6 +157,95 @@ static void clear_gl_error()
 static bool has_gl_error()
 {
 	return glGetError() != GL_NO_ERROR;
+}
+
+/* external shader sources; generated during build */
+extern const char *kmscon_vert_shader;
+extern const char *kmscon_frag_shader;
+
+static int compile_shader(struct kmscon_context *ctx, GLenum type,
+							const char *source)
+{
+	char msg[512];
+	GLint status = 1;
+	GLuint s;
+
+	s = ctx->proc_create_shader(type);
+	ctx->proc_shader_source(s, 1, &source, NULL);
+	ctx->proc_compile_shader(s);
+
+	ctx->proc_get_shader_iv(s, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE) {
+		msg[0] = 0;
+		ctx->proc_get_shader_info_log(s, sizeof(msg), NULL, msg);
+		log_warning("context: cannot compile shader: %s\n", msg);
+		return GL_NONE;
+	}
+
+	return s;
+}
+
+static int init_shader(struct kmscon_context *ctx)
+{
+	char msg[512];
+	GLint status = 1;
+	int ret;
+
+	if (!ctx)
+		return -EINVAL;
+
+	ctx->vshader = compile_shader(ctx, GL_VERTEX_SHADER,
+							kmscon_vert_shader);
+	if (ctx->vshader == GL_NONE)
+		return -EFAULT;
+
+	ctx->fshader = compile_shader(ctx, GL_FRAGMENT_SHADER,
+							kmscon_frag_shader);
+	if (ctx->fshader == GL_NONE) {
+		ret = -EFAULT;
+		goto err_vshader;
+	}
+
+	ctx->program = ctx->proc_create_program();
+	ctx->proc_attach_shader(ctx->program, ctx->vshader);
+	ctx->proc_attach_shader(ctx->program, ctx->fshader);
+	ctx->proc_bind_attrib_location(ctx->program, 0, "position");
+	ctx->proc_bind_attrib_location(ctx->program, 1, "texture_position");
+
+	ctx->proc_link_program(ctx->program);
+	ctx->proc_get_program_iv(ctx->program, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		msg[0] = 0;
+		ctx->proc_get_program_info_log(ctx->program, sizeof(msg),
+								NULL, msg);
+		log_warning("context: cannot link shader: %s\n", msg);
+		ret = -EFAULT;
+		goto err_link;
+	}
+
+	ctx->uni_projection =
+		ctx->proc_get_uniform_location(ctx->program, "projection");
+	ctx->uni_texture =
+		ctx->proc_get_uniform_location(ctx->program, "texture");
+
+	return 0;
+
+err_link:
+	ctx->proc_delete_program(ctx->program);
+	ctx->proc_delete_shader(ctx->fshader);
+err_vshader:
+	ctx->proc_delete_shader(ctx->vshader);
+	return ret;
+}
+
+static void destroy_shader(struct kmscon_context *ctx)
+{
+	if (!ctx)
+		return;
+
+	ctx->proc_delete_program(ctx->program);
+	ctx->proc_delete_shader(ctx->fshader);
+	ctx->proc_delete_shader(ctx->vshader);
 }
 
 /*
@@ -141,6 +296,36 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 	ctx->proc_delete_framebuffers =
 		(void*) eglGetProcAddress("glDeleteFramebuffers");
 
+	ctx->proc_create_shader =
+		(void*) eglGetProcAddress("glCreateShader");
+	ctx->proc_delete_shader =
+		(void*) eglGetProcAddress("glDeleteShader");
+	ctx->proc_shader_source =
+		(void*) eglGetProcAddress("glShaderSource");
+	ctx->proc_compile_shader =
+		(void*) eglGetProcAddress("glCompileShader");
+	ctx->proc_get_shader_iv =
+		(void*) eglGetProcAddress("glGetShaderiv");
+	ctx->proc_get_shader_info_log =
+		(void*) eglGetProcAddress("glGetShaderInfoLog");
+
+	ctx->proc_create_program =
+		(void*) eglGetProcAddress("glCreateProgram");
+	ctx->proc_delete_program =
+		(void*) eglGetProcAddress("glDeleteProgram");
+	ctx->proc_attach_shader =
+		(void*) eglGetProcAddress("glAttachShader");
+	ctx->proc_bind_attrib_location =
+		(void*) eglGetProcAddress("glBindAttribLocation");
+	ctx->proc_link_program =
+		(void*) eglGetProcAddress("glLinkProgram");
+	ctx->proc_get_program_iv =
+		(void*) eglGetProcAddress("glGetProgramiv");
+	ctx->proc_get_program_info_log =
+		(void*) eglGetProcAddress("glGetProgramInfoLog");
+	ctx->proc_get_uniform_location =
+		(void*) eglGetProcAddress("glGetUniformLocation");
+
 	if (!ctx->proc_rbuf_storage || !ctx->proc_create_image ||
 						!ctx->proc_destroy_image) {
 		log_warning("context: KHR images not supported\n");
@@ -152,6 +337,26 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_framebuffer_renderbuffer ||
 			!ctx->proc_check_framebuffer_status) {
 		log_warning("context: renderbuffers not supported\n");
+		ret = -ENOTSUP;
+		goto err_free;
+	} else if (!ctx->proc_create_shader ||
+			!ctx->proc_delete_shader ||
+			!ctx->proc_shader_source ||
+			!ctx->proc_compile_shader ||
+			!ctx->proc_get_shader_iv ||
+			!ctx->proc_get_shader_info_log) {
+		log_warning("context: shaders not supported\n");
+		ret = -ENOTSUP;
+		goto err_free;
+	} else if (!ctx->proc_create_program ||
+			!ctx->proc_delete_program ||
+			!ctx->proc_attach_shader ||
+			!ctx->proc_bind_attrib_location ||
+			!ctx->proc_link_program ||
+			!ctx->proc_get_program_iv ||
+			!ctx->proc_get_program_info_log ||
+			!ctx->proc_get_uniform_location) {
+		log_warning("context: shaders not supported\n");
 		ret = -ENOTSUP;
 		goto err_free;
 	}
@@ -191,9 +396,22 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		goto err_display;
 	}
 
+	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
+							ctx->context)) {
+		log_warning("context: cannot use EGL context\n");
+		ret = -EFAULT;
+		goto err_ctx;
+	}
+
+	ret = init_shader(ctx);
+	if (ret)
+		goto err_ctx;
+
 	*out = ctx;
 	return 0;
 
+err_ctx:
+	eglDestroyContext(ctx->display, ctx->context);
 err_display:
 	eglTerminate(ctx->display);
 err_free:
@@ -206,6 +424,7 @@ void kmscon_context_destroy(struct kmscon_context *ctx)
 	if (!ctx)
 		return;
 
+	destroy_shader(ctx);
 	eglDestroyContext(ctx->display, ctx->context);
 	eglTerminate(ctx->display);
 	free(ctx);

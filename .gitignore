@@ -22,3 +22,5 @@ stamp-*
 .deps
 .dirstamp
 .libs
+genshader
+src/output_shaders.c

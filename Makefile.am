@@ -1,8 +1,11 @@
 ACLOCAL_AMFLAGS = -I m4
+EXTRA_DIST = README TODO COPYING
+CLEANFILES =
 
 bin_PROGRAMS = kmscon
 check_PROGRAMS = test_console test_output test_vt test_buffer test_terminal \
 	test_input
+noinst_PROGRAMS = genshader
 noinst_LTLIBRARIES = libkmscon-core.la
 
 AM_CFLAGS = \
@@ -18,6 +21,18 @@ AM_CFLAGS += -O0 -g
 else
 AM_CFLAGS += -O2
 endif
+
+EXTRA_DIST += src/output_shader.vert src/output_shader.frag
+CLEANFILES += src/output_shaders.c
+
+genshader_SOURCES = \
+	src/genshader.c
+
+src/output_shaders.c: src/output_shader.vert src/output_shader.frag genshader$(EXEEXT)
+	./genshader$(EXEEXT) src/output_shaders.c src/output_shader.vert src/output_shader.frag
+
+nodist_libkmscon_core_la_SOURCES = \
+	src/output_shaders.c
 
 libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
@@ -99,5 +114,3 @@ test_input_LDADD = \
 test_input_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS)
-
-EXTRA_DIST = README TODO COPYING
