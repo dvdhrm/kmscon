@@ -10,7 +10,8 @@ console.
             and GL libraries)
     - udev: providing input device hotplug
     - xproto (build time dependency): definition of key symbols
-    - libxkbcommon: keyboard handling
+    - libxkbcommon: keyboard handling (optional but strongly recommended)
+                    Without libxkbcommon, basic US-ASCII input is provided.
     - glib: only for Unicode handling
     - One of:
       - freetype2: drawing generic text

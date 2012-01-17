@@ -36,7 +36,9 @@ libkmscon_core_la_SOURCES += \
 	src/kbd_xkb.c src/kbd.h \
 	external/imKStoUCS.c external\imKStoUCS.h
 else
-# This is temporary
+libkmscon_core_la_SOURCES += \
+	src/kbd_dumb.c src/kbd.h \
+	external/imKStoUCS.c external\imKStoUCS.h
 endif
 
 if USE_PANGO
