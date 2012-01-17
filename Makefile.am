@@ -70,6 +70,7 @@ libkmscon_core_la_CPPFLAGS = \
 	$(PANGO_CFLAGS) \
 	$(UDEV_CFLAGS) \
 	$(FREETYPE2_CFLAGS) \
+	$(XPROTO_CFLAGS) \
 	$(XKBCOMMON_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
@@ -80,6 +81,7 @@ libkmscon_core_la_LIBADD = \
 	$(PANGO_LIBS) \
 	$(UDEV_LIBS) \
 	$(FREETYPE2_LIBS) \
+	$(XPROTO_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	$(GLIB_LIBS)
 
