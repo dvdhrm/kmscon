@@ -84,7 +84,7 @@ typedef void (*PFNGLGETPROGRAMINFOLOGPROC)
 	(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
 typedef GLint (*PFNGLGETUNIFORMLOCATIONPROC)
 					(GLuint program, const GLchar *name);
-typedef void (*PFNGLUNIFORMMATRIX2FVPROC) (GLint location,
+typedef void (*PFNGLUNIFORMMATRIX4FVPROC) (GLint location,
 		GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef void (*PFNGLVERTEXATTRIBPOINTERPROC)
 		(GLuint index, GLint size, GLenum type, GLboolean normalized,
@@ -138,7 +138,7 @@ struct kmscon_context {
 	PFNGLGETPROGRAMIVPROC proc_get_program_iv;
 	PFNGLGETPROGRAMINFOLOGPROC proc_get_program_info_log;
 	PFNGLGETUNIFORMLOCATIONPROC proc_get_uniform_location;
-	PFNGLUNIFORMMATRIX2FVPROC proc_uniform_matrix_2fv;
+	PFNGLUNIFORMMATRIX4FVPROC proc_uniform_matrix_4fv;
 	PFNGLVERTEXATTRIBPOINTERPROC proc_vertex_attrib_pointer;
 	PFNGLENABLEVERTEXATTRIBARRAYPROC proc_enable_vertex_attrib_array;
 	PFNGLDRAWARRAYSEXTPROC proc_draw_arrays;
@@ -421,8 +421,8 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		(void*) eglGetProcAddress("glGetProgramInfoLog");
 	ctx->proc_get_uniform_location =
 		(void*) eglGetProcAddress("glGetUniformLocation");
-	ctx->proc_uniform_matrix_2fv =
-		(void*) eglGetProcAddress("glUniformMatrix2fv");
+	ctx->proc_uniform_matrix_4fv =
+		(void*) eglGetProcAddress("glUniformMatrix4fv");
 	ctx->proc_vertex_attrib_pointer =
 		(void*) eglGetProcAddress("glVertexAttribPointer");
 	ctx->proc_enable_vertex_attrib_array =
@@ -461,7 +461,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_get_program_iv ||
 			!ctx->proc_get_program_info_log ||
 			!ctx->proc_get_uniform_location ||
-			!ctx->proc_uniform_matrix_2fv ||
+			!ctx->proc_uniform_matrix_4fv ||
 			!ctx->proc_vertex_attrib_pointer ||
 			!ctx->proc_enable_vertex_attrib_array ||
 			!ctx->proc_draw_arrays) {
@@ -600,7 +600,7 @@ void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
 		return;
 
 	ctx->proc_use_program(ctx->def_program);
-	ctx->proc_uniform_matrix_2fv(ctx->def_uni_projection, 1, GL_FALSE, m);
+	ctx->proc_uniform_matrix_4fv(ctx->def_uni_projection, 1, GL_FALSE, m);
 
 	ctx->proc_vertex_attrib_pointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
 	ctx->proc_vertex_attrib_pointer(1, 4, GL_FLOAT, GL_FALSE, 0, colors);
