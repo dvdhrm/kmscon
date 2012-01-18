@@ -93,12 +93,7 @@ test_console_CPPFLAGS = \
 	$(OPENGL_CFLAGS)
 
 test_output_SOURCES = tests/test_output.c
-test_output_LDADD = \
-	libkmscon-core.la \
-	$(OPENGL_LIBS)
-test_output_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(OPENGL_CFLAGS)
+test_output_LDADD = libkmscon-core.la
 
 test_vt_SOURCES = tests/test_vt.c
 test_vt_LDADD = libkmscon-core.la

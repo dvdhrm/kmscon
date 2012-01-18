@@ -39,12 +39,10 @@
  *
  * This would show a test screen on output 0 and 4:
  * $ ./test_output 0 4
- * The test screen is a white background with two gray triangles in the top-left
- * and lower-right corner.
+ * The test screen is a colored quad with 4 different colors in each corner.
  */
 
-#define GL_GLEXT_PROTOTYPES
-
+#include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
@@ -52,10 +50,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include "log.h"
 #include "output.h"
+
+/* a colored quad */
+float d_vert[] = { 1, 1, -1, 1, -1, -1, 1, -1 };
+float d_col[] = { 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1 };
 
 static void sig_term(int sig)
 {
@@ -65,6 +65,11 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 {
 	struct kmscon_output *iter;
 	int i, j, val, ret;
+	struct kmscon_context *ctx;
+
+	ctx = kmscon_compositor_get_context(comp);
+	if (!ctx)
+		return -EINVAL;
 
 	j = 0;
 	iter = kmscon_compositor_get_outputs(comp);
@@ -102,18 +107,8 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 			continue;
 		}
 
-		glClearColor(1.0, 1.0, 1.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glBegin(GL_TRIANGLES);
-		glColor4f(0.5, 0.5, 0.5, 1.0);
-		glVertex3f(1.0, 1.0, 0.0f);
-		glVertex3f(0, 0, 0.0f);
-		glVertex3f(1.0, 0, 0.0f);
-		glVertex3f(-1.0, -1.0, 0.0f);
-		glVertex3f(0, 0, 0.0f);
-		glVertex3f(-1.0, 0, 0.0f);
-		glEnd();
+		kmscon_context_clear(ctx);
+		kmscon_context_draw_def(ctx, d_vert, d_col, 4);
 
 		ret = kmscon_output_swap(iter);
 		if (ret) {
