@@ -88,11 +88,16 @@ struct kmscon_context {
 	EGLDisplay display;
 	EGLContext context;
 
-	GLuint program;
-	GLuint vshader;
-	GLuint fshader;
-	GLuint uni_projection;
-	GLuint uni_texture;
+	GLuint def_program;
+	GLuint def_vshader;
+	GLuint def_fshader;
+	GLuint def_uni_projection;
+
+	GLuint tex_program;
+	GLuint tex_vshader;
+	GLuint tex_fshader;
+	GLuint tex_uni_projection;
+	GLuint tex_uni_texture;
 
 	PFNGLEGLIMAGETARGETRENDERBUFFERSTORAGEOESPROC proc_rbuf_storage;
 	PFNEGLCREATEIMAGEKHRPROC proc_create_image;
@@ -160,8 +165,10 @@ static bool has_gl_error()
 }
 
 /* external shader sources; generated during build */
-extern const char *kmscon_vert_shader;
-extern const char *kmscon_frag_shader;
+extern const char *kmscon_vert_def;
+extern const char *kmscon_frag_def;
+extern const char *kmscon_vert_tex;
+extern const char *kmscon_frag_tex;
 
 static int compile_shader(struct kmscon_context *ctx, GLenum type,
 							const char *source)
@@ -185,7 +192,7 @@ static int compile_shader(struct kmscon_context *ctx, GLenum type,
 	return s;
 }
 
-static int init_shader(struct kmscon_context *ctx)
+static int init_def_shader(struct kmscon_context *ctx)
 {
 	char msg[512];
 	GLint status = 1;
@@ -194,48 +201,118 @@ static int init_shader(struct kmscon_context *ctx)
 	if (!ctx)
 		return -EINVAL;
 
-	ctx->vshader = compile_shader(ctx, GL_VERTEX_SHADER,
-							kmscon_vert_shader);
-	if (ctx->vshader == GL_NONE)
+	ctx->def_vshader = compile_shader(ctx, GL_VERTEX_SHADER,
+							kmscon_vert_def);
+	if (ctx->def_vshader == GL_NONE)
 		return -EFAULT;
 
-	ctx->fshader = compile_shader(ctx, GL_FRAGMENT_SHADER,
-							kmscon_frag_shader);
-	if (ctx->fshader == GL_NONE) {
+	ctx->def_fshader = compile_shader(ctx, GL_FRAGMENT_SHADER,
+							kmscon_frag_def);
+	if (ctx->def_fshader == GL_NONE) {
 		ret = -EFAULT;
 		goto err_vshader;
 	}
 
-	ctx->program = ctx->proc_create_program();
-	ctx->proc_attach_shader(ctx->program, ctx->vshader);
-	ctx->proc_attach_shader(ctx->program, ctx->fshader);
-	ctx->proc_bind_attrib_location(ctx->program, 0, "position");
-	ctx->proc_bind_attrib_location(ctx->program, 1, "texture_position");
+	ctx->def_program = ctx->proc_create_program();
+	ctx->proc_attach_shader(ctx->def_program, ctx->def_vshader);
+	ctx->proc_attach_shader(ctx->def_program, ctx->def_fshader);
+	ctx->proc_bind_attrib_location(ctx->def_program, 0, "position");
+	ctx->proc_bind_attrib_location(ctx->def_program, 1, "color");
 
-	ctx->proc_link_program(ctx->program);
-	ctx->proc_get_program_iv(ctx->program, GL_LINK_STATUS, &status);
+	ctx->proc_link_program(ctx->def_program);
+	ctx->proc_get_program_iv(ctx->def_program, GL_LINK_STATUS, &status);
 	if (status == GL_FALSE) {
 		msg[0] = 0;
-		ctx->proc_get_program_info_log(ctx->program, sizeof(msg),
+		ctx->proc_get_program_info_log(ctx->def_program, sizeof(msg),
 								NULL, msg);
 		log_warning("context: cannot link shader: %s\n", msg);
 		ret = -EFAULT;
 		goto err_link;
 	}
 
-	ctx->uni_projection =
-		ctx->proc_get_uniform_location(ctx->program, "projection");
-	ctx->uni_texture =
-		ctx->proc_get_uniform_location(ctx->program, "texture");
+	ctx->def_uni_projection =
+		ctx->proc_get_uniform_location(ctx->def_program, "projection");
 
 	return 0;
 
 err_link:
-	ctx->proc_delete_program(ctx->program);
-	ctx->proc_delete_shader(ctx->fshader);
+	ctx->proc_delete_program(ctx->def_program);
+	ctx->proc_delete_shader(ctx->def_fshader);
 err_vshader:
-	ctx->proc_delete_shader(ctx->vshader);
+	ctx->proc_delete_shader(ctx->def_vshader);
 	return ret;
+}
+
+static int init_tex_shader(struct kmscon_context *ctx)
+{
+	char msg[512];
+	GLint status = 1;
+	int ret;
+
+	if (!ctx)
+		return -EINVAL;
+
+	ctx->tex_vshader = compile_shader(ctx, GL_VERTEX_SHADER,
+							kmscon_vert_tex);
+	if (ctx->tex_vshader == GL_NONE)
+		return -EFAULT;
+
+	ctx->tex_fshader = compile_shader(ctx, GL_FRAGMENT_SHADER,
+							kmscon_frag_tex);
+	if (ctx->tex_fshader == GL_NONE) {
+		ret = -EFAULT;
+		goto err_vshader;
+	}
+
+	ctx->tex_program = ctx->proc_create_program();
+	ctx->proc_attach_shader(ctx->tex_program, ctx->tex_vshader);
+	ctx->proc_attach_shader(ctx->tex_program, ctx->tex_fshader);
+	ctx->proc_bind_attrib_location(ctx->tex_program, 0, "position");
+	ctx->proc_bind_attrib_location(ctx->tex_program, 1, "texture_position");
+
+	ctx->proc_link_program(ctx->tex_program);
+	ctx->proc_get_program_iv(ctx->tex_program, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		msg[0] = 0;
+		ctx->proc_get_program_info_log(ctx->tex_program, sizeof(msg),
+								NULL, msg);
+		log_warning("context: cannot link shader: %s\n", msg);
+		ret = -EFAULT;
+		goto err_link;
+	}
+
+	ctx->tex_uni_projection =
+		ctx->proc_get_uniform_location(ctx->tex_program, "projection");
+	ctx->tex_uni_texture =
+		ctx->proc_get_uniform_location(ctx->tex_program, "texture");
+
+	return 0;
+
+err_link:
+	ctx->proc_delete_program(ctx->tex_program);
+	ctx->proc_delete_shader(ctx->tex_fshader);
+err_vshader:
+	ctx->proc_delete_shader(ctx->tex_vshader);
+	return ret;
+}
+
+static int init_shader(struct kmscon_context *ctx)
+{
+	int ret;
+
+	ret = init_def_shader(ctx);
+	if (ret)
+		return ret;
+
+	ret = init_tex_shader(ctx);
+	if (ret) {
+		ctx->proc_delete_program(ctx->def_program);
+		ctx->proc_delete_shader(ctx->def_fshader);
+		ctx->proc_delete_shader(ctx->def_vshader);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void destroy_shader(struct kmscon_context *ctx)
@@ -243,9 +320,12 @@ static void destroy_shader(struct kmscon_context *ctx)
 	if (!ctx)
 		return;
 
-	ctx->proc_delete_program(ctx->program);
-	ctx->proc_delete_shader(ctx->fshader);
-	ctx->proc_delete_shader(ctx->vshader);
+	ctx->proc_delete_program(ctx->tex_program);
+	ctx->proc_delete_shader(ctx->tex_fshader);
+	ctx->proc_delete_shader(ctx->tex_vshader);
+	ctx->proc_delete_program(ctx->def_program);
+	ctx->proc_delete_shader(ctx->def_fshader);
+	ctx->proc_delete_shader(ctx->def_vshader);
 }
 
 /*
