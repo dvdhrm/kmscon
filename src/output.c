@@ -936,6 +936,15 @@ int kmscon_compositor_use(struct kmscon_compositor *comp)
 	return kmscon_context_use(comp->ctx);
 }
 
+struct kmscon_context *kmscon_compositor_get_context(
+					struct kmscon_compositor *comp)
+{
+	if (!comp)
+		return NULL;
+
+	return comp->ctx;
+}
+
 /*
  * Returns a pointer to the first output that is bound to the compositor. You
  * can use kmscon_output_next() to iterate through the single linked list of
