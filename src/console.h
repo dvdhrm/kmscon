@@ -38,6 +38,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include "font.h"
+#include "output.h"
 #include "unicode.h"
 
 struct kmscon_buffer;
@@ -66,7 +67,7 @@ void kmscon_buffer_rotate(struct kmscon_buffer *buf);
 /* console objects */
 
 int kmscon_console_new(struct kmscon_console **out,
-					struct kmscon_font_factory *ff);
+	struct kmscon_font_factory *ff, struct kmscon_compositor *comp);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
 

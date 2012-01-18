@@ -297,7 +297,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_console_new(&con->con, con->ff);
+	ret = kmscon_console_new(&con->con, con->ff, con->comp);
 	if (ret)
 		goto err_loop;
 

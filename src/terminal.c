@@ -40,6 +40,7 @@
 #include "eloop.h"
 #include "font.h"
 #include "log.h"
+#include "output.h"
 #include "terminal.h"
 #include "unicode.h"
 #include "vte.h"
@@ -52,6 +53,7 @@ struct term_out {
 struct kmscon_terminal {
 	unsigned long ref;
 	struct kmscon_eloop *eloop;
+	struct kmscon_compositor *comp;
 
 	struct term_out *outputs;
 	unsigned int max_height;
@@ -118,7 +120,7 @@ static void print_help(struct kmscon_terminal *term)
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-					struct kmscon_font_factory *ff)
+	struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -134,12 +136,13 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 
 	memset(term, 0, sizeof(*term));
 	term->ref = 1;
+	term->comp = comp;
 
 	ret = kmscon_idle_new(&term->redraw);
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_new(&term->console, ff);
+	ret = kmscon_console_new(&term->console, ff, comp);
 	if (ret)
 		goto err_idle;
 
@@ -149,7 +152,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	kmscon_vte_bind(term->vte, term->console);
 	print_help(term);
 
+	kmscon_compositor_ref(term->comp);
 	*out = term;
+
 	return 0;
 
 err_con:
@@ -181,6 +186,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
 	kmscon_terminal_disconnect_eloop(term);
+	kmscon_compositor_unref(term->comp);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
 }

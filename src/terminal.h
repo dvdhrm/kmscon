@@ -42,7 +42,7 @@
 struct kmscon_terminal;
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-					struct kmscon_font_factory *ff);
+	struct kmscon_font_factory *ff, struct kmscon_compositor *comp);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 

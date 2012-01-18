@@ -49,11 +49,13 @@
 #include "console.h"
 #include "font.h"
 #include "log.h"
+#include "output.h"
 #include "unicode.h"
 
 struct kmscon_console {
 	size_t ref;
 	struct kmscon_font_factory *ff;
+	struct kmscon_compositor *comp;
 
 	/* GL texture and font */
 	GLuint tex;
@@ -150,7 +152,7 @@ err_free:
 }
 
 int kmscon_console_new(struct kmscon_console **out,
-					struct kmscon_font_factory *ff)
+		struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
 {
 	struct kmscon_console *con;
 	int ret;
@@ -165,6 +167,7 @@ int kmscon_console_new(struct kmscon_console **out,
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
 	con->ff = ff;
+	con->comp = comp;
 	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
@@ -175,6 +178,7 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->cells_y = kmscon_buffer_get_height(con->cells);
 
 	kmscon_font_factory_ref(con->ff);
+	kmscon_compositor_ref(con->comp);
 	*out = con;
 
 	return 0;
@@ -207,6 +211,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
+	kmscon_compositor_unref(con->comp);
 	kmscon_font_factory_unref(con->ff);
 	free(con);
 	log_debug("console: destroying console\n");
