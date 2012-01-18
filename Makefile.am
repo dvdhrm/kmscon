@@ -28,10 +28,18 @@ libkmscon_core_la_SOURCES = \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
 	src/input.c src/input.h \
-	src/input_xkb.c src/input_xkb.h \
-	external/imKStoUCS.c external\imKStoUCS.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h
+
+if USE_XKBCOMMON
+libkmscon_core_la_SOURCES += \
+	src/kbd_xkb.c src/kbd.h \
+	external/imKStoUCS.c external\imKStoUCS.h
+else
+libkmscon_core_la_SOURCES += \
+	src/kbd_dumb.c src/kbd.h \
+	external/imKStoUCS.c external\imKStoUCS.h
+endif
 
 if USE_PANGO
 libkmscon_core_la_SOURCES += \
@@ -50,6 +58,7 @@ libkmscon_core_la_CPPFLAGS = \
 	$(PANGO_CFLAGS) \
 	$(UDEV_CFLAGS) \
 	$(FREETYPE2_CFLAGS) \
+	$(XPROTO_CFLAGS) \
 	$(XKBCOMMON_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
@@ -60,6 +69,7 @@ libkmscon_core_la_LIBADD = \
 	$(PANGO_LIBS) \
 	$(UDEV_LIBS) \
 	$(FREETYPE2_LIBS) \
+	$(XPROTO_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	$(GLIB_LIBS)
 
@@ -92,11 +102,6 @@ test_terminal_SOURCES = tests/test_terminal.c
 test_terminal_LDADD = libkmscon-core.la
 
 test_input_SOURCES = tests/test_input.c
-test_input_LDADD = \
-	libkmscon-core.la \
-	$(XKBCOMMON_LIBS)
-test_input_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(XKBCOMMON_CFLAGS)
+test_input_LDADD = libkmscon-core.la
 
 EXTRA_DIST = README TODO COPYING

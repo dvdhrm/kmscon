@@ -9,7 +9,9 @@ console.
     - mesa: providing an OpenGL implementation (must be compiled with EGL, gbm
             and GL libraries)
     - udev: providing input device hotplug
-    - libxkbcommon: keyboard handling
+    - xproto (build time dependency): definition of key symbols
+    - libxkbcommon: keyboard handling (optional but strongly recommended)
+                    Without libxkbcommon, basic US-ASCII input is provided.
     - glib: only for Unicode handling
     - One of:
       - freetype2: drawing generic text

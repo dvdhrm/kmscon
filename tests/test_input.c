@@ -32,13 +32,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <wchar.h>
 
-#include <X11/extensions/XKBcommon.h>
 #include <X11/keysym.h>
 
 #include "eloop.h"
 #include "input.h"
+#include "kbd.h"
 #include "log.h"
 
 static bool terminate;
@@ -86,27 +85,17 @@ static void print_modifiers(unsigned int mods)
 static void input_arrived(struct kmscon_input *input,
 				struct kmscon_input_event *ev, void *data)
 {
-	int len;
 	char s[16];
-	char utf8[MB_CUR_MAX + 1];
 
 	if (ev->unicode == KMSCON_INPUT_INVALID) {
-		xkb_keysym_to_string(ev->keysym, s, sizeof(s));
+		kmscon_kbd_keysym_to_string(ev->keysym, s, sizeof(s));
 		printf("sym %s ", s);
 	} else {
 		/*
 		 * Just a proof-of-concept hack. This works because glibc uses
 		 * UTF-32 (= UCS-4) as the internal wchar_t encoding.
 		 */
-		len = wctomb(utf8, (wchar_t)ev->unicode);
-		if (len <= 0) {
-			log_info("Bad unicode char\n");
-			return;
-		} else {
-			utf8[len] = '\0';
-		}
-
-		printf("utf8 %s ", utf8);
+		printf("unicode %lc ", ev->unicode);
 	}
 	print_modifiers(ev->mods);
 }
@@ -118,7 +107,7 @@ int main(int argc, char **argv)
 	struct kmscon_input *input;
 	struct kmscon_signal *sigint, *sigquit;
 
-	if (!setlocale(LC_ALL, "en_US.UTF-8")) {
+	if (!setlocale(LC_ALL, "")) {
 		log_err("Cannot set locale: %m\n");
 		ret = -EFAULT;
 		goto err_out;
