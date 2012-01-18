@@ -73,6 +73,7 @@ typedef void (*PFNGLGETSHADERINFOLOGPROC)
 
 typedef GLuint (*PFNGLCREATEPROGRAMPROC) (void);
 typedef void (*PFNGLDELETEPROGRAMPROC) (GLuint program);
+typedef void (*PFNGLUSEPROGRAMPROC) (GLuint program);
 typedef void (*PFNGLATTACHSHADERPROC) (GLuint program, GLuint shader);
 typedef void (*PFNGLBINDATTRIBLOCATIONPROC)
 			(GLuint program, GLuint index, const GLchar *name);
@@ -83,6 +84,14 @@ typedef void (*PFNGLGETPROGRAMINFOLOGPROC)
 	(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
 typedef GLint (*PFNGLGETUNIFORMLOCATIONPROC)
 					(GLuint program, const GLchar *name);
+typedef void (*PFNGLUNIFORMMATRIX2FVPROC) (GLint location,
+		GLsizei count, GLboolean transpose, const GLfloat *value);
+typedef void (*PFNGLVERTEXATTRIBPOINTERPROC)
+		(GLuint index, GLint size, GLenum type, GLboolean normalized,
+					GLsizei stride, const GLvoid *pointer);
+typedef void (*PFNGLENABLEVERTEXATTRIBARRAYPROC) (GLuint index);
+typedef void (*PFNGLDRAWARRAYSEXTPROC)
+				(GLenum mode, GLint first, GLsizei count);
 
 struct kmscon_context {
 	EGLDisplay display;
@@ -122,12 +131,17 @@ struct kmscon_context {
 
 	PFNGLCREATEPROGRAMPROC proc_create_program;
 	PFNGLDELETEPROGRAMPROC proc_delete_program;
+	PFNGLUSEPROGRAMPROC proc_use_program;
 	PFNGLATTACHSHADERPROC proc_attach_shader;
 	PFNGLBINDATTRIBLOCATIONPROC proc_bind_attrib_location;
 	PFNGLLINKPROGRAMPROC proc_link_program;
 	PFNGLGETPROGRAMIVPROC proc_get_program_iv;
 	PFNGLGETPROGRAMINFOLOGPROC proc_get_program_info_log;
 	PFNGLGETUNIFORMLOCATIONPROC proc_get_uniform_location;
+	PFNGLUNIFORMMATRIX2FVPROC proc_uniform_matrix_2fv;
+	PFNGLVERTEXATTRIBPOINTERPROC proc_vertex_attrib_pointer;
+	PFNGLENABLEVERTEXATTRIBARRAYPROC proc_enable_vertex_attrib_array;
+	PFNGLDRAWARRAYSEXTPROC proc_draw_arrays;
 };
 
 struct renderbuffer {
@@ -393,6 +407,8 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		(void*) eglGetProcAddress("glCreateProgram");
 	ctx->proc_delete_program =
 		(void*) eglGetProcAddress("glDeleteProgram");
+	ctx->proc_use_program =
+		(void*) eglGetProcAddress("glUseProgram");
 	ctx->proc_attach_shader =
 		(void*) eglGetProcAddress("glAttachShader");
 	ctx->proc_bind_attrib_location =
@@ -405,6 +421,14 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		(void*) eglGetProcAddress("glGetProgramInfoLog");
 	ctx->proc_get_uniform_location =
 		(void*) eglGetProcAddress("glGetUniformLocation");
+	ctx->proc_uniform_matrix_2fv =
+		(void*) eglGetProcAddress("glUniformMatrix2fv");
+	ctx->proc_vertex_attrib_pointer =
+		(void*) eglGetProcAddress("glVertexAttribPointer");
+	ctx->proc_enable_vertex_attrib_array =
+		(void*) eglGetProcAddress("glEnableVertexAttribArray");
+	ctx->proc_draw_arrays =
+		(void*) eglGetProcAddress("glDrawArraysEXT");
 
 	if (!ctx->proc_rbuf_storage || !ctx->proc_create_image ||
 						!ctx->proc_destroy_image) {
@@ -430,12 +454,17 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		goto err_free;
 	} else if (!ctx->proc_create_program ||
 			!ctx->proc_delete_program ||
+			!ctx->proc_use_program ||
 			!ctx->proc_attach_shader ||
 			!ctx->proc_bind_attrib_location ||
 			!ctx->proc_link_program ||
 			!ctx->proc_get_program_iv ||
 			!ctx->proc_get_program_info_log ||
-			!ctx->proc_get_uniform_location) {
+			!ctx->proc_get_uniform_location ||
+			!ctx->proc_uniform_matrix_2fv ||
+			!ctx->proc_vertex_attrib_pointer ||
+			!ctx->proc_enable_vertex_attrib_array ||
+			!ctx->proc_draw_arrays) {
 		log_warning("context: shaders not supported\n");
 		ret = -ENOTSUP;
 		goto err_free;
@@ -557,6 +586,27 @@ void kmscon_context_clear(struct kmscon_context *ctx)
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
+						float *colors, size_t num)
+{
+	float m[16] = { 1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1 };
+
+	if (!ctx)
+		return;
+
+	ctx->proc_use_program(ctx->def_program);
+	ctx->proc_uniform_matrix_2fv(ctx->def_uni_projection, 1, GL_FALSE, m);
+
+	ctx->proc_vertex_attrib_pointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+	ctx->proc_vertex_attrib_pointer(1, 4, GL_FLOAT, GL_FALSE, 0, colors);
+	ctx->proc_enable_vertex_attrib_array(0);
+	ctx->proc_enable_vertex_attrib_array(1);
+	ctx->proc_draw_arrays(GL_QUADS, 0, num);
 }
 
 int renderbuffer_new(struct renderbuffer **out, struct kmscon_context *ctx,

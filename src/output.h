@@ -119,6 +119,8 @@ void kmscon_context_flush(struct kmscon_context *ctx);
 void kmscon_context_viewport(struct kmscon_context *ctx,
 				unsigned int width, unsigned int height);
 void kmscon_context_clear(struct kmscon_context *ctx);
+void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
+						float *colors, size_t num);
 
 /* compositors */
 
