@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include "eloop.h"
 #include "input.h"
@@ -48,6 +49,7 @@ struct app {
 	struct kmscon_eloop *eloop;
 	struct kmscon_signal *sig_term;
 	struct kmscon_signal *sig_int;
+	struct kmscon_signal *sig_chld;
 	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
@@ -60,6 +62,63 @@ static volatile sig_atomic_t terminate;
 
 static void sig_term(struct kmscon_signal *sig, int signum, void *data)
 {
+	terminate = 1;
+}
+
+static void sig_chld(struct kmscon_signal *sig, int signum, void *data)
+{
+	pid_t pid;
+	int status;
+
+	/*
+	 * If multiple children exit at the same time, signalfd would put them
+	 * all in one event. So we reap in a loop.
+	 */
+	while (1) {
+		pid = waitpid(-1, &status, WNOHANG);
+		if (pid == -1) {
+			if (errno != ECHILD)
+				log_warning("test: cannot wait on child: %m\n");
+			break;
+		} else if (pid == 0) {
+			break;
+		} else if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				log_info("test: child %d exited with status "
+					"%d\n", pid, WEXITSTATUS(status));
+			else
+				log_debug("test: child %d exited "
+						"successfully\n", pid);
+		} else if (WIFSIGNALED(status)) {
+			log_debug("test: child %d exited by signal %d\n", pid,
+					WTERMSIG(status));
+		}
+	}
+}
+
+static void terminal_closed(struct kmscon_terminal *term, void *data)
+{
+#if 0
+	/*
+	 * Alternativly, we could spwan a new login/shell here, like what
+	 * happens when the user exits the shell in a linux console:
+	 */
+
+	int ret;
+	struct app *app = data;
+
+	if (!app)
+		goto err_out;
+
+	ret = kmscon_terminal_open(app->term, app->eloop,
+                                                terminal_closed, app);
+	if (ret)
+		goto err_out;
+
+	return;
+
+err_out:
+#endif
 	terminate = 1;
 }
 
@@ -131,6 +190,7 @@ static void destroy_app(struct app *app)
 	kmscon_compositor_unref(app->comp);
 	kmscon_font_factory_unref(app->ff);
 	kmscon_symbol_table_unref(app->st);
+	kmscon_eloop_rm_signal(app->sig_chld);
 	kmscon_eloop_rm_signal(app->sig_int);
 	kmscon_eloop_rm_signal(app->sig_term);
 	kmscon_eloop_unref(app->eloop);
@@ -151,6 +211,11 @@ static int setup_app(struct app *app)
 
 	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
 							sig_term, NULL);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_chld, SIGCHLD,
+							sig_chld, NULL);
 	if (ret)
 		goto err_loop;
 
@@ -186,7 +251,8 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_connect_eloop(app->term, app->eloop);
+	ret = kmscon_terminal_open(app->term, app->eloop,
+                                                terminal_closed, app);
 	if (ret)
 		goto err_loop;
 
