@@ -194,6 +194,11 @@ static int compile_shader(struct kmscon_context *ctx, GLenum type,
 	GLuint s;
 
 	s = ctx->proc_create_shader(type);
+	if (s == GL_NONE) {
+		log_warning("context: cannot allocate GL shader\n");
+		return GL_NONE;
+	}
+
 	ctx->proc_shader_source(s, 1, &source, NULL);
 	ctx->proc_compile_shader(s);
 
