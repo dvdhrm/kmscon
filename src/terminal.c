@@ -31,8 +31,6 @@
  */
 
 #include <errno.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,8 +66,10 @@ static void draw_all(struct kmscon_idle *idle, void *data)
 	struct kmscon_terminal *term = data;
 	struct term_out *iter;
 	struct kmscon_output *output;
+	struct kmscon_context *ctx;
 	int ret;
 
+	ctx = kmscon_compositor_get_context(term->comp);
 	kmscon_eloop_rm_idle(idle);
 	kmscon_console_draw(term->console);
 
@@ -83,9 +83,7 @@ static void draw_all(struct kmscon_idle *idle, void *data)
 		if (ret)
 			continue;
 
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-
+		kmscon_context_clear(ctx);
 		kmscon_console_map(term->console);
 		kmscon_output_swap(output);
 	}
