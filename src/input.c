@@ -64,6 +64,7 @@ enum input_state {
 /* See probe_device_features(). */
 enum device_feature {
 	FEATURE_HAS_KEYS = 0x01,
+	FEATURE_HAS_LEDS = 0x02,
 };
 
 struct kmscon_input_device {
@@ -153,6 +154,7 @@ static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
 int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 {
 	int ret;
+	unsigned long ledbits[NLONGS(LED_CNT)] = { 0 };
 
 	if (!device || !device->input || !device->input->eloop)
 		return -EINVAL;
@@ -168,8 +170,17 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	}
 
 	if (device->features & FEATURE_HAS_KEYS) {
+		if (device->features & FEATURE_HAS_LEDS) {
+			errno = 0;
+			ioctl(device->rfd, EVIOCGLED(sizeof(ledbits)),
+								&ledbits);
+			if (errno)
+				log_warn("input: cannot discover state of LEDs (%s): %m\n",
+                                                        device->devnode);
+		}
+
 		/* rediscover the keyboard state if sth changed during sleep */
-		kmscon_kbd_reset(device->kbd, device->rfd);
+		kmscon_kbd_reset(device->kbd, ledbits);
 
 		ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
 						device->rfd, KMSCON_READABLE,
@@ -400,6 +411,9 @@ static unsigned int probe_device_features(const char *node)
 			}
 		}
 	}
+
+	if (kmscon_evdev_bit_is_set(evbits, EV_LED))
+		features |= FEATURE_HAS_LEDS;
 
 	close(fd);
 	return features;

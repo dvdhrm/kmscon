@@ -62,7 +62,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <linux/input.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -571,14 +570,21 @@ static struct xkb_indicator_map *find_indicator_map(struct xkb_desc *desc,
  * We don't reset the locked group, this should survive a VT switch, etc. The
  * locked modifiers are reset according to the keyboard LEDs.
  */
-void kmscon_kbd_reset(struct kmscon_kbd *kbd, int evdev_fd)
+void kmscon_kbd_reset(struct kmscon_kbd *kbd, const unsigned long *ledbits)
 {
 	int i;
 	struct xkb_desc *desc;
 	struct xkb_state *state;
-	/* One long should be enough (LED_MAX is currently 16). */
-	unsigned long leds, bit;
 	struct xkb_indicator_map *im;
+	static const struct {
+		int led;
+		const char *indicator_name;
+	} led_names[] = {
+		{ LED_NUML, "Num Lock" },
+		{ LED_CAPSL, "Caps Lock" },
+		{ LED_SCROLLL, "Scroll Lock" },
+		{ LED_COMPOSE, "Compose" },
+	};
 
 	if (!kbd)
 		return;
@@ -595,33 +601,11 @@ void kmscon_kbd_reset(struct kmscon_kbd *kbd, int evdev_fd)
 	state->latched_mods = 0;
 	state->locked_mods = 0;
 
-	errno = 0;
-	ioctl(evdev_fd, EVIOCGLED(sizeof(leds)), &leds);
-	if (errno) {
-		log_warn("kbd-xkb: cannot discover modifiers state: %m\n");
-		return;
-	}
-
-	/* The LED_* constants specifiy the bit location. */
-	for (i=0, bit=0x01; i < LED_MAX; i++, bit<<=1) {
-		if (!(leds & bit))
+	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
+		if (!kmscon_evdev_bit_is_set(ledbits, led_names[i].led))
 			continue;
 
-		im = NULL;
-		switch (i) {
-		case LED_NUML:
-			im = find_indicator_map(desc, "Num Lock");
-			break;
-		case LED_CAPSL:
-			im = find_indicator_map(desc, "Caps Lock");
-			break;
-		case LED_SCROLLL:
-			im = find_indicator_map(desc, "Scroll Lock");
-			break;
-		case LED_COMPOSE:
-			im = find_indicator_map(desc, "Compose");
-			break;
-		}
+		im = find_indicator_map(desc, led_names[i].indicator_name);
 
 		/* Only locked modifiers really matter here. */
 		if (im && im->which_mods == XkbIM_UseLocked)
