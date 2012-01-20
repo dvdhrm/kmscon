@@ -37,8 +37,14 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
+
+#ifdef USE_GLES2
+	#include <GLES2/gl2.h>
+	#include <GLES2/gl2ext.h>
+#else
+	#include <GL/gl.h>
+	#include <GL/glext.h>
+#endif
 
 #include "log.h"
 #include "output.h"
@@ -362,6 +368,14 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 	EGLint major, minor;
 	int ret;
 	const char *ext;
+	EGLenum api;
+
+#ifdef USE_GLES2
+	static const EGLint ctx_attribs[] =
+			{ EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+#else
+	static const EGLint *ctx_attribs = NULL;
+#endif
 
 	if (!out || !gbm)
 		return -EINVAL;
@@ -395,14 +409,20 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		goto err_display;
 	}
 
-	if (!eglBindAPI(EGL_OPENGL_API)) {
+#ifdef USE_GLES2
+	api = EGL_OPENGL_ES_API;
+#else
+	api = EGL_OPENGL_API;
+#endif
+
+	if (!eglBindAPI(api)) {
 		log_warning("context: cannot bind EGL OpenGL API\n");
 		ret = -EFAULT;
 		goto err_display;
 	}
 
 	ctx->context = eglCreateContext(ctx->display, NULL, EGL_NO_CONTEXT,
-									NULL);
+								ctx_attribs);
 	if (!ctx->context) {
 		log_warning("context: cannot create EGL context\n");
 		ret = -EFAULT;
