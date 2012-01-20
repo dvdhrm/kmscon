@@ -730,8 +730,8 @@ static void bell_timer_elapsed(struct kmscon_timer *timer, uint64_t num,
 	input->bell_timer = NULL;
 }
 
-void kmscon_input_sound_bell(struct kmscon_input *input,
-					unsigned int hz, unsigned int msec)
+void kmscon_input_sound_bell(struct kmscon_input *input, unsigned int hz,
+							unsigned int msec)
 {
 	int ret;
 	struct kmscon_input_device *device;
