@@ -122,13 +122,7 @@ static int kmscon_console_new_res(struct kmscon_console *con)
 		goto err_cairo;
 	}
 
-	if (con->cr) {
-		glDeleteTextures(1, &con->tex);
-		con->tex = 0;
-		cairo_destroy(con->cr);
-		cairo_surface_destroy(con->surf);
-		free(con->surf_buf);
-	}
+	kmscon_console_free_res(con);
 
 	con->surf_buf = buf;
 	con->surf = surface;
