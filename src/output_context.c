@@ -614,7 +614,7 @@ void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
 	ctx->proc_vertex_attrib_pointer(1, 4, GL_FLOAT, GL_FALSE, 0, colors);
 	ctx->proc_enable_vertex_attrib_array(0);
 	ctx->proc_enable_vertex_attrib_array(1);
-	ctx->proc_draw_arrays(GL_QUADS, 0, num);
+	ctx->proc_draw_arrays(GL_TRIANGLES, 0, num);
 }
 
 void kmscon_context_draw_tex(struct kmscon_context *ctx, const float *vertices,
@@ -639,7 +639,7 @@ void kmscon_context_draw_tex(struct kmscon_context *ctx, const float *vertices,
 	ctx->proc_vertex_attrib_pointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoords);
 	ctx->proc_enable_vertex_attrib_array(0);
 	ctx->proc_enable_vertex_attrib_array(1);
-	ctx->proc_draw_arrays(GL_QUADS, 0, num);
+	ctx->proc_draw_arrays(GL_TRIANGLES, 0, num);
 }
 
 unsigned int kmscon_context_new_tex(struct kmscon_context *ctx)

@@ -54,8 +54,13 @@
 #include "output.h"
 
 /* a colored quad */
-float d_vert[] = { 1, 1, -1, 1, -1, -1, 1, -1 };
-float d_col[] = { 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1 };
+float d_vert[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
+float d_col[] = { 1, 1, 0, 1,
+		1, 1, 1, 1,
+		0, 1, 1, 1,
+		1, 1, 1, 1,
+		0, 0, 1, 1,
+		0, 1, 1, 1 };
 
 static void sig_term(int sig)
 {
@@ -108,7 +113,7 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 		}
 
 		kmscon_context_clear(ctx);
-		kmscon_context_draw_def(ctx, d_vert, d_col, 4);
+		kmscon_context_draw_def(ctx, d_vert, d_col, 6);
 
 		ret = kmscon_output_swap(iter);
 		if (ret) {

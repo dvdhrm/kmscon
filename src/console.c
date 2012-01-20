@@ -334,13 +334,15 @@ void kmscon_console_draw(struct kmscon_console *con)
  */
 void kmscon_console_map(struct kmscon_console *con)
 {
-	static const float vertices[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
-	static const float texpos[] = { 0, 0, 1, 0, 1, 1, 0, 1 };
+	static const float vertices[] = { -1, -1, 1, -1, -1, 1,
+					1, -1, 1, 1, -1, 1 };
+	static const float texpos[] = { 0, 0, 1, 0, 0, 1,
+					1, 0, 1, 1, 0, 1 };
 
 	if (!con || !con->cr)
 		return;
 
-	kmscon_context_draw_tex(con->ctx, vertices, texpos, 4, con->tex);
+	kmscon_context_draw_tex(con->ctx, vertices, texpos, 6, con->tex);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
