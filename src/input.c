@@ -65,6 +65,7 @@ enum input_state {
 enum device_feature {
 	FEATURE_HAS_KEYS = 0x01,
 	FEATURE_HAS_LEDS = 0x02,
+	FEATURE_HAS_BELL = 0x04,
 };
 
 struct kmscon_input_device {
@@ -95,6 +96,8 @@ struct kmscon_input {
 	struct kmscon_fd *monitor_fd;
 
 	struct kmscon_kbd_desc *desc;
+
+	struct kmscon_timer *bell_timer;
 };
 
 static void remove_device(struct kmscon_input *input, const char *node);
@@ -162,7 +165,7 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	if (device->fd)
 		return 0;
 
-	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (device->rfd < 0) {
 		log_warn("input: cannot open input device %s: %d\n",
 						device->devnode, errno);
@@ -381,6 +384,7 @@ static unsigned int probe_device_features(const char *node)
 	unsigned int features = 0;
 	unsigned long evbits[NLONGS(EV_CNT)] = { 0 };
 	unsigned long keybits[NLONGS(KEY_CNT)] = { 0 };
+	unsigned long sndbits[NLONGS(SND_CNT)] = { 0 };
 
 	fd = open(node, O_NONBLOCK | O_CLOEXEC);
 	if (fd < 0)
@@ -392,7 +396,7 @@ static unsigned int probe_device_features(const char *node)
 	if (errno)
 		goto err_ioctl;
 
-	/* Device supports keys/buttons. */
+	/* Check if the device supports keys/buttons. */
 	if (kmscon_evdev_bit_is_set(evbits, EV_KEY)) {
 		errno = 0;
 		ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits);
@@ -412,8 +416,20 @@ static unsigned int probe_device_features(const char *node)
 		}
 	}
 
+	/* Check if the device has any leds. */
 	if (kmscon_evdev_bit_is_set(evbits, EV_LED))
 		features |= FEATURE_HAS_LEDS;
+
+	/* Check if the device can make a bell sound. */
+	if (kmscon_evdev_bit_is_set(evbits, EV_SND)) {
+		errno = 0;
+		ioctl(fd, EVIOCGBIT(EV_SND, sizeof(sndbits)), sndbits);
+		if (errno)
+			goto err_ioctl;
+
+		if (kmscon_evdev_bit_is_set(sndbits, SND_TONE))
+			features |= FEATURE_HAS_BELL;
+	}
 
 	close(fd);
 	return features;
@@ -442,7 +458,7 @@ static void add_device(struct kmscon_input *input,
 		return;
 
 	features = probe_device_features(node);
-	if (!(features & FEATURE_HAS_KEYS)) {
+	if (!(features & (FEATURE_HAS_KEYS | FEATURE_HAS_BELL))) {
 		log_debug("input: ignoring non-useful device %s\n", node);
 		return;
 	}
@@ -686,4 +702,58 @@ bool kmscon_input_is_asleep(struct kmscon_input *input)
 		return false;
 
 	return input->state == INPUT_ASLEEP;
+}
+
+void kmscon_input_stop_bell(struct kmscon_input *input)
+{
+	struct kmscon_input_device *device;
+	const struct input_event ev = {
+		.type = EV_SND,
+		.code = SND_TONE,
+		.value = 0
+	};
+
+	if (!input || input->state == INPUT_ASLEEP)
+		return;
+
+	for (device = input->devices; device; device = device->next)
+		if (device->features & FEATURE_HAS_BELL)
+			(void)write(device->rfd, &ev, sizeof(ev));
+}
+
+static void bell_timer_elapsed(struct kmscon_timer *timer, uint64_t num,
+								void *data)
+{
+	struct kmscon_input *input = data;
+	kmscon_input_stop_bell(input);
+	kmscon_eloop_rm_timer(input->bell_timer);
+	input->bell_timer = NULL;
+}
+
+void kmscon_input_sound_bell(struct kmscon_input *input,
+					unsigned int hz, unsigned int msec)
+{
+	int ret;
+	struct kmscon_input_device *device;
+	const struct input_event ev = {
+		.type = EV_SND,
+		.code = SND_TONE,
+		.value = hz
+	};
+	const struct itimerspec spec = {
+		.it_interval = { 0, 0 },
+		.it_value = { msec / 1000, (msec % 1000) * 1000000 }
+	};
+
+	if (!input || input->state == INPUT_ASLEEP || input->bell_timer)
+		return;
+
+	ret = kmscon_eloop_new_timer(input->eloop, &input->bell_timer,
+					&spec, bell_timer_elapsed, input);
+	if (ret)
+		return;
+
+	for (device = input->devices; device; device = device->next)
+		if (device->features & FEATURE_HAS_BELL)
+			(void)write(device->rfd, &ev, sizeof(ev));
 }

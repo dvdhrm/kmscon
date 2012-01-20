@@ -90,6 +90,10 @@ void kmscon_input_sleep(struct kmscon_input *input);
 void kmscon_input_wake_up(struct kmscon_input *input);
 bool kmscon_input_is_asleep(struct kmscon_input *input);
 
+void kmscon_input_stop_bell(struct kmscon_input *input);
+void kmscon_input_sound_bell(struct kmscon_input *input,
+					unsigned int hz, unsigned int msec);
+
 /* Querying the results of evdev ioctl's. Also used by kbd backends. */
 static inline bool kmscon_evdev_bit_is_set(const unsigned long *array, int bit)
 {
