@@ -63,8 +63,8 @@ typedef void (*PFNGLDELETEFRAMEBUFFERSPROC)
 
 typedef GLuint (*PFNGLCREATESHADERPROC) (GLenum type);
 typedef void (*PFNGLDELETESHADERPROC) (GLuint shader);
-typedef void (*PFNGLGETSHADERSOURCEPROC)
-	(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *source);
+typedef void (*PFNGLSHADERSOURCEPROC) (GLuint shader,
+		GLsizei count, const GLchar* *string, const GLint *length);
 typedef void (*PFNGLCOMPILESHADERPROC) (GLuint shader);
 typedef void (*PFNGLGETSHADERIVPROC)
 				(GLuint shader, GLenum pname, GLint *params);
