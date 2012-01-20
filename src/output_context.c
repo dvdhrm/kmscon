@@ -512,6 +512,9 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		goto err_ctx;
 	}
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	ret = init_shader(ctx);
 	if (ret)
 		goto err_ctx;
