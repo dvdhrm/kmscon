@@ -86,6 +86,7 @@ typedef GLint (*PFNGLGETUNIFORMLOCATIONPROC)
 					(GLuint program, const GLchar *name);
 typedef void (*PFNGLUNIFORMMATRIX4FVPROC) (GLint location,
 		GLsizei count, GLboolean transpose, const GLfloat *value);
+typedef void (*PFNGLUNIFORM1IPROC) (GLint location, GLint v0);
 typedef void (*PFNGLVERTEXATTRIBPOINTERPROC)
 		(GLuint index, GLint size, GLenum type, GLboolean normalized,
 					GLsizei stride, const GLvoid *pointer);
@@ -139,6 +140,7 @@ struct kmscon_context {
 	PFNGLGETPROGRAMINFOLOGPROC proc_get_program_info_log;
 	PFNGLGETUNIFORMLOCATIONPROC proc_get_uniform_location;
 	PFNGLUNIFORMMATRIX4FVPROC proc_uniform_matrix_4fv;
+	PFNGLUNIFORM1IPROC proc_uniform_1i;
 	PFNGLVERTEXATTRIBPOINTERPROC proc_vertex_attrib_pointer;
 	PFNGLENABLEVERTEXATTRIBARRAYPROC proc_enable_vertex_attrib_array;
 	PFNGLDRAWARRAYSEXTPROC proc_draw_arrays;
@@ -423,6 +425,8 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 		(void*) eglGetProcAddress("glGetUniformLocation");
 	ctx->proc_uniform_matrix_4fv =
 		(void*) eglGetProcAddress("glUniformMatrix4fv");
+	ctx->proc_uniform_1i =
+		(void*) eglGetProcAddress("glUniform1i");
 	ctx->proc_vertex_attrib_pointer =
 		(void*) eglGetProcAddress("glVertexAttribPointer");
 	ctx->proc_enable_vertex_attrib_array =
@@ -462,6 +466,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_get_program_info_log ||
 			!ctx->proc_get_uniform_location ||
 			!ctx->proc_uniform_matrix_4fv ||
+			!ctx->proc_uniform_1i ||
 			!ctx->proc_vertex_attrib_pointer ||
 			!ctx->proc_enable_vertex_attrib_array ||
 			!ctx->proc_draw_arrays) {
@@ -610,6 +615,67 @@ void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
 	ctx->proc_enable_vertex_attrib_array(0);
 	ctx->proc_enable_vertex_attrib_array(1);
 	ctx->proc_draw_arrays(GL_QUADS, 0, num);
+}
+
+void kmscon_context_draw_tex(struct kmscon_context *ctx, const float *vertices,
+			const float *texcoords, size_t num, unsigned int tex)
+{
+	static const float m[16] = { 1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1 };
+
+	if (!ctx)
+		return;
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	ctx->proc_use_program(ctx->tex_program);
+	ctx->proc_uniform_matrix_4fv(ctx->tex_uni_projection, 1, GL_FALSE, m);
+	ctx->proc_uniform_1i(ctx->tex_uni_texture, 0);
+
+	ctx->proc_vertex_attrib_pointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+	ctx->proc_vertex_attrib_pointer(1, 2, GL_FLOAT, GL_FALSE, 0, texcoords);
+	ctx->proc_enable_vertex_attrib_array(0);
+	ctx->proc_enable_vertex_attrib_array(1);
+	ctx->proc_draw_arrays(GL_QUADS, 0, num);
+}
+
+unsigned int kmscon_context_new_tex(struct kmscon_context *ctx)
+{
+	GLuint tex = 0;
+
+	if (!ctx)
+		return tex;
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	return tex;
+}
+
+void kmscon_context_free_tex(struct kmscon_context *ctx, unsigned int tex)
+{
+	if (!ctx)
+		return;
+
+	glDeleteTextures(1, &tex);
+}
+
+void kmscon_context_set_tex(struct kmscon_context *ctx, unsigned int tex,
+			unsigned int width, unsigned int height, void *buf)
+{
+	if (!ctx || !buf || !width || !height)
+		return;
+
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA,
+						GL_UNSIGNED_BYTE, buf);
 }
 
 int renderbuffer_new(struct renderbuffer **out, struct kmscon_context *ctx,

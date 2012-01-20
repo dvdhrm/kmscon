@@ -121,6 +121,12 @@ void kmscon_context_viewport(struct kmscon_context *ctx,
 void kmscon_context_clear(struct kmscon_context *ctx);
 void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
 						float *colors, size_t num);
+void kmscon_context_draw_tex(struct kmscon_context *ctx, const float *vertices,
+		const float *texcoords, size_t num, unsigned int tex);
+unsigned int kmscon_context_new_tex(struct kmscon_context *ctx);
+void kmscon_context_free_tex(struct kmscon_context *ctx, unsigned int tex);
+void kmscon_context_set_tex(struct kmscon_context *ctx, unsigned int tex,
+			unsigned int width, unsigned int height, void *buf);
 
 /* compositors */
 

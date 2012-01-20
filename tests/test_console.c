@@ -40,7 +40,6 @@
  */
 
 #define _BSD_SOURCE
-#define GL_GLEXT_PROTOTYPES
 
 #include <errno.h>
 #include <inttypes.h>
@@ -51,8 +50,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <GL/gl.h>
-#include <GL/glext.h>
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
@@ -116,11 +113,13 @@ static void map_outputs(struct console *con)
 {
 	int ret;
 	struct kmscon_output *iter;
+	struct kmscon_context *ctx;
 
 	if (kmscon_compositor_is_asleep(con->comp))
 		return;
 
 	kmscon_console_draw(con->con);
+	ctx = kmscon_compositor_get_context(con->comp);
 
 	iter = kmscon_compositor_get_outputs(con->comp);
 	for ( ; iter; iter = kmscon_output_next(iter)) {
@@ -131,9 +130,7 @@ static void map_outputs(struct console *con)
 		if (ret)
 			continue;
 
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-
+		kmscon_context_clear(ctx);
 		kmscon_console_map(con->con);
 
 		ret = kmscon_output_swap(iter);

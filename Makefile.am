@@ -85,12 +85,7 @@ kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la
 
 test_console_SOURCES = tests/test_console.c
-test_console_LDADD = \
-	libkmscon-core.la \
-	$(OPENGL_LIBS)
-test_console_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(OPENGL_CFLAGS)
+test_console_LDADD = libkmscon-core.la
 
 test_output_SOURCES = tests/test_output.c
 test_output_LDADD = libkmscon-core.la

@@ -31,20 +31,12 @@
  * to a framebuffer as used by terminals and consoles.
  */
 
-/*
- * TODO: Avoid using this hack and instead retrieve GL extension
- * pointers dynamically on initialization.
- */
-#define GL_GLEXT_PROTOTYPES
-
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <cairo.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
 
 #include "console.h"
 #include "font.h"
@@ -56,9 +48,10 @@ struct kmscon_console {
 	size_t ref;
 	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
+	struct kmscon_context *ctx;
 
 	/* GL texture and font */
-	GLuint tex;
+	unsigned int tex;
 	unsigned int res_x;
 	unsigned int res_y;
 	struct kmscon_font *font;
@@ -81,7 +74,7 @@ struct kmscon_console {
 static void kmscon_console_free_res(struct kmscon_console *con)
 {
 	if (con && con->cr) {
-		glDeleteTextures(1, &con->tex);
+		kmscon_context_free_tex(con->ctx, con->tex);
 		cairo_destroy(con->cr);
 		cairo_surface_destroy(con->surf);
 		free(con->surf_buf);
@@ -128,11 +121,7 @@ static int kmscon_console_new_res(struct kmscon_console *con)
 	con->surf = surface;
 	con->cr = cr;
 
-	glGenTextures(1, &con->tex);
-	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
-				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	con->tex = kmscon_context_new_tex(con->ctx);
 
 	log_debug("console: new resolution %ux%u\n", con->res_x, con->res_y);
 	return 0;
@@ -162,6 +151,7 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->ref = 1;
 	con->ff = ff;
 	con->comp = comp;
+	con->ctx = kmscon_compositor_get_context(comp);
 	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
@@ -328,9 +318,8 @@ void kmscon_console_draw(struct kmscon_console *con)
 	cairo_restore(con->cr);
 
 	/* refresh GL texture contents */
-	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, con->res_x, con->res_y,
-				0, GL_BGRA, GL_UNSIGNED_BYTE, con->surf_buf);
+	kmscon_context_set_tex(con->ctx, con->tex, con->res_x, con->res_y,
+							con->surf_buf);
 }
 
 /*
@@ -345,29 +334,13 @@ void kmscon_console_draw(struct kmscon_console *con)
  */
 void kmscon_console_map(struct kmscon_console *con)
 {
+	static const float vertices[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
+	static const float texpos[] = { 0, 0, 1, 0, 1, 1, 0, 1 };
+
 	if (!con || !con->cr)
 		return;
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_TEXTURE_RECTANGLE);
-	glBindTexture(GL_TEXTURE_RECTANGLE, con->tex);
-
-	glBegin(GL_QUADS);
-		glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
-
-		glTexCoord2f(0.0f, 0.0f);
-		glVertex2f(-1.0f, -1.0f);
-
-		glTexCoord2f(con->res_x, 0.0f);
-		glVertex2f(1.0f, -1.0f);
-
-		glTexCoord2f(con->res_x, con->res_y);
-		glVertex2f(1.0f, 1.0f);
-
-		glTexCoord2f(0.0f, con->res_y);
-		glVertex2f(-1.0f, 1.0f);
-	glEnd();
+	kmscon_context_draw_tex(con->ctx, vertices, texpos, 4, con->tex);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
