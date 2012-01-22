@@ -109,6 +109,24 @@ bool kmscon_output_is_active(struct kmscon_output *output);
 int kmscon_output_use(struct kmscon_output *output);
 int kmscon_output_swap(struct kmscon_output *output);
 
+/* math helpers */
+
+struct kmscon_m4_stack;
+
+void kmscon_m4_identity(float *m);
+void kmscon_m4_copy(float *dest, const float *src);
+void kmscon_m4_mult(float *n, const float *m);
+void kmscon_m4_trans(float *m, float x, float y, float z);
+void kmscon_m4_scale(float *m, float x, float y, float z);
+void kmscon_m4_transp(float *m);
+void kmscon_m4_transp_dest(float *dest, const float *src);
+
+int kmscon_m4_stack_new(struct kmscon_m4_stack **out);
+void kmscon_m4_stack_free(struct kmscon_m4_stack *stack);
+float *kmscon_m4_stack_push(struct kmscon_m4_stack *stack);
+float *kmscon_m4_stack_pop(struct kmscon_m4_stack *stack);
+float *kmscon_m4_stack_tip(struct kmscon_m4_stack *stack);
+
 /* drawing contexts */
 
 int kmscon_context_new(struct kmscon_context **out, void *gbm);
