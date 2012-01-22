@@ -158,15 +158,15 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_font_factory_new(&app->ff, app->st);
-	if (ret)
-		goto err_loop;
-
 	ret = kmscon_compositor_new(&app->comp);
 	if (ret)
 		goto err_loop;
 
 	ret = kmscon_compositor_use(app->comp);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_font_factory_new(&app->ff, app->st, app->comp);
 	if (ret)
 		goto err_loop;
 

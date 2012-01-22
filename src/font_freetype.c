@@ -37,6 +37,7 @@
 
 #include "font.h"
 #include "log.h"
+#include "output.h"
 #include "unicode.h"
 
 #include <ft2build.h>
@@ -46,6 +47,8 @@ struct kmscon_font_factory {
 	unsigned long ref;
 	struct kmscon_symbol_table *st;
 	FT_Library lib;
+	struct kmscon_compositor *comp;
+	struct kmscon_context *ctx;
 };
 
 struct kmscon_font {
@@ -62,13 +65,13 @@ struct kmscon_glyph {
 };
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
-					struct kmscon_symbol_table *st)
+	struct kmscon_symbol_table *st, struct kmscon_compositor *comp)
 {
 	struct kmscon_font_factory *ff;
 	FT_Error err;
 	int ret;
 
-	if (!out)
+	if (!out || !st || !comp)
 		return -EINVAL;
 
 	ff = malloc(sizeof(*ff));
@@ -78,6 +81,8 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 	memset(ff, 0, sizeof(*ff));
 	ff->ref = 1;
 	ff->st = st;
+	ff->comp = comp;
+	ff->ctx = kmscon_compositor_get_context(comp);
 
 	err = FT_Init_FreeType(&ff->lib);
 	if (err) {
@@ -86,6 +91,7 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 		goto err_free;
 	}
 
+	kmscon_compositor_ref(ff->comp);
 	kmscon_symbol_table_ref(ff->st);
 	*out = ff;
 
@@ -118,6 +124,7 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (err)
 		log_warning("font: cannot deinitialize FreeType library\n");
 
+	kmscon_compositor_unref(ff->comp);
 	kmscon_symbol_table_unref(ff->st);
 	free(ff);
 }

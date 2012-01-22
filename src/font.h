@@ -35,13 +35,14 @@
 #define KMSCON_FONT_H
 
 #include <stdlib.h>
+#include "output.h"
 #include "unicode.h"
 
 struct kmscon_font_factory;
 struct kmscon_font;
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
-					struct kmscon_symbol_table *st);
+	struct kmscon_symbol_table *st, struct kmscon_compositor *comp);
 void kmscon_font_factory_ref(struct kmscon_font_factory *ff);
 void kmscon_font_factory_unref(struct kmscon_font_factory *ff);
 

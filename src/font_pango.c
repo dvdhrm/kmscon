@@ -41,6 +41,7 @@
 #include <pango/pangocairo.h>
 #include "font.h"
 #include "log.h"
+#include "output.h"
 #include "unicode.h"
 
 enum glyph_type {
@@ -71,6 +72,8 @@ struct kmscon_glyph {
 struct kmscon_font_factory {
 	unsigned long ref;
 	struct kmscon_symbol_table *st;
+	struct kmscon_compositor *comp;
+	struct kmscon_context *ctx;
 };
 
 struct kmscon_font {
@@ -228,11 +231,11 @@ static int kmscon_glyph_set(struct kmscon_glyph *glyph,
 }
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
-					struct kmscon_symbol_table *st)
+	struct kmscon_symbol_table *st, struct kmscon_compositor *comp)
 {
 	struct kmscon_font_factory *ff;
 
-	if (!out)
+	if (!out || !st || !comp)
 		return -EINVAL;
 
 	ff = malloc(sizeof(*ff));
@@ -242,7 +245,10 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 	memset(ff, 0, sizeof(*ff));
 	ff->ref = 1;
 	ff->st = st;
+	ff->comp = comp;
+	ff->ctx = kmscon_compositor_get_context(comp);
 
+	kmscon_compositor_ref(ff->comp);
 	kmscon_symbol_table_ref(ff->st);
 	*out = ff;
 
@@ -265,6 +271,7 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (--ff->ref)
 		return;
 
+	kmscon_compositor_unref(ff->comp);
 	kmscon_symbol_table_unref(ff->st);
 	free(ff);
 }

@@ -274,15 +274,15 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_font_factory_new(&con->ff, con->st);
-	if (ret)
-		goto err_loop;
-
 	ret = kmscon_compositor_new(&con->comp);
 	if (ret)
 		goto err_loop;
 
 	ret = kmscon_compositor_use(con->comp);
+	if (ret)
+		goto err_loop;
+
+	ret = kmscon_font_factory_new(&con->ff, con->st, con->comp);
 	if (ret)
 		goto err_loop;
 
