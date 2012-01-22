@@ -54,7 +54,6 @@ void kmscon_font_unref(struct kmscon_font *font);
 
 unsigned int kmscon_font_get_height(struct kmscon_font *font);
 unsigned int kmscon_font_get_width(struct kmscon_font *font);
-int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch,
-					void *dcr, uint32_t x, uint32_t y);
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m);
 
 #endif /* KMSCON_FONT_H */

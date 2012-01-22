@@ -53,8 +53,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf);
 
 int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 							unsigned int y);
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
-			void *dcr, unsigned int width, unsigned int height);
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font);
 
 unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf);
 unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf);
@@ -76,7 +75,6 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height);
 
-void kmscon_console_draw(struct kmscon_console *con);
 void kmscon_console_map(struct kmscon_console *con);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);

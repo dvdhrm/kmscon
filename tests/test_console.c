@@ -118,7 +118,6 @@ static void map_outputs(struct console *con)
 	if (kmscon_compositor_is_asleep(con->comp))
 		return;
 
-	kmscon_console_draw(con->con);
 	ctx = kmscon_compositor_get_context(con->comp);
 
 	iter = kmscon_compositor_get_outputs(con->comp);

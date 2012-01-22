@@ -32,9 +32,11 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <glib.h>
 #include "font.h"
 #include "log.h"
 #include "output.h"
@@ -58,11 +60,114 @@ struct kmscon_font {
 	FT_Face face;
 	unsigned int width;
 	unsigned int height;
+	GHashTable *glyphs;
 };
 
 struct kmscon_glyph {
-	unsigned long ref;
+	struct kmscon_context *ctx;
+	bool valid;
+	unsigned int tex;
+	unsigned int width;
+	unsigned int height;
+	int left;
+	int top;
+	unsigned int advance;
 };
+
+static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
+						struct kmscon_font *font)
+{
+	struct kmscon_glyph *glyph;
+	FT_Error err;
+	FT_UInt idx;
+	FT_Bitmap *bmap;
+	int ret;
+	const uint32_t *val;
+	size_t len;
+	unsigned char *data, d;
+	unsigned int i, j;
+
+	if (!out)
+		return -EINVAL;
+
+	glyph = malloc(sizeof(*glyph));
+	if (!glyph)
+		return -ENOMEM;
+
+	memset(glyph, 0, sizeof(*glyph));
+	glyph->ctx = font->ff->ctx;
+
+	val = kmscon_symbol_get(font->ff->st, &key, &len);
+
+	if (!val[0])
+		goto ready;
+
+	/* TODO: Add support for combining characters */
+	idx = FT_Get_Char_Index(font->face, val[0]);
+	err = FT_Load_Glyph(font->face, idx, FT_LOAD_DEFAULT);
+	if (err) {
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	err = FT_Render_Glyph(font->face->glyph, FT_RENDER_MODE_NORMAL);
+	if (err) {
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	bmap = &font->face->glyph->bitmap;
+	if (!bmap->width || !bmap->rows)
+		goto ready;
+
+	glyph->tex = kmscon_context_new_tex(glyph->ctx);
+	data = malloc(sizeof(unsigned char) * bmap->width * bmap->rows * 4);
+	if (!data) {
+		ret = -ENOMEM;
+		goto err_tex;
+	}
+
+	for (j = 0; j < bmap->rows; ++j) {
+		for (i = 0; i < bmap->width; ++i) {
+			d = bmap->buffer[i + bmap->width * j];
+			data[4 * (i + j * bmap->width)] = d;
+			data[4 * (i + j * bmap->width) + 1] = d;
+			data[4 * (i + j * bmap->width) + 2] = d;
+			data[4 * (i + j * bmap->width) + 3] = d;
+		}
+	}
+
+	kmscon_context_set_tex(glyph->ctx, glyph->tex, bmap->width,
+							bmap->rows, data);
+	free(data);
+
+	glyph->width = bmap->width;
+	glyph->height = bmap->rows;
+	glyph->left = font->face->glyph->bitmap_left;
+	glyph->top = font->face->glyph->bitmap_top;
+	glyph->advance = font->face->glyph->advance.x >> 6;
+	glyph->valid = true;
+
+ready:
+	*out = glyph;
+	return 0;
+
+err_tex:
+	kmscon_context_free_tex(glyph->ctx, glyph->tex);
+err_free:
+	free(glyph);
+	return ret;
+}
+
+static void kmscon_glyph_destroy(struct kmscon_glyph *glyph)
+{
+	if (!glyph)
+		return;
+
+	if (glyph->valid)
+		kmscon_context_free_tex(glyph->ctx, glyph->tex);
+	free(glyph);
+}
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
 	struct kmscon_symbol_table *st, struct kmscon_compositor *comp)
@@ -137,8 +242,11 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	const char *estr = "unknown error";
 	int ret;
 
-	if (!ff || !out)
+	if (!ff || !out || !height)
 		return -EINVAL;
+
+	if (!width)
+		width = height;
 
 	font = malloc(sizeof(*font));
 	if (!font)
@@ -149,7 +257,8 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	font->width = width;
 	font->height = height;
 
-	err = FT_New_Face(ff->lib, "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+	/* TODO: Use fontconfig to get font paths */
+	err = FT_New_Face(ff->lib, "./fonts/DejaVuSansMono.ttf",
 							0, &font->face);
 	if (err) {
 		if (err == FT_Err_Unknown_File_Format)
@@ -170,6 +279,13 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	if (err) {
 		log_warning("font: cannot set pixel size of font\n");
 		ret = -EFAULT;
+		goto err_face;
+	}
+
+	font->glyphs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+				NULL, (GDestroyNotify) kmscon_glyph_destroy);
+	if (!font->glyphs) {
+		ret = -ENOMEM;
 		goto err_face;
 	}
 
@@ -202,6 +318,7 @@ void kmscon_font_unref(struct kmscon_font *font)
 	if (--font->ref)
 		return;
 
+	g_hash_table_unref(font->glyphs);
 	FT_Done_Face(font->face);
 	kmscon_font_factory_unref(font->ff);
 	free(font);
@@ -223,13 +340,49 @@ unsigned int kmscon_font_get_width(struct kmscon_font *font)
 	return font->width;
 }
 
-int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch,
-					void *dcr, uint32_t x, uint32_t y)
+static int kmscon_font_lookup(struct kmscon_font *font,
+			kmscon_symbol_t key, struct kmscon_glyph **out)
 {
+	struct kmscon_glyph *glyph;
+	int ret;
+
+	if (!font || !out)
+		return -EINVAL;
+
+	glyph = g_hash_table_lookup(font->glyphs, GUINT_TO_POINTER(key));
+	if (!glyph) {
+		ret = kmscon_glyph_new(&glyph, key, font);
+		if (ret)
+			return ret;
+
+		g_hash_table_insert(font->glyphs, GUINT_TO_POINTER(key), glyph);
+	}
+
+	*out = glyph;
+	return 0;
+}
+
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m)
+{
+	int ret;
+	struct kmscon_glyph *glyph;
+	static const float val[] = { 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1 };
+
 	if (!font)
 		return -EINVAL;
 
-	/* still TODO */
+	ret = kmscon_font_lookup(font, ch, &glyph);
+	if (ret)
+		return ret;
+
+	if (!glyph->valid)
+		return 0;
+
+	kmscon_m4_scale(m, 1.0 / glyph->advance, 1.0 / font->height, 1);
+	kmscon_m4_trans(m, glyph->left, font->height - glyph->top, 0);
+	kmscon_m4_scale(m, glyph->width, glyph->height, 1);
+
+	kmscon_context_draw_tex(font->ff->ctx, val, val, 6, glyph->tex, m);
 
 	return 0;
 }

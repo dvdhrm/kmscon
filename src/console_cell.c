@@ -80,8 +80,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cairo.h>
-
 #include "console.h"
 #include "log.h"
 #include "unicode.h"
@@ -116,6 +114,8 @@ struct kmscon_buffer {
 	unsigned int size_y;
 	unsigned int fill;
 	struct line **current;
+
+	struct kmscon_m4_stack *stack;
 };
 
 static void destroy_cell(struct cell *cell)
@@ -216,13 +216,19 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 
 	log_debug("console: new buffer object\n");
 
-	ret = kmscon_buffer_resize(buf, x, y);
+	ret = kmscon_m4_stack_new(&buf->stack);
 	if (ret)
 		goto err_free;
+
+	ret = kmscon_buffer_resize(buf, x, y);
+	if (ret)
+		goto err_stack;
 
 	*out = buf;
 	return 0;
 
+err_stack:
+	kmscon_m4_stack_free(buf->stack);
 err_free:
 	free(buf);
 	return ret;
@@ -257,6 +263,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 		free_line(buf->current[i]);
 
 	free(buf->current);
+	kmscon_m4_stack_free(buf->stack);
 	free(buf);
 	log_debug("console: destroying buffer object\n");
 }
@@ -415,32 +422,30 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 	return 0;
 }
 
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
-			void *dcr, unsigned int width, unsigned int height)
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 {
-	cairo_t *cr;
-	double xs, ys, cx, cy;
+	float xs, ys;
 	unsigned int i, j, k, num;
 	struct line *iter, *line;
 	struct cell *cell;
+	float *m;
 
-	if (!buf || !font || !dcr)
+	if (!buf || !font)
 		return;
 
-	cr = dcr;
-	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-	cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0);
+	m = kmscon_m4_stack_tip(buf->stack);
+	kmscon_m4_identity(m);
 
-	xs = width / (double)buf->size_x;
-	ys = height / (double)buf->size_y;
+	xs = 1.0 / buf->size_x;
+	ys = 1.0 / buf->size_y;
+	kmscon_m4_scale(m, 2, 2, 1);
+	kmscon_m4_trans(m, -0.5, -0.5, 0);
+	kmscon_m4_scale(m, xs, ys, 1);
 
 	iter = buf->position;
 	k = 0;
 
-	cy = 0;
 	for (i = 0; i < buf->size_y; ++i) {
-		cx = 0;
-
 		if (iter) {
 			line = iter;
 			iter = iter->next;
@@ -460,11 +465,16 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
 
-			kmscon_font_draw(font, cell->ch, cr, cx, cy);
-			cx += xs;
-		}
+			m = kmscon_m4_stack_push(buf->stack);
+			if (!m) {
+				log_warning("console: cannot push matrix\n");
+				break;
+			}
 
-		cy += ys;
+			kmscon_m4_trans(m, j, i, 0);
+			kmscon_font_draw(font, cell->ch, m);
+			m = kmscon_m4_stack_pop(buf->stack);
+		}
 	}
 }
 

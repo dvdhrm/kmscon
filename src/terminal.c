@@ -71,7 +71,6 @@ static void draw_all(struct kmscon_idle *idle, void *data)
 
 	ctx = kmscon_compositor_get_context(term->comp);
 	kmscon_eloop_rm_idle(idle);
-	kmscon_console_draw(term->console);
 
 	iter = term->outputs;
 	for (; iter; iter = iter->next) {

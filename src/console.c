@@ -36,8 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cairo.h>
-
 #include "console.h"
 #include "font.h"
 #include "log.h"
@@ -50,16 +48,10 @@ struct kmscon_console {
 	struct kmscon_compositor *comp;
 	struct kmscon_context *ctx;
 
-	/* GL texture and font */
-	unsigned int tex;
+	/* font */
 	unsigned int res_x;
 	unsigned int res_y;
 	struct kmscon_font *font;
-
-	/* cairo surface */
-	cairo_t *cr;
-	cairo_surface_t *surf;
-	unsigned char *surf_buf;
 
 	/* console cells */
 	struct kmscon_buffer *cells;
@@ -70,69 +62,6 @@ struct kmscon_console {
 	unsigned int cursor_x;
 	unsigned int cursor_y;
 };
-
-static void kmscon_console_free_res(struct kmscon_console *con)
-{
-	if (con && con->cr) {
-		kmscon_context_free_tex(con->ctx, con->tex);
-		cairo_destroy(con->cr);
-		cairo_surface_destroy(con->surf);
-		free(con->surf_buf);
-		con->tex = 0;
-		con->cr = NULL;
-		con->surf = NULL;
-		con->surf_buf = NULL;
-	}
-}
-
-static int kmscon_console_new_res(struct kmscon_console *con)
-{
-	unsigned char *buf;
-	cairo_t *cr;
-	cairo_surface_t *surface;
-	int stride, ret;
-	cairo_format_t format = CAIRO_FORMAT_ARGB32;
-
-	if (!con)
-		return -EINVAL;
-
-	stride = cairo_format_stride_for_width(format, con->res_x);
-
-	buf = malloc(stride * con->res_y);
-	if (!buf)
-		return -ENOMEM;
-
-	surface = cairo_image_surface_create_for_data(buf, format, con->res_x,
-							con->res_y, stride);
-	if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
-	cr = cairo_create(surface);
-	if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
-		ret = -EFAULT;
-		goto err_cairo;
-	}
-
-	kmscon_console_free_res(con);
-
-	con->surf_buf = buf;
-	con->surf = surface;
-	con->cr = cr;
-
-	con->tex = kmscon_context_new_tex(con->ctx);
-
-	log_debug("console: new resolution %ux%u\n", con->res_x, con->res_y);
-	return 0;
-
-err_cairo:
-	cairo_destroy(cr);
-err_free:
-	cairo_surface_destroy(surface);
-	free(buf);
-	return ret;
-}
 
 int kmscon_console_new(struct kmscon_console **out,
 		struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
@@ -192,7 +121,6 @@ void kmscon_console_unref(struct kmscon_console *con)
 	if (--con->ref)
 		return;
 
-	kmscon_console_free_res(con);
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
 	kmscon_compositor_unref(con->comp);
@@ -280,46 +208,9 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	con->font = font;
 	con->res_x = con->cells_x * kmscon_font_get_width(con->font);
 	con->res_y = height;
-
-	ret = kmscon_console_new_res(con);
-	if (ret) {
-		log_err("console: cannot create drawing buffers: %d\n", ret);
-		return ret;
-	}
+	log_debug("console: new resolution %ux%u\n", con->res_x, con->res_y);
 
 	return 0;
-}
-
-/*
- * This redraws the console. It does not clip/copy the image onto any
- * framebuffer. You must use kmscon_console_map() to do this.
- * This allows to draw the console once and then map it onto multiple
- * framebuffers so it is displayed on multiple monitors with different screen
- * resolutions.
- * You must have called kmscon_console_set_res() before.
- */
-void kmscon_console_draw(struct kmscon_console *con)
-{
-	if (!con || !con->cr)
-		return;
-
-	cairo_save(con->cr);
-
-	cairo_set_operator(con->cr, CAIRO_OPERATOR_SOURCE);
-	cairo_set_source_rgba(con->cr, 0.0, 0.0, 0.0, 0.0);
-	cairo_paint(con->cr);
-
-	cairo_set_operator(con->cr, CAIRO_OPERATOR_OVER);
-	cairo_set_source_rgba(con->cr, 1.0, 1.0, 1.0, 1.0);
-
-	kmscon_buffer_draw(con->cells, con->font, con->cr, con->res_x,
-								con->res_y);
-
-	cairo_restore(con->cr);
-
-	/* refresh GL texture contents */
-	kmscon_context_set_tex(con->ctx, con->tex, con->res_x, con->res_y,
-							con->surf_buf);
 }
 
 /*
@@ -334,15 +225,10 @@ void kmscon_console_draw(struct kmscon_console *con)
  */
 void kmscon_console_map(struct kmscon_console *con)
 {
-	static const float vertices[] = { -1, -1, 1, -1, -1, 1,
-					1, -1, 1, 1, -1, 1 };
-	static const float texpos[] = { 0, 0, 1, 0, 0, 1,
-					1, 0, 1, 1, 0, 1 };
-
-	if (!con || !con->cr)
+	if (!con)
 		return;
 
-	kmscon_context_draw_tex(con->ctx, vertices, texpos, 6, con->tex);
+	kmscon_buffer_draw(con->cells, con->font);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)

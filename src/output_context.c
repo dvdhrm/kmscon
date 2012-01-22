@@ -183,7 +183,15 @@ static void clear_gl_error()
 /* return true if there is a pending GL error */
 static bool has_gl_error()
 {
-	return glGetError() != GL_NO_ERROR;
+	GLenum err;
+
+	err = glGetError();
+	if (err != GL_NO_ERROR) {
+		log_err("context: GL error %d\n", err);
+		return true;
+	}
+
+	return false;
 }
 
 /* external shader sources; generated during build */
@@ -643,21 +651,19 @@ void kmscon_context_draw_def(struct kmscon_context *ctx, float *vertices,
 }
 
 void kmscon_context_draw_tex(struct kmscon_context *ctx, const float *vertices,
-			const float *texcoords, size_t num, unsigned int tex)
+	const float *texcoords, size_t num, unsigned int tex, const float *m)
 {
-	static const float m[16] = { 1, 0, 0, 0,
-					0, 1, 0, 0,
-					0, 0, 1, 0,
-					0, 0, 0, 1 };
+	float mat[16];
 
 	if (!ctx)
 		return;
 
+	kmscon_m4_transp_dest(mat, m);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex);
 
 	ctx->proc_use_program(ctx->tex_program);
-	ctx->proc_uniform_matrix_4fv(ctx->tex_uni_projection, 1, GL_FALSE, m);
+	ctx->proc_uniform_matrix_4fv(ctx->tex_uni_projection, 1, GL_FALSE, mat);
 	ctx->proc_uniform_1i(ctx->tex_uni_texture, 0);
 
 	ctx->proc_vertex_attrib_pointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
