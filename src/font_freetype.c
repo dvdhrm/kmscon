@@ -1,5 +1,5 @@
 /*
- * kmscon - Font Handling
+ * kmscon - Font Handling - FreeType2 Backend
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,8 +25,10 @@
  */
 
 /*
- * Font Handling
- * TODO
+ * Font Handling - FreeType2
+ * This provides a font backend based on FreeType2 library. This is inferior to
+ * the pango backend as it does not handle combined characters. However, it
+ * pulls in a lot less dependencies so may be prefered on some systems.
  */
 
 #include <errno.h>
@@ -116,6 +118,7 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (err)
 		log_warning("font: cannot deinitialize FreeType library\n");
 
+	kmscon_symbol_table_unref(ff->st);
 	free(ff);
 }
 
