@@ -179,6 +179,8 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 	if (!out || !st || !comp)
 		return -EINVAL;
 
+	log_debug("font: new font factory\n");
+
 	ff = malloc(sizeof(*ff));
 	if (!ff)
 		return -ENOMEM;
@@ -225,6 +227,8 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (--ff->ref)
 		return;
 
+	log_debug("font: destroying font factory\n");
+
 	err = FT_Done_FreeType(ff->lib);
 	if (err)
 		log_warning("font: cannot deinitialize FreeType library\n");
@@ -241,12 +245,15 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	FT_Error err;
 	const char *estr = "unknown error";
 	int ret;
+	const char *path = "./fonts/DejaVuSansMono.ttf";
 
 	if (!ff || !out || !height)
 		return -EINVAL;
 
 	if (!width)
 		width = height;
+
+	log_debug("font: loading new font %s\n", path);
 
 	font = malloc(sizeof(*font));
 	if (!font)
@@ -258,8 +265,7 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	font->height = height;
 
 	/* TODO: Use fontconfig to get font paths */
-	err = FT_New_Face(ff->lib, "./fonts/DejaVuSansMono.ttf",
-							0, &font->face);
+	err = FT_New_Face(ff->lib, path, 0, &font->face);
 	if (err) {
 		if (err == FT_Err_Unknown_File_Format)
 			estr = "unknown file format";
@@ -317,6 +323,8 @@ void kmscon_font_unref(struct kmscon_font *font)
 
 	if (--font->ref)
 		return;
+
+	log_debug("font: destroying font\n");
 
 	g_hash_table_unref(font->glyphs);
 	FT_Done_Face(font->face);
