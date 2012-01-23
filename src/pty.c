@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <pty.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -122,9 +123,18 @@ exec_child(int pty_master)
 static int fork_pty_child(int master, struct winsize *ws)
 {
 	int ret, saved_errno;
+	sigset_t sigset;
 	pid_t pid;
 	const char *slave_name;
 	int slave = -1;
+
+	/* The child should not inherit our signal mask. */
+	sigfillset(&sigset);
+	ret = sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+	if (ret) {
+		log_warning("pty: cannot unblock all signals: %m\n");
+		/* This is non fatal. */
+	}
 
 	/* This doesn't actually do anything on linux. */
 	ret = grantpt(master);
