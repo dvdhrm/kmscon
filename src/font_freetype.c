@@ -193,7 +193,7 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 
 	err = FT_Init_FreeType(&ff->lib);
 	if (err) {
-		log_warning("font: cannot initialize FreeType library\n");
+		log_warn("font: cannot initialize FreeType library\n");
 		ret = -EFAULT;
 		goto err_free;
 	}
@@ -231,7 +231,7 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 
 	err = FT_Done_FreeType(ff->lib);
 	if (err)
-		log_warning("font: cannot deinitialize FreeType library\n");
+		log_warn("font: cannot deinitialize FreeType library\n");
 
 	kmscon_compositor_unref(ff->comp);
 	kmscon_symbol_table_unref(ff->st);
@@ -270,20 +270,20 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 		if (err == FT_Err_Unknown_File_Format)
 			estr = "unknown file format";
 
-		log_warning("font: cannot load font: %s\n", estr);
+		log_warn("font: cannot load font: %s\n", estr);
 		ret = -EFAULT;
 		goto err_free;
 	}
 
 	if (!font->face->charmap) {
-		log_warning("font: cannot load charmap of new font\n");
+		log_warn("font: cannot load charmap of new font\n");
 		ret = -EFAULT;
 		goto err_face;
 	}
 
 	err = FT_Set_Pixel_Sizes(font->face, width, height);
 	if (err) {
-		log_warning("font: cannot set pixel size of font\n");
+		log_warn("font: cannot set pixel size of font\n");
 		ret = -EFAULT;
 		goto err_face;
 	}

@@ -43,7 +43,7 @@
 /* LOG_EMERG and LOG_ALERT do not make sense for this application */
 #define LOG_CRIT	"<2>" /* error that cannot be handled correctly */
 #define LOG_ERR		"<3>" /* error detected */
-#define LOG_WARNING	"<4>" /* warn about unexpected conditions */
+#define LOG_WARN	"<4>" /* warn about unexpected conditions */
 #define LOG_NOTICE	"<5>" /* notify about unusual conditions */
 #define LOG_INFO	"<6>" /* basic inforomational messages */
 #define LOG_DEBUG	"<7>" /* debug messages */
@@ -61,7 +61,7 @@ void log_vprintf(const char *format, va_list list);
 
 #define log_crit(format, ...) log_printf(LOG_CRIT format, ##__VA_ARGS__)
 #define log_err(format, ...) log_printf(LOG_ERR format, ##__VA_ARGS__)
-#define log_warning(format, ...) log_printf(LOG_WARNING format, ##__VA_ARGS__)
+#define log_warn(format, ...) log_printf(LOG_WARN format, ##__VA_ARGS__)
 #define log_notice(format, ...) log_printf(LOG_NOTICE format, ##__VA_ARGS__)
 #define log_info(format, ...) log_printf(LOG_INFO format, ##__VA_ARGS__)
 

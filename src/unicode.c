@@ -165,7 +165,7 @@ void kmscon_symbol_table_unref(struct kmscon_symbol_table *st)
 kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
 {
 	if (ucs4 > KMSCON_UCS4_MAX) {
-		log_warning("unicode: invalid ucs4 character\n");
+		log_warn("unicode: invalid ucs4 character\n");
 		return 0;
 	} else {
 		return ucs4;
@@ -183,7 +183,7 @@ kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
 		return sym;
 
 	if (ucs4 > KMSCON_UCS4_MAX) {
-		log_warning("unicode: invalid ucs4 character\n");
+		log_warn("unicode: invalid ucs4 character\n");
 		return sym;
 	}
 

@@ -467,7 +467,7 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 
 			m = kmscon_m4_stack_push(buf->stack);
 			if (!m) {
-				log_warning("console: cannot push matrix\n");
+				log_warn("console: cannot push matrix\n");
 				break;
 			}
 
@@ -504,7 +504,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		return;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
-		log_warning("console: writing beyond buffer boundary\n");
+		log_warn("console: writing beyond buffer boundary\n");
 		return;
 	}
 
@@ -512,7 +512,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		while (buf->fill <= y) {
 			ret = new_line(&line);
 			if (ret) {
-				log_warning("console: cannot allocate line "
+				log_warn("console: cannot allocate line "
 						"(%d); dropping input\n", ret);
 				return;
 			}
@@ -525,7 +525,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	if (x >= line->size) {
 		ret = resize_line(line, buf->size_x);
 		if (ret) {
-			log_warning("console: cannot resize line (%d); "
+			log_warn("console: cannot resize line (%d); "
 						"dropping input\n", ret);
 			return;
 		}
@@ -543,7 +543,7 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 		return kmscon_symbol_default;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
-		log_warning("console: reading out of buffer bounds\n");
+		log_warn("console: reading out of buffer bounds\n");
 		return kmscon_symbol_default;
 	}
 
@@ -567,7 +567,7 @@ void kmscon_buffer_rotate(struct kmscon_buffer *buf)
 
 	ret = new_line(&nl);
 	if (ret) {
-		log_warning("console: cannot allocate line (%d); "
+		log_warn("console: cannot allocate line (%d); "
 						"dropping input\n", ret);
 		return;
 	}

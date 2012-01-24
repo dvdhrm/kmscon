@@ -162,7 +162,7 @@ static int fork_pty_child(int master, struct winsize *ws)
 	if (ws) {
 		ret = ioctl(slave, TIOCSWINSZ, ws);
 		if (ret)
-			log_warning("pty: cannot set slave window size: %m");
+			log_warn("pty: cannot set slave window size: %m");
 	}
 
 	if (dup2(slave, STDIN_FILENO) != STDIN_FILENO ||
@@ -269,14 +269,14 @@ static void pty_output(struct kmscon_fd *fd, int mask, void *data)
 	 */
 	if (!(mask & KMSCON_READABLE)) {
 		if (mask & KMSCON_ERR)
-			log_warning("pty: error condition happened on pty\n");
+			log_warn("pty: error condition happened on pty\n");
 		kmscon_pty_close(pty);
 		return;
 	}
 
 	ret = ioctl(pty->fd, FIONREAD, &nread);
 	if (ret) {
-		log_warning("pty: cannot peek into pty input buffer: %m");
+		log_warn("pty: cannot peek into pty input buffer: %m");
 		return;
 	} else if (nread <= 0) {
 		return;
@@ -413,7 +413,7 @@ void kmscon_pty_resize(struct kmscon_pty *pty,
 	 */
 	ret = ioctl(pty->fd, TIOCSWINSZ, &ws);
 	if (ret) {
-		log_warning("pty: cannot set window size\n");
+		log_warn("pty: cannot set window size\n");
 		return;
 	}
 

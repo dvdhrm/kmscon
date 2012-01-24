@@ -209,7 +209,7 @@ static int compile_shader(struct kmscon_context *ctx, GLenum type,
 
 	s = ctx->proc_create_shader(type);
 	if (s == GL_NONE) {
-		log_warning("context: cannot allocate GL shader\n");
+		log_warn("context: cannot allocate GL shader\n");
 		return GL_NONE;
 	}
 
@@ -220,7 +220,7 @@ static int compile_shader(struct kmscon_context *ctx, GLenum type,
 	if (status == GL_FALSE) {
 		msg[0] = 0;
 		ctx->proc_get_shader_info_log(s, sizeof(msg), NULL, msg);
-		log_warning("context: cannot compile shader: %s\n", msg);
+		log_warn("context: cannot compile shader: %s\n", msg);
 		return GL_NONE;
 	}
 
@@ -260,7 +260,7 @@ static int init_def_shader(struct kmscon_context *ctx)
 		msg[0] = 0;
 		ctx->proc_get_program_info_log(ctx->def_program, sizeof(msg),
 								NULL, msg);
-		log_warning("context: cannot link shader: %s\n", msg);
+		log_warn("context: cannot link shader: %s\n", msg);
 		ret = -EFAULT;
 		goto err_link;
 	}
@@ -311,7 +311,7 @@ static int init_tex_shader(struct kmscon_context *ctx)
 		msg[0] = 0;
 		ctx->proc_get_program_info_log(ctx->tex_program, sizeof(msg),
 								NULL, msg);
-		log_warning("context: cannot link shader: %s\n", msg);
+		log_warn("context: cannot link shader: %s\n", msg);
 		ret = -EFAULT;
 		goto err_link;
 	}
@@ -398,21 +398,21 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 
 	ctx->display = eglGetDisplay((EGLNativeDisplayType) gbm);
 	if (!ctx->display) {
-		log_warning("context: cannot get EGL display\n");
+		log_warn("context: cannot get EGL display\n");
 		ret = -EFAULT;
 		goto err_free;
 	}
 
 	ret = eglInitialize(ctx->display, &major, &minor);
 	if (!ret) {
-		log_warning("context: cannot initialize EGL display\n");
+		log_warn("context: cannot initialize EGL display\n");
 		ret = -EFAULT;
 		goto err_free;
 	}
 
 	ext = eglQueryString(ctx->display, EGL_EXTENSIONS);
 	if (!ext || !strstr(ext, "EGL_KHR_surfaceless_opengl")) {
-		log_warning("context: surfaceless EGL not supported\n");
+		log_warn("context: surfaceless EGL not supported\n");
 		ret = -ENOTSUP;
 		goto err_display;
 	}
@@ -424,7 +424,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 #endif
 
 	if (!eglBindAPI(api)) {
-		log_warning("context: cannot bind EGL OpenGL API\n");
+		log_warn("context: cannot bind EGL OpenGL API\n");
 		ret = -EFAULT;
 		goto err_display;
 	}
@@ -432,14 +432,14 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 	ctx->context = eglCreateContext(ctx->display, NULL, EGL_NO_CONTEXT,
 								ctx_attribs);
 	if (!ctx->context) {
-		log_warning("context: cannot create EGL context\n");
+		log_warn("context: cannot create EGL context\n");
 		ret = -EFAULT;
 		goto err_display;
 	}
 
 	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 							ctx->context)) {
-		log_warning("context: cannot use EGL context\n");
+		log_warn("context: cannot use EGL context\n");
 		ret = -EFAULT;
 		goto err_ctx;
 	}
@@ -511,7 +511,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 
 	if (!ctx->proc_rbuf_storage || !ctx->proc_create_image ||
 						!ctx->proc_destroy_image) {
-		log_warning("context: KHR images not supported\n");
+		log_warn("context: KHR images not supported\n");
 		ret = -ENOTSUP;
 		goto err_ctx;
 	} else if (!ctx->proc_gen_renderbuffers ||
@@ -519,7 +519,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_delete_renderbuffers ||
 			!ctx->proc_framebuffer_renderbuffer ||
 			!ctx->proc_check_framebuffer_status) {
-		log_warning("context: renderbuffers not supported\n");
+		log_warn("context: renderbuffers not supported\n");
 		ret = -ENOTSUP;
 		goto err_ctx;
 	} else if (!ctx->proc_create_shader ||
@@ -528,7 +528,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_compile_shader ||
 			!ctx->proc_get_shader_iv ||
 			!ctx->proc_get_shader_info_log) {
-		log_warning("context: shaders not supported\n");
+		log_warn("context: shaders not supported\n");
 		ret = -ENOTSUP;
 		goto err_ctx;
 	} else if (!ctx->proc_create_program ||
@@ -545,7 +545,7 @@ int kmscon_context_new(struct kmscon_context **out, void *gbm)
 			!ctx->proc_vertex_attrib_pointer ||
 			!ctx->proc_enable_vertex_attrib_array ||
 			!ctx->proc_draw_arrays) {
-		log_warning("context: shaders not supported\n");
+		log_warn("context: shaders not supported\n");
 		ret = -ENOTSUP;
 		goto err_ctx;
 	}
@@ -588,7 +588,7 @@ int kmscon_context_use(struct kmscon_context *ctx)
 
 	if (!eglMakeCurrent(ctx->display, EGL_NO_SURFACE, EGL_NO_SURFACE,
 							ctx->context)) {
-		log_warning("context: cannot use EGL context\n");
+		log_warn("context: cannot use EGL context\n");
 		return -EFAULT;
 	}
 
@@ -735,7 +735,7 @@ int renderbuffer_new(struct renderbuffer **out, struct kmscon_context *ctx,
 	rb->image = ctx->proc_create_image(ctx->display, NULL,
 					EGL_NATIVE_PIXMAP_KHR, bo, NULL);
 	if (!rb->image) {
-		log_warning("context: cannot create EGL image\n");
+		log_warn("context: cannot create EGL image\n");
 		ret = -EFAULT;
 		goto err_free;
 	}
@@ -745,7 +745,7 @@ int renderbuffer_new(struct renderbuffer **out, struct kmscon_context *ctx,
 	ctx->proc_rbuf_storage(GL_RENDERBUFFER, rb->image);
 
 	if (has_gl_error()) {
-		log_warning("context: cannot create renderbuffers\n");
+		log_warn("context: cannot create renderbuffers\n");
 		ret = -EFAULT;
 		goto err_gl;
 	}
@@ -804,7 +804,7 @@ int kmscon_framebuffer_new(struct kmscon_framebuffer **out,
 
 	if (ctx->proc_check_framebuffer_status(GL_FRAMEBUFFER) !=
 						GL_FRAMEBUFFER_COMPLETE) {
-		log_warning("context: invalid GL framebuffer state\n");
+		log_warn("context: invalid GL framebuffer state\n");
 		ret = -EFAULT;
 		goto err_fb;
 	}
@@ -856,7 +856,7 @@ int kmscon_framebuffer_swap(struct kmscon_framebuffer *fb)
 
 	if (fb->ctx->proc_check_framebuffer_status(GL_FRAMEBUFFER) !=
 						GL_FRAMEBUFFER_COMPLETE)
-		log_warning("context: invalid GL framebuffer state\n");
+		log_warn("context: invalid GL framebuffer state\n");
 
 	return fb->current_rb;
 }

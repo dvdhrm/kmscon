@@ -152,7 +152,7 @@ static void schedule_draw(struct console *con)
 
 	ret = kmscon_eloop_add_idle(con->loop, con->idle, draw, con);
 	if (ret && ret != -EALREADY)
-		log_warning("Cannot schedule draw function\n");
+		log_warn("Cannot schedule draw function\n");
 }
 
 static void activate_outputs(struct console *con)

@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 
 	ret = kmscon_vt_enter(vt);
 	if (ret)
-		log_warning("Cannot switch to VT\n");
+		log_warn("Cannot switch to VT\n");
 
 	while (!terminate) {
 		ret = kmscon_eloop_dispatch(loop, -1);

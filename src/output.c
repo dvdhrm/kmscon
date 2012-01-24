@@ -450,7 +450,7 @@ static int kmscon_output_connect(struct kmscon_output *output, drmModeRes *res,
 	}
 
 	if (crtc < 0) {
-		log_warning("output: no free CRTC left to connect output\n");
+		log_warn("output: no free CRTC left to connect output\n");
 		return -EINVAL;
 	}
 
@@ -471,7 +471,7 @@ static int kmscon_output_connect(struct kmscon_output *output, drmModeRes *res,
 	}
 
 	if (!output->count_modes) {
-		log_warning("output: no suitable mode available for output\n");
+		log_warn("output: no suitable mode available for output\n");
 		return -EINVAL;
 	}
 
@@ -555,7 +555,7 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 				GBM_BO_FORMAT_XRGB8888,
 				GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
 	if (!rb->bo) {
-		log_warning("output: cannot create gbm buffer object\n");
+		log_warn("output: cannot create gbm buffer object\n");
 		return -EFAULT;
 	}
 
@@ -569,7 +569,7 @@ static int init_rb(struct render_buffer *rb, struct kmscon_compositor *comp,
 	ret = drmModeAddFB(comp->drm_fd, mode->hdisplay, mode->vdisplay,
 					24, 32, stride, handle, &rb->fb);
 	if (ret) {
-		log_warning("output: cannot add DRM framebuffer object\n");
+		log_warn("output: cannot add DRM framebuffer object\n");
 		ret = -EFAULT;
 		goto err_bo;
 	}
@@ -756,7 +756,7 @@ int kmscon_output_swap(struct kmscon_output *output)
 			output->rb[num].fb, 0, 0, &output->conn_id, 1,
 						&output->current->info);
 	if (ret) {
-		log_warning("output: cannot set CRTC\n");
+		log_warn("output: cannot set CRTC\n");
 		ret = -EFAULT;
 	}
 
@@ -793,14 +793,14 @@ int kmscon_compositor_new(struct kmscon_compositor **out)
 	/* TODO: Retrieve this path dynamically */
 	comp->drm_fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
 	if (comp->drm_fd < 0) {
-		log_warning("output: cannot open /dev/dri/card0: %m\n");
+		log_warn("output: cannot open /dev/dri/card0: %m\n");
 		ret = -errno;
 		goto err_free;
 	}
 
 	comp->gbm = gbm_create_device(comp->drm_fd);
 	if (!comp->gbm) {
-		log_warning("output: cannot allocate gbm device\n");
+		log_warn("output: cannot allocate gbm device\n");
 		ret = -EFAULT;
 		goto err_drm;
 	}
@@ -888,7 +888,7 @@ int kmscon_compositor_wake_up(struct kmscon_compositor *comp)
 
 	ret = drmSetMaster(comp->drm_fd);
 	if (ret) {
-		log_warning("output: cannot acquire DRM master privs\n");
+		log_warn("output: cannot acquire DRM master privs\n");
 		return -EACCES;
 	}
 
@@ -1026,7 +1026,7 @@ int kmscon_compositor_refresh(struct kmscon_compositor *comp)
 
 	res = drmModeGetResources(comp->drm_fd);
 	if (!res) {
-		log_warning("output: cannot retrieve DRM resources\n");
+		log_warn("output: cannot retrieve DRM resources\n");
 		return -EACCES;
 	}
 

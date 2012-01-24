@@ -421,7 +421,7 @@ static void signal_cb(struct kmscon_fd *fd, int mask, void *data)
 	if (mask & KMSCON_READABLE) {
 		len = read(fd->fd, &signal_info, sizeof(signal_info));
 		if (len != sizeof(signal_info))
-			log_warning("eloop: cannot read signalfd\n");
+			log_warn("eloop: cannot read signalfd\n");
 		else
 			sig->cb(sig, signal_info.ssi_signo, sig->data);
 	}
@@ -545,7 +545,7 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
-		log_warning("eloop: epoll_wait dispatching failed: %m\n");
+		log_warn("eloop: epoll_wait dispatching failed: %m\n");
 		return -errno;
 	}
 

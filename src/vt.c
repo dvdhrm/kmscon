@@ -146,7 +146,7 @@ static void vt_enter(struct kmscon_signal *sig, int signum, void *data)
 	ioctl(vt->fd, VT_RELDISP, VT_ACKACQ);
 
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS))
-		log_warning("vt: cannot set graphics mode on vt\n");
+		log_warn("vt: cannot set graphics mode on vt\n");
 
 	if (vt->cb)
 		vt->cb(vt, KMSCON_VT_ENTER, vt->data);
@@ -166,7 +166,7 @@ static void vt_leave(struct kmscon_signal *sig, int signum, void *data)
 		log_debug("vt: leaving VT\n");
 		ioctl(vt->fd, VT_RELDISP, 1);
 		if (ioctl(vt->fd, KDSETMODE, KD_TEXT))
-			log_warning("vt: cannot set text mode on vt\n");
+			log_warn("vt: cannot set text mode on vt\n");
 	}
 }
 
@@ -292,7 +292,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct kmscon_eloop *eloop)
 	 */
 	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warning("vt: cannot find the current VT\n");
+		log_warn("vt: cannot find the current VT\n");
 		vt->saved_num = -1;
 	} else {
 		vt->saved_num = vts.v_active;
@@ -312,7 +312,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct kmscon_eloop *eloop)
 	raw_attribs.c_oflag |= OPOST | OCRNL;
 
 	if (tcsetattr(vt->fd, TCSANOW, &raw_attribs) < 0)
-		log_warning("vt: cannot put terminal into raw mode\n");
+		log_warn("vt: cannot put terminal into raw mode\n");
 
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("vt: cannot set graphics mode\n");
@@ -375,7 +375,7 @@ int kmscon_vt_enter(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_ACTIVATE, vt->num);
 	if (ret) {
-		log_warning("vt: cannot enter VT\n");
+		log_warn("vt: cannot enter VT\n");
 		return -EFAULT;
 	}
 
@@ -407,7 +407,7 @@ int kmscon_vt_leave(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warning("vt: cannot find current VT\n");
+		log_warn("vt: cannot find current VT\n");
 		return -EFAULT;
 	}
 
@@ -416,7 +416,7 @@ int kmscon_vt_leave(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_ACTIVATE, vt->saved_num);
 	if (ret) {
-		log_warning("vt: cannot leave VT\n");
+		log_warn("vt: cannot leave VT\n");
 		return -EFAULT;
 	}
 

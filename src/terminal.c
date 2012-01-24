@@ -103,7 +103,7 @@ static void schedule_redraw(struct kmscon_terminal *term)
 
 	ret = kmscon_eloop_add_idle(term->eloop, term->redraw, draw_all, term);
 	if (ret && ret != -EALREADY)
-		log_warning("terminal: cannot schedule redraw\n");
+		log_warn("terminal: cannot schedule redraw\n");
 }
 
 static void pty_output(struct kmscon_pty *pty, char *u8, size_t len, void *data)
@@ -291,7 +291,7 @@ int kmscon_terminal_add_output(struct kmscon_terminal *term,
 
 	mode = kmscon_output_get_current(output);
 	if (!mode) {
-		log_warning("terminal: invalid output added to terminal\n");
+		log_warn("terminal: invalid output added to terminal\n");
 		return -EINVAL;
 	}
 

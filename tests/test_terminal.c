@@ -78,7 +78,7 @@ static void sig_chld(struct kmscon_signal *sig, int signum, void *data)
 		pid = waitpid(-1, &status, WNOHANG);
 		if (pid == -1) {
 			if (errno != ECHILD)
-				log_warning("test: cannot wait on child: %m\n");
+				log_warn("test: cannot wait on child: %m\n");
 			break;
 		} else if (pid == 0) {
 			break;

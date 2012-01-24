@@ -123,14 +123,14 @@ static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
 			if (errno == EWOULDBLOCK)
 				break;
 
-			log_warning("input: reading device %s failed %d\n",
+			log_warn("input: reading device %s failed %d\n",
 						device->devnode, errno);
 			remove_device(input, device->devnode);
 		} else if (len == 0) {
 			log_debug("input: EOF device %s\n", device->devnode);
 			remove_device(input, device->devnode);
 		} else if (len % sizeof(*ev)) {
-			log_warning("input: read invalid input_event\n");
+			log_warn("input: read invalid input_event\n");
 		} else {
 			n = len / sizeof(*ev);
 			for (i = 0; i < n; i++)
@@ -152,7 +152,7 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 
 	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
 	if (device->rfd < 0) {
-		log_warning("input: cannot open input device %s: %d\n",
+		log_warn("input: cannot open input device %s: %d\n",
 						device->devnode, errno);
 		return -errno;
 	}
@@ -272,20 +272,20 @@ int kmscon_input_new(struct kmscon_input **out)
 
 	ret = kmscon_kbd_desc_new(&input->desc, layout, variant, options);
 	if (ret) {
-		log_warning("input: cannot create xkb description\n");
+		log_warn("input: cannot create xkb description\n");
 		goto err_free;
 	}
 
 	input->udev = udev_new();
 	if (!input->udev) {
-		log_warning("input: cannot create udev object\n");
+		log_warn("input: cannot create udev object\n");
 		ret = -EFAULT;
 		goto err_xkb;
 	}
 
 	input->monitor = udev_monitor_new_from_netlink(input->udev, "udev");
 	if (!input->monitor) {
-		log_warning("input: cannot create udev monitor\n");
+		log_warn("input: cannot create udev monitor\n");
 		ret = -EFAULT;
 		goto err_udev;
 	}
@@ -293,14 +293,14 @@ int kmscon_input_new(struct kmscon_input **out)
 	ret = udev_monitor_filter_add_match_subsystem_devtype(input->monitor,
 								"input", NULL);
 	if (ret) {
-		log_warning("input: cannot add udev filter\n");
+		log_warn("input: cannot add udev filter\n");
 		ret = -EFAULT;
 		goto err_monitor;
 	}
 
 	ret = udev_monitor_enable_receiving(input->monitor);
 	if (ret) {
-		log_warning("input: cannot start udev monitor\n");
+		log_warn("input: cannot start udev monitor\n");
 		ret = -EFAULT;
 		goto err_monitor;
 	}
@@ -372,7 +372,7 @@ static void add_device(struct kmscon_input *input,
 
 	ret = kmscon_input_device_new(&device, input, node);
 	if (ret) {
-		log_warning("input: cannot create input device for %s\n",
+		log_warn("input: cannot create input device for %s\n",
 									node);
 		return;
 	}
@@ -380,7 +380,7 @@ static void add_device(struct kmscon_input *input,
 	if (input->state == INPUT_AWAKE) {
 		ret = kmscon_input_device_wake_up(device);
 		if (ret) {
-			log_warning("input: cannot wake up new device %s\n",
+			log_warn("input: cannot wake up new device %s\n",
 									node);
 			kmscon_input_device_unref(device);
 			return;
@@ -446,7 +446,7 @@ static void device_changed(struct kmscon_fd *fd, int mask, void *data)
 
 	action = udev_device_get_action(udev_device);
 	if (!action) {
-		log_warning("input: cannot get action field of new device\n");
+		log_warn("input: cannot get action field of new device\n");
 		goto err_device;
 	}
 
@@ -470,19 +470,19 @@ static void add_initial_devices(struct kmscon_input *input)
 
 	e = udev_enumerate_new(input->udev);
 	if (!e) {
-		log_warning("input: cannot create udev enumeration\n");
+		log_warn("input: cannot create udev enumeration\n");
 		return;
 	}
 
 	ret = udev_enumerate_add_match_subsystem(e, "input");
 	if (ret) {
-		log_warning("input: cannot add match to udev enumeration\n");
+		log_warn("input: cannot add match to udev enumeration\n");
 		goto err_enum;
 	}
 
 	ret = udev_enumerate_scan_devices(e);
 	if (ret) {
-		log_warning("input: cannot scan udev enumeration\n");
+		log_warn("input: cannot scan udev enumeration\n");
 		goto err_enum;
 	}
 
@@ -494,7 +494,7 @@ static void add_initial_devices(struct kmscon_input *input)
 
 		udev_device = udev_device_new_from_syspath(input->udev, syspath);
 		if (!udev_device) {
-			log_warning("input: cannot create device "
+			log_warn("input: cannot create device "
 							"from udev path\n");
 			continue;
 		}
@@ -591,7 +591,7 @@ void kmscon_input_wake_up(struct kmscon_input *input)
 			tmp = iter;
 			iter = iter->next;
 
-			log_warning("input: device %s does not wake up, "
+			log_warn("input: device %s does not wake up, "
 					"removing device\n", tmp->devnode);
 			kmscon_input_device_unref(tmp);
 		} else {
