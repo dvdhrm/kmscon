@@ -549,8 +549,6 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 		return -errno;
 	}
 
-	log_debug("eloop: dispatch %d fd event(s)\n", count);
-
 	loop->cur_fds = ep;
 	loop->cur_fds_cnt = count;
 
