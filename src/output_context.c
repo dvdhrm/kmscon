@@ -705,8 +705,13 @@ void kmscon_context_set_tex(struct kmscon_context *ctx, unsigned int tex,
 		return;
 
 	glBindTexture(GL_TEXTURE_2D, tex);
+#ifdef USE_GLES2
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0, GL_BGRA_EXT,
 						GL_UNSIGNED_BYTE, buf);
+#else
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA,
+						GL_UNSIGNED_BYTE, buf);
+#endif
 }
 
 int renderbuffer_new(struct renderbuffer **out, struct kmscon_context *ctx,
