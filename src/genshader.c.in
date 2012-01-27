@@ -132,13 +132,13 @@ int main(int argc, char *argv[])
 	char *def_vert, *def_frag, *tex_vert, *tex_frag;
 	size_t vs, fs, tvs, tfs;
 
-	def_vert = read_file("./src/output_shader_def.vert", &vs);
-	def_frag = read_file("./src/output_shader_def.frag", &fs);
-	tex_vert = read_file("./src/output_shader_tex.vert", &tvs);
-	tex_frag = read_file("./src/output_shader_tex.frag", &tfs);
+	def_vert = read_file("@abs_srcdir@/output_shader_def.vert", &vs);
+	def_frag = read_file("@abs_srcdir@/output_shader_def.frag", &fs);
+	tex_vert = read_file("@abs_srcdir@/output_shader_tex.vert", &tvs);
+	tex_frag = read_file("@abs_srcdir@/output_shader_tex.frag", &tfs);
 
-	write_file("./src/output_shaders.c", def_vert, vs, def_frag, fs,
-						tex_vert, tvs, tex_frag, tfs);
+	write_file("@abs_builddir@/output_shaders.c", def_vert, vs,
+				def_frag, fs, tex_vert, tvs, tex_frag, tfs);
 
 	free(tex_vert);
 	free(tex_frag);

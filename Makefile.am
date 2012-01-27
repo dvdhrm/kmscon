@@ -26,7 +26,7 @@ EXTRA_DIST += src/output_shader_def.vert src/output_shader_def.frag \
 	src/output_shader_tex.vert src/output_shader_tex.frag
 CLEANFILES += src/output_shaders.c
 
-genshader_SOURCES = \
+nodist_genshader_SOURCES = \
 	src/genshader.c
 
 src/output_shaders.c: src/output_shader_def.vert src/output_shader_def.frag \
