@@ -24,3 +24,4 @@ stamp-*
 .libs
 genshader
 src/output_shaders.c
+src/genshader.c
