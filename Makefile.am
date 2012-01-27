@@ -26,7 +26,7 @@ EXTRA_DIST += src/output_shader_def.vert src/output_shader_def.frag \
 	src/output_shader_tex.vert src/output_shader_tex.frag
 CLEANFILES += src/output_shaders.c
 
-genshader_SOURCES = \
+nodist_genshader_SOURCES = \
 	src/genshader.c
 
 src/output_shaders.c: src/output_shader_def.vert src/output_shader_def.frag \
@@ -50,7 +50,7 @@ libkmscon_core_la_SOURCES = \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h \
 	src/kbd_xkb.c src/kbd.h \
-	external/imKStoUCS.c external\imKStoUCS.h \
+	external/imKStoUCS.c external/imKStoUCS.h \
 	src/pty.c src/pty.h
 
 if USE_PANGO
