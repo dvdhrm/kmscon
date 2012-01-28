@@ -54,8 +54,8 @@ struct kmscon_pty {
 	void *closed_data;
 };
 
-int kmscon_pty_new(struct kmscon_pty **out,
-				kmscon_pty_output_cb output_cb, void *data)
+int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_output_cb output_cb,
+								void *data)
 {
 	struct kmscon_pty *pty;
 
@@ -71,9 +71,9 @@ int kmscon_pty_new(struct kmscon_pty **out,
 	memset(pty, 0, sizeof(*pty));
 	pty->fd = -1;
 	pty->ref = 1;
-
 	pty->output_cb = output_cb;
 	pty->output_data = data;
+
 	*out = pty;
 	return 0;
 }
