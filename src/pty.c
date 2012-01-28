@@ -50,9 +50,6 @@ struct kmscon_pty {
 
 	kmscon_pty_input_cb input_cb;
 	void *data;
-
-	kmscon_pty_closed_cb closed_cb;
-	void *closed_data;
 };
 
 int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
@@ -290,12 +287,12 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 		return;
 	}
 
-	if (pty->input_cb)
+	if (pty->input_cb && len)
 		pty->input_cb(pty, u8, len, pty->data);
 }
 
 int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
-	unsigned short height, kmscon_pty_closed_cb closed_cb, void *data)
+							unsigned short height)
 {
 	int ret;
 
@@ -317,32 +314,21 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 		return ret;
 	}
 
-	pty->closed_cb = closed_cb;
-	pty->closed_data = data;
 	return 0;
 }
 
 void kmscon_pty_close(struct kmscon_pty *pty)
 {
-	kmscon_pty_closed_cb cb;
-	void *data;
-
 	if (!pty || pty->fd < 0)
 		return;
 
 	kmscon_eloop_rm_fd(pty->efd);
 	pty->efd = NULL;
-
 	close(pty->fd);
 	pty->fd = -1;
 
-	cb = pty->closed_cb;
-	data = pty->closed_data;
-	pty->closed_cb = NULL;
-	pty->closed_data = NULL;
-
-	if (cb)
-		cb(pty, data);
+	if (pty->input_cb)
+		pty->input_cb(pty, NULL, 0, pty->data);
 }
 
 void kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)

@@ -111,12 +111,16 @@ static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 	size_t i;
 	struct kmscon_terminal *term = data;
 
-	/* FIXME: UTF-8. */
-	for (i=0; i < len; i++)
-		if (u8[i] < 128)
-			kmscon_vte_input(term->vte, u8[i]);
+	if (!len) {
+		kmscon_terminal_close(term);
+	} else {
+		/* FIXME: UTF-8. */
+		for (i=0; i < len; i++)
+			if (u8[i] < 128)
+				kmscon_vte_input(term->vte, u8[i]);
 
-	schedule_redraw(term);
+		schedule_redraw(term);
+	}
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
@@ -203,12 +207,6 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	log_debug("terminal: destroying terminal object\n");
 }
 
-static void pty_closed(struct kmscon_pty *pty, void *data)
-{
-	struct kmscon_terminal *term = data;
-	kmscon_terminal_close(term);
-}
-
 int kmscon_terminal_open(struct kmscon_terminal *term,
 			kmscon_terminal_closed_cb closed_cb, void *data)
 {
@@ -220,7 +218,7 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 
 	width = kmscon_console_get_width(term->console);
 	height = kmscon_console_get_height(term->console);
-	ret = kmscon_pty_open(term->pty, width, height, pty_closed, term);
+	ret = kmscon_pty_open(term->pty, width, height);
 	if (ret)
 		return ret;
 
