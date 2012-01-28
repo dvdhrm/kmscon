@@ -133,7 +133,7 @@ exec_child(int pty_master)
 	_exit(EXIT_FAILURE);
 }
 
-static int fork_pty_child(int master, struct winsize *ws)
+static int setup_child(int master, struct winsize *ws)
 {
 	int ret, saved_errno;
 	sigset_t sigset;
@@ -147,7 +147,6 @@ static int fork_pty_child(int master, struct winsize *ws)
 	if (ret)
 		log_warn("pty: cannot reset blocked signals: %m\n");
 
-	/* This doesn't actually do anything on linux. */
 	ret = grantpt(master);
 	if (ret < 0) {
 		log_err("pty: grantpt failed: %m");
@@ -239,7 +238,7 @@ static int pty_spawn(struct kmscon_pty *pty, unsigned short width,
 		ret = -errno;
 		goto err_master;
 	case 0:
-		ret = fork_pty_child(master, &ws);
+		ret = setup_child(master, &ws);
 		if (ret)
 			goto err_master;
 		exec_child(pty->fd);
