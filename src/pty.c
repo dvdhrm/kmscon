@@ -135,7 +135,7 @@ exec_child(int pty_master)
 
 static int setup_child(int master, struct winsize *ws)
 {
-	int ret, saved_errno;
+	int ret;
 	sigset_t sigset;
 	pid_t pid;
 	const char *slave_name;
@@ -197,11 +197,11 @@ static int setup_child(int master, struct winsize *ws)
 	return 0;
 
 err_out:
-	saved_errno = errno;
+	ret = -errno;
 	if (slave > 0)
 		close(slave);
 	close(master);
-	return -saved_errno;
+	return ret;
 }
 
 /*
