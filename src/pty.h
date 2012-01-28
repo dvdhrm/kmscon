@@ -59,7 +59,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 						unsigned short height);
 void kmscon_pty_close(struct kmscon_pty *pty);
 
-void kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len);
+int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len);
 
 /*
  * Call this whenever the size of the screen (rows or columns) changes. The

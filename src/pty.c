@@ -39,6 +39,7 @@
 
 #include "eloop.h"
 #include "log.h"
+#include "misc.h"
 #include "pty.h"
 
 struct kmscon_pty {
@@ -47,6 +48,7 @@ struct kmscon_pty {
 
 	int fd;
 	struct kmscon_fd *efd;
+	struct kmscon_ring *msgbuf;
 
 	kmscon_pty_input_cb input_cb;
 	void *data;
@@ -56,6 +58,7 @@ int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
 				kmscon_pty_input_cb input_cb, void *data)
 {
 	struct kmscon_pty *pty;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -73,9 +76,17 @@ int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
 	pty->input_cb = input_cb;
 	pty->data = data;
 
+	ret = kmscon_ring_new(&pty->msgbuf);
+	if (ret)
+		goto err_free;
+
 	kmscon_eloop_ref(pty->eloop);
 	*out = pty;
 	return 0;
+
+err_free:
+	free(pty);
+	return ret;
 }
 
 void kmscon_pty_ref(struct kmscon_pty *pty)
@@ -95,6 +106,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 		return;
 
 	kmscon_pty_close(pty);
+	kmscon_ring_free(pty->msgbuf);
 	kmscon_eloop_unref(pty->eloop);
 	free(pty);
 	log_debug("pty: destroying pty object\n");
@@ -244,6 +256,32 @@ err_master:
 	return ret;
 }
 
+static int send_buf(struct kmscon_pty *pty)
+{
+	const char *buf;
+	size_t len;
+	int ret;
+
+	while ((buf = kmscon_ring_peek(pty->msgbuf, &len))) {
+		ret = write(pty->fd, buf, len);
+		if (ret > 0) {
+			kmscon_ring_drop(pty->msgbuf, ret);
+			continue;
+		}
+
+		if (ret < 0 && errno != EWOULDBLOCK) {
+			log_warn("pty: cannot write to child process\n");
+			return ret;
+		}
+
+		/* EWOULDBLOCK */
+		return 0;
+	}
+
+	kmscon_eloop_update_fd(pty->efd, KMSCON_READABLE);
+	return 0;
+}
+
 static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 {
 	int ret, nread;
@@ -253,42 +291,51 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 	if (!pty || pty->fd < 0)
 		return;
 
-	/*
-	 * If we get a hangup or an error, but the pty is still readable, we
-	 * read what's left and deal with the rest on the next dispatch.
-	 */
-	if (!(mask & KMSCON_READABLE)) {
+	if (mask & (KMSCON_ERR | KMSCON_HUP)) {
 		if (mask & KMSCON_ERR)
-			log_warn("pty: error condition happened on pty\n");
-		kmscon_pty_close(pty);
-		return;
+			log_warn("pty: error on child pty socket\n");
+		else
+			log_debug("pty: child closed remote end\n");
+
+		goto err;
 	}
 
-	ret = ioctl(pty->fd, FIONREAD, &nread);
-	if (ret) {
-		log_warn("pty: cannot peek into pty input buffer: %m");
-		return;
-	} else if (nread <= 0) {
-		return;
+	if (mask & KMSCON_WRITEABLE) {
+		ret = send_buf(pty);
+		if (ret)
+			goto err;
 	}
 
-	char u8[nread];
-	len = read(pty->fd, u8, nread);
-	if (len == -1) {
-		if (errno == EWOULDBLOCK)
+	if (mask & KMSCON_READABLE) {
+		ret = ioctl(pty->fd, FIONREAD, &nread);
+		if (ret) {
+			log_warn("pty: cannot peek into pty buffer: %m\n");
 			return;
-		/* EIO is hangup, although we should have caught it above. */
-		if (errno != EIO)
-			log_err("pty: cannot read from pty: %m");
-		kmscon_pty_close(pty);
-		return;
-	} else if (len == 0) {
-		kmscon_pty_close(pty);
-		return;
+		} else if (nread <= 0) {
+			return;
+		}
+
+		char u8[nread];
+		len = read(pty->fd, u8, nread);
+		if (len > 0) {
+			if (pty->input_cb)
+				pty->input_cb(pty, u8, len, pty->data);
+		} else if (len == 0) {
+			log_debug("pty: child closed remote end\n");
+			goto err;
+		} else if (errno != EWOULDBLOCK) {
+			log_err("pty: cannot read from pty: %m\n");
+			goto err;
+		}
 	}
 
-	if (pty->input_cb && len)
-		pty->input_cb(pty, u8, len, pty->data);
+	return;
+
+err:
+	kmscon_eloop_rm_fd(pty->efd);
+	pty->efd = NULL;
+	if (pty->input_cb)
+		pty->input_cb(pty, NULL, 0, pty->data);
 }
 
 int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
@@ -326,23 +373,37 @@ void kmscon_pty_close(struct kmscon_pty *pty)
 	pty->efd = NULL;
 	close(pty->fd);
 	pty->fd = -1;
-
-	if (pty->input_cb)
-		pty->input_cb(pty, NULL, 0, pty->data);
 }
 
-void kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
+int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 {
-	if (!pty || pty->fd < 0)
-		return;
+	int ret;
 
-	/* FIXME: In EWOULDBLOCK we would lose input! Need to buffer. */
-	len = write(pty->fd, u8, len);
-	if (len <= 0) {
-		if (errno != EWOULDBLOCK)
-			kmscon_pty_close(pty);
-		return;
+	if (!pty || pty->fd < 0 || !u8 || !len)
+		return -EINVAL;
+
+	if (!kmscon_ring_is_empty(pty->msgbuf))
+		goto buf;
+
+	ret = write(pty->fd, u8, len);
+	if (ret == len) {
+		return 0;
+	} else if (ret > 0) {
+		len -= ret;
+		u8 = &u8[ret];
+	} else if (ret < 0 && errno != EWOULDBLOCK) {
+		log_warn("pty: cannot write to child process\n");
+		return ret;
 	}
+
+	kmscon_eloop_update_fd(pty->efd, KMSCON_READABLE | KMSCON_WRITEABLE);
+
+buf:
+	ret = kmscon_ring_write(pty->msgbuf, u8, len);
+	if (ret)
+		log_warn("pty: cannot allocate buffer; dropping input\n");
+
+	return 0;
 }
 
 void kmscon_pty_resize(struct kmscon_pty *pty,

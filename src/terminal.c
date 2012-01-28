@@ -300,7 +300,12 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 
 void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
 {
+	int ret;
+
 	/* FIXME: UTF-8. */
-	if (ch < 128)
-		kmscon_pty_write(term->pty, (char *)&ch, 1);
+	if (ch < 128) {
+		ret = kmscon_pty_write(term->pty, (char *)&ch, 1);
+		if (ret)
+			kmscon_terminal_close(term);
+	}
 }
