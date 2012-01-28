@@ -120,4 +120,3 @@ fi
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT([src/genshader.c])
-AC_OUTPUT

@@ -343,7 +343,7 @@ void kmscon_kbd_reset(struct kmscon_kbd *kbd, int evdev_fd)
 	errno = 0;
 	ioctl(evdev_fd, EVIOCGLED(sizeof(leds)), &leds);
 	if (errno) {
-		log_warning("kbd-dumb: cannot discover modifiers state: %m\n");
+		log_warn("kbd-dumb: cannot discover modifiers state: %m\n");
 		return;
 	}
 
