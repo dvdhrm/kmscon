@@ -369,7 +369,7 @@ void kmscon_pty_close(struct kmscon_pty *pty)
 		cb(pty, data);
 }
 
-void kmscon_pty_input(struct kmscon_pty *pty, const char *u8, size_t len)
+void kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 {
 	if (!pty || pty->fd < 0)
 		return;

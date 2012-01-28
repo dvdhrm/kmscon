@@ -335,5 +335,5 @@ void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
 {
 	/* FIXME: UTF-8. */
 	if (ch < 128)
-		kmscon_pty_input(term->pty, (char *)&ch, 1);
+		kmscon_pty_write(term->pty, (char *)&ch, 1);
 }
