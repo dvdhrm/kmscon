@@ -120,7 +120,8 @@ static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-	struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
+		struct kmscon_eloop *loop, struct kmscon_font_factory *ff,
+					struct kmscon_compositor *comp)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -136,6 +137,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 
 	memset(term, 0, sizeof(*term));
 	term->ref = 1;
+	term->eloop = loop;
 	term->comp = comp;
 
 	ret = kmscon_idle_new(&term->redraw);
@@ -151,10 +153,11 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		goto err_con;
 	kmscon_vte_bind(term->vte, term->console);
 
-	ret = kmscon_pty_new(&term->pty, pty_input, term);
+	ret = kmscon_pty_new(&term->pty, term->eloop, pty_input, term);
 	if (ret)
 		goto err_vte;
 
+	kmscon_eloop_ref(term->eloop);
 	kmscon_compositor_ref(term->comp);
 	*out = term;
 
@@ -195,31 +198,9 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_console_unref(term->console);
 	kmscon_idle_unref(term->redraw);
 	kmscon_compositor_unref(term->comp);
+	kmscon_eloop_unref(term->eloop);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
-}
-
-int connect_eloop(struct kmscon_terminal *term, struct kmscon_eloop *eloop)
-{
-	if (!term || !eloop)
-		return -EINVAL;
-
-	if (term->eloop)
-		return -EALREADY;
-
-	kmscon_eloop_ref(eloop);
-	term->eloop = eloop;
-
-	return 0;
-}
-
-void disconnect_eloop(struct kmscon_terminal *term)
-{
-	if (!term)
-		return;
-
-	kmscon_eloop_unref(term->eloop);
-	term->eloop = NULL;
 }
 
 static void pty_closed(struct kmscon_pty *pty, void *data)
@@ -229,8 +210,7 @@ static void pty_closed(struct kmscon_pty *pty, void *data)
 }
 
 int kmscon_terminal_open(struct kmscon_terminal *term,
-				struct kmscon_eloop *eloop,
-				kmscon_terminal_closed_cb closed_cb, void *data)
+			kmscon_terminal_closed_cb closed_cb, void *data)
 {
 	int ret;
 	unsigned short width, height;
@@ -238,21 +218,11 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 	if (!term)
 		return -EINVAL;
 
-	ret = connect_eloop(term, eloop);
-	if (ret == -EALREADY) {
-		disconnect_eloop(term);
-		ret = connect_eloop(term, eloop);
-	}
-	if (ret)
-		return ret;
-
 	width = kmscon_console_get_width(term->console);
 	height = kmscon_console_get_height(term->console);
-	ret = kmscon_pty_open(term->pty, eloop, width, height, pty_closed, term);
-	if (ret) {
-		disconnect_eloop(term);
+	ret = kmscon_pty_open(term->pty, width, height, pty_closed, term);
+	if (ret)
 		return ret;
-	}
 
 	term->closed_cb = closed_cb;
 	term->closed_data = data;
@@ -272,7 +242,6 @@ void kmscon_terminal_close(struct kmscon_terminal *term)
 	term->closed_data = NULL;
 	term->closed_cb = NULL;
 
-	disconnect_eloop(term);
 	kmscon_pty_close(term->pty);
 
 	if (cb)

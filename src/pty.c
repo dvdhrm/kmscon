@@ -37,6 +37,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "eloop.h"
 #include "log.h"
 #include "pty.h"
 
@@ -54,8 +55,8 @@ struct kmscon_pty {
 	void *closed_data;
 };
 
-int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
-								void *data)
+int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
+				kmscon_pty_input_cb input_cb, void *data)
 {
 	struct kmscon_pty *pty;
 
@@ -71,9 +72,11 @@ int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
 	memset(pty, 0, sizeof(*pty));
 	pty->fd = -1;
 	pty->ref = 1;
+	pty->eloop = loop;
 	pty->input_cb = input_cb;
 	pty->data = data;
 
+	kmscon_eloop_ref(pty->eloop);
 	*out = pty;
 	return 0;
 }
@@ -95,6 +98,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 		return;
 
 	kmscon_pty_close(pty);
+	kmscon_eloop_unref(pty->eloop);
 	free(pty);
 	log_debug("pty: destroying pty object\n");
 }
@@ -290,38 +294,12 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 		pty->input_cb(pty, u8, len, pty->data);
 }
 
-static int connect_eloop(struct kmscon_pty *pty, struct kmscon_eloop *eloop)
+int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
+	unsigned short height, kmscon_pty_closed_cb closed_cb, void *data)
 {
 	int ret;
 
-	if (pty->eloop)
-		return -EALREADY;
-
-	ret = kmscon_eloop_new_fd(eloop, &pty->efd, pty->fd,
-					KMSCON_READABLE, pty_input, pty);
-	if (ret)
-		return ret;
-
-	kmscon_eloop_ref(eloop);
-	pty->eloop = eloop;
-	return 0;
-}
-
-static void disconnect_eloop(struct kmscon_pty *pty)
-{
-	kmscon_eloop_rm_fd(pty->efd);
-	kmscon_eloop_unref(pty->eloop);
-	pty->efd = NULL;
-	pty->eloop = NULL;
-}
-
-int kmscon_pty_open(struct kmscon_pty *pty, struct kmscon_eloop *eloop,
-				unsigned short width, unsigned short height,
-				kmscon_pty_closed_cb closed_cb, void *data)
-{
-	int ret;
-
-	if (!pty || !eloop)
+	if (!pty)
 		return -EINVAL;
 
 	if (pty->fd >= 0)
@@ -331,11 +309,8 @@ int kmscon_pty_open(struct kmscon_pty *pty, struct kmscon_eloop *eloop,
 	if (ret)
 		return ret;
 
-	ret = connect_eloop(pty, eloop);
-	if (ret == -EALREADY) {
-		disconnect_eloop(pty);
-		ret = connect_eloop(pty, eloop);
-	}
+	ret = kmscon_eloop_new_fd(pty->eloop, &pty->efd, pty->fd,
+					KMSCON_READABLE, pty_input, pty);
 	if (ret) {
 		close(pty->fd);
 		pty->fd = -1;
@@ -355,7 +330,8 @@ void kmscon_pty_close(struct kmscon_pty *pty)
 	if (!pty || pty->fd < 0)
 		return;
 
-	disconnect_eloop(pty);
+	kmscon_eloop_rm_fd(pty->efd);
+	pty->efd = NULL;
 
 	close(pty->fd);
 	pty->fd = -1;

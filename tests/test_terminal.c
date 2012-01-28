@@ -110,8 +110,7 @@ static void terminal_closed(struct kmscon_terminal *term, void *data)
 	if (!app)
 		goto err_out;
 
-	ret = kmscon_terminal_open(app->term, app->eloop,
-                                                terminal_closed, app);
+	ret = kmscon_terminal_open(app->term, terminal_closed, app);
 	if (ret)
 		goto err_out;
 
@@ -247,12 +246,11 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_new(&app->term, app->ff, app->comp);
+	ret = kmscon_terminal_new(&app->term, app->eloop, app->ff, app->comp);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_open(app->term, app->eloop,
-                                                terminal_closed, app);
+	ret = kmscon_terminal_open(app->term, terminal_closed, app);
 	if (ret)
 		goto err_loop;
 
