@@ -47,7 +47,7 @@
 
 struct kmscon_pty;
 
-typedef void (*kmscon_pty_output_cb)
+typedef void (*kmscon_pty_input_cb)
 		(struct kmscon_pty *pty, char *u8, size_t len, void *data);
 typedef void (*kmscon_pty_closed_cb) (struct kmscon_pty *pty, void *data);
 

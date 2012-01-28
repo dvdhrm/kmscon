@@ -106,7 +106,7 @@ static void schedule_redraw(struct kmscon_terminal *term)
 		log_warn("terminal: cannot schedule redraw\n");
 }
 
-static void pty_output(struct kmscon_pty *pty, char *u8, size_t len, void *data)
+static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 {
 	size_t i;
 	struct kmscon_terminal *term = data;
@@ -151,7 +151,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		goto err_con;
 	kmscon_vte_bind(term->vte, term->console);
 
-	ret = kmscon_pty_new(&term->pty, pty_output, term);
+	ret = kmscon_pty_new(&term->pty, pty_input, term);
 	if (ret)
 		goto err_vte;
 

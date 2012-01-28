@@ -47,14 +47,14 @@ struct kmscon_pty {
 	int fd;
 	struct kmscon_fd *efd;
 
-	kmscon_pty_output_cb output_cb;
-	void *output_data;
+	kmscon_pty_input_cb input_cb;
+	void *data;
 
 	kmscon_pty_closed_cb closed_cb;
 	void *closed_data;
 };
 
-int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_output_cb output_cb,
+int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
 								void *data)
 {
 	struct kmscon_pty *pty;
@@ -71,8 +71,8 @@ int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_output_cb output_cb,
 	memset(pty, 0, sizeof(*pty));
 	pty->fd = -1;
 	pty->ref = 1;
-	pty->output_cb = output_cb;
-	pty->output_data = data;
+	pty->input_cb = input_cb;
+	pty->data = data;
 
 	*out = pty;
 	return 0;
@@ -243,7 +243,7 @@ err_master:
 	return ret;
 }
 
-static void pty_output(struct kmscon_fd *fd, int mask, void *data)
+static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 {
 	int ret, nread;
 	ssize_t len;
@@ -286,8 +286,8 @@ static void pty_output(struct kmscon_fd *fd, int mask, void *data)
 		return;
 	}
 
-	if (pty->output_cb)
-		pty->output_cb(pty, u8, len, pty->output_data);
+	if (pty->input_cb)
+		pty->input_cb(pty, u8, len, pty->data);
 }
 
 static int connect_eloop(struct kmscon_pty *pty, struct kmscon_eloop *eloop)
@@ -298,7 +298,7 @@ static int connect_eloop(struct kmscon_pty *pty, struct kmscon_eloop *eloop)
 		return -EALREADY;
 
 	ret = kmscon_eloop_new_fd(eloop, &pty->efd, pty->fd,
-					KMSCON_READABLE, pty_output, pty);
+					KMSCON_READABLE, pty_input, pty);
 	if (ret)
 		return ret;
 
