@@ -92,6 +92,7 @@ int kmscon_kbd_new(struct kmscon_kbd **out, struct kmscon_kbd_desc *desc)
 		return -ENOMEM;
 
 	memset(kbd, 0, sizeof(*kbd));
+	kbd->ref = 1;
 
 	kbd->desc = desc;
 	kmscon_kbd_desc_ref(desc);
