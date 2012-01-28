@@ -282,11 +282,14 @@ static int send_buf(struct kmscon_pty *pty)
 	return 0;
 }
 
+#define KMSCON_NREAD 128
+
 static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 {
-	int ret, nread;
+	int ret;
 	ssize_t len;
 	struct kmscon_pty *pty = data;
+	char u8[KMSCON_NREAD];
 
 	if (!pty || pty->fd < 0)
 		return;
@@ -307,16 +310,7 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 	}
 
 	if (mask & KMSCON_READABLE) {
-		ret = ioctl(pty->fd, FIONREAD, &nread);
-		if (ret) {
-			log_warn("pty: cannot peek into pty buffer: %m\n");
-			return;
-		} else if (nread <= 0) {
-			return;
-		}
-
-		char u8[nread];
-		len = read(pty->fd, u8, nread);
+		len = read(pty->fd, u8, KMSCON_NREAD);
 		if (len > 0) {
 			if (pty->input_cb)
 				pty->input_cb(pty, u8, len, pty->data);
