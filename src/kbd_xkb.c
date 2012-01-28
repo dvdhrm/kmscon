@@ -819,59 +819,43 @@ static struct xkb_sym_interpret *find_sym_interpret(struct xkb_desc *desc,
 
 /*
  * Allocate slots for a keycode in the key-action mapping array. xkbcommon
- * doesn't do this by itself for actions from compat (that is almost all of
+ * doesn't do this by itself for actions from compat (that is, almost all of
  * them).
  * See [xserver] XKBMAlloc.c:XkbResizeKeyActions() for the equivalent.
  */
 static int allocate_key_acts(struct xkb_desc *desc, uint8_t keycode)
 {
-	unsigned short index;
-	union xkb_action *acts;
 	struct xkb_server_map *server;
 	int sym_count;
-	int new_needed;
-	unsigned short new_num_acts;
-	unsigned short new_size_acts;
+	unsigned short index, new_size_acts;
+	union xkb_action *acts;
 
 	server = desc->server;
 	sym_count = XkbKeyNumSyms(desc, keycode);
 
-	/*
-	 * num_acts is the occupied slots, size_acts is the current total
-	 * capacity.
-	 */
+	if (XkbKeyHasActions(desc, keycode))
+		return 0;
 
-	if (XkbKeyHasActions(desc, keycode)) {
-		/* An array is already allocated for this key. */
+	index = server->num_acts;
 
-		/* index = server->key_acts[keycode]; */
-	} else if (server->num_acts + sym_count <= server->size_acts) {
-		/* There's enough left over space; use it. */
-
-		index = server->num_acts;
-		server->key_acts[keycode] = index;
-		server->num_acts += sym_count;
-	} else {
-		/* Need to allocate new space. */
-
-		index = server->num_acts;
-		new_num_acts = server->num_acts + sym_count;
-		new_needed = sym_count - (server->size_acts - new_num_acts);
-		/* Add some extra to avoid repeated reallocs. */
-		new_size_acts = server->size_acts + new_needed + 8;
-
-		acts = realloc(server->acts,
-				sizeof(union xkb_action) * new_size_acts);
+	/* num_acts is the occupied slots, size_acts is the capacity. */
+	if (server->num_acts + sym_count > server->size_acts) {
+		/*
+		 * Don't have enough space, need to allocate. We add some
+		 * extra to avoid repeated reallocs.
+		 */
+		new_size_acts = server->num_acts + sym_count + 8;
+		acts = realloc(server->acts, new_size_acts * sizeof (*acts));
 		if (!acts)
 			return -ENOMEM;
-
-		/* XkbSA_NoAction is 0x00 so we're good. */
-		memset(acts+index, 0, sym_count);
-		server->key_acts[keycode] = index;
-		server->num_acts = new_num_acts;
-		server->size_acts = new_size_acts;
 		server->acts = acts;
+		server->size_acts = new_size_acts;
 	}
+
+	/* XkbSA_NoAction is 0x00 so we're good. */
+	memset(&server->acts[index], 0, sym_count * sizeof(*server->acts));
+	server->key_acts[keycode] = index;
+	server->num_acts += sym_count;
 
 	return 0;
 }
