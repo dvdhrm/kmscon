@@ -526,7 +526,7 @@ int kmscon_kbd_process_key(struct kmscon_kbd *kbd,
 	}
 
 	event_filled = false;
-	if (key_state != KMSCON_KEY_RELEASED) {
+	if (key_state != KMSCON_KEY_RELEASED && !state_changed) {
 		out->keycode = code;
 		out->keysym = sym;
 		/* 1-to-1 match - this might change. */
