@@ -197,49 +197,13 @@ err_out:
  * a little bit more control of the process, and as a bonus avoid linking to
  * the libutil library in glibc.
  */
-static pid_t fork_pty(int *pty_out, struct winsize *ws)
+static int pty_spawn(struct kmscon_pty *pty, unsigned short width,
+							unsigned short height)
 {
 	int ret;
 	pid_t pid;
 	int master;
-
-	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
-	if (master < 0) {
-		ret = -errno;
-		log_err("pty: cannot open master: %m");
-		goto err_out;
-	}
-
-	pid = fork();
-	switch (pid) {
-	case -1:
-		log_err("pty: cannot fork: %m");
-		ret = -errno;
-		goto err_master;
-	case 0:
-		ret = fork_pty_child(master, ws);
-		if (ret)
-			goto err_master;
-		*pty_out = -1;
-		return 0;
-	default:
-		*pty_out = master;
-		return pid;
-	}
-
-err_master:
-	close(master);
-err_out:
-	*pty_out = -1;
-	errno = -ret;
-	return -1;
-}
-
-static int pty_spawn(struct kmscon_pty *pty,
-			unsigned short width, unsigned short height)
-{
 	struct winsize ws;
-	pid_t pid;
 
 	if (pty->fd >= 0)
 		return -EALREADY;
@@ -248,18 +212,35 @@ static int pty_spawn(struct kmscon_pty *pty,
 	ws.ws_col = width;
 	ws.ws_row = height;
 
-	pid = fork_pty(&pty->fd, &ws);
+	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
+	if (master < 0) {
+		log_err("pty: cannot open master: %m");
+		return -errno;
+	}
+
+	log_debug("pty: forking child\n");
+	pid = fork();
 	switch (pid) {
 	case -1:
-		log_err("pty: cannot fork or open pty pair: %m");
-		return -errno;
+		log_err("pty: cannot fork: %m");
+		ret = -errno;
+		goto err_master;
 	case 0:
+		ret = fork_pty_child(master, &ws);
+		if (ret)
+			goto err_master;
 		exec_child(pty->fd);
+		abort();
 	default:
+		pty->fd = master;
 		break;
 	}
 
 	return 0;
+
+err_master:
+	close(master);
+	return ret;
 }
 
 static void pty_output(struct kmscon_fd *fd, int mask, void *data)
