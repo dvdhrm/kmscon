@@ -35,15 +35,23 @@
 
 #include <stdlib.h>
 #include "console.h"
+#include "input.h"
 #include "unicode.h"
 
 struct kmscon_vte;
 
-int kmscon_vte_new(struct kmscon_vte **out);
+enum kmscon_vte_keyboard_action {
+	KMSCON_VTE_DROP,
+	KMSCON_VTE_SEND,
+};
+
+int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st);
 void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con);
 void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch);
+int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
+	const struct kmscon_input_event *ev, const char **u8, size_t *len);
 
 #endif /* KMSCON_VTE_H */

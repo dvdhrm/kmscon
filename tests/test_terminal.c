@@ -98,26 +98,7 @@ static void sig_chld(struct kmscon_signal *sig, int signum, void *data)
 
 static void terminal_closed(struct kmscon_terminal *term, void *data)
 {
-#if 0
-	/*
-	 * Alternativly, we could spwan a new login/shell here, like what
-	 * happens when the user exits the shell in a linux console:
-	 */
-
-	int ret;
-	struct app *app = data;
-
-	if (!app)
-		goto err_out;
-
-	ret = kmscon_terminal_open(app->term, terminal_closed, app);
-	if (ret)
-		goto err_out;
-
-	return;
-
-err_out:
-#endif
+	kmscon_terminal_close(term);
 	terminate = 1;
 }
 
@@ -125,13 +106,13 @@ static void read_input(struct kmscon_input *input,
 				struct kmscon_input_event *ev, void *data)
 {
 	struct app *app = data;
-	kmscon_symbol_t ch;
+	int ret;
 
-	if (ev->unicode == KMSCON_INPUT_INVALID)
-		return;
-
-	ch = kmscon_symbol_make(ev->unicode);
-	kmscon_terminal_input(app->term, ch);
+	ret = kmscon_terminal_input(app->term, ev);
+	if (ret) {
+		kmscon_terminal_close(app->term);
+		terminate = 1;
+	}
 }
 
 static void activate_outputs(struct app *app)
@@ -246,7 +227,8 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_new(&app->term, app->eloop, app->ff, app->comp);
+	ret = kmscon_terminal_new(&app->term, app->eloop, app->ff,
+							app->comp, app->st);
 	if (ret)
 		goto err_loop;
 

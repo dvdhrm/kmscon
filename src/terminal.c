@@ -112,7 +112,8 @@ static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 	struct kmscon_terminal *term = data;
 
 	if (!len) {
-		kmscon_terminal_close(term);
+		if (term->closed_cb)
+			term->closed_cb(term, term->closed_data);
 	} else {
 		/* FIXME: UTF-8. */
 		for (i=0; i < len; i++)
@@ -125,7 +126,7 @@ static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 		struct kmscon_eloop *loop, struct kmscon_font_factory *ff,
-					struct kmscon_compositor *comp)
+		struct kmscon_compositor *comp, struct kmscon_symbol_table *st)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -152,7 +153,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_idle;
 
-	ret = kmscon_vte_new(&term->vte);
+	ret = kmscon_vte_new(&term->vte, st);
 	if (ret)
 		goto err_con;
 	kmscon_vte_bind(term->vte, term->console);
@@ -194,7 +195,6 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	if (--term->ref)
 		return;
 
-	term->closed_cb = NULL;
 	kmscon_terminal_close(term);
 	kmscon_terminal_rm_all_outputs(term);
 	kmscon_pty_unref(term->pty);
@@ -229,21 +229,12 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 
 void kmscon_terminal_close(struct kmscon_terminal *term)
 {
-	kmscon_terminal_closed_cb cb;
-	void *data;
-
 	if (!term)
 		return;
 
-	cb = term->closed_cb;
-	data = term->closed_data;
+	kmscon_pty_close(term->pty);
 	term->closed_data = NULL;
 	term->closed_cb = NULL;
-
-	kmscon_pty_close(term->pty);
-
-	if (cb)
-		cb(term, data);
 }
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
@@ -298,14 +289,27 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 	}
 }
 
-void kmscon_terminal_input(struct kmscon_terminal *term, kmscon_symbol_t ch)
+int kmscon_terminal_input(struct kmscon_terminal *term,
+					const struct kmscon_input_event *ev)
 {
 	int ret;
+	const char *u8;
+	size_t len;
 
-	/* FIXME: UTF-8. */
-	if (ch < 128) {
-		ret = kmscon_pty_write(term->pty, (char *)&ch, 1);
-		if (ret)
-			kmscon_terminal_close(term);
+	if (!term || !ev)
+		return -EINVAL;
+
+	ret = kmscon_vte_handle_keyboard(term->vte, ev, &u8, &len);
+	switch (ret) {
+		case KMSCON_VTE_SEND:
+			ret = kmscon_pty_write(term->pty, u8, len);
+			if (ret)
+				return ret;
+			break;
+		case KMSCON_VTE_DROP:
+		default:
+			break;
 	}
+
+	return 0;
 }

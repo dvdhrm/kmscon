@@ -35,16 +35,20 @@
 #include <string.h>
 
 #include "console.h"
+#include "input.h"
 #include "log.h"
 #include "unicode.h"
 #include "vte.h"
 
 struct kmscon_vte {
 	unsigned long ref;
+	struct kmscon_symbol_table *st;
 	struct kmscon_console *con;
+
+	const char *kbd_sym;
 };
 
-int kmscon_vte_new(struct kmscon_vte **out)
+int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
 {
 	struct kmscon_vte *vte;
 
@@ -59,7 +63,9 @@ int kmscon_vte_new(struct kmscon_vte **out)
 
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
+	vte->st = st;
 
+	kmscon_symbol_table_ref(vte->st);
 	*out = vte;
 	return 0;
 }
@@ -81,6 +87,8 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 		return;
 
 	kmscon_console_unref(vte->con);
+	kmscon_symbol_free_u8(vte->kbd_sym);
+	kmscon_symbol_table_unref(vte->st);
 	free(vte);
 	log_debug("vte: destroying vte object\n");
 }
@@ -104,4 +112,20 @@ void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch)
 		kmscon_console_newline(vte->con);
 	else
 		kmscon_console_write(vte->con, ch);
+}
+
+int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
+	const struct kmscon_input_event *ev, const char **u8, size_t *len)
+{
+	kmscon_symbol_t sym;
+
+	if (ev->unicode != KMSCON_INPUT_INVALID) {
+		kmscon_symbol_free_u8(vte->kbd_sym);
+		sym = kmscon_symbol_make(ev->unicode);
+		vte->kbd_sym = kmscon_symbol_get_u8(vte->st, sym, len);
+		*u8 = vte->kbd_sym;
+		return KMSCON_VTE_SEND;
+	} else {
+		return KMSCON_VTE_DROP;
+	}
 }
