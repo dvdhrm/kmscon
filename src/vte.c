@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <X11/keysym.h>
 
 #include "console.h"
 #include "input.h"
@@ -142,6 +143,7 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	const struct kmscon_input_event *ev, const char **u8, size_t *len)
 {
 	kmscon_symbol_t sym;
+	int ret;
 
 	if (ev->unicode != KMSCON_INPUT_INVALID) {
 		kmscon_symbol_free_u8(vte->kbd_sym);
@@ -150,6 +152,20 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		*u8 = vte->kbd_sym;
 		return KMSCON_VTE_SEND;
 	} else {
-		return KMSCON_VTE_DROP;
+		ret = KMSCON_VTE_SEND;
+
+		switch (ev->keysym) {
+			case XK_Return:
+			case XK_Linefeed:
+			case XK_KP_Enter:
+				*u8 = "\n";
+				*len = 1;
+				break;
+			default:
+				ret = KMSCON_VTE_DROP;
+				break;
+		}
+
+		return ret;
 	}
 }
