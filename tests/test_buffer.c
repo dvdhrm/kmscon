@@ -127,6 +127,30 @@ static void test2()
 	kmscon_symbol_table_unref(st);
 }
 
+static void test3()
+{
+	int ret, i;
+	struct kmscon_utf8_mach *mach;
+	char buf[] = { 'a', 'b', 0xE2, 0x82, 0xAC };
+	uint32_t val;;
+
+	log_info("Test3:\n");
+
+	ret = kmscon_utf8_mach_new(&mach);
+	if (ret)
+		return;
+
+	for (i = 0; i < sizeof(buf); ++i) {
+		ret = kmscon_utf8_mach_feed(mach, buf[i]);
+		if (ret == KMSCON_UTF8_ACCEPT) {
+			val = kmscon_utf8_mach_get(mach);
+			printf("ret: %d 0x%X\n", ret, val);
+		}
+	}
+
+	kmscon_utf8_mach_free(mach);
+}
+
 int main(int argc, char **argv)
 {
 	struct kmscon_buffer *buf;
@@ -140,6 +164,7 @@ int main(int argc, char **argv)
 
 	test1(buf);
 	test2();
+	test3();
 
 	kmscon_buffer_unref(buf);
 err_out:
