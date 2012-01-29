@@ -51,6 +51,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+/* symbols and symbol table */
+
 struct kmscon_symbol_table;
 typedef uint32_t kmscon_symbol_t;
 
@@ -68,5 +70,24 @@ const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
 const char *kmscon_symbol_get_u8(const struct kmscon_symbol_table *st,
 					kmscon_symbol_t sym, size_t *size);
 void kmscon_symbol_free_u8(const char *s);
+
+/* utf8 state machine */
+
+struct kmscon_utf8_mach;
+
+enum kmscon_utf8_mach_state {
+	KMSCON_UTF8_START,
+	KMSCON_UTF8_ACCEPT,
+	KMSCON_UTF8_REJECT,
+	KMSCON_UTF8_EXPECT1,
+	KMSCON_UTF8_EXPECT2,
+	KMSCON_UTF8_EXPECT3,
+};
+
+int kmscon_utf8_mach_new(struct kmscon_utf8_mach **out);
+void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach);
+
+int kmscon_utf8_mach_feed(struct kmscon_utf8_mach *mach, char c);
+uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach);
 
 #endif /* KMSCON_UNICODE_H */

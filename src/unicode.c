@@ -25,6 +25,30 @@
  */
 
 /*
+ * This kmscon-utf8-state-machine is based on the wayland-compositor demos:
+ *
+ * Copyright © 2008 Kristian Høgsberg
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and
+ * its documentation for any purpose is hereby granted without fee, provided
+ * that the above copyright notice appear in all copies and that both that
+ * copyright notice and this permission notice appear in supporting
+ * documentation, and that the name of the copyright holders not be used in
+ * advertising or publicity pertaining to distribution of the software
+ * without specific, written prior permission.  The copyright holders make
+ * no representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied warranty.
+ *
+ * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+ * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+ * CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Unicode Handling
  * Main implementation of the symbol datatype. The symbol table contains two-way
  * references. The Hash Table contains all the symbols with the symbol ucs4
@@ -51,6 +75,7 @@
 
 #define KMSCON_UCS4_MAXLEN 10
 #define KMSCON_UCS4_MAX 0x7fffffffUL
+#define KMSCON_UCS4_INVALID 0xfffd
 
 const kmscon_symbol_t kmscon_symbol_default = 0;
 static const char default_u8[] = { 0 };
@@ -285,4 +310,112 @@ void kmscon_symbol_free_u8(const char *s)
 {
 	if (s != default_u8)
 		g_free((char*)s);
+}
+
+struct kmscon_utf8_mach {
+	int state;
+	uint32_t ch;
+};
+
+int kmscon_utf8_mach_new(struct kmscon_utf8_mach **out)
+{
+	struct kmscon_utf8_mach *mach;
+
+	if (!out)
+		return -EINVAL;
+
+	mach = malloc(sizeof(*mach));
+	if (!mach)
+		return -ENOMEM;
+
+	memset(mach, 0, sizeof(*mach));
+	mach->state = KMSCON_UTF8_START;
+
+	*out = mach;
+	return 0;
+}
+
+void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach)
+{
+	if (!mach)
+		return;
+
+	free(mach);
+}
+
+int kmscon_utf8_mach_feed(struct kmscon_utf8_mach *mach, char ci)
+{
+	uint32_t c;
+
+	if (!mach)
+		return KMSCON_UTF8_START;
+
+	c = ci;
+
+	switch (mach->state) {
+	case KMSCON_UTF8_START:
+	case KMSCON_UTF8_ACCEPT:
+	case KMSCON_UTF8_REJECT:
+		if (c == 0xC0 || c == 0xC1) {
+			/* overlong encoding for ASCII, reject */
+			mach->state = KMSCON_UTF8_REJECT;
+		} else if ((c & 0x80) == 0) {
+			/* single byte, accept */
+			mach->ch = c;
+			mach->state = KMSCON_UTF8_ACCEPT;
+		} else if ((c & 0xC0) == 0x80) {
+			/* parser out of sync, ignore byte */
+			mach->state = KMSCON_UTF8_START;
+		} else if ((c & 0xE0) == 0xC0) {
+			/* start of two byte sequence */
+			mach->ch = (c & 0x1F) << 6;
+			mach->state = KMSCON_UTF8_EXPECT1;
+		} else if ((c & 0xF0) == 0xE0) {
+			/* start of three byte sequence */
+			mach->ch = (c & 0x0F) << 12;
+			mach->state = KMSCON_UTF8_EXPECT2;
+		} else if ((c & 0xF8) == 0xF0) {
+			/* start of four byte sequence */
+			mach->ch = (c & 0x07) << 18;
+			mach->state = KMSCON_UTF8_EXPECT3;
+		} else {
+			/* overlong encoding, reject */
+			mach->state = KMSCON_UTF8_REJECT;
+		}
+		break;
+	case KMSCON_UTF8_EXPECT3:
+		mach->ch |= (c & 0x3F) << 12;
+		if ((c & 0xC0) == 0x80)
+			mach->state = KMSCON_UTF8_EXPECT2;
+		else
+			mach->state = KMSCON_UTF8_REJECT;
+		break;
+	case KMSCON_UTF8_EXPECT2:
+		mach->ch |= (c & 0x3F) << 6;
+		if ((c & 0xC0) == 0x80)
+			mach->state = KMSCON_UTF8_EXPECT1;
+		else
+			mach->state = KMSCON_UTF8_REJECT;
+		break;
+	case KMSCON_UTF8_EXPECT1:
+		mach->ch |= c & 0x3F;
+		if ((c & 0xC0) == 0x80)
+			mach->state = KMSCON_UTF8_ACCEPT;
+		else
+			mach->state = KMSCON_UTF8_REJECT;
+		break;
+	default:
+		mach->state = KMSCON_UTF8_REJECT;
+		break;
+	}
+
+	return mach->state;
+}
+
+uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach)
+{
+	if (!mach || mach->state != KMSCON_UTF8_ACCEPT)
+		return KMSCON_UCS4_INVALID;
+
+	return mach->ch;
 }
