@@ -109,18 +109,13 @@ static void schedule_redraw(struct kmscon_terminal *term)
 static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 								void *data)
 {
-	size_t i;
 	struct kmscon_terminal *term = data;
 
 	if (!len) {
 		if (term->closed_cb)
 			term->closed_cb(term, term->closed_data);
 	} else {
-		/* FIXME: UTF-8. */
-		for (i=0; i < len; i++)
-			if (u8[i] < 128)
-				kmscon_vte_input(term->vte, u8[i]);
-
+		kmscon_vte_input(term->vte, u8, len);
 		schedule_redraw(term);
 	}
 }

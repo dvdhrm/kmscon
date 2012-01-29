@@ -46,11 +46,13 @@ struct kmscon_vte {
 	struct kmscon_console *con;
 
 	const char *kbd_sym;
+	struct kmscon_utf8_mach *mach;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
 {
 	struct kmscon_vte *vte;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -65,9 +67,17 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
 	vte->ref = 1;
 	vte->st = st;
 
+	ret = kmscon_utf8_mach_new(&vte->mach);
+	if (ret)
+		goto err_free;
+
 	kmscon_symbol_table_ref(vte->st);
 	*out = vte;
 	return 0;
+
+err_free:
+	free(vte);
+	return ret;
 }
 
 void kmscon_vte_ref(struct kmscon_vte *vte)
@@ -87,6 +97,7 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 		return;
 
 	kmscon_console_unref(vte->con);
+	kmscon_utf8_mach_free(vte->mach);
 	kmscon_symbol_free_u8(vte->kbd_sym);
 	kmscon_symbol_table_unref(vte->st);
 	free(vte);
@@ -103,15 +114,28 @@ void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con)
 	kmscon_console_ref(vte->con);
 }
 
-void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch)
+void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 {
+	int state, i;
+	uint32_t ucs4;
+	kmscon_symbol_t sym;
+
 	if (!vte || !vte->con)
 		return;
 
-	if (ch == '\n')
-		kmscon_console_newline(vte->con);
-	else
-		kmscon_console_write(vte->con, ch);
+	for (i = 0; i < len; ++i) {
+		state = kmscon_utf8_mach_feed(vte->mach, u8[i]);
+		if (state == KMSCON_UTF8_ACCEPT ||
+				state == KMSCON_UTF8_REJECT) {
+			ucs4 = kmscon_utf8_mach_get(vte->mach);
+			if (ucs4 == '\n') {
+				kmscon_console_newline(vte->con);
+			} else {
+				sym = kmscon_symbol_make(ucs4);
+				kmscon_console_write(vte->con, sym);
+			}
+		}
+	}
 }
 
 int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,

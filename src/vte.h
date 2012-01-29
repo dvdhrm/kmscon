@@ -50,7 +50,7 @@ void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con);
-void kmscon_vte_input(struct kmscon_vte *vte, kmscon_symbol_t ch);
+void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
 int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	const struct kmscon_input_event *ev, const char **u8, size_t *len);
 
