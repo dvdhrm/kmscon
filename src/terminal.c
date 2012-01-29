@@ -106,7 +106,8 @@ static void schedule_redraw(struct kmscon_terminal *term)
 		log_warn("terminal: cannot schedule redraw\n");
 }
 
-static void pty_input(struct kmscon_pty *pty, char *u8, size_t len, void *data)
+static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
+								void *data)
 {
 	size_t i;
 	struct kmscon_terminal *term = data;

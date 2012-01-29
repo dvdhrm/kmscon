@@ -48,7 +48,7 @@
 struct kmscon_pty;
 
 typedef void (*kmscon_pty_input_cb)
-		(struct kmscon_pty *pty, char *u8, size_t len, void *data);
+	(struct kmscon_pty *pty, const char *u8, size_t len, void *data);
 
 int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
 				kmscon_pty_input_cb input_cb, void *data);
