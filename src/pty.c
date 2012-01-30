@@ -42,6 +42,9 @@
 #include "misc.h"
 #include "pty.h"
 
+/* Match N_TTY_BUF_SIZE from the kernel to read as much as we can. */
+#define KMSCON_NREAD 4096
+
 struct kmscon_pty {
 	unsigned long ref;
 	struct kmscon_eloop *eloop;
@@ -49,6 +52,7 @@ struct kmscon_pty {
 	int fd;
 	struct kmscon_fd *efd;
 	struct kmscon_ring *msgbuf;
+	char io_buf[KMSCON_NREAD];
 
 	kmscon_pty_input_cb input_cb;
 	void *data;
@@ -281,15 +285,11 @@ static int send_buf(struct kmscon_pty *pty)
 	return 0;
 }
 
-/* Match N_TTY_BUF_SIZE from the kernel to read as much as we can. */
-#define KMSCON_NREAD 4096
-
 static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 {
 	int ret;
 	ssize_t len;
 	struct kmscon_pty *pty = data;
-	char u8[KMSCON_NREAD];
 
 	if (!pty || pty->fd < 0)
 		return;
@@ -310,10 +310,10 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 	}
 
 	if (mask & KMSCON_READABLE) {
-		len = read(pty->fd, u8, KMSCON_NREAD);
+		len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
 		if (len > 0) {
 			if (pty->input_cb)
-				pty->input_cb(pty, u8, len, pty->data);
+				pty->input_cb(pty, pty->io_buf, len, pty->data);
 		} else if (len == 0) {
 			log_debug("pty: child closed remote end\n");
 			goto err;
