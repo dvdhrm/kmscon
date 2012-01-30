@@ -281,7 +281,8 @@ static int send_buf(struct kmscon_pty *pty)
 	return 0;
 }
 
-#define KMSCON_NREAD 128
+/* Match N_TTY_BUF_SIZE from the kernel to read as much as we can. */
+#define KMSCON_NREAD 4096
 
 static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 {
