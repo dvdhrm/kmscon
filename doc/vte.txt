@@ -1,0 +1,35 @@
+= KMSCON Virtual Terminal Emulator =
+
+The KMSCON Virtual Terminal Emulator (VTE) tries to be linux-console and xterm
+compatible. This documentations contains links to several resources related to
+VT100-like terminals.
+
+Resources:
+	Terminfo database:
+		man 5 terminfo
+		man infocmp
+		infocmp -L xterm-new
+	Linux Console Codes:
+		man console_codes
+	VT100 User Manual:
+		http://vt100.net/docs/vt100-ug/chapter3.html
+	VT510 User Manual:
+		http://vt100.net/docs/vt510-rm/contents
+	XTerm Escape Sequences:
+		http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+	C0 and C1 Control Codes:
+		http://en.wikipedia.org/wiki/C0_and_C1_control_codes
+	ANSI Escape Sequences / Control Sequence Introducer (CSI)
+		http://en.wikipedia.org/wiki/Control_Sequence_Introducer
+	vttest Terminal Tests:
+		http://invisible-island.net/vttest/
+
+Implementations:
+	XTerm:
+		http://invisible-island.net/xterm/
+	libVTE:
+		http://developer.gnome.org/vte/unstable/
+	Google JavaScript HTerm:
+		http://git.chromium.org/gitweb/?p=chromiumos/platform/assets.git;a=tree;f=chromeapps/hterm/js;hb=HEAD
+	Wayland Terminal Widget:
+		http://cgit.freedesktop.org/wayland/weston/tree/clients/terminal.c
