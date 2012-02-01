@@ -34,17 +34,22 @@
 #ifndef KMSCON_ELOOP_H
 #define KMSCON_ELOOP_H
 
+#include <inttypes.h>
 #include <stdlib.h>
+#include <time.h>
 
 struct kmscon_eloop;
 struct kmscon_idle;
 struct kmscon_fd;
 struct kmscon_signal;
+struct kmscon_timer;
 
 typedef void (*kmscon_idle_cb) (struct kmscon_idle *idle, void *data);
 typedef void (*kmscon_fd_cb) (struct kmscon_fd *fd, int mask, void *data);
 typedef void (*kmscon_signal_cb)
 			(struct kmscon_signal *sig, int signum, void *data);
+typedef void (*kmscon_timer_cb)
+			(struct kmscon_timer *timer, uint64_t num, void *data);
 
 enum kmscon_eloop_flags {
 	KMSCON_READABLE = 0x01,
@@ -97,5 +102,20 @@ int kmscon_eloop_new_signal(struct kmscon_eloop *loop,
 int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
 	struct kmscon_signal *sig, int signum, kmscon_signal_cb cb, void *data);
 void kmscon_eloop_rm_signal(struct kmscon_signal *sig);
+
+/* timer sources */
+
+int kmscon_timer_new(struct kmscon_timer **out);
+void kmscon_timer_ref(struct kmscon_timer *timer);
+void kmscon_timer_unref(struct kmscon_timer *timer);
+
+int kmscon_eloop_new_timer(struct kmscon_eloop *loop, struct kmscon_timer **out,
+		const struct itimerspec *spec, kmscon_timer_cb cb, void *data);
+int kmscon_eloop_add_timer(struct kmscon_eloop *loop,
+		struct kmscon_timer *timer, const struct itimerspec *spec,
+						kmscon_timer_cb cb, void *data);
+void kmscon_eloop_rm_timer(struct kmscon_timer *timer);
+int kmscon_eloop_update_timer(struct kmscon_timer *timer,
+						const struct itimerspec *spec);
 
 #endif /* KMSCON_ELOOP_H */

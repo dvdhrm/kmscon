@@ -35,9 +35,11 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
+#include <sys/timerfd.h>
 #include <unistd.h>
 
 #include "eloop.h"
@@ -78,6 +80,14 @@ struct kmscon_signal {
 
 	struct kmscon_fd *fd;
 	kmscon_signal_cb cb;
+	void *data;
+};
+
+struct kmscon_timer {
+	unsigned long ref;
+
+	struct kmscon_fd *fd;
+	kmscon_timer_cb cb;
 	void *data;
 };
 
@@ -477,6 +487,160 @@ void kmscon_eloop_rm_signal(struct kmscon_signal *sig)
 	 * We cannot unblock the signal here because we do not know whether some
 	 * other subsystem also added the signal to the sigprocmask.
 	 */
+}
+
+int kmscon_timer_new(struct kmscon_timer **out)
+{
+	struct kmscon_timer *timer;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+
+	timer = malloc(sizeof(*timer));
+	if (!timer)
+		return -ENOMEM;
+
+	memset(timer, 0, sizeof(*timer));
+	timer->ref = 1;
+
+	ret = kmscon_fd_new(&timer->fd);
+	if (ret) {
+		free(timer);
+		return ret;
+	}
+
+	*out = timer;
+	return 0;
+}
+
+void kmscon_timer_ref(struct kmscon_timer *timer)
+{
+	if (!timer)
+		return;
+
+	++timer->ref;
+}
+
+void kmscon_timer_unref(struct kmscon_timer *timer)
+{
+	if (!timer || !timer->ref)
+		return;
+
+	if (--timer->ref)
+		return;
+
+	kmscon_fd_unref(timer->fd);
+	free(timer);
+}
+
+int kmscon_eloop_new_timer(struct kmscon_eloop *loop, struct kmscon_timer **out,
+		const struct itimerspec *spec, kmscon_timer_cb cb, void *data)
+{
+	struct kmscon_timer *timer;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+
+	ret = kmscon_timer_new(&timer);
+	if (ret)
+		return ret;
+
+	ret = kmscon_eloop_add_timer(loop, timer, spec, cb, data);
+	if (ret) {
+		kmscon_timer_unref(timer);
+		return ret;
+	}
+
+	kmscon_timer_unref(timer);
+	*out = timer;
+	return 0;
+}
+
+static void timer_cb(struct kmscon_fd *fd, int mask, void *data)
+{
+	struct kmscon_timer *timer = data;
+	uint64_t expirations;
+	int len;
+
+	if (mask & KMSCON_READABLE) {
+		len = read(fd->fd, &expirations, sizeof(expirations));
+		if (len != sizeof(expirations))
+			log_warn("eloop: cannot read timerfd\n");
+		else
+			timer->cb(timer, expirations, timer->data);
+	}
+}
+
+int kmscon_eloop_add_timer(struct kmscon_eloop *loop,
+		struct kmscon_timer *timer, const struct itimerspec *spec,
+						kmscon_timer_cb cb, void *data)
+{
+	int ret, fd;
+
+	if (!loop || !timer || !spec || !cb)
+		return -EINVAL;
+
+	if (timer->fd->loop)
+		return -EALREADY;
+
+	fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+
+	ret = timerfd_settime(fd, 0, spec, NULL);
+	if (ret) {
+		ret = -errno;
+		log_warn("eloop: cannot set timerfd: %m\n");
+		goto err_fd;
+	}
+
+	ret = kmscon_eloop_add_fd(loop, timer->fd, fd, KMSCON_READABLE,
+							timer_cb, timer);
+	if (ret)
+		goto err_fd;
+
+	timer->cb = cb;
+	timer->data = data;
+	kmscon_timer_ref(timer);
+
+	return 0;
+
+err_fd:
+	close(fd);
+	return ret;
+}
+
+void kmscon_eloop_rm_timer(struct kmscon_timer *timer)
+{
+	int fd;
+
+	if (!timer || !timer->fd->loop)
+		return;
+
+	fd = timer->fd->fd;
+	kmscon_eloop_rm_fd(timer->fd);
+	close(fd);
+	kmscon_timer_unref(timer);
+}
+
+int kmscon_eloop_update_timer(struct kmscon_timer *timer,
+						const struct itimerspec *spec)
+{
+	int ret;
+
+	if (!timer || !timer->fd->loop)
+		return -EINVAL;
+
+	ret = timerfd_settime(timer->fd->fd, 0, spec, NULL);
+	if (ret) {
+		ret = -errno;
+		log_warn("eloop: cannot set timerfd: %m\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 int kmscon_eloop_new(struct kmscon_eloop **out)
