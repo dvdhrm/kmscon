@@ -41,6 +41,22 @@
 #include "unicode.h"
 #include "vte.h"
 
+/* Input parser states */
+enum parser_state {
+	STATE_NORMAL,		/* normal mode */
+	STATE_ESC,		/* starting escape sequence */
+	STATE_CSI,		/* Control Sequence Introducer */
+	STATE_OTHER,		/* other known but unimpl escp seqs */
+};
+
+/* maximum CSI parameters */
+#define CSI_ARG_MAX 15
+
+/* CSI flags */
+#define CSI_START	0x01 /* no arg has been parsed yet */
+#define CSI_QUESTION	0x02 /* ? flag */
+#define CSI_BANG	0x04 /* ! flag */
+
 struct kmscon_vte {
 	unsigned long ref;
 	struct kmscon_symbol_table *st;
@@ -48,6 +64,13 @@ struct kmscon_vte {
 
 	const char *kbd_sym;
 	struct kmscon_utf8_mach *mach;
+
+	struct {
+		unsigned int state;
+		unsigned int csi_flags;
+		unsigned int csi_argc;
+		unsigned int csi_argv[CSI_ARG_MAX];
+	} parser;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
@@ -160,9 +183,87 @@ static void parse_control(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x1b: /* ESC */
 			/* Invokes an escape sequence */
+			vte->parser.state = STATE_ESC;
 			break;
 		case 0x7f: /* DEL */
 			/* Ignored on input */
+			break;
+	}
+}
+
+static void parse_csi(struct kmscon_vte *vte, uint32_t val)
+{
+	int new;
+
+	if (vte->parser.csi_flags & CSI_START) {
+		switch (val) {
+			case '?':
+				vte->parser.csi_flags |= CSI_QUESTION;
+				return;
+			case '!':
+				vte->parser.csi_flags |= CSI_BANG;
+				return;
+			default:
+				vte->parser.csi_flags &= ~CSI_START;
+		}
+	}
+
+	if (val == ';') {
+		if (vte->parser.csi_argc < CSI_ARG_MAX)
+			vte->parser.csi_argc++;
+		return;
+	}
+
+	if (val >= '0' && val <= '9') {
+		if (vte->parser.csi_argc >= CSI_ARG_MAX)
+			return;
+
+		new = vte->parser.csi_argv[vte->parser.csi_argc];
+		new *= 10;
+		new += val - '0';
+
+		/* avoid integer overflows */
+		if (new > vte->parser.csi_argv[vte->parser.csi_argc])
+			vte->parser.csi_argv[vte->parser.csi_argc] = new;
+
+		return;
+	}
+
+	vte->parser.csi_argc++;
+	vte->parser.state = STATE_NORMAL;
+
+	switch (val) {
+		default:
+			log_debug("vte: unhandled CSI sequence\n");
+	}
+}
+
+static void parse_other(struct kmscon_vte *vte, uint32_t val)
+{
+	/* TODO: make this more sophisticated */
+	vte->parser.state = STATE_NORMAL;
+}
+
+static void parse_esc(struct kmscon_vte *vte, uint32_t val)
+{
+	switch (val) {
+		case '[': /* CSI */
+			vte->parser.state = STATE_CSI;
+			vte->parser.csi_flags = CSI_START;
+			vte->parser.csi_argc = 0;
+			memset(vte->parser.csi_argv, 0,
+						sizeof(vte->parser.csi_argv));
+			break;
+		case 'P': /* DCS */
+		case ']': /* OCS */
+		case '^': /* PM */
+		case '_': /* APC */
+		case '#': /* special */
+		case '(': /* G0 */
+		case ')': /* G1 */
+		case '%': /* charset */
+		default:
+			vte->parser.state = STATE_OTHER;
 			break;
 	}
 }
@@ -174,6 +275,18 @@ static void parse_input(struct kmscon_vte *vte, uint32_t val)
 	if (val < 0x20) {
 		parse_control(vte, val);
 		return;
+	}
+
+	switch (vte->parser.state) {
+		case STATE_ESC:
+			parse_esc(vte, val);
+			return;
+		case STATE_CSI:
+			parse_csi(vte, val);
+			return;
+		case STATE_OTHER:
+			parse_other(vte, val);
+			return;
 	}
 
 	sym = kmscon_symbol_make(val);
