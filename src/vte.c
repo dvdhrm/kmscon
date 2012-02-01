@@ -155,10 +155,44 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		ret = KMSCON_VTE_SEND;
 
 		switch (ev->keysym) {
-			case XK_Return:
+			case XK_BackSpace:
+				*u8 = "\x08";
+				*len = 1;
+				break;
+			case XK_Tab:
+			case XK_KP_Tab:
+				*u8 = "\x09";
+				*len = 1;
+				break;
 			case XK_Linefeed:
+				*u8 = "\x0a";
+				*len = 1;
+				break;
+			case XK_Clear:
+				*u8 = "\x0b";
+				*len = 1;
+				break;
+			case XK_Pause:
+				*u8 = "\x13";
+				*len = 1;
+				break;
+			case XK_Scroll_Lock:
+				/* TODO: do we need scroll lock impl.? */
+				*u8 = "\x14";
+				*len = 1;
+				break;
+			case XK_Sys_Req:
+				*u8 = "\x15";
+				*len = 1;
+				break;
+			case XK_Escape:
+				*u8 = "\x1b";
+				*len = 1;
+				break;
+			case XK_Return:
 			case XK_KP_Enter:
-				*u8 = "\n";
+				/* TODO: im CR/LF mode send \x0d\x0a */
+				*u8 = "\x0d";
 				*len = 1;
 				break;
 			default:
