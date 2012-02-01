@@ -143,7 +143,49 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	const struct kmscon_input_event *ev, const char **u8, size_t *len)
 {
 	kmscon_symbol_t sym;
-	int ret;
+
+	switch (ev->keysym) {
+		case XK_BackSpace:
+			*u8 = "\x08";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Tab:
+		case XK_KP_Tab:
+			*u8 = "\x09";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Linefeed:
+			*u8 = "\x0a";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Clear:
+			*u8 = "\x0b";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Pause:
+			*u8 = "\x13";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Scroll_Lock:
+			/* TODO: do we need scroll lock impl.? */
+			*u8 = "\x14";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Sys_Req:
+			*u8 = "\x15";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Escape:
+			*u8 = "\x1b";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Return:
+		case XK_KP_Enter:
+			/* TODO: im CR/LF mode send \x0d\x0a */
+			*u8 = "\x0d";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+	}
 
 	if (ev->unicode != KMSCON_INPUT_INVALID) {
 		kmscon_symbol_free_u8(vte->kbd_sym);
@@ -151,55 +193,7 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		vte->kbd_sym = kmscon_symbol_get_u8(vte->st, sym, len);
 		*u8 = vte->kbd_sym;
 		return KMSCON_VTE_SEND;
-	} else {
-		ret = KMSCON_VTE_SEND;
-
-		switch (ev->keysym) {
-			case XK_BackSpace:
-				*u8 = "\x08";
-				*len = 1;
-				break;
-			case XK_Tab:
-			case XK_KP_Tab:
-				*u8 = "\x09";
-				*len = 1;
-				break;
-			case XK_Linefeed:
-				*u8 = "\x0a";
-				*len = 1;
-				break;
-			case XK_Clear:
-				*u8 = "\x0b";
-				*len = 1;
-				break;
-			case XK_Pause:
-				*u8 = "\x13";
-				*len = 1;
-				break;
-			case XK_Scroll_Lock:
-				/* TODO: do we need scroll lock impl.? */
-				*u8 = "\x14";
-				*len = 1;
-				break;
-			case XK_Sys_Req:
-				*u8 = "\x15";
-				*len = 1;
-				break;
-			case XK_Escape:
-				*u8 = "\x1b";
-				*len = 1;
-				break;
-			case XK_Return:
-			case XK_KP_Enter:
-				/* TODO: im CR/LF mode send \x0d\x0a */
-				*u8 = "\x0d";
-				*len = 1;
-				break;
-			default:
-				ret = KMSCON_VTE_DROP;
-				break;
-		}
-
-		return ret;
 	}
+
+	return KMSCON_VTE_DROP;
 }
