@@ -278,6 +278,11 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 	if (!buf || !line)
 		return;
 
+	if (buf->sb_max == 0) {
+		free_line(line);
+		return;
+	}
+
 	if (buf->sb_count >= buf->sb_max) {
 		tmp = buf->sb_first;
 		buf->sb_first = tmp->next;
