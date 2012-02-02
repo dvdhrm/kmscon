@@ -242,7 +242,6 @@ void kmscon_buffer_ref(struct kmscon_buffer *buf)
 
 void kmscon_buffer_unref(struct kmscon_buffer *buf)
 {
-	struct line *iter, *tmp;
 	unsigned int i;
 
 	if (!buf || !buf->ref)
@@ -251,11 +250,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 	if (--buf->ref)
 		return;
 
-	for (iter = buf->sb_first; iter; ) {
-		tmp = iter;
-		iter = iter->next;
-		free_line(tmp);
-	}
+	kmscon_buffer_clear_sb(buf);
 
 	for (i = 0; i < buf->size_y; ++i)
 		free_line(buf->current[i]);
@@ -362,6 +357,26 @@ void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max)
 	}
 
 	buf->sb_max = max;
+}
+
+/* clear scrollback buffer */
+void kmscon_buffer_clear_sb(struct kmscon_buffer *buf)
+{
+	struct line *iter, *tmp;
+
+	if (!buf)
+		return;
+
+	for (iter = buf->sb_first; iter; ) {
+		tmp = iter;
+		iter = iter->next;
+		free_line(tmp);
+	}
+
+	buf->sb_first = NULL;
+	buf->sb_last = NULL;
+	buf->sb_count = 0;
+	buf->position = NULL;
 }
 
 /*
