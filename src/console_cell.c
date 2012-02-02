@@ -86,7 +86,6 @@
 
 #define DEFAULT_WIDTH 80
 #define DEFAULT_HEIGHT 24
-#define DEFAULT_SCROLLBACK 128
 
 struct cell {
 	kmscon_symbol_t ch;
@@ -212,7 +211,6 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 
 	memset(buf, 0, sizeof(*buf));
 	buf->ref = 1;
-	buf->sb_max = DEFAULT_SCROLLBACK;
 
 	log_debug("console: new buffer object\n");
 
