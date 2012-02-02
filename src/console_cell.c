@@ -608,7 +608,7 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 	return line->cells[x].ch;
 }
 
-void kmscon_buffer_rotate(struct kmscon_buffer *buf)
+void kmscon_buffer_newline(struct kmscon_buffer *buf)
 {
 	struct line *line, *nl;
 	int ret;

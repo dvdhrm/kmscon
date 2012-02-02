@@ -83,7 +83,7 @@ static void test1(struct kmscon_buffer *buf)
 	kmscon_buffer_write(buf, 0, 0, ch);
 	kmscon_buffer_write(buf, 9, 2, ch);
 	kmscon_buffer_write(buf, 4, 4, ch);
-	kmscon_buffer_rotate(buf);
+	kmscon_buffer_newline(buf);
 	print_buf(buf);
 	kmscon_buffer_resize(buf, 5, 3);
 	print_buf(buf);
@@ -91,7 +91,7 @@ static void test1(struct kmscon_buffer *buf)
 	print_buf(buf);
 	kmscon_buffer_write(buf, 15, 1, ch);
 	print_buf(buf);
-	kmscon_buffer_rotate(buf);
+	kmscon_buffer_newline(buf);
 	print_buf(buf);
 }
 
