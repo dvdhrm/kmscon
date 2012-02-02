@@ -568,19 +568,18 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		return;
 	}
 
-	if (!buf->current[y]) {
-		while (buf->fill <= y) {
-			ret = new_line(&line);
-			if (ret) {
-				log_warn("console: cannot allocate line "
-						"(%d); dropping input\n", ret);
-				return;
-			}
-			buf->current[buf->fill] = line;
-			buf->fill++;
-		}
-	}
 	line = buf->current[y];
+	if (!line) {
+		ret = new_line(&line);
+		if (ret) {
+			log_warn("console: cannot allocate line (%d); dropping input\n", ret);
+			return;
+		}
+
+		buf->current[y] = line;
+		if (buf->fill <= y)
+			buf->fill = y + 1;
+	}
 
 	if (x >= line->size) {
 		ret = resize_line(line, buf->size_x);
@@ -619,7 +618,7 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 
 void kmscon_buffer_newline(struct kmscon_buffer *buf)
 {
-	struct line *line, *nl;
+	struct line *nl;
 	int ret;
 
 	if (!buf)
@@ -633,11 +632,7 @@ void kmscon_buffer_newline(struct kmscon_buffer *buf)
 	}
 
 	if (buf->fill >= buf->size_y) {
-		line = buf->current[0];
-		if (!line)
-			return;
-
-		link_to_scrollback(buf, line);
+		link_to_scrollback(buf, buf->current[0]);
 		memmove(buf->current, &buf->current[1],
 				(buf->size_y - 1) * sizeof(struct line*));
 		buf->current[buf->size_y - 1] = NULL;
