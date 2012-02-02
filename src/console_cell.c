@@ -331,6 +331,39 @@ static struct line *get_from_scrollback(struct kmscon_buffer *buf)
 	return line;
 }
 
+/* set maximum scrollback buffer size */
+void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max)
+{
+	struct line *line;
+
+	if (!buf)
+		return;
+
+	while (buf->sb_count > max) {
+		line = buf->sb_first;
+		if (!line)
+			break;
+
+		buf->sb_first = line->next;
+		if (line->next)
+			line->next->prev = NULL;
+		else
+			buf->sb_last = NULL;
+		buf->sb_count--;
+
+		if (buf->position == line) {
+			if (buf->sb_first)
+				buf->position = buf->sb_first;
+			else
+				buf->position = NULL;
+		}
+
+		free_line(line);
+	}
+
+	buf->sb_max = max;
+}
+
 /*
  * Resize the current console buffer
  * This resizes the current buffer. We do not resize the lines or modify them in

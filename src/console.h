@@ -57,6 +57,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf);
 int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 							unsigned int y);
 void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font);
+void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max);
 
 unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf);
 unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf);
