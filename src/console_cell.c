@@ -267,13 +267,22 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 {
 	struct line *tmp;
+	int ret;
 
-	if (!buf || !line)
+	if (!buf)
 		return;
 
 	if (buf->sb_max == 0) {
 		free_line(line);
 		return;
+	}
+
+	if (!line) {
+		ret = new_line(&line);
+		if (ret) {
+			log_warn("console: cannot allocate line (%d); dropping scrollback-buffer line\n", ret);
+			return;
+		}
 	}
 
 	if (buf->sb_count >= buf->sb_max) {
