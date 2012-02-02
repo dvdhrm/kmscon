@@ -515,7 +515,7 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 		}
 
 		if (!line)
-			break;
+			continue;
 
 		if (line->size < buf->size_x)
 			num = line->size;
