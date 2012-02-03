@@ -864,3 +864,42 @@ void kmscon_buffer_newline(struct kmscon_buffer *buf)
 	buf->scroll_buf[buf->scroll_fill] = nl;
 	buf->scroll_fill++;
 }
+
+void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num)
+{
+	unsigned int i;
+
+	if (!buf || !num)
+		return;
+
+	if (num > buf->scroll_y)
+		num = buf->scroll_y;
+
+	for (i = 0; i < num; ++i)
+		free_line(buf->scroll_buf[buf->scroll_y - i - 1]);
+
+	memmove(&buf->scroll_buf[num], buf->scroll_buf,
+			(buf->scroll_y - num) * sizeof(struct line*));
+	memset(buf->scroll_buf, 0, num * sizeof(struct line*));
+	buf->scroll_fill = buf->scroll_y;
+}
+
+void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num)
+{
+	unsigned int i;
+
+	if (!buf || !num)
+		return;
+
+	if (num > buf->scroll_y)
+		num = buf->scroll_y;
+
+	for (i = 0; i < num; ++i)
+		link_to_scrollback(buf, buf->scroll_buf[i]);
+
+	memmove(buf->scroll_buf, &buf->scroll_buf[num],
+				(buf->scroll_y - num) * sizeof(struct line*));
+	memset(&buf->scroll_buf[buf->scroll_y - num], 0,
+						num * sizeof(struct line*));
+	buf->scroll_fill = buf->scroll_y;
+}
