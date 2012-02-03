@@ -78,12 +78,16 @@ static void test1(struct kmscon_buffer *buf)
 
 	log_info("Test1:\n");
 
+	kmscon_buffer_set_margins(buf, 1, 1);
 	ch = kmscon_symbol_make('?');
 
 	kmscon_buffer_write(buf, 0, 0, ch);
+	kmscon_buffer_write(buf, 2, 0, ch);
+	kmscon_buffer_write(buf, 4, 0, ch);
+	kmscon_buffer_write(buf, 1, 4, ch);
+	kmscon_buffer_write(buf, 3, 4, ch);
+	kmscon_buffer_write(buf, 5, 4, ch);
 	kmscon_buffer_write(buf, 9, 2, ch);
-	kmscon_buffer_write(buf, 4, 4, ch);
-	kmscon_buffer_newline(buf);
 	print_buf(buf);
 	kmscon_buffer_resize(buf, 5, 3);
 	print_buf(buf);
@@ -161,6 +165,7 @@ int main(int argc, char **argv)
 		log_err("Cannot create buffer object\n");
 		goto err_out;
 	}
+	kmscon_buffer_set_max_sb(buf, 128);
 
 	test1(buf);
 	test2();
