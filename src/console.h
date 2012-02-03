@@ -60,6 +60,10 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font);
 void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max);
 void kmscon_buffer_clear_sb(struct kmscon_buffer *buf);
 
+int kmscon_buffer_set_margins(struct kmscon_buffer *buf, unsigned int top,
+							unsigned int bottom);
+unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf);
+unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf);
 unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf);
 unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf);
 void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,

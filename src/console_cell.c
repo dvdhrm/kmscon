@@ -617,6 +617,43 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 	return 0;
 }
 
+int kmscon_buffer_set_margins(struct kmscon_buffer *buf, unsigned int top,
+							unsigned int bottom)
+{
+	int ret;
+
+	if (!buf)
+		return -EINVAL;
+
+	if (top < buf->mtop_y) {
+		ret = resize_mtop(buf, top);
+		if (ret)
+			return ret;
+		return resize_mbottom(buf, bottom);
+	} else {
+		ret = resize_mbottom(buf, bottom);
+		if (ret)
+			return ret;
+		return resize_mtop(buf, top);
+	}
+}
+
+unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf)
+{
+	if (!buf)
+		return 0;
+
+	return buf->mtop_y;
+}
+
+unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
+{
+	if (!buf)
+		return 0;
+
+	return buf->mbottom_y;
+}
+
 void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 {
 	float xs, ys;
