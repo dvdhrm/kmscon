@@ -840,33 +840,6 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 	return line->cells[x].ch;
 }
 
-void kmscon_buffer_newline(struct kmscon_buffer *buf)
-{
-	struct line *nl;
-	int ret;
-
-	if (!buf)
-		return;
-
-	ret = new_line(&nl);
-	if (ret) {
-		log_warn("console: cannot allocate line (%d); "
-						"dropping input\n", ret);
-		return;
-	}
-
-	if (buf->scroll_fill >= buf->scroll_y) {
-		link_to_scrollback(buf, buf->scroll_buf[0]);
-		memmove(buf->scroll_buf, &buf->scroll_buf[1],
-				(buf->scroll_y - 1) * sizeof(struct line*));
-		buf->scroll_buf[buf->scroll_y - 1] = NULL;
-		buf->scroll_fill--;
-	}
-
-	buf->scroll_buf[buf->scroll_fill] = nl;
-	buf->scroll_fill++;
-}
-
 void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num)
 {
 	unsigned int i;

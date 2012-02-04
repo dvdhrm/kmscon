@@ -70,7 +70,6 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 					unsigned int y, kmscon_symbol_t ch);
 kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 							unsigned int y);
-void kmscon_buffer_newline(struct kmscon_buffer *buf);
 void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num);
 void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num);
 

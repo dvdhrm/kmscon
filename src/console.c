@@ -241,7 +241,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 		con->cursor_y++;
 		if (con->cursor_y >= con->cells_y) {
 			con->cursor_y--;
-			kmscon_buffer_newline(con->cells);
+			kmscon_buffer_scroll_up(con->cells, 1);
 		}
 	}
 
@@ -258,6 +258,6 @@ void kmscon_console_newline(struct kmscon_console *con)
 	con->cursor_y++;
 	if (con->cursor_y >= con->cells_y) {
 		con->cursor_y--;
-		kmscon_buffer_newline(con->cells);
+		kmscon_buffer_scroll_up(con->cells, 1);
 	}
 }
