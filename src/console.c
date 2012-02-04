@@ -60,6 +60,7 @@ struct kmscon_console {
 	unsigned int margin_top;	/* idx of first scroll line */
 	unsigned int margin_bottom;	/* idx of last scroll line */
 	bool rel_addr;			/* is relative addressing used? */
+	bool auto_wrap;			/* auto wrap on end of line? */
 
 	/* cursor */
 	unsigned int cursor_x;
@@ -258,11 +259,15 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 		return;
 
 	if (con->cursor_x >= con->cells_x) {
-		con->cursor_x = 0;
-		con->cursor_y++;
-		if (con->cursor_y > con->margin_bottom) {
-			con->cursor_y--;
-			kmscon_buffer_scroll_up(con->cells, 1);
+		if (con->auto_wrap) {
+			con->cursor_x = 0;
+			con->cursor_y++;
+			if (con->cursor_y > con->margin_bottom) {
+				con->cursor_y--;
+				kmscon_buffer_scroll_up(con->cells, 1);
+			}
+		} else {
+			con->cursor_x = con->cells_x - 1;
 		}
 	}
 
