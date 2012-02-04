@@ -401,3 +401,57 @@ void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
 	else
 		con->cursor_x += num;
 }
+
+void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, con->cursor_x, con->cursor_y,
+					con->cells_x - 1, con->cursor_y);
+}
+
+void kmscon_console_erase_home_to_cursor(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, 0, con->cursor_y,
+					con->cursor_x, con->cursor_y);
+}
+
+void kmscon_console_erase_current_line(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, 0, con->cursor_y,
+					con->cells_x - 1, con->cursor_y);
+}
+
+void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, 0, 0,
+						con->cursor_x, con->cursor_y);
+}
+
+void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, con->cursor_x, con->cursor_y,
+					con->cells_x - 1, con->cells_y - 1);
+}
+
+void kmscon_console_erase_screen(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	kmscon_buffer_erase_region(con->cells, 0, 0,
+					con->cells_x - 1, con->cursor_y);
+}
