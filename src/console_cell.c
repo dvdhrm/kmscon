@@ -453,7 +453,7 @@ static int resize_scrollbuf(struct kmscon_buffer *buf, unsigned int y)
 		if (!cache)
 			return -ENOMEM;
 
-		memset(cache, 0, sizeof(struct line*) * y);
+		memset(cache, 0, sizeof(struct line*) * siz);
 		fill = y - buf->scroll_y;
 
 		for (i = 0; i < fill; ++i) {
@@ -465,6 +465,8 @@ static int resize_scrollbuf(struct kmscon_buffer *buf, unsigned int y)
 		}
 		buf->scroll_fill += i;
 		memmove(cache, &cache[y - i], i * sizeof(struct line*));
+		memset(&cache[i + buf->scroll_y], 0,
+					(fill - i) * sizeof(struct line*));
 
 		if (buf->scroll_y)
 			memcpy(&cache[i], buf->scroll_buf,
