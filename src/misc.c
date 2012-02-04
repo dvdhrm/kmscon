@@ -83,9 +83,9 @@ void kmscon_ring_free(struct kmscon_ring *ring)
 bool kmscon_ring_is_empty(struct kmscon_ring *ring)
 {
 	if (!ring)
-		return false;
+		return true;
 
-	return ring->first;
+	return ring->first == NULL;
 }
 
 int kmscon_ring_write(struct kmscon_ring *ring, const char *val, size_t len)
