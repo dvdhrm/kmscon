@@ -91,5 +91,11 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 							unsigned int y);
+void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
+								bool scroll);
+void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
+								bool scroll);
+void kmscon_console_move_left(struct kmscon_console *con, unsigned int num);
+void kmscon_console_move_right(struct kmscon_console *con, unsigned int num);
 
 #endif /* KMSCON_CONSOLE_H */

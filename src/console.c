@@ -306,3 +306,98 @@ void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 			con->cursor_y = con->cells_y - 1;
 	}
 }
+
+void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
+								bool scroll)
+{
+	unsigned int diff;
+
+	if (!con || !num)
+		return;
+
+	if (num > con->cells_y)
+		num = con->cells_y;
+
+	if (con->rel_addr) {
+		diff = con->cursor_y - con->margin_top;
+		if (num > diff) {
+			num -= diff;
+			if (scroll)
+				kmscon_buffer_scroll_down(con->cells, num);
+			con->cursor_y = con->margin_top;
+		} else {
+			con->cursor_y -= num;
+		}
+	} else {
+		if (num > con->cursor_y) {
+			num -= con->cursor_y;
+			if (scroll)
+				kmscon_buffer_scroll_down(con->cells, num);
+			con->cursor_y = 0;
+		} else {
+			con->cursor_y -= num;
+		}
+	}
+}
+
+void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
+								bool scroll)
+{
+	unsigned int diff;
+
+	if (!con || !num)
+		return;
+
+	if (num > con->cells_y)
+		num = con->cells_y;
+
+	if (con->rel_addr) {
+		diff = con->margin_bottom - con->cursor_y;
+		if (num > diff) {
+			num -= diff;
+			if (scroll)
+				kmscon_buffer_scroll_up(con->cells, num);
+			con->cursor_y = con->margin_bottom;
+		} else {
+			con->cursor_y += num;
+		}
+	} else {
+		diff = con->cells_y - con->cursor_y - 1;
+		if (num > diff) {
+			num -= diff;
+			if (scroll)
+				kmscon_buffer_scroll_up(con->cells, num);
+			con->cursor_y = con->cells_y - 1;
+		} else {
+			con->cursor_y += num;
+		}
+	}
+}
+
+void kmscon_console_move_left(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	if (num > con->cells_x)
+		num = con->cells_x;
+
+	if (num > con->cursor_x)
+		con->cursor_x = 0;
+	else
+		con->cursor_x -= num;
+}
+
+void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	if (num > con->cells_x)
+		num = con->cells_x;
+
+	if (num + con->cursor_x >= con->cells_x)
+		con->cursor_x = con->cells_x - 1;
+	else
+		con->cursor_x += num;
+}
