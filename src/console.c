@@ -59,11 +59,25 @@ struct kmscon_console {
 	unsigned int cells_y;
 	unsigned int margin_top;	/* idx of first scroll line */
 	unsigned int margin_bottom;	/* idx of last scroll line */
+	bool rel_addr;			/* is relative addressing used? */
 
 	/* cursor */
 	unsigned int cursor_x;
 	unsigned int cursor_y;
 };
+
+static inline unsigned int to_abs_x(struct kmscon_console *con, unsigned int x)
+{
+	return x;
+}
+
+static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
+{
+	if (!con->rel_addr)
+		return y;
+
+	return con->margin_top + y;
+}
 
 int kmscon_console_new(struct kmscon_console **out,
 		struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
@@ -202,10 +216,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	num = kmscon_buffer_get_mbottom(con->cells);
 	con->margin_bottom = con->cells_y - 1 - num;
 
-	if (con->cursor_x > con->cells_x)
-		con->cursor_x = con->cells_x;
-	if (con->cursor_y > con->cells_y)
-		con->cursor_y = con->cells_y;
+	kmscon_console_move_to(con, con->cursor_x, con->cursor_y);
 
 	ret = kmscon_font_factory_load(con->ff, &font, 0,
 							height / con->cells_y);
@@ -269,5 +280,24 @@ void kmscon_console_newline(struct kmscon_console *con)
 	if (con->cursor_y > con->margin_bottom) {
 		con->cursor_y--;
 		kmscon_buffer_scroll_up(con->cells, 1);
+	}
+}
+
+void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
+							unsigned int y)
+{
+	if (!con)
+		return;
+
+	con->cursor_x = to_abs_x(con, x);
+	if (con->cursor_x >= con->cells_x)
+		con->cursor_x = con->cells_x - 1;
+
+	con->cursor_y = to_abs_y(con, y);
+	if (con->cursor_y > con->margin_bottom) {
+		if (con->rel_addr)
+			con->cursor_y = con->margin_bottom;
+		else if (con->cursor_y >= con->cells_y)
+			con->cursor_y = con->cells_y - 1;
 	}
 }

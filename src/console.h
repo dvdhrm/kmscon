@@ -89,5 +89,7 @@ void kmscon_console_map(struct kmscon_console *con);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);
 void kmscon_console_newline(struct kmscon_console *con);
+void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
+							unsigned int y);
 
 #endif /* KMSCON_CONSOLE_H */
