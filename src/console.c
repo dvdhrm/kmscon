@@ -57,6 +57,8 @@ struct kmscon_console {
 	struct kmscon_buffer *cells;
 	unsigned int cells_x;
 	unsigned int cells_y;
+	unsigned int margin_top;	/* idx of first scroll line */
+	unsigned int margin_bottom;	/* idx of last scroll line */
 
 	/* cursor */
 	unsigned int cursor_x;
@@ -68,6 +70,7 @@ int kmscon_console_new(struct kmscon_console **out,
 {
 	struct kmscon_console *con;
 	int ret;
+	unsigned int num;
 
 	if (!out)
 		return -EINVAL;
@@ -89,6 +92,9 @@ int kmscon_console_new(struct kmscon_console **out,
 
 	con->cells_x = kmscon_buffer_get_width(con->cells);
 	con->cells_y = kmscon_buffer_get_height(con->cells);
+	con->margin_top = kmscon_buffer_get_mtop(con->cells);
+	num = kmscon_buffer_get_mbottom(con->cells);
+	con->margin_bottom = con->cells_y - 1 - num;
 
 	kmscon_font_factory_ref(con->ff);
 	kmscon_compositor_ref(con->comp);
@@ -168,6 +174,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height)
 {
 	int ret;
+	unsigned int num;
 	struct kmscon_font *font;
 
 	if (!con)
@@ -191,6 +198,9 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 
 	con->cells_x = kmscon_buffer_get_width(con->cells);
 	con->cells_y = kmscon_buffer_get_height(con->cells);
+	con->margin_top = kmscon_buffer_get_mtop(con->cells);
+	num = kmscon_buffer_get_mbottom(con->cells);
+	con->margin_bottom = con->cells_y - 1 - num;
 
 	if (con->cursor_x > con->cells_x)
 		con->cursor_x = con->cells_x;
@@ -239,7 +249,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 	if (con->cursor_x >= con->cells_x) {
 		con->cursor_x = 0;
 		con->cursor_y++;
-		if (con->cursor_y >= con->cells_y) {
+		if (con->cursor_y > con->margin_bottom) {
 			con->cursor_y--;
 			kmscon_buffer_scroll_up(con->cells, 1);
 		}
@@ -256,7 +266,7 @@ void kmscon_console_newline(struct kmscon_console *con)
 
 	con->cursor_x = 0;
 	con->cursor_y++;
-	if (con->cursor_y >= con->cells_y) {
+	if (con->cursor_y > con->margin_bottom) {
 		con->cursor_y--;
 		kmscon_buffer_scroll_up(con->cells, 1);
 	}
