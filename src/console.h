@@ -72,6 +72,8 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 							unsigned int y);
 void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num);
 void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num);
+void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
+		unsigned int y_from, unsigned int x_to, unsigned int y_to);
 
 /* console objects */
 

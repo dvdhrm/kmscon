@@ -137,6 +137,14 @@ static int init_cell(struct cell *cell)
 	return 0;
 }
 
+static void reset_cell(struct cell *cell)
+{
+	if (!cell)
+		return;
+
+	memset(cell, 0, sizeof(*cell));
+}
+
 static void free_line(struct line *line)
 {
 	unsigned int i;
@@ -199,6 +207,21 @@ static int resize_line(struct line *line, unsigned int width)
 	}
 
 	return 0;
+}
+
+static struct line *get_line(struct kmscon_buffer *buf, unsigned int y)
+{
+	if (y < buf->mtop_y) {
+		return buf->mtop_buf[y];
+	} else if (y < buf->mtop_y + buf->scroll_y) {
+		y -= buf->mtop_y;
+		return buf->scroll_buf[y];
+	} else if (y < buf->mtop_y + buf->scroll_y + buf->mbottom_y) {
+		y = y - buf->mtop_y - buf->scroll_y;
+		return buf->mbottom_buf[y];
+	}
+
+	return NULL;
 }
 
 int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
@@ -877,4 +900,33 @@ void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num)
 	memset(&buf->scroll_buf[buf->scroll_y - num], 0,
 						num * sizeof(struct line*));
 	buf->scroll_fill = buf->scroll_y;
+}
+
+void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
+		unsigned int y_from, unsigned int x_to, unsigned int y_to)
+{
+	unsigned int to;
+	struct line *line;
+
+	if (!buf)
+		return;
+
+	if (y_to >= buf->size_y)
+		y_to = buf->size_y - 1;
+	if (x_to >= buf->size_x)
+		x_to = buf->size_x - 1;
+
+	for ( ; y_from <= y_to; ++y_from) {
+		line = get_line(buf, y_from);
+		if (y_from == y_to)
+			to = x_to;
+		else
+			to = buf->size_x - 1;
+		for ( ; x_from <= to; ++x_from) {
+			if (x_from >= line->size)
+				break;
+			reset_cell(&line->cells[x_from]);
+		}
+		x_from = 0;
+	}
 }
