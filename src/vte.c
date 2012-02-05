@@ -198,6 +198,7 @@ static void parse_control(struct kmscon_vte *vte, uint32_t ctrl)
 static void parse_csi(struct kmscon_vte *vte, uint32_t val)
 {
 	int new;
+	unsigned int num;
 
 	if (vte->parser.csi_flags & CSI_START) {
 		switch (val) {
@@ -237,6 +238,30 @@ static void parse_csi(struct kmscon_vte *vte, uint32_t val)
 	vte->parser.state = STATE_NORMAL;
 
 	switch (val) {
+		case 'A':
+			num = vte->parser.csi_argv[0];
+			if (!num)
+				num = 1;
+			kmscon_console_move_up(vte->con, num, false);
+			break;
+		case 'B':
+			num = vte->parser.csi_argv[0];
+			if (!num)
+				num = 1;
+			kmscon_console_move_down(vte->con, num, false);
+			break;
+		case 'C':
+			num = vte->parser.csi_argv[0];
+			if (!num)
+				num = 1;
+			kmscon_console_move_right(vte->con, num);
+			break;
+		case 'D':
+			num = vte->parser.csi_argv[0];
+			if (!num)
+				num = 1;
+			kmscon_console_move_left(vte->con, num);
+			break;
 		case 'J':
 			if (vte->parser.csi_argc < 1 ||
 						vte->parser.csi_argv[0] == 0)
