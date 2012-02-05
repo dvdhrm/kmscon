@@ -472,5 +472,5 @@ void kmscon_console_erase_screen(struct kmscon_console *con)
 		return;
 
 	kmscon_buffer_erase_region(con->cells, 0, 0,
-					con->cells_x - 1, con->cursor_y);
+					con->cells_x - 1, con->cells_y - 1);
 }
