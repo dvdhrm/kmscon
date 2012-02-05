@@ -237,6 +237,15 @@ static void parse_csi(struct kmscon_vte *vte, uint32_t val)
 	vte->parser.state = STATE_NORMAL;
 
 	switch (val) {
+		case 'K':
+			if (vte->parser.csi_argc < 1 ||
+						vte->parser.csi_argv[0] == 0)
+				kmscon_console_erase_cursor_to_end(vte->con);
+			else if (vte->parser.csi_argv[0] == 1)
+				kmscon_console_erase_home_to_cursor(vte->con);
+			else if (vte->parser.csi_argv[0] == 2)
+				kmscon_console_erase_current_line(vte->con);
+			break;
 		default:
 			log_debug("vte: unhandled CSI sequence\n");
 	}
