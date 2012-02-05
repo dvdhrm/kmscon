@@ -382,6 +382,9 @@ void kmscon_console_move_left(struct kmscon_console *con, unsigned int num)
 	if (num > con->cells_x)
 		num = con->cells_x;
 
+	if (con->cursor_x >= con->cells_x)
+		con->cursor_x = con->cells_x - 1;
+
 	if (num > con->cursor_x)
 		con->cursor_x = 0;
 	else
