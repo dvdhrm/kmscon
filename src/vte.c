@@ -152,6 +152,7 @@ static void parse_control(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x08: /* BS */
 			/* Move cursor one position left */
+			kmscon_console_backspace(vte->con);
 			break;
 		case 0x09: /* HT */
 			/* Move to next tab stop or end of line */
