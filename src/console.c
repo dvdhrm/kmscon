@@ -96,6 +96,7 @@ int kmscon_console_new(struct kmscon_console **out,
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
+	con->auto_wrap = true;
 	con->ff = ff;
 	con->comp = comp;
 	con->ctx = kmscon_compositor_get_context(comp);
