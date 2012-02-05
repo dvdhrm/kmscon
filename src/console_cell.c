@@ -918,6 +918,11 @@ void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
 
 	for ( ; y_from <= y_to; ++y_from) {
 		line = get_line(buf, y_from);
+		if (!line) {
+			x_from = 0;
+			continue;
+		}
+
 		if (y_from == y_to)
 			to = x_to;
 		else
