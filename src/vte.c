@@ -282,7 +282,7 @@ static void parse_csi(struct kmscon_vte *vte, uint32_t val)
 				kmscon_console_erase_current_line(vte->con);
 			break;
 		default:
-			log_debug("vte: unhandled CSI sequence\n");
+			log_debug("vte: unhandled CSI sequence %c\n", val);
 	}
 }
 
