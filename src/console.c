@@ -402,6 +402,22 @@ void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
 		con->cursor_x += num;
 }
 
+void kmscon_console_move_line_end(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	con->cursor_x = con->cells_x - 1;
+}
+
+void kmscon_console_move_line_home(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	con->cursor_x = 0;
+}
+
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 {
 	if (!con)

@@ -99,6 +99,8 @@ void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
 								bool scroll);
 void kmscon_console_move_left(struct kmscon_console *con, unsigned int num);
 void kmscon_console_move_right(struct kmscon_console *con, unsigned int num);
+void kmscon_console_move_line_end(struct kmscon_console *con);
+void kmscon_console_move_line_home(struct kmscon_console *con);
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con);
 void kmscon_console_erase_home_to_cursor(struct kmscon_console *con);
 void kmscon_console_erase_current_line(struct kmscon_console *con);
