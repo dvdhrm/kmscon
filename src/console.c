@@ -424,10 +424,17 @@ void kmscon_console_move_line_home(struct kmscon_console *con)
 
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 {
+	unsigned int x;
+
 	if (!con)
 		return;
 
-	kmscon_buffer_erase_region(con->cells, con->cursor_x, con->cursor_y,
+	if (con->cursor_x >= con->cells_x)
+		x = con->cells_x - 1;
+	else
+		x = con->cursor_x;
+
+	kmscon_buffer_erase_region(con->cells, x, con->cursor_y,
 					con->cells_x - 1, con->cursor_y);
 }
 
@@ -460,10 +467,17 @@ void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con)
 
 void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con)
 {
+	unsigned int x;
+
 	if (!con)
 		return;
 
-	kmscon_buffer_erase_region(con->cells, con->cursor_x, con->cursor_y,
+	if (con->cursor_x >= con->cells_x)
+		x = con->cells_x - 1;
+	else
+		x = con->cursor_x;
+
+	kmscon_buffer_erase_region(con->cells, x, con->cursor_y,
 					con->cells_x - 1, con->cells_y - 1);
 }
 
