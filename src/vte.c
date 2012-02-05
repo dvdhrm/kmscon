@@ -157,13 +157,17 @@ static void parse_control(struct kmscon_vte *vte, uint32_t ctrl)
 			/* Move to next tab stop or end of line */
 			break;
 		case 0x0a: /* LF */
-		case 0x0b: /* VT */
-		case 0x0c: /* FF */
 			/* Line feed or newline (CR/NL mode) */
 			kmscon_console_newline(vte->con);
 			break;
+		case 0x0b: /* VT */
+		case 0x0c: /* FF */
+			/* Line feed */
+			kmscon_console_move_down(vte->con, 1, true);
+			break;
 		case 0x0d: /* CR */
 			/* Move cursor to left margin */
+			kmscon_console_move_line_home(vte->con);
 			break;
 		case 0x0e: /* SO */
 			/* Invoke G1 character set */
