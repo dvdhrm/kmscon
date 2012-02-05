@@ -422,6 +422,22 @@ void kmscon_console_move_line_home(struct kmscon_console *con)
 	con->cursor_x = 0;
 }
 
+void kmscon_console_erase_cursor(struct kmscon_console *con)
+{
+	unsigned int x;
+
+	if (!con)
+		return;
+
+	if (con->cursor_x >= con->cells_x)
+		x = con->cells_x - 1;
+	else
+		x = con->cursor_x;
+
+	kmscon_buffer_erase_region(con->cells, x, con->cursor_y,
+							x, con->cursor_y);
+}
+
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 {
 	unsigned int x;
