@@ -797,6 +797,7 @@ int kmscon_compositor_new(struct kmscon_compositor **out)
 		ret = -errno;
 		goto err_free;
 	}
+	drmDropMaster(comp->drm_fd);
 
 	comp->gbm = gbm_create_device(comp->drm_fd);
 	if (!comp->gbm) {
