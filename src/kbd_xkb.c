@@ -64,7 +64,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <linux/input.h>
-#include <X11/extensions/XKBcommon.h>
+#include <xkbcommon/xkbcommon.h>
 
 #include "kbd.h"
 #include "log.h"
@@ -207,7 +207,7 @@ static uint8_t wrap_group_control(struct xkb_desc *desc, int16_t group)
  * (Some keycodes may have more groups than others, and so the effective
  * group may not make sense for a certain keycode).
  */
-static uint8_t wrap_group_keycode(struct xkb_desc *desc, KeyCode keycode,
+static uint8_t wrap_group_keycode(struct xkb_desc *desc, xkb_keycode_t keycode,
 								int16_t group)
 {
 	int num_groups;
@@ -249,7 +249,7 @@ static void update_effective_group(struct xkb_desc *desc,
  * See [Lib] Table 17.4 for logic.
  */
 static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
-			KeyCode keycode, enum kmscon_key_state key_state,
+			xkb_keycode_t keycode, enum kmscon_key_state key_state,
 					struct xkb_group_action *action)
 {
 	int16_t group = action->group;
@@ -323,7 +323,7 @@ static bool process_group_action(struct xkb_desc *desc, struct xkb_state *state,
  * See [Lib] Table 17.1 for logic.
  * */
 static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
-			KeyCode keycode, enum kmscon_key_state key_state,
+			xkb_keycode_t keycode, enum kmscon_key_state key_state,
 						struct xkb_mod_action *action)
 {
 	uint8_t mods;
@@ -392,7 +392,7 @@ static bool process_mod_action(struct xkb_desc *desc, struct xkb_state *state,
  * was changed.
  */
 static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
-			KeyCode keycode, enum kmscon_key_state key_state,
+			xkb_keycode_t keycode, enum kmscon_key_state key_state,
 						union xkb_action *action)
 {
 	if (!action)
@@ -431,7 +431,7 @@ static bool process_action(struct xkb_desc *desc, struct xkb_state *state,
  * the modifiers to shift the keycode; this is determined by the key_type
  * object mapped to the (keycode, group) pair.
  */
-static uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
+static uint16_t find_shift_level(struct xkb_desc *desc, xkb_keycode_t keycode,
 						uint8_t mods, uint8_t group)
 {
 	int i;
@@ -462,7 +462,7 @@ static uint16_t find_shift_level(struct xkb_desc *desc, KeyCode keycode,
 }
 
 /* Whether to send out a repeat event for the key. */
-static bool should_key_repeat(struct xkb_desc *desc, KeyCode keycode)
+static bool should_key_repeat(struct xkb_desc *desc, xkb_keycode_t keycode)
 {
 	unsigned const char *pkr;
 
@@ -489,7 +489,7 @@ int kmscon_kbd_process_key(struct kmscon_kbd *kbd,
 {
 	struct xkb_desc *desc;
 	struct xkb_state *state;
-	KeyCode keycode;
+	xkb_keycode_t keycode;
 	uint8_t group;
 	uint16_t shift_level;
 	uint32_t sym;
@@ -861,7 +861,7 @@ static int allocate_key_acts(struct xkb_desc *desc, uint8_t keycode)
 	return 0;
 }
 
-static int init_compat_for_keysym(struct xkb_desc *desc, KeyCode keycode,
+static int init_compat_for_keysym(struct xkb_desc *desc, xkb_keycode_t keycode,
 						uint8_t group, uint16_t level)
 {
 	int ret;
@@ -894,7 +894,7 @@ static int init_compat_for_keysym(struct xkb_desc *desc, KeyCode keycode,
 	return 0;
 }
 
-static int init_compat_for_keycode(struct xkb_desc *desc, KeyCode keycode)
+static int init_compat_for_keycode(struct xkb_desc *desc, xkb_keycode_t keycode)
 {
 	int ret;
 	int i, bit;
