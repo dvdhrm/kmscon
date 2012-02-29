@@ -175,24 +175,36 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x05: /* ENQ */
 			/* Transmit answerback message */
+			/* TODO */
 			break;
 		case 0x07: /* BEL */
 			/* Sound bell tone */
+			/* TODO: I always considered this annying, however, we
+			 * should at least provide some way to enable it if the
+			 * user *really* wants it.
+			 */
 			break;
 		case 0x08: /* BS */
 			/* Move cursor one position left */
+			/* TODO: Do we really have auto-wrap feature here? vt520
+			 * doc says nothing about it. We should probably use
+			 * kmscon_console_move_left() here.
+			 */
 			kmscon_console_backspace(vte->con);
 			break;
 		case 0x09: /* HT */
 			/* Move to next tab stop or end of line */
+			/* TODO */
 			break;
 		case 0x0a: /* LF */
 			/* Line feed or newline (CR/NL mode) */
+			/* TODO: implement CR/NL mode */
 			kmscon_console_newline(vte->con);
 			break;
 		case 0x0b: /* VT */
 		case 0x0c: /* FF */
 			/* Line feed */
+			/* TODO: does this depend on CR/NL, too? */
 			kmscon_console_move_down(vte->con, 1, true);
 			break;
 		case 0x0d: /* CR */
@@ -200,23 +212,65 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			kmscon_console_move_line_home(vte->con);
 			break;
 		case 0x0e: /* SO */
-			/* Invoke G1 character set */
+			/* Map G1 character set into GL */
+			/* TODO */
 			break;
 		case 0x0f: /* SI */
-			/* Select G0 character set */
+			/* Map G0 character set into Gl */
+			/* TODO */
 			break;
 		case 0x11: /* XON */
 			/* Resume transmission */
+			/* TODO */
 			break;
 		case 0x13: /* XOFF */
 			/* Stop transmission */
+			/* TODO */
 			break;
 		case 0x18: /* CAN */
+			/* Cancel escape sequence */
+			/* nothing to do here */
+			break;
 		case 0x1a: /* SUB */
 			/* Discard current escape sequence and show err-sym */
+			/* TODO: show reversed question mark */
+			kmscon_console_write(vte->con, '?');
 			break;
 		case 0x1b: /* ESC */
 			/* Invokes an escape sequence */
+			/* nothing to do here */
+			break;
+		case 0x84: /* IND */
+			/* Move down one row, perform scroll-up if needed */
+			/* TODO */
+			break;
+		case 0x85: /* NEL */
+			/* CR/NL with scroll-up if needed */
+			/* TODO */
+			break;
+		case 0x88: /* HTS */
+			/* Set tab stop at current position */
+			/* TODO */
+			break;
+		case 0x8d: /* RI */
+			/* Move up one row, perform scroll-down if needed */
+			/* TODO */
+			break;
+		case 0x8e: /* SS2 */
+			/* Temporarily map G2 into GL for next char only */
+			/* TODO */
+			break;
+		case 0x8f: /* SS3 */
+			/* Temporarily map G3 into GL for next char only */
+			/* TODO */
+			break;
+		case 0x9a: /* DECID */
+			/* Send device attributes response like ANSI DA */
+			/* TODO*/
+			break;
+		case 0x9c: /* ST */
+			/* End control string */
+			/* nothing to do here */
 			break;
 	}
 }
