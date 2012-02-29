@@ -272,6 +272,8 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			/* End control string */
 			/* nothing to do here */
 			break;
+		default:
+			log_warn("vte: unhandled control char %u\n", ctrl);
 	}
 }
 
@@ -282,6 +284,10 @@ static void do_clear(struct kmscon_vte *vte)
 	vte->csi_argc = 0;
 	for (i = 0; i < CSI_ARG_MAX; ++i)
 		vte->csi_argv[i] = -1;
+}
+
+static void do_collect(struct kmscon_vte *vte, uint32_t data)
+{
 }
 
 static void do_param(struct kmscon_vte *vte, uint32_t data)
@@ -308,6 +314,46 @@ static void do_param(struct kmscon_vte *vte, uint32_t data)
 		else
 			new = new * 10 + data - '0';
 		vte->csi_argv[vte->csi_argc] = new;
+	}
+}
+
+static void do_esc(struct kmscon_vte *vte, uint32_t data)
+{
+	switch (data) {
+		case 'D': /* IND */
+			/* Move down one row, perform scroll-up if needed */
+			/* TODO */
+			break;
+		case 'E': /* NEL */
+			/* CR/NL with scroll-up if needed */
+			/* TODO */
+			break;
+		case 'H': /* HTS */
+			/* Set tab stop at current position */
+			/* TODO */
+			break;
+		case 'M': /* RI */
+			/* Move up one row, perform scroll-down if needed */
+			/* TODO */
+			break;
+		case 'N': /* SS2 */
+			/* Temporarily map G2 into GL for next char only */
+			/* TODO */
+			break;
+		case 'O': /* SS3 */
+			/* Temporarily map G3 into GL for next char only */
+			/* TODO */
+			break;
+		case 'Z': /* DECID */
+			/* Send device attributes response like ANSI DA */
+			/* TODO*/
+			break;
+		case '\\': /* ST */
+			/* End control string */
+			/* nothing to do here */
+			break;
+		default:
+			log_warn("vte: unhandled escape seq %u\n", data);
 	}
 }
 
@@ -387,11 +433,13 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 			do_clear(vte);
 			break;
 		case ACTION_COLLECT:
+			do_collect(vte, data);
 			break;
 		case ACTION_PARAM:
 			do_param(vte, data);
 			break;
 		case ACTION_ESC_DISPATCH:
+			do_esc(vte, data);
 			break;
 		case ACTION_CSI_DISPATCH:
 			do_csi(vte, data);
