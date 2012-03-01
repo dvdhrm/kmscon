@@ -1,8 +1,8 @@
 = KMSCON Virtual Terminal Emulator =
 
-The KMSCON Virtual Terminal Emulator (VTE) tries to be linux-console and xterm
-compatible. This documentations contains links to several resources related to
-VT100-like terminals.
+The KMSCON Virtual Terminal Emulator (VTE) tries to be linux-console, xterm and
+vt102 compatible. This documentations contains links to several resources
+related to VT100-like terminals.
 
 Resources:
 	Terminfo database:
@@ -23,6 +23,8 @@ Resources:
 		http://en.wikipedia.org/wiki/Control_Sequence_Introducer
 	vttest Terminal Tests:
 		http://invisible-island.net/vttest/
+	vt100-vt520 docs:
+		http://vt100.net/
 
 Implementations:
 	XTerm:

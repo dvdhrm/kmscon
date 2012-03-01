@@ -30,7 +30,22 @@
  * console subsystem as output and is tightly bound to it. It supports
  * functionality from vt100 up to vt500 series. It doesn't implement an
  * explicitly selected terminal but tries to support the most important commands
- * to be compatible with existing implementations.
+ * to be compatible with existing implementations. However, full vt102
+ * compatibility is the least that is provided.
+ *
+ * The main parser in this file controls the parser-state and dispatches the
+ * actions to the related handlers. The parser is based on the state-diagram
+ * from Paul Williams: http://vt100.net/emu/
+ * It is written from scratch, though.
+ * This parser is fully compatible up to the vt500 series. It requires UTF-8 and
+ * does not support any other input encoding. The G0 and G1 sets are therefore
+ * defined as subsets of UTF-8. You may still map G0-G3 into GL, though.
+ *
+ * However, the CSI/DCS/etc handlers are not designed after a specific VT
+ * series. We try to support all vt102 commands but implement several other
+ * often used sequences, too. Feel free to add further.
+ *
+ * See ./doc/vte.txt for more information on this VT-emulator.
  */
 
 #include <errno.h>
