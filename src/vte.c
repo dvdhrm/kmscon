@@ -477,7 +477,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 }
 
 /* entry actions to be performed when entering the selected state */
-static int entry_action[] = {
+static const int entry_action[] = {
 	[STATE_CSI_ENTRY] = ACTION_CLEAR,
 	[STATE_DCS_ENTRY] = ACTION_CLEAR,
 	[STATE_DCS_PASS] = ACTION_DCS_START,
@@ -487,7 +487,7 @@ static int entry_action[] = {
 };
 
 /* exit actions to be performed when leaving the selected state */
-static int exit_action[] = {
+static const int exit_action[] = {
 	[STATE_DCS_PASS] = ACTION_DCS_END,
 	[STATE_OSC_STRING] = ACTION_OSC_END,
 	[STATE_NUM] = ACTION_NONE,
