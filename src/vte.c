@@ -87,6 +87,9 @@ enum parser_action {
 /* max CSI arguments */
 #define CSI_ARG_MAX 16
 
+#define DEFAULT_BELL_HZ 700
+#define DEFAULT_BELL_MSEC 100
+
 struct kmscon_vte {
 	unsigned long ref;
 	struct kmscon_symbol_table *st;
@@ -98,6 +101,10 @@ struct kmscon_vte {
 	unsigned int state;
 	unsigned int csi_argc;
 	int csi_argv[CSI_ARG_MAX];
+
+	/* Bell configuration. */
+	unsigned int bell_hz;
+	unsigned int bell_msec;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
@@ -118,6 +125,8 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
 	vte->ref = 1;
 	vte->st = st;
 	vte->state = STATE_GROUND;
+	vte->bell_hz = DEFAULT_BELL_HZ;
+	vte->bell_msec = DEFAULT_BELL_MSEC;
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
@@ -166,6 +175,17 @@ void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con)
 	kmscon_console_ref(vte->con);
 }
 
+static void do_bell(struct kmscon_vte *vte)
+{
+	if (vte->bell_msec <= 0)
+		return;
+
+	/*
+	 * TODO: Somehow call
+	 * kmscon_input_sound_bell(input, vte->bell_hz, vte->bell_msec);
+	 */
+}
+
 /* execute control character (C0 or C1) */
 static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 {
@@ -179,10 +199,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x07: /* BEL */
 			/* Sound bell tone */
-			/* TODO: I always considered this annying, however, we
-			 * should at least provide some way to enable it if the
-			 * user *really* wants it.
-			 */
+			do_bell(vte);
 			break;
 		case 0x08: /* BS */
 			/* Move cursor one position left */
@@ -357,6 +374,57 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
+static void do_linux_private(struct kmscon_vte *vte)
+{
+	if (vte->csi_argv[0] <= 0)
+		return;
+
+	switch (vte->csi_argv[0]) {
+	case 1:
+		/* Set underline color */
+		/* TODO */
+		break;
+	case 2:
+		/* Set dim color */
+		/* TODO */
+		break;
+	case 8:
+		/* Set default color attributes */
+		/* TODO */
+		break;
+	case 9:
+		/* Set screen blank timeout */
+		/* TODO */
+		break;
+	case 10:
+		/* Set bell frequency in Hz */
+		if (vte->csi_argv[1] >= 0)
+			vte->bell_hz = vte->csi_argv[1];
+		break;
+	case 11:
+		/* Set bell duration in milliseconds */
+		if (vte->csi_argv[1] >= 0)
+			vte->bell_msec = vte->csi_argv[1];
+		break;
+	case 12:
+		/* Switch to console */
+		/* TODO */
+		break;
+	case 13:
+		/* Unblank the screen */
+		/* TODO */
+		break;
+	case 14:
+		/* Set VESA powerdown interval */
+		/* TODO */
+		break;
+	default:
+		log_debug("vte: unhandled Linux private sequence: %d\n",
+							vte->csi_argv[0]);
+		break;
+	}
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num;
@@ -404,6 +472,9 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				kmscon_console_erase_home_to_cursor(vte->con);
 			else if (vte->csi_argv[0] == 2)
 				kmscon_console_erase_current_line(vte->con);
+			break;
+		case ']':
+			do_linux_private(vte);
 			break;
 		default:
 			log_debug("vte: unhandled CSI sequence %c\n", data);
@@ -462,7 +533,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 }
 
 /* entry actions to be performed when entering the selected state */
-static int entry_action[] = {
+static const int entry_action[] = {
 	[STATE_CSI_ENTRY] = ACTION_CLEAR,
 	[STATE_DCS_ENTRY] = ACTION_CLEAR,
 	[STATE_DCS_PASS] = ACTION_DCS_START,
@@ -472,7 +543,7 @@ static int entry_action[] = {
 };
 
 /* exit actions to be performed when leaving the selected state */
-static int exit_action[] = {
+static const int exit_action[] = {
 	[STATE_DCS_PASS] = ACTION_DCS_END,
 	[STATE_OSC_STRING] = ACTION_OSC_END,
 	[STATE_NUM] = ACTION_NONE,

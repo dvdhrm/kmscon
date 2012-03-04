@@ -38,8 +38,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "config.h"
-
 /* LOG_EMERG and LOG_ALERT do not make sense for this application */
 #define LOG_CRIT	"<2>" /* error that cannot be handled correctly */
 #define LOG_ERR		"<3>" /* error detected */

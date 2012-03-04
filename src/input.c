@@ -53,15 +53,27 @@
 #include "kbd.h"
 #include "log.h"
 
+/* How many longs are needed to hold \n bits. */
+#define NLONGS(n) (((n) + LONG_BIT - 1) / LONG_BIT)
+
 enum input_state {
 	INPUT_ASLEEP,
 	INPUT_AWAKE,
+};
+
+/* See probe_device_features(). */
+enum device_feature {
+	FEATURE_HAS_KEYS = 0x01,
+	FEATURE_HAS_LEDS = 0x02,
+	FEATURE_HAS_BELL = 0x04,
 };
 
 struct kmscon_input_device {
 	size_t ref;
 	struct kmscon_input_device *next;
 	struct kmscon_input *input;
+
+	unsigned int features;
 
 	int rfd;
 	char *devnode;
@@ -84,6 +96,8 @@ struct kmscon_input {
 	struct kmscon_fd *monitor_fd;
 
 	struct kmscon_kbd_desc *desc;
+
+	struct kmscon_timer *bell_timer;
 };
 
 static void remove_device(struct kmscon_input *input, const char *node);
@@ -143,6 +157,7 @@ static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
 int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 {
 	int ret;
+	unsigned long ledbits[NLONGS(LED_CNT)] = { 0 };
 
 	if (!device || !device->input || !device->input->eloop)
 		return -EINVAL;
@@ -150,22 +165,34 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	if (device->fd)
 		return 0;
 
-	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (device->rfd < 0) {
 		log_warn("input: cannot open input device %s: %d\n",
 						device->devnode, errno);
 		return -errno;
 	}
 
-	/* this rediscovers the keyboard state if sth changed during sleep */
-	kmscon_kbd_reset(device->kbd, device->rfd);
+	if (device->features & FEATURE_HAS_KEYS) {
+		if (device->features & FEATURE_HAS_LEDS) {
+			errno = 0;
+			ioctl(device->rfd, EVIOCGLED(sizeof(ledbits)),
+								&ledbits);
+			if (errno)
+				log_warn("input: cannot discover state of LEDs (%s): %m\n",
+                                                        device->devnode);
+		}
 
-	ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
-		device->rfd, KMSCON_READABLE, device_data_arrived, device);
-	if (ret) {
-		close(device->rfd);
-		device->rfd = -1;
-		return ret;
+		/* rediscover the keyboard state if sth changed during sleep */
+		kmscon_kbd_reset(device->kbd, ledbits);
+
+		ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
+						device->rfd, KMSCON_READABLE,
+						device_data_arrived, device);
+		if (ret) {
+			close(device->rfd);
+			device->rfd = -1;
+			return ret;
+		}
 	}
 
 	return 0;
@@ -179,14 +206,17 @@ void kmscon_input_device_sleep(struct kmscon_input_device *device)
 	if (device->rfd < 0)
 		return;
 
-	kmscon_eloop_rm_fd(device->fd);
+	if (device->features & FEATURE_HAS_KEYS)
+		kmscon_eloop_rm_fd(device->fd);
+
 	device->fd = NULL;
 	close(device->rfd);
 	device->rfd = -1;
 }
 
 static int kmscon_input_device_new(struct kmscon_input_device **out,
-			struct kmscon_input *input, const char *devnode)
+			struct kmscon_input *input, const char *devnode,
+						unsigned int features)
 {
 	int ret;
 	struct kmscon_input_device *device;
@@ -217,6 +247,7 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 	}
 
 	device->input = input;
+	device->features = features;
 	device->rfd = -1;
 
 	*out = device;
@@ -343,34 +374,96 @@ void kmscon_input_unref(struct kmscon_input *input)
 	log_debug("input: destroying input object\n");
 }
 
+/*
+ * See if the device has anything useful to offer.
+ * We go over the desired features and return a mask of enum device_feature's.
+ * */
+static unsigned int probe_device_features(const char *node)
+{
+	int i, fd;
+	unsigned int features = 0;
+	unsigned long evbits[NLONGS(EV_CNT)] = { 0 };
+	unsigned long keybits[NLONGS(KEY_CNT)] = { 0 };
+	unsigned long sndbits[NLONGS(SND_CNT)] = { 0 };
+
+	fd = open(node, O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0)
+		return 0;
+
+	/* Which types of input events the device supports. */
+	errno = 0;
+	ioctl(fd, EVIOCGBIT(0, sizeof(evbits)), evbits);
+	if (errno)
+		goto err_ioctl;
+
+	/* Check if the device supports keys/buttons. */
+	if (kmscon_evdev_bit_is_set(evbits, EV_KEY)) {
+		errno = 0;
+		ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits);
+		if (errno)
+			goto err_ioctl;
+
+		/*
+		 * If the device support any of the normal keyboard keys, we
+		 * take it. Even if the keys are not ordinary they can be
+		 * mapped to anything by the keyboard backend.
+		 */
+		for (i = KEY_RESERVED; i <= KEY_MIN_INTERESTING; i++) {
+			if (kmscon_evdev_bit_is_set(keybits, i)) {
+				features |= FEATURE_HAS_KEYS;
+				break;
+			}
+		}
+	}
+
+	/* Check if the device has any leds. */
+	if (kmscon_evdev_bit_is_set(evbits, EV_LED))
+		features |= FEATURE_HAS_LEDS;
+
+	/* Check if the device can make a bell sound. */
+	if (kmscon_evdev_bit_is_set(evbits, EV_SND)) {
+		errno = 0;
+		ioctl(fd, EVIOCGBIT(EV_SND, sizeof(sndbits)), sndbits);
+		if (errno)
+			goto err_ioctl;
+
+		if (kmscon_evdev_bit_is_set(sndbits, SND_TONE))
+			features |= FEATURE_HAS_BELL;
+	}
+
+	close(fd);
+	return features;
+
+err_ioctl:
+	if (errno != ENOTTY)
+		log_warn("input: cannot probe features of device (%s): %m\n",
+									node);
+	close(fd);
+	return 0;
+}
+
 static void add_device(struct kmscon_input *input,
 					struct udev_device *udev_device)
 {
 	int ret;
 	struct kmscon_input_device *device;
-	const char *value, *node;
+	const char *node;
+	unsigned int features;
 
 	if (!input || !udev_device)
 		return;
-
-	/*
-	 * TODO: Here should go a proper filtering of input devices we're
-	 * interested in. Currently, we add all kinds of devices. A simple
-	 * blacklist should be the easiest way.
-	 */
 
 	node = udev_device_get_devnode(udev_device);
 	if (!node)
 		return;
 
-	value = udev_device_get_property_value(udev_device,
-							"ID_INPUT_KEYBOARD");
-	if (!value || strcmp(value, "1")) {
-		log_debug("input: ignoring non-keyboard device %s\n", node);
+	features = probe_device_features(node);
+	if (!(features & (FEATURE_HAS_KEYS | FEATURE_HAS_BELL))) {
+		log_debug("input: ignoring non-useful device %s\n", node);
 		return;
 	}
 
-	ret = kmscon_input_device_new(&device, input, node);
+	ret = kmscon_input_device_new(&device, input, node, features);
 	if (ret) {
 		log_warn("input: cannot create input device for %s\n",
 									node);
@@ -389,7 +482,7 @@ static void add_device(struct kmscon_input *input,
 
 	device->next = input->devices;
 	input->devices = device;
-	log_debug("input: added device %s\n", node);
+	log_debug("input: added device %s (features: %#x)\n", node, features);
 }
 
 static void remove_device(struct kmscon_input *input, const char *node)
@@ -609,4 +702,58 @@ bool kmscon_input_is_asleep(struct kmscon_input *input)
 		return false;
 
 	return input->state == INPUT_ASLEEP;
+}
+
+void kmscon_input_stop_bell(struct kmscon_input *input)
+{
+	struct kmscon_input_device *device;
+	const struct input_event ev = {
+		.type = EV_SND,
+		.code = SND_TONE,
+		.value = 0
+	};
+
+	if (!input || input->state == INPUT_ASLEEP)
+		return;
+
+	for (device = input->devices; device; device = device->next)
+		if (device->features & FEATURE_HAS_BELL)
+			(void)write(device->rfd, &ev, sizeof(ev));
+}
+
+static void bell_timer_elapsed(struct kmscon_timer *timer, uint64_t num,
+								void *data)
+{
+	struct kmscon_input *input = data;
+	kmscon_input_stop_bell(input);
+	kmscon_eloop_rm_timer(input->bell_timer);
+	input->bell_timer = NULL;
+}
+
+void kmscon_input_sound_bell(struct kmscon_input *input, unsigned int hz,
+							unsigned int msec)
+{
+	int ret;
+	struct kmscon_input_device *device;
+	const struct input_event ev = {
+		.type = EV_SND,
+		.code = SND_TONE,
+		.value = hz
+	};
+	const struct itimerspec spec = {
+		.it_interval = { 0, 0 },
+		.it_value = { msec / 1000, (msec % 1000) * 1000000 }
+	};
+
+	if (!input || input->state == INPUT_ASLEEP || input->bell_timer)
+		return;
+
+	ret = kmscon_eloop_new_timer(input->eloop, &input->bell_timer,
+					&spec, bell_timer_elapsed, input);
+	if (ret)
+		return;
+
+	for (device = input->devices; device; device = device->next)
+		if (device->features & FEATURE_HAS_BELL)
+			(void)write(device->rfd, &ev, sizeof(ev));
 }

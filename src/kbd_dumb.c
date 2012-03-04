@@ -330,38 +330,17 @@ void kmscon_kbd_unref(struct kmscon_kbd *kbd)
 	free(kbd);
 }
 
-void kmscon_kbd_reset(struct kmscon_kbd *kbd, int evdev_fd)
+void kmscon_kbd_reset(struct kmscon_kbd *kbd, const unsigned long *ledbits)
 {
-	int i;
-	/* One long should be enough (LED_MAX is currently 16). */
-	unsigned long leds, bit;
-
 	if (!kbd)
 		return;
 
 	kbd->mods = 0;
 
-	errno = 0;
-	ioctl(evdev_fd, EVIOCGLED(sizeof(leds)), &leds);
-	if (errno) {
-		log_warn("kbd-dumb: cannot discover modifiers state: %m\n");
-		return;
-	}
-
-	/* The LED_* constants specifiy the bit location. */
-	for (i=0, bit=0x01; i < LED_MAX; i++, bit<<=1) {
-		if (!(leds & bit))
-			continue;
-
-		switch (i) {
-		case LED_NUML:
-			kbd->mods |= KMSCON_MOD2_MASK;
-			break;
-		case LED_CAPSL:
-			kbd->mods |= KMSCON_LOCK_MASK;
-			break;
-		}
-	}
+	if (kmscon_evdev_bit_is_set(ledbits, LED_NUML))
+		kbd->mods |= KMSCON_MOD2_MASK;
+	if (kmscon_evdev_bit_is_set(ledbits, LED_CAPSL))
+		kbd->mods |= KMSCON_LOCK_MASK;
 }
 
 int kmscon_kbd_process_key(struct kmscon_kbd *kbd,

@@ -67,7 +67,7 @@ void kmscon_kbd_unref(struct kmscon_kbd *state);
  * This resets the keyboard state in case it got out of sync. It's mainly used
  * to sync our notion of the keyboard state with what the keyboard LEDs show.
  */
-void kmscon_kbd_reset(struct kmscon_kbd *kbd, int evdev_fd);
+void kmscon_kbd_reset(struct kmscon_kbd *kbd, const unsigned long *ledbits);
 
 /*
  * This is the entry point to the keyboard processing.
