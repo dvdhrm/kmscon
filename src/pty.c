@@ -23,9 +23,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/* for pty functions */
-#define _XOPEN_SOURCE 700
-
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>

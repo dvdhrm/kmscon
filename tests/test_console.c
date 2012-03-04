@@ -39,8 +39,6 @@
  * $ ls -la | ./test_console
  */
 
-#define _BSD_SOURCE
-
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
