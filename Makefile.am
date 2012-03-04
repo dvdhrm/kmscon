@@ -11,6 +11,7 @@ noinst_LTLIBRARIES = libkmscon-core.la
 AM_CFLAGS = \
 	-Wall
 AM_CPPFLAGS = \
+	-include $(top_builddir)/config.h \
 	-I $(srcdir)/src \
 	-I $(srcdir)/external
 AM_LDFLAGS = \
