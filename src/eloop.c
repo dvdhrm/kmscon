@@ -1,5 +1,5 @@
 /*
- * kmscon - Event Loop
+ * Event Loop
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -45,55 +45,55 @@
 #include "eloop.h"
 #include "log.h"
 
-struct kmscon_eloop {
+struct ev_eloop {
 	int efd;
 	unsigned long ref;
 
-	struct kmscon_idle *idle_list;
-	struct kmscon_idle *cur_idle;
+	struct ev_idle *idle_list;
+	struct ev_idle *cur_idle;
 
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
 };
 
-struct kmscon_idle {
+struct ev_idle {
 	unsigned long ref;
-	struct kmscon_eloop *loop;
-	struct kmscon_idle *next;
-	struct kmscon_idle *prev;
+	struct ev_eloop *loop;
+	struct ev_idle *next;
+	struct ev_idle *prev;
 
-	kmscon_idle_cb cb;
+	ev_idle_cb cb;
 	void *data;
 };
 
-struct kmscon_fd {
+struct ev_fd {
 	unsigned long ref;
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 
-	kmscon_fd_cb cb;
+	ev_fd_cb cb;
 	void *data;
 	int fd;
 };
 
-struct kmscon_signal {
+struct ev_signal {
 	unsigned long ref;
 
-	struct kmscon_fd *fd;
-	kmscon_signal_cb cb;
+	struct ev_fd *fd;
+	ev_signal_cb cb;
 	void *data;
 };
 
-struct kmscon_timer {
+struct ev_timer {
 	unsigned long ref;
 
-	struct kmscon_fd *fd;
-	kmscon_timer_cb cb;
+	struct ev_fd *fd;
+	ev_timer_cb cb;
 	void *data;
 };
 
-int kmscon_idle_new(struct kmscon_idle **out)
+int ev_idle_new(struct ev_idle **out)
 {
-	struct kmscon_idle *idle;
+	struct ev_idle *idle;
 
 	if (!out)
 		return -EINVAL;
@@ -109,7 +109,7 @@ int kmscon_idle_new(struct kmscon_idle **out)
 	return 0;
 }
 
-void kmscon_idle_ref(struct kmscon_idle *idle)
+void ev_idle_ref(struct ev_idle *idle)
 {
 	if (!idle)
 		return;
@@ -117,7 +117,7 @@ void kmscon_idle_ref(struct kmscon_idle *idle)
 	++idle->ref;
 }
 
-void kmscon_idle_unref(struct kmscon_idle *idle)
+void ev_idle_unref(struct ev_idle *idle)
 {
 	if (!idle || !idle->ref)
 		return;
@@ -128,32 +128,32 @@ void kmscon_idle_unref(struct kmscon_idle *idle)
 	free(idle);
 }
 
-int kmscon_eloop_new_idle(struct kmscon_eloop *loop, struct kmscon_idle **out,
-						kmscon_idle_cb cb, void *data)
+int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
+						ev_idle_cb cb, void *data)
 {
-	struct kmscon_idle *idle;
+	struct ev_idle *idle;
 	int ret;
 
 	if (!out)
 		return -EINVAL;
 
-	ret = kmscon_idle_new(&idle);
+	ret = ev_idle_new(&idle);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_add_idle(loop, idle, cb, data);
+	ret = ev_eloop_add_idle(loop, idle, cb, data);
 	if (ret) {
-		kmscon_idle_unref(idle);
+		ev_idle_unref(idle);
 		return ret;
 	}
 
-	kmscon_idle_unref(idle);
+	ev_idle_unref(idle);
 	*out = idle;
 	return 0;
 }
 
-int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
-						kmscon_idle_cb cb, void *data)
+int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
+						ev_idle_cb cb, void *data)
 {
 	if (!loop || !idle || !cb)
 		return -EINVAL;
@@ -170,15 +170,15 @@ int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
 	idle->cb = cb;
 	idle->data = data;
 
-	kmscon_idle_ref(idle);
-	kmscon_eloop_ref(loop);
+	ev_idle_ref(idle);
+	ev_eloop_ref(loop);
 
 	return 0;
 }
 
-void kmscon_eloop_rm_idle(struct kmscon_idle *idle)
+void ev_eloop_rm_idle(struct ev_idle *idle)
 {
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 
 	if (!idle || !idle->loop)
 		return;
@@ -205,13 +205,13 @@ void kmscon_eloop_rm_idle(struct kmscon_idle *idle)
 	idle->cb = NULL;
 	idle->data = NULL;
 
-	kmscon_idle_unref(idle);
-	kmscon_eloop_unref(loop);
+	ev_idle_unref(idle);
+	ev_eloop_unref(loop);
 }
 
-int kmscon_fd_new(struct kmscon_fd **out)
+int ev_fd_new(struct ev_fd **out)
 {
-	struct kmscon_fd *fd;
+	struct ev_fd *fd;
 
 	if (!out)
 		return -EINVAL;
@@ -228,7 +228,7 @@ int kmscon_fd_new(struct kmscon_fd **out)
 	return 0;
 }
 
-void kmscon_fd_ref(struct kmscon_fd *fd)
+void ev_fd_ref(struct ev_fd *fd)
 {
 	if (!fd)
 		return;
@@ -236,7 +236,7 @@ void kmscon_fd_ref(struct kmscon_fd *fd)
 	++fd->ref;
 }
 
-void kmscon_fd_unref(struct kmscon_fd *fd)
+void ev_fd_unref(struct ev_fd *fd)
 {
 	if (!fd || !fd->ref)
 		return;
@@ -247,32 +247,32 @@ void kmscon_fd_unref(struct kmscon_fd *fd)
 	free(fd);
 }
 
-int kmscon_eloop_new_fd(struct kmscon_eloop *loop, struct kmscon_fd **out,
-				int rfd, int mask, kmscon_fd_cb cb, void *data)
+int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out,
+				int rfd, int mask, ev_fd_cb cb, void *data)
 {
-	struct kmscon_fd *fd;
+	struct ev_fd *fd;
 	int ret;
 
 	if (!out)
 		return -EINVAL;
 
-	ret = kmscon_fd_new(&fd);
+	ret = ev_fd_new(&fd);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_add_fd(loop, fd, rfd, mask, cb, data);
+	ret = ev_eloop_add_fd(loop, fd, rfd, mask, cb, data);
 	if (ret) {
-		kmscon_fd_unref(fd);
+		ev_fd_unref(fd);
 		return ret;
 	}
 
-	kmscon_fd_unref(fd);
+	ev_fd_unref(fd);
 	*out = fd;
 	return 0;
 }
 
-int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
-				int rfd, int mask, kmscon_fd_cb cb, void *data)
+int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd,
+				int rfd, int mask, ev_fd_cb cb, void *data)
 {
 	struct epoll_event ep;
 
@@ -283,9 +283,9 @@ int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
 		return -EALREADY;
 
 	memset(&ep, 0, sizeof(ep));
-	if (mask & KMSCON_READABLE)
+	if (mask & EV_READABLE)
 		ep.events |= EPOLLIN;
-	if (mask & KMSCON_WRITEABLE)
+	if (mask & EV_WRITEABLE)
 		ep.events |= EPOLLOUT;
 	ep.data.ptr = fd;
 
@@ -297,15 +297,15 @@ int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
 	fd->data = data;
 	fd->fd = rfd;
 
-	kmscon_fd_ref(fd);
-	kmscon_eloop_ref(loop);
+	ev_fd_ref(fd);
+	ev_eloop_ref(loop);
 
 	return 0;
 }
 
-void kmscon_eloop_rm_fd(struct kmscon_fd *fd)
+void ev_eloop_rm_fd(struct ev_fd *fd)
 {
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 	size_t i;
 
 	if (!fd || !fd->loop)
@@ -328,11 +328,11 @@ void kmscon_eloop_rm_fd(struct kmscon_fd *fd)
 	fd->cb = NULL;
 	fd->data = NULL;
 	fd->fd = -1;
-	kmscon_fd_unref(fd);
-	kmscon_eloop_unref(loop);
+	ev_fd_unref(fd);
+	ev_eloop_unref(loop);
 }
 
-int kmscon_eloop_update_fd(struct kmscon_fd *fd, int mask)
+int ev_eloop_update_fd(struct ev_fd *fd, int mask)
 {
 	struct epoll_event ep;
 
@@ -340,9 +340,9 @@ int kmscon_eloop_update_fd(struct kmscon_fd *fd, int mask)
 		return -EINVAL;
 
 	memset(&ep, 0, sizeof(ep));
-	if (mask & KMSCON_READABLE)
+	if (mask & EV_READABLE)
 		ep.events |= EPOLLIN;
-	if (mask & KMSCON_WRITEABLE)
+	if (mask & EV_WRITEABLE)
 		ep.events |= EPOLLOUT;
 	ep.data.ptr = fd;
 
@@ -352,9 +352,9 @@ int kmscon_eloop_update_fd(struct kmscon_fd *fd, int mask)
 	return 0;
 }
 
-int kmscon_signal_new(struct kmscon_signal **out)
+int ev_signal_new(struct ev_signal **out)
 {
-	struct kmscon_signal *sig;
+	struct ev_signal *sig;
 	int ret;
 
 	if (!out)
@@ -367,7 +367,7 @@ int kmscon_signal_new(struct kmscon_signal **out)
 	memset(sig, 0, sizeof(*sig));
 	sig->ref = 1;
 
-	ret = kmscon_fd_new(&sig->fd);
+	ret = ev_fd_new(&sig->fd);
 	if (ret) {
 		free(sig);
 		return ret;
@@ -377,7 +377,7 @@ int kmscon_signal_new(struct kmscon_signal **out)
 	return 0;
 }
 
-void kmscon_signal_ref(struct kmscon_signal *sig)
+void ev_signal_ref(struct ev_signal *sig)
 {
 	if (!sig)
 		return;
@@ -385,7 +385,7 @@ void kmscon_signal_ref(struct kmscon_signal *sig)
 	++sig->ref;
 }
 
-void kmscon_signal_unref(struct kmscon_signal *sig)
+void ev_signal_unref(struct ev_signal *sig)
 {
 	if (!sig || !sig->ref)
 		return;
@@ -393,42 +393,42 @@ void kmscon_signal_unref(struct kmscon_signal *sig)
 	if (--sig->ref)
 		return;
 
-	kmscon_fd_unref(sig->fd);
+	ev_fd_unref(sig->fd);
 	free(sig);
 }
 
-int kmscon_eloop_new_signal(struct kmscon_eloop *loop,
-	struct kmscon_signal **out, int signum, kmscon_signal_cb cb,
+int ev_eloop_new_signal(struct ev_eloop *loop,
+	struct ev_signal **out, int signum, ev_signal_cb cb,
 								void *data)
 {
-	struct kmscon_signal *sig;
+	struct ev_signal *sig;
 	int ret;
 
 	if (!out)
 		return -EINVAL;
 
-	ret = kmscon_signal_new(&sig);
+	ret = ev_signal_new(&sig);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_add_signal(loop, sig, signum, cb, data);
+	ret = ev_eloop_add_signal(loop, sig, signum, cb, data);
 	if (ret) {
-		kmscon_signal_unref(sig);
+		ev_signal_unref(sig);
 		return ret;
 	}
 
-	kmscon_signal_unref(sig);
+	ev_signal_unref(sig);
 	*out = sig;
 	return 0;
 }
 
-static void signal_cb(struct kmscon_fd *fd, int mask, void *data)
+static void signal_cb(struct ev_fd *fd, int mask, void *data)
 {
-	struct kmscon_signal *sig = data;
+	struct ev_signal *sig = data;
 	struct signalfd_siginfo signal_info;
 	int len;
 
-	if (mask & KMSCON_READABLE) {
+	if (mask & EV_READABLE) {
 		len = read(fd->fd, &signal_info, sizeof(signal_info));
 		if (len != sizeof(signal_info))
 			log_warn("eloop: cannot read signalfd\n");
@@ -437,8 +437,8 @@ static void signal_cb(struct kmscon_fd *fd, int mask, void *data)
 	}
 }
 
-int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
-	struct kmscon_signal *sig, int signum, kmscon_signal_cb cb, void *data)
+int ev_eloop_add_signal(struct ev_eloop *loop,
+	struct ev_signal *sig, int signum, ev_signal_cb cb, void *data)
 {
 	sigset_t mask;
 	int ret, fd;
@@ -456,7 +456,7 @@ int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
 	if (fd < 0)
 		return -errno;
 
-	ret = kmscon_eloop_add_fd(loop, sig->fd, fd, KMSCON_READABLE,
+	ret = ev_eloop_add_fd(loop, sig->fd, fd, EV_READABLE,
 							signal_cb, sig);
 	if (ret) {
 		close(fd);
@@ -466,12 +466,12 @@ int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
 	sigprocmask(SIG_BLOCK, &mask, NULL);
 	sig->cb = cb;
 	sig->data = data;
-	kmscon_signal_ref(sig);
+	ev_signal_ref(sig);
 
 	return 0;
 }
 
-void kmscon_eloop_rm_signal(struct kmscon_signal *sig)
+void ev_eloop_rm_signal(struct ev_signal *sig)
 {
 	int fd;
 
@@ -479,9 +479,9 @@ void kmscon_eloop_rm_signal(struct kmscon_signal *sig)
 		return;
 
 	fd = sig->fd->fd;
-	kmscon_eloop_rm_fd(sig->fd);
+	ev_eloop_rm_fd(sig->fd);
 	close(fd);
-	kmscon_signal_unref(sig);
+	ev_signal_unref(sig);
 
 	/*
 	 * We cannot unblock the signal here because we do not know whether some
@@ -489,9 +489,9 @@ void kmscon_eloop_rm_signal(struct kmscon_signal *sig)
 	 */
 }
 
-int kmscon_timer_new(struct kmscon_timer **out)
+int ev_timer_new(struct ev_timer **out)
 {
-	struct kmscon_timer *timer;
+	struct ev_timer *timer;
 	int ret;
 
 	if (!out)
@@ -504,7 +504,7 @@ int kmscon_timer_new(struct kmscon_timer **out)
 	memset(timer, 0, sizeof(*timer));
 	timer->ref = 1;
 
-	ret = kmscon_fd_new(&timer->fd);
+	ret = ev_fd_new(&timer->fd);
 	if (ret) {
 		free(timer);
 		return ret;
@@ -514,7 +514,7 @@ int kmscon_timer_new(struct kmscon_timer **out)
 	return 0;
 }
 
-void kmscon_timer_ref(struct kmscon_timer *timer)
+void ev_timer_ref(struct ev_timer *timer)
 {
 	if (!timer)
 		return;
@@ -522,7 +522,7 @@ void kmscon_timer_ref(struct kmscon_timer *timer)
 	++timer->ref;
 }
 
-void kmscon_timer_unref(struct kmscon_timer *timer)
+void ev_timer_unref(struct ev_timer *timer)
 {
 	if (!timer || !timer->ref)
 		return;
@@ -530,41 +530,41 @@ void kmscon_timer_unref(struct kmscon_timer *timer)
 	if (--timer->ref)
 		return;
 
-	kmscon_fd_unref(timer->fd);
+	ev_fd_unref(timer->fd);
 	free(timer);
 }
 
-int kmscon_eloop_new_timer(struct kmscon_eloop *loop, struct kmscon_timer **out,
-		const struct itimerspec *spec, kmscon_timer_cb cb, void *data)
+int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
+		const struct itimerspec *spec, ev_timer_cb cb, void *data)
 {
-	struct kmscon_timer *timer;
+	struct ev_timer *timer;
 	int ret;
 
 	if (!out)
 		return -EINVAL;
 
-	ret = kmscon_timer_new(&timer);
+	ret = ev_timer_new(&timer);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_add_timer(loop, timer, spec, cb, data);
+	ret = ev_eloop_add_timer(loop, timer, spec, cb, data);
 	if (ret) {
-		kmscon_timer_unref(timer);
+		ev_timer_unref(timer);
 		return ret;
 	}
 
-	kmscon_timer_unref(timer);
+	ev_timer_unref(timer);
 	*out = timer;
 	return 0;
 }
 
-static void timer_cb(struct kmscon_fd *fd, int mask, void *data)
+static void timer_cb(struct ev_fd *fd, int mask, void *data)
 {
-	struct kmscon_timer *timer = data;
+	struct ev_timer *timer = data;
 	uint64_t expirations;
 	int len;
 
-	if (mask & KMSCON_READABLE) {
+	if (mask & EV_READABLE) {
 		len = read(fd->fd, &expirations, sizeof(expirations));
 		if (len != sizeof(expirations))
 			log_warn("eloop: cannot read timerfd\n");
@@ -573,9 +573,9 @@ static void timer_cb(struct kmscon_fd *fd, int mask, void *data)
 	}
 }
 
-int kmscon_eloop_add_timer(struct kmscon_eloop *loop,
-		struct kmscon_timer *timer, const struct itimerspec *spec,
-						kmscon_timer_cb cb, void *data)
+int ev_eloop_add_timer(struct ev_eloop *loop,
+		struct ev_timer *timer, const struct itimerspec *spec,
+						ev_timer_cb cb, void *data)
 {
 	int ret, fd;
 
@@ -596,14 +596,14 @@ int kmscon_eloop_add_timer(struct kmscon_eloop *loop,
 		goto err_fd;
 	}
 
-	ret = kmscon_eloop_add_fd(loop, timer->fd, fd, KMSCON_READABLE,
+	ret = ev_eloop_add_fd(loop, timer->fd, fd, EV_READABLE,
 							timer_cb, timer);
 	if (ret)
 		goto err_fd;
 
 	timer->cb = cb;
 	timer->data = data;
-	kmscon_timer_ref(timer);
+	ev_timer_ref(timer);
 
 	return 0;
 
@@ -612,7 +612,7 @@ err_fd:
 	return ret;
 }
 
-void kmscon_eloop_rm_timer(struct kmscon_timer *timer)
+void ev_eloop_rm_timer(struct ev_timer *timer)
 {
 	int fd;
 
@@ -620,12 +620,12 @@ void kmscon_eloop_rm_timer(struct kmscon_timer *timer)
 		return;
 
 	fd = timer->fd->fd;
-	kmscon_eloop_rm_fd(timer->fd);
+	ev_eloop_rm_fd(timer->fd);
 	close(fd);
-	kmscon_timer_unref(timer);
+	ev_timer_unref(timer);
 }
 
-int kmscon_eloop_update_timer(struct kmscon_timer *timer,
+int ev_eloop_update_timer(struct ev_timer *timer,
 						const struct itimerspec *spec)
 {
 	int ret;
@@ -643,9 +643,9 @@ int kmscon_eloop_update_timer(struct kmscon_timer *timer,
 	return 0;
 }
 
-int kmscon_eloop_new(struct kmscon_eloop **out)
+int ev_eloop_new(struct ev_eloop **out)
 {
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 
 	if (!out)
 		return -EINVAL;
@@ -668,7 +668,7 @@ int kmscon_eloop_new(struct kmscon_eloop **out)
 	return 0;
 }
 
-void kmscon_eloop_ref(struct kmscon_eloop *loop)
+void ev_eloop_ref(struct ev_eloop *loop)
 {
 	if (!loop)
 		return;
@@ -676,7 +676,7 @@ void kmscon_eloop_ref(struct kmscon_eloop *loop)
 	++loop->ref;
 }
 
-void kmscon_eloop_unref(struct kmscon_eloop *loop)
+void ev_eloop_unref(struct ev_eloop *loop)
 {
 	if (!loop || !loop->ref)
 		return;
@@ -689,10 +689,10 @@ void kmscon_eloop_unref(struct kmscon_eloop *loop)
 	free(loop);
 }
 
-int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
+int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
 	struct epoll_event ep[32];
-	struct kmscon_fd *fd;
+	struct ev_fd *fd;
 	int i, count, mask;
 
 	if (!loop)
@@ -723,13 +723,13 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 
 		mask = 0;
 		if (ep[i].events & EPOLLIN)
-			mask |= KMSCON_READABLE;
+			mask |= EV_READABLE;
 		if (ep[i].events & EPOLLOUT)
-			mask |= KMSCON_WRITEABLE;
+			mask |= EV_WRITEABLE;
 		if (ep[i].events & EPOLLHUP)
-			mask |= KMSCON_HUP;
+			mask |= EV_HUP;
 		if (ep[i].events & EPOLLERR)
-			mask |= KMSCON_ERR;
+			mask |= EV_ERR;
 
 		fd->cb(fd, mask, fd->data);
 	}
@@ -740,7 +740,7 @@ int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout)
 	return 0;
 }
 
-int kmscon_eloop_get_fd(struct kmscon_eloop *loop)
+int ev_eloop_get_fd(struct ev_eloop *loop)
 {
 	if (!loop)
 		return -EINVAL;

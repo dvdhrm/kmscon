@@ -1,5 +1,5 @@
 /*
- * kmscon - Event Loop
+ * Event Loop
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -31,91 +31,91 @@
  * it to other platforms.
  */
 
-#ifndef KMSCON_ELOOP_H
-#define KMSCON_ELOOP_H
+#ifndef EV_ELOOP_H
+#define EV_ELOOP_H
 
 #include <inttypes.h>
 #include <stdlib.h>
 #include <time.h>
 
-struct kmscon_eloop;
-struct kmscon_idle;
-struct kmscon_fd;
-struct kmscon_signal;
-struct kmscon_timer;
+struct ev_eloop;
+struct ev_idle;
+struct ev_fd;
+struct ev_signal;
+struct ev_timer;
 
-typedef void (*kmscon_idle_cb) (struct kmscon_idle *idle, void *data);
-typedef void (*kmscon_fd_cb) (struct kmscon_fd *fd, int mask, void *data);
-typedef void (*kmscon_signal_cb)
-			(struct kmscon_signal *sig, int signum, void *data);
-typedef void (*kmscon_timer_cb)
-			(struct kmscon_timer *timer, uint64_t num, void *data);
+typedef void (*ev_idle_cb) (struct ev_idle *idle, void *data);
+typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
+typedef void (*ev_signal_cb)
+			(struct ev_signal *sig, int signum, void *data);
+typedef void (*ev_timer_cb)
+			(struct ev_timer *timer, uint64_t num, void *data);
 
-enum kmscon_eloop_flags {
-	KMSCON_READABLE = 0x01,
-	KMSCON_WRITEABLE = 0x02,
-	KMSCON_HUP = 0x04,
-	KMSCON_ERR = 0x08,
+enum ev_eloop_flags {
+	EV_READABLE = 0x01,
+	EV_WRITEABLE = 0x02,
+	EV_HUP = 0x04,
+	EV_ERR = 0x08,
 };
 
-int kmscon_eloop_new(struct kmscon_eloop **out);
-void kmscon_eloop_ref(struct kmscon_eloop *loop);
-void kmscon_eloop_unref(struct kmscon_eloop *loop);
+int ev_eloop_new(struct ev_eloop **out);
+void ev_eloop_ref(struct ev_eloop *loop);
+void ev_eloop_unref(struct ev_eloop *loop);
 
-int kmscon_eloop_get_fd(struct kmscon_eloop *loop);
-int kmscon_eloop_dispatch(struct kmscon_eloop *loop, int timeout);
+int ev_eloop_get_fd(struct ev_eloop *loop);
+int ev_eloop_dispatch(struct ev_eloop *loop, int timeout);
 
 /* idle sources */
 
-int kmscon_idle_new(struct kmscon_idle **out);
-void kmscon_idle_ref(struct kmscon_idle *idle);
-void kmscon_idle_unref(struct kmscon_idle *idle);
+int ev_idle_new(struct ev_idle **out);
+void ev_idle_ref(struct ev_idle *idle);
+void ev_idle_unref(struct ev_idle *idle);
 
-int kmscon_eloop_new_idle(struct kmscon_eloop *loop, struct kmscon_idle **out,
-						kmscon_idle_cb cb, void *data);
-int kmscon_eloop_add_idle(struct kmscon_eloop *loop, struct kmscon_idle *idle,
-						kmscon_idle_cb cb, void *data);
-void kmscon_eloop_rm_idle(struct kmscon_idle *idle);
+int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
+						ev_idle_cb cb, void *data);
+int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
+						ev_idle_cb cb, void *data);
+void ev_eloop_rm_idle(struct ev_idle *idle);
 
 /* fd sources */
 
-int kmscon_fd_new(struct kmscon_fd **out);
-void kmscon_fd_ref(struct kmscon_fd *fd);
-void kmscon_fd_unref(struct kmscon_fd *fd);
+int ev_fd_new(struct ev_fd **out);
+void ev_fd_ref(struct ev_fd *fd);
+void ev_fd_unref(struct ev_fd *fd);
 
-int kmscon_eloop_new_fd(struct kmscon_eloop *loop, struct kmscon_fd **out,
-				int rfd, int mask, kmscon_fd_cb cb, void *data);
-int kmscon_eloop_add_fd(struct kmscon_eloop *loop, struct kmscon_fd *fd,
-				int rfd, int mask, kmscon_fd_cb cb, void *data);
-void kmscon_eloop_rm_fd(struct kmscon_fd *fd);
-int kmscon_eloop_update_fd(struct kmscon_fd *fd, int mask);
+int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out,
+				int rfd, int mask, ev_fd_cb cb, void *data);
+int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd,
+				int rfd, int mask, ev_fd_cb cb, void *data);
+void ev_eloop_rm_fd(struct ev_fd *fd);
+int ev_eloop_update_fd(struct ev_fd *fd, int mask);
 
 /* signal sources */
 
-int kmscon_signal_new(struct kmscon_signal **out);
-void kmscon_signal_ref(struct kmscon_signal *sig);
-void kmscon_signal_unref(struct kmscon_signal *sig);
+int ev_signal_new(struct ev_signal **out);
+void ev_signal_ref(struct ev_signal *sig);
+void ev_signal_unref(struct ev_signal *sig);
 
-int kmscon_eloop_new_signal(struct kmscon_eloop *loop,
-	struct kmscon_signal **out, int signum, kmscon_signal_cb cb,
+int ev_eloop_new_signal(struct ev_eloop *loop,
+	struct ev_signal **out, int signum, ev_signal_cb cb,
 								void *data);
-int kmscon_eloop_add_signal(struct kmscon_eloop *loop,
-	struct kmscon_signal *sig, int signum, kmscon_signal_cb cb, void *data);
-void kmscon_eloop_rm_signal(struct kmscon_signal *sig);
+int ev_eloop_add_signal(struct ev_eloop *loop,
+	struct ev_signal *sig, int signum, ev_signal_cb cb, void *data);
+void ev_eloop_rm_signal(struct ev_signal *sig);
 
 /* timer sources */
 
-int kmscon_timer_new(struct kmscon_timer **out);
-void kmscon_timer_ref(struct kmscon_timer *timer);
-void kmscon_timer_unref(struct kmscon_timer *timer);
+int ev_timer_new(struct ev_timer **out);
+void ev_timer_ref(struct ev_timer *timer);
+void ev_timer_unref(struct ev_timer *timer);
 
-int kmscon_eloop_new_timer(struct kmscon_eloop *loop, struct kmscon_timer **out,
-		const struct itimerspec *spec, kmscon_timer_cb cb, void *data);
-int kmscon_eloop_add_timer(struct kmscon_eloop *loop,
-		struct kmscon_timer *timer, const struct itimerspec *spec,
-						kmscon_timer_cb cb, void *data);
-void kmscon_eloop_rm_timer(struct kmscon_timer *timer);
-int kmscon_eloop_update_timer(struct kmscon_timer *timer,
+int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
+		const struct itimerspec *spec, ev_timer_cb cb, void *data);
+int ev_eloop_add_timer(struct ev_eloop *loop,
+		struct ev_timer *timer, const struct itimerspec *spec,
+						ev_timer_cb cb, void *data);
+void ev_eloop_rm_timer(struct ev_timer *timer);
+int ev_eloop_update_timer(struct ev_timer *timer,
 						const struct itimerspec *spec);
 
-#endif /* KMSCON_ELOOP_H */
+#endif /* EV_ELOOP_H */
