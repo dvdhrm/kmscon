@@ -44,10 +44,10 @@
 
 struct kmscon_pty {
 	unsigned long ref;
-	struct kmscon_eloop *eloop;
+	struct ev_eloop *eloop;
 
 	int fd;
-	struct kmscon_fd *efd;
+	struct ev_fd *efd;
 	struct kmscon_ring *msgbuf;
 	char io_buf[KMSCON_NREAD];
 
@@ -55,7 +55,7 @@ struct kmscon_pty {
 	void *data;
 };
 
-int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
+int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
 				kmscon_pty_input_cb input_cb, void *data)
 {
 	struct kmscon_pty *pty;
@@ -81,7 +81,7 @@ int kmscon_pty_new(struct kmscon_pty **out, struct kmscon_eloop *loop,
 	if (ret)
 		goto err_free;
 
-	kmscon_eloop_ref(pty->eloop);
+	ev_eloop_ref(pty->eloop);
 	*out = pty;
 	return 0;
 
@@ -108,7 +108,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	kmscon_pty_close(pty);
 	kmscon_ring_free(pty->msgbuf);
-	kmscon_eloop_unref(pty->eloop);
+	ev_eloop_unref(pty->eloop);
 	free(pty);
 	log_debug("pty: destroying pty object\n");
 }
@@ -278,11 +278,11 @@ static int send_buf(struct kmscon_pty *pty)
 		return 0;
 	}
 
-	kmscon_eloop_update_fd(pty->efd, KMSCON_READABLE);
+	ev_eloop_update_fd(pty->efd, EV_READABLE);
 	return 0;
 }
 
-static void pty_input(struct kmscon_fd *fd, int mask, void *data)
+static void pty_input(struct ev_fd *fd, int mask, void *data)
 {
 	int ret;
 	ssize_t len;
@@ -291,8 +291,8 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 	if (!pty || pty->fd < 0)
 		return;
 
-	if (mask & (KMSCON_ERR | KMSCON_HUP)) {
-		if (mask & KMSCON_ERR)
+	if (mask & (EV_ERR | EV_HUP)) {
+		if (mask & EV_ERR)
 			log_warn("pty: error on child pty socket\n");
 		else
 			log_debug("pty: child closed remote end\n");
@@ -300,13 +300,13 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 		goto err;
 	}
 
-	if (mask & KMSCON_WRITEABLE) {
+	if (mask & EV_WRITEABLE) {
 		ret = send_buf(pty);
 		if (ret)
 			goto err;
 	}
 
-	if (mask & KMSCON_READABLE) {
+	if (mask & EV_READABLE) {
 		len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
 		if (len > 0) {
 			if (pty->input_cb)
@@ -323,7 +323,7 @@ static void pty_input(struct kmscon_fd *fd, int mask, void *data)
 	return;
 
 err:
-	kmscon_eloop_rm_fd(pty->efd);
+	ev_eloop_rm_fd(pty->efd);
 	pty->efd = NULL;
 	if (pty->input_cb)
 		pty->input_cb(pty, NULL, 0, pty->data);
@@ -344,8 +344,8 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_new_fd(pty->eloop, &pty->efd, pty->fd,
-					KMSCON_READABLE, pty_input, pty);
+	ret = ev_eloop_new_fd(pty->eloop, &pty->efd, pty->fd,
+					EV_READABLE, pty_input, pty);
 	if (ret) {
 		close(pty->fd);
 		pty->fd = -1;
@@ -360,7 +360,7 @@ void kmscon_pty_close(struct kmscon_pty *pty)
 	if (!pty || pty->fd < 0)
 		return;
 
-	kmscon_eloop_rm_fd(pty->efd);
+	ev_eloop_rm_fd(pty->efd);
 	pty->efd = NULL;
 	close(pty->fd);
 	pty->fd = -1;
@@ -387,7 +387,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 		return ret;
 	}
 
-	kmscon_eloop_update_fd(pty->efd, KMSCON_READABLE | KMSCON_WRITEABLE);
+	ev_eloop_update_fd(pty->efd, EV_READABLE | EV_WRITEABLE);
 
 buf:
 	ret = kmscon_ring_write(pty->msgbuf, u8, len);

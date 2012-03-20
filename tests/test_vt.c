@@ -46,7 +46,7 @@
 
 static bool terminate;
 
-static void sig_term(struct kmscon_signal *sig, int signum, void *data)
+static void sig_term(struct ev_signal *sig, int signum, void *data)
 {
 	terminate = true;
 }
@@ -54,17 +54,17 @@ static void sig_term(struct kmscon_signal *sig, int signum, void *data)
 int main(int argc, char **argv)
 {
 	int ret;
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 	struct kmscon_vt *vt;
-	struct kmscon_signal *sig;
+	struct ev_signal *sig;
 
-	ret = kmscon_eloop_new(&loop);
+	ret = ev_eloop_new(&loop);
 	if (ret) {
 		log_err("Cannot create eloop\n");
 		goto err_out;
 	}
 
-	ret = kmscon_eloop_new_signal(loop, &sig, SIGINT, sig_term, NULL);
+	ret = ev_eloop_new_signal(loop, &sig, SIGINT, sig_term, NULL);
 	if (ret) {
 		log_err("Cannot add signal\n");
 		goto err_loop;
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 		log_warn("Cannot switch to VT\n");
 
 	while (!terminate) {
-		ret = kmscon_eloop_dispatch(loop, -1);
+		ret = ev_eloop_dispatch(loop, -1);
 		if (ret) {
 			log_err("Dispatcher failed\n");
 			break;
@@ -99,14 +99,14 @@ int main(int argc, char **argv)
 	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
 	ret = kmscon_vt_leave(vt);
 	if (ret == -EINPROGRESS)
-		kmscon_eloop_dispatch(loop, 1000);
+		ev_eloop_dispatch(loop, 1000);
 
 err_vt:
 	kmscon_vt_unref(vt);
 err_sig:
-	kmscon_eloop_rm_signal(sig);
+	ev_eloop_rm_signal(sig);
 err_loop:
-	kmscon_eloop_unref(loop);
+	ev_eloop_unref(loop);
 err_out:
 	return abs(ret);
 }

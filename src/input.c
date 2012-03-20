@@ -76,7 +76,7 @@ struct kmscon_input_device {
 
 	int rfd;
 	char *devnode;
-	struct kmscon_fd *fd;
+	struct ev_fd *fd;
 
 	struct kmscon_kbd *kbd;
 };
@@ -86,13 +86,13 @@ struct kmscon_input {
 	enum input_state state;
 	struct kmscon_input_device *devices;
 
-	struct kmscon_eloop *eloop;
+	struct ev_eloop *eloop;
 	kmscon_input_cb cb;
 	void *data;
 
 	struct udev *udev;
 	struct udev_monitor *monitor;
-	struct kmscon_fd *monitor_fd;
+	struct ev_fd *monitor_fd;
 
 	struct kmscon_kbd_desc *desc;
 };
@@ -119,7 +119,7 @@ static void notify_key(struct kmscon_input_device *device,
 		input->cb(input, &ev, input->data);
 }
 
-static void device_data_arrived(struct kmscon_fd *fd, int mask, void *data)
+static void device_data_arrived(struct ev_fd *fd, int mask, void *data)
 {
 	int i;
 	ssize_t len, n;
@@ -182,8 +182,8 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 		/* rediscover the keyboard state if sth changed during sleep */
 		kmscon_kbd_reset(device->kbd, ledbits);
 
-		ret = kmscon_eloop_new_fd(device->input->eloop, &device->fd,
-						device->rfd, KMSCON_READABLE,
+		ret = ev_eloop_new_fd(device->input->eloop, &device->fd,
+						device->rfd, EV_READABLE,
 						device_data_arrived, device);
 		if (ret) {
 			close(device->rfd);
@@ -204,7 +204,7 @@ void kmscon_input_device_sleep(struct kmscon_input_device *device)
 		return;
 
 	if (device->features & FEATURE_HAS_KEYS)
-		kmscon_eloop_rm_fd(device->fd);
+		ev_eloop_rm_fd(device->fd);
 
 	device->fd = NULL;
 	close(device->rfd);
@@ -511,7 +511,7 @@ static void remove_device_udev(struct kmscon_input *input,
 	remove_device(input, node);
 }
 
-static void device_changed(struct kmscon_fd *fd, int mask, void *data)
+static void device_changed(struct ev_fd *fd, int mask, void *data)
 {
 	struct kmscon_input *input = data;
 	struct udev_device *udev_device;
@@ -585,7 +585,7 @@ err_enum:
 }
 
 int kmscon_input_connect_eloop(struct kmscon_input *input,
-		struct kmscon_eloop *eloop, kmscon_input_cb cb, void *data)
+		struct ev_eloop *eloop, kmscon_input_cb cb, void *data)
 {
 	int ret;
 	int fd;
@@ -597,12 +597,12 @@ int kmscon_input_connect_eloop(struct kmscon_input *input,
 		return -EALREADY;
 
 	fd = udev_monitor_get_fd(input->monitor);
-	ret = kmscon_eloop_new_fd(eloop, &input->monitor_fd, fd,
-				KMSCON_READABLE, device_changed, input);
+	ret = ev_eloop_new_fd(eloop, &input->monitor_fd, fd,
+				EV_READABLE, device_changed, input);
 	if (ret)
 		return ret;
 
-	kmscon_eloop_ref(eloop);
+	ev_eloop_ref(eloop);
 	input->eloop = eloop;
 	input->cb = cb;
 	input->data = data;
@@ -625,9 +625,9 @@ void kmscon_input_disconnect_eloop(struct kmscon_input *input)
 		kmscon_input_device_unref(tmp);
 	}
 
-	kmscon_eloop_rm_fd(input->monitor_fd);
+	ev_eloop_rm_fd(input->monitor_fd);
 	input->monitor_fd = NULL;
-	kmscon_eloop_unref(input->eloop);
+	ev_eloop_unref(input->eloop);
 	input->eloop = NULL;
 	input->cb = NULL;
 	input->data = NULL;

@@ -58,7 +58,7 @@ int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data);
 void kmscon_vt_ref(struct kmscon_vt *vt);
 void kmscon_vt_unref(struct kmscon_vt *vt);
 
-int kmscon_vt_open(struct kmscon_vt *vt, int id, struct kmscon_eloop *eloop);
+int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop);
 void kmscon_vt_close(struct kmscon_vt *vt);
 
 int kmscon_vt_enter(struct kmscon_vt *vt);

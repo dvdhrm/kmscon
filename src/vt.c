@@ -84,9 +84,9 @@ struct kmscon_vt {
 	kmscon_vt_cb cb;
 	void *data;
 
-	struct kmscon_signal *sig1;
-	struct kmscon_signal *sig2;
-	struct kmscon_fd *efd;
+	struct ev_signal *sig1;
+	struct ev_signal *sig2;
+	struct ev_fd *efd;
 };
 
 int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data)
@@ -134,7 +134,7 @@ void kmscon_vt_unref(struct kmscon_vt *vt)
 	free(vt);
 }
 
-static void vt_enter(struct kmscon_signal *sig, int signum, void *data)
+static void vt_enter(struct ev_signal *sig, int signum, void *data)
 {
 	struct kmscon_vt *vt = data;
 
@@ -152,7 +152,7 @@ static void vt_enter(struct kmscon_signal *sig, int signum, void *data)
 		vt->cb(vt, KMSCON_VT_ENTER, vt->data);
 }
 
-static void vt_leave(struct kmscon_signal *sig, int signum, void *data)
+static void vt_leave(struct ev_signal *sig, int signum, void *data)
 {
 	struct kmscon_vt *vt = data;
 
@@ -170,7 +170,7 @@ static void vt_leave(struct kmscon_signal *sig, int signum, void *data)
 	}
 }
 
-static void vt_input(struct kmscon_fd *fd, int mask, void *data)
+static void vt_input(struct ev_fd *fd, int mask, void *data)
 {
 	struct kmscon_vt *vt = data;
 
@@ -181,22 +181,22 @@ static void vt_input(struct kmscon_fd *fd, int mask, void *data)
 	tcflush(vt->fd, TCIFLUSH);
 }
 
-static int connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *eloop)
+static int connect_eloop(struct kmscon_vt *vt, struct ev_eloop *eloop)
 {
 	int ret;
 
 	if (!vt || !eloop || vt->fd < 0)
 		return -EINVAL;
 
-	ret = kmscon_eloop_new_signal(eloop, &vt->sig1, SIGUSR1, vt_leave, vt);
+	ret = ev_eloop_new_signal(eloop, &vt->sig1, SIGUSR1, vt_leave, vt);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_new_signal(eloop, &vt->sig2, SIGUSR2, vt_enter, vt);
+	ret = ev_eloop_new_signal(eloop, &vt->sig2, SIGUSR2, vt_enter, vt);
 	if (ret)
 		goto err_sig1;
 
-	ret = kmscon_eloop_new_fd(eloop, &vt->efd, vt->fd, KMSCON_READABLE,
+	ret = ev_eloop_new_fd(eloop, &vt->efd, vt->fd, EV_READABLE,
 								vt_input, vt);
 	if (ret)
 		goto err_sig2;
@@ -204,10 +204,10 @@ static int connect_eloop(struct kmscon_vt *vt, struct kmscon_eloop *eloop)
 	return 0;
 
 err_sig2:
-	kmscon_eloop_rm_signal(vt->sig2);
+	ev_eloop_rm_signal(vt->sig2);
 	vt->sig2 = NULL;
 err_sig1:
-	kmscon_eloop_rm_signal(vt->sig1);
+	ev_eloop_rm_signal(vt->sig1);
 	vt->sig1 = NULL;
 	return ret;
 }
@@ -217,9 +217,9 @@ static void disconnect_eloop(struct kmscon_vt *vt)
 	if (!vt)
 		return;
 
-	kmscon_eloop_rm_signal(vt->sig1);
-	kmscon_eloop_rm_signal(vt->sig2);
-	kmscon_eloop_rm_fd(vt->efd);
+	ev_eloop_rm_signal(vt->sig1);
+	ev_eloop_rm_signal(vt->sig2);
+	ev_eloop_rm_fd(vt->efd);
 	vt->sig1 = NULL;
 	vt->sig2 = NULL;
 	vt->efd = NULL;
@@ -267,7 +267,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-int kmscon_vt_open(struct kmscon_vt *vt, int id, struct kmscon_eloop *eloop)
+int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;

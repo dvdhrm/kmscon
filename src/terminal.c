@@ -52,14 +52,14 @@ struct term_out {
 
 struct kmscon_terminal {
 	unsigned long ref;
-	struct kmscon_eloop *eloop;
+	struct ev_eloop *eloop;
 	struct kmscon_compositor *comp;
 
 	struct term_out *outputs;
 	unsigned int max_height;
 
 	struct kmscon_console *console;
-	struct kmscon_idle *redraw;
+	struct ev_idle *redraw;
 	struct kmscon_vte *vte;
 	struct kmscon_pty *pty;
 
@@ -67,7 +67,7 @@ struct kmscon_terminal {
 	void *closed_data;
 };
 
-static void draw_all(struct kmscon_idle *idle, void *data)
+static void draw_all(struct ev_idle *idle, void *data)
 {
 	struct kmscon_terminal *term = data;
 	struct term_out *iter;
@@ -76,7 +76,7 @@ static void draw_all(struct kmscon_idle *idle, void *data)
 	int ret;
 
 	ctx = kmscon_compositor_get_context(term->comp);
-	kmscon_eloop_rm_idle(idle);
+	ev_eloop_rm_idle(idle);
 
 	iter = term->outputs;
 	for (; iter; iter = iter->next) {
@@ -101,7 +101,7 @@ static void schedule_redraw(struct kmscon_terminal *term)
 	if (!term || !term->eloop)
 		return;
 
-	ret = kmscon_eloop_add_idle(term->eloop, term->redraw, draw_all, term);
+	ret = ev_eloop_add_idle(term->eloop, term->redraw, draw_all, term);
 	if (ret && ret != -EALREADY)
 		log_warn("terminal: cannot schedule redraw\n");
 }
@@ -121,7 +121,7 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-		struct kmscon_eloop *loop, struct kmscon_font_factory *ff,
+		struct ev_eloop *loop, struct kmscon_font_factory *ff,
 		struct kmscon_compositor *comp, struct kmscon_symbol_table *st)
 {
 	struct kmscon_terminal *term;
@@ -141,7 +141,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->eloop = loop;
 	term->comp = comp;
 
-	ret = kmscon_idle_new(&term->redraw);
+	ret = ev_idle_new(&term->redraw);
 	if (ret)
 		goto err_free;
 
@@ -158,7 +158,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_vte;
 
-	kmscon_eloop_ref(term->eloop);
+	ev_eloop_ref(term->eloop);
 	kmscon_compositor_ref(term->comp);
 	*out = term;
 
@@ -169,7 +169,7 @@ err_vte:
 err_con:
 	kmscon_console_unref(term->console);
 err_idle:
-	kmscon_idle_unref(term->redraw);
+	ev_idle_unref(term->redraw);
 err_free:
 	free(term);
 	return ret;
@@ -196,9 +196,9 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
-	kmscon_idle_unref(term->redraw);
+	ev_idle_unref(term->redraw);
 	kmscon_compositor_unref(term->comp);
-	kmscon_eloop_unref(term->eloop);
+	ev_eloop_unref(term->eloop);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
 }

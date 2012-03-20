@@ -42,13 +42,13 @@
 
 static bool terminate;
 
-static void sig_term(struct kmscon_signal *sig, int signum, void *data)
+static void sig_term(struct ev_signal *sig, int signum, void *data)
 {
 	terminate = true;
 }
 
 /* Pressing Ctrl-\ should toggle the capturing. */
-static void sig_quit(struct kmscon_signal *sig, int signum, void *data)
+static void sig_quit(struct ev_signal *sig, int signum, void *data)
 {
 	struct kmscon_input *input = data;
 
@@ -103,9 +103,9 @@ static void input_arrived(struct kmscon_input *input,
 int main(int argc, char **argv)
 {
 	int ret;
-	struct kmscon_eloop *loop;
+	struct ev_eloop *loop;
 	struct kmscon_input *input;
-	struct kmscon_signal *sigint, *sigquit;
+	struct ev_signal *sigint, *sigquit;
 
 	if (!setlocale(LC_ALL, "")) {
 		log_err("Cannot set locale: %m\n");
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 		goto err_out;
 	}
 
-	ret = kmscon_eloop_new(&loop);
+	ret = ev_eloop_new(&loop);
 	if (ret) {
 		log_err("Cannot create eloop\n");
 		goto err_out;
@@ -125,13 +125,13 @@ int main(int argc, char **argv)
 		goto err_loop;
 	}
 
-	ret = kmscon_eloop_new_signal(loop, &sigint, SIGINT, sig_term, NULL);
+	ret = ev_eloop_new_signal(loop, &sigint, SIGINT, sig_term, NULL);
 	if (ret) {
 		log_err("Cannot add INT signal\n");
 		goto err_input;
 	}
 
-	ret = kmscon_eloop_new_signal(loop, &sigquit, SIGQUIT, sig_quit, input);
+	ret = ev_eloop_new_signal(loop, &sigquit, SIGQUIT, sig_quit, input);
 	if (ret) {
 		log_err("Cannot add quit signal\n");
 		goto err_sigint;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 	system("stty -echo");
 
 	while (!terminate) {
-		ret = kmscon_eloop_dispatch(loop, -1);
+		ret = ev_eloop_dispatch(loop, -1);
 		if (ret) {
 			log_err("Dispatcher failed\n");
 			break;
@@ -158,13 +158,13 @@ int main(int argc, char **argv)
 	system("stty echo");
 
 err_sigquit:
-	kmscon_eloop_rm_signal(sigquit);
+	ev_eloop_rm_signal(sigquit);
 err_sigint:
-	kmscon_eloop_rm_signal(sigint);
+	ev_eloop_rm_signal(sigint);
 err_input:
 	kmscon_input_unref(input);
 err_loop:
-	kmscon_eloop_unref(loop);
+	ev_eloop_unref(loop);
 err_out:
 	return abs(ret);
 }

@@ -46,7 +46,7 @@ typedef void (*kmscon_terminal_closed_cb) (struct kmscon_terminal *term,
 								void *data);
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-		struct kmscon_eloop *loop, struct kmscon_font_factory *ff,
+		struct ev_eloop *loop, struct kmscon_font_factory *ff,
 		struct kmscon_compositor *comp, struct kmscon_symbol_table *st);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);

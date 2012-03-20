@@ -59,22 +59,22 @@
 static volatile sig_atomic_t terminate;
 
 struct console {
-	struct kmscon_eloop *loop;
-	struct kmscon_signal *sig_term;
-	struct kmscon_signal *sig_int;
-	struct kmscon_fd *stdin_fd;
+	struct ev_eloop *loop;
+	struct ev_signal *sig_term;
+	struct ev_signal *sig_int;
+	struct ev_fd *stdin_fd;
 	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
 	struct kmscon_vt *vt;
 	struct kmscon_console *con;
-	struct kmscon_idle *idle;
+	struct ev_idle *idle;
 
 	uint32_t max_x;
 	uint32_t max_y;
 };
 
-static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
+static void stdin_cb(struct ev_fd *fd, int mask, void *data)
 {
 	struct console *con = data;
 	char buf[512];
@@ -90,7 +90,7 @@ static void stdin_cb(struct kmscon_fd *fd, int mask, void *data)
 		log_info("stdin read error: %d\n", errno);
 	} else if (!ret) {
 		log_info("stdin closed\n");
-		kmscon_eloop_rm_fd(fd);
+		ev_eloop_rm_fd(fd);
 		con->stdin_fd = NULL;
 	} else {
 		len = ret;
@@ -136,11 +136,11 @@ static void map_outputs(struct console *con)
 	}
 }
 
-static void draw(struct kmscon_idle *idle, void *data)
+static void draw(struct ev_idle *idle, void *data)
 {
 	struct console *con = data;
 
-	kmscon_eloop_rm_idle(idle);
+	ev_eloop_rm_idle(idle);
 	map_outputs(con);
 }
 
@@ -148,7 +148,7 @@ static void schedule_draw(struct console *con)
 {
 	int ret;
 
-	ret = kmscon_eloop_add_idle(con->loop, con->idle, draw, con);
+	ret = ev_eloop_add_idle(con->loop, con->idle, draw, con);
 	if (ret && ret != -EALREADY)
 		log_warn("Cannot schedule draw function\n");
 }
@@ -180,7 +180,7 @@ static void activate_outputs(struct console *con)
 	schedule_draw(con);
 }
 
-static void sig_term(struct kmscon_signal *sig, int signum, void *data)
+static void sig_term(struct ev_signal *sig, int signum, void *data)
 {
 	terminate = 1;
 }
@@ -231,39 +231,39 @@ static void print_help(struct console *con)
 
 static void destroy_eloop(struct console *con)
 {
-	kmscon_eloop_rm_idle(con->idle);
-	kmscon_idle_unref(con->idle);
+	ev_eloop_rm_idle(con->idle);
+	ev_idle_unref(con->idle);
 	kmscon_console_unref(con->con);
 	kmscon_compositor_unref(con->comp);
 	kmscon_vt_unref(con->vt);
 	kmscon_font_factory_unref(con->ff);
 	kmscon_symbol_table_unref(con->st);
-	kmscon_eloop_rm_fd(con->stdin_fd);
-	kmscon_eloop_rm_signal(con->sig_int);
-	kmscon_eloop_rm_signal(con->sig_term);
-	kmscon_eloop_unref(con->loop);
+	ev_eloop_rm_fd(con->stdin_fd);
+	ev_eloop_rm_signal(con->sig_int);
+	ev_eloop_rm_signal(con->sig_term);
+	ev_eloop_unref(con->loop);
 }
 
 static int setup_eloop(struct console *con)
 {
 	int ret;
 
-	ret = kmscon_eloop_new(&con->loop);
+	ret = ev_eloop_new(&con->loop);
 	if (ret)
 		return ret;
 
-	ret = kmscon_eloop_new_signal(con->loop, &con->sig_term, SIGTERM,
+	ret = ev_eloop_new_signal(con->loop, &con->sig_term, SIGTERM,
 							sig_term, NULL);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_eloop_new_signal(con->loop, &con->sig_int, SIGINT,
+	ret = ev_eloop_new_signal(con->loop, &con->sig_int, SIGINT,
 							sig_term, NULL);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_eloop_new_fd(con->loop, &con->stdin_fd, 0,
-					KMSCON_READABLE, stdin_cb, con);
+	ret = ev_eloop_new_fd(con->loop, &con->stdin_fd, 0,
+					EV_READABLE, stdin_cb, con);
 	if (ret)
 		goto err_loop;
 
@@ -295,7 +295,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_idle_new(&con->idle);
+	ret = ev_idle_new(&con->idle);
 	if (ret)
 		goto err_loop;
 
@@ -326,7 +326,7 @@ int main(int argc, char **argv)
 	schedule_draw(&con);
 
 	while (!terminate) {
-		ret = kmscon_eloop_dispatch(con.loop, -1);
+		ret = ev_eloop_dispatch(con.loop, -1);
 		if (ret)
 			break;
 	}

@@ -46,10 +46,10 @@
 #include "vt.h"
 
 struct app {
-	struct kmscon_eloop *eloop;
-	struct kmscon_signal *sig_term;
-	struct kmscon_signal *sig_int;
-	struct kmscon_signal *sig_chld;
+	struct ev_eloop *eloop;
+	struct ev_signal *sig_term;
+	struct ev_signal *sig_int;
+	struct ev_signal *sig_chld;
 	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
 	struct kmscon_compositor *comp;
@@ -60,12 +60,12 @@ struct app {
 
 static volatile sig_atomic_t terminate;
 
-static void sig_term(struct kmscon_signal *sig, int signum, void *data)
+static void sig_term(struct ev_signal *sig, int signum, void *data)
 {
 	terminate = 1;
 }
 
-static void sig_chld(struct kmscon_signal *sig, int signum, void *data)
+static void sig_chld(struct ev_signal *sig, int signum, void *data)
 {
 	pid_t pid;
 	int status;
@@ -170,31 +170,31 @@ static void destroy_app(struct app *app)
 	kmscon_compositor_unref(app->comp);
 	kmscon_font_factory_unref(app->ff);
 	kmscon_symbol_table_unref(app->st);
-	kmscon_eloop_rm_signal(app->sig_chld);
-	kmscon_eloop_rm_signal(app->sig_int);
-	kmscon_eloop_rm_signal(app->sig_term);
-	kmscon_eloop_unref(app->eloop);
+	ev_eloop_rm_signal(app->sig_chld);
+	ev_eloop_rm_signal(app->sig_int);
+	ev_eloop_rm_signal(app->sig_term);
+	ev_eloop_unref(app->eloop);
 }
 
 static int setup_app(struct app *app)
 {
 	int ret;
 
-	ret = kmscon_eloop_new(&app->eloop);
+	ret = ev_eloop_new(&app->eloop);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_term, SIGTERM,
+	ret = ev_eloop_new_signal(app->eloop, &app->sig_term, SIGTERM,
 							sig_term, NULL);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
+	ret = ev_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
 							sig_term, NULL);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_eloop_new_signal(app->eloop, &app->sig_chld, SIGCHLD,
+	ret = ev_eloop_new_signal(app->eloop, &app->sig_chld, SIGCHLD,
 							sig_chld, NULL);
 	if (ret)
 		goto err_loop;
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
 	log_info("test: starting main-loop\n");
 
 	while (!terminate) {
-		ret = kmscon_eloop_dispatch(app.eloop, -1);
+		ret = ev_eloop_dispatch(app.eloop, -1);
 		if (ret)
 			break;
 	}

@@ -30,7 +30,7 @@
  * Its use should be as simple as the following (but also see below):
  * - Create a new input object.
  * - Provide a callback function to receive the events.
- * - Connect the input object to a kmscon_eloop.
+ * - Connect the input object to a ev_eloop.
  * - Wake up the input object to begin receiving input events through the
  *   event loop.
  *
@@ -83,7 +83,7 @@ void kmscon_input_ref(struct kmscon_input *input);
 void kmscon_input_unref(struct kmscon_input *input);
 
 int kmscon_input_connect_eloop(struct kmscon_input *input,
-		struct kmscon_eloop *eloop, kmscon_input_cb cb, void *data);
+		struct ev_eloop *eloop, kmscon_input_cb cb, void *data);
 void kmscon_input_disconnect_eloop(struct kmscon_input *input);
 
 void kmscon_input_sleep(struct kmscon_input *input);
