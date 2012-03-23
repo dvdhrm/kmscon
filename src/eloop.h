@@ -1,7 +1,7 @@
 /*
  * Event Loop
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -62,7 +62,6 @@ int ev_eloop_new(struct ev_eloop **out);
 void ev_eloop_ref(struct ev_eloop *loop);
 void ev_eloop_unref(struct ev_eloop *loop);
 
-int ev_eloop_get_fd(struct ev_eloop *loop);
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout);
 
 /* eloop sources */

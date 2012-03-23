@@ -811,11 +811,3 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	return 0;
 }
-
-int ev_eloop_get_fd(struct ev_eloop *loop)
-{
-	if (!loop)
-		return -EINVAL;
-
-	return loop->efd;
-}
