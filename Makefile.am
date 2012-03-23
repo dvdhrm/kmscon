@@ -51,7 +51,9 @@ libkmscon_core_la_SOURCES = \
 	src/input.c src/input.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h \
-	src/pty.c src/pty.h
+	src/pty.c src/pty.h \
+	src/uterm.h src/uterm_internal.h \
+	src/uterm_video.c
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
