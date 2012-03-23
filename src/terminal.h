@@ -37,8 +37,9 @@
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
-#include "output.h"
+#include "gl.h"
 #include "unicode.h"
+#include "uterm.h"
 
 struct kmscon_terminal;
 
@@ -46,8 +47,10 @@ typedef void (*kmscon_terminal_closed_cb) (struct kmscon_terminal *term,
 								void *data);
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-		struct ev_eloop *loop, struct kmscon_font_factory *ff,
-		struct kmscon_compositor *comp, struct kmscon_symbol_table *st);
+			struct ev_eloop *loop,
+			struct kmscon_font_factory *ff,
+			struct uterm_video *video,
+			struct kmscon_symbol_table *st);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 
@@ -56,7 +59,7 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 void kmscon_terminal_close(struct kmscon_terminal *term);
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
-						struct kmscon_output *output);
+				struct uterm_display *disp);
 void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term);
 
 int kmscon_terminal_input(struct kmscon_terminal *term,

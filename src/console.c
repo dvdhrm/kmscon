@@ -38,15 +38,13 @@
 
 #include "console.h"
 #include "font.h"
+#include "gl.h"
 #include "log.h"
-#include "output.h"
 #include "unicode.h"
 
 struct kmscon_console {
 	size_t ref;
 	struct kmscon_font_factory *ff;
-	struct kmscon_compositor *comp;
-	struct kmscon_context *ctx;
 
 	/* font */
 	unsigned int res_x;
@@ -81,7 +79,7 @@ static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
 }
 
 int kmscon_console_new(struct kmscon_console **out,
-		struct kmscon_font_factory *ff, struct kmscon_compositor *comp)
+			struct kmscon_font_factory *ff)
 {
 	struct kmscon_console *con;
 	int ret;
@@ -98,8 +96,6 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->ref = 1;
 	con->auto_wrap = true;
 	con->ff = ff;
-	con->comp = comp;
-	con->ctx = kmscon_compositor_get_context(comp);
 	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
@@ -113,7 +109,6 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->margin_bottom = con->cells_y - 1 - num;
 
 	kmscon_font_factory_ref(con->ff);
-	kmscon_compositor_ref(con->comp);
 	*out = con;
 
 	return 0;
@@ -145,7 +140,6 @@ void kmscon_console_unref(struct kmscon_console *con)
 
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
-	kmscon_compositor_unref(con->comp);
 	kmscon_font_factory_unref(con->ff);
 	free(con);
 	log_debug("console: destroying console\n");
@@ -246,12 +240,12 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
  * You must have called kmscon_console_draw() before, otherwise this will map an
  * empty image onto the screen.
  */
-void kmscon_console_map(struct kmscon_console *con)
+void kmscon_console_map(struct kmscon_console *con, struct gl_shader *shader)
 {
 	if (!con)
 		return;
 
-	kmscon_buffer_draw(con->cells, con->font);
+	kmscon_buffer_draw(con->cells, con->font, shader);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)

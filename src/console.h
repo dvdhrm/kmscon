@@ -41,7 +41,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include "font.h"
-#include "output.h"
+#include "gl.h"
 #include "unicode.h"
 
 struct kmscon_buffer;
@@ -56,7 +56,8 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf);
 
 int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 							unsigned int y);
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font);
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
+			struct gl_shader *shader);
 void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max);
 void kmscon_buffer_clear_sb(struct kmscon_buffer *buf);
 
@@ -78,7 +79,7 @@ void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
 /* console objects */
 
 int kmscon_console_new(struct kmscon_console **out,
-	struct kmscon_font_factory *ff, struct kmscon_compositor *comp);
+			struct kmscon_font_factory *ff);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
 
@@ -87,7 +88,8 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height);
 
-void kmscon_console_map(struct kmscon_console *con);
+void kmscon_console_map(struct kmscon_console *con,
+			struct gl_shader *shader);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);
 void kmscon_console_newline(struct kmscon_console *con);

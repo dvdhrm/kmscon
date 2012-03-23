@@ -79,6 +79,7 @@
 #include <string.h>
 
 #include "console.h"
+#include "gl.h"
 #include "log.h"
 #include "unicode.h"
 
@@ -119,7 +120,7 @@ struct kmscon_buffer {
 	unsigned int mbottom_y;
 	struct line **mbottom_buf;
 
-	struct kmscon_m4_stack *stack;
+	struct gl_m4_stack *stack;
 };
 
 static void destroy_cell(struct cell *cell)
@@ -242,7 +243,7 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 
 	log_debug("console: new buffer object\n");
 
-	ret = kmscon_m4_stack_new(&buf->stack);
+	ret = gl_m4_stack_new(&buf->stack);
 	if (ret)
 		goto err_free;
 
@@ -254,7 +255,7 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 	return 0;
 
 err_stack:
-	kmscon_m4_stack_free(buf->stack);
+	gl_m4_stack_free(buf->stack);
 err_free:
 	free(buf);
 	return ret;
@@ -290,7 +291,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 	free(buf->scroll_buf);
 	free(buf->mtop_buf);
 	free(buf->mbottom_buf);
-	kmscon_m4_stack_free(buf->stack);
+	gl_m4_stack_free(buf->stack);
 	free(buf);
 	log_debug("console: destroying buffer object\n");
 }
@@ -679,7 +680,8 @@ unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
 	return buf->mbottom_y;
 }
 
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
+void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
+			struct gl_shader *shader)
 {
 	float xs, ys;
 	unsigned int i, j, k, num;
@@ -691,14 +693,14 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 	if (!buf || !font)
 		return;
 
-	m = kmscon_m4_stack_tip(buf->stack);
-	kmscon_m4_identity(m);
+	m = gl_m4_stack_tip(buf->stack);
+	gl_m4_identity(m);
 
 	xs = 1.0 / buf->size_x;
 	ys = 1.0 / buf->size_y;
-	kmscon_m4_scale(m, 2, 2, 1);
-	kmscon_m4_trans(m, -0.5, -0.5, 0);
-	kmscon_m4_scale(m, xs, ys, 1);
+	gl_m4_scale(m, 2, 2, 1);
+	gl_m4_translate(m, -0.5, -0.5, 0);
+	gl_m4_scale(m, xs, ys, 1);
 
 	iter = buf->position;
 	k = 0;
@@ -745,15 +747,15 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font)
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
 
-			m = kmscon_m4_stack_push(buf->stack);
+			m = gl_m4_stack_push(buf->stack);
 			if (!m) {
 				log_warn("console: cannot push matrix\n");
 				break;
 			}
 
-			kmscon_m4_trans(m, j, i, 0);
-			kmscon_font_draw(font, cell->ch, m);
-			m = kmscon_m4_stack_pop(buf->stack);
+			gl_m4_translate(m, j, i, 0);
+			kmscon_font_draw(font, cell->ch, m, shader);
+			m = gl_m4_stack_pop(buf->stack);
 		}
 	}
 }

@@ -52,8 +52,8 @@
 #include "eloop.h"
 #include "font.h"
 #include "log.h"
-#include "output.h"
 #include "unicode.h"
+#include "uterm.h"
 #include "vt.h"
 
 static volatile sig_atomic_t terminate;
@@ -65,7 +65,8 @@ struct console {
 	struct ev_fd *stdin_fd;
 	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
-	struct kmscon_compositor *comp;
+	struct gl_shader *shader;
+	struct uterm_video *video;
 	struct kmscon_vt *vt;
 	struct kmscon_console *con;
 	struct ev_idle *idle;
@@ -110,29 +111,35 @@ static void stdin_cb(struct ev_fd *fd, int mask, void *data)
 static void map_outputs(struct console *con)
 {
 	int ret;
-	struct kmscon_output *iter;
-	struct kmscon_context *ctx;
+	struct uterm_display *iter;
+	struct uterm_screen *screen;
 
-	if (kmscon_compositor_is_asleep(con->comp))
+	if (!uterm_video_is_awake(con->video))
 		return;
 
-	ctx = kmscon_compositor_get_context(con->comp);
-
-	iter = kmscon_compositor_get_outputs(con->comp);
-	for ( ; iter; iter = kmscon_output_next(iter)) {
-		if (!kmscon_output_is_active(iter))
+	iter = uterm_video_get_displays(con->video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		if (uterm_display_get_state(iter) != UTERM_DISPLAY_ACTIVE)
 			continue;
 
-		ret = kmscon_output_use(iter);
+		/* We create a screen on every draw here to avoid keeping a
+		 * global list of displays/screens. This is ugly but works.
+		 */
+		ret = uterm_screen_new_single(&screen, iter);
 		if (ret)
 			continue;
 
-		kmscon_context_clear(ctx);
-		kmscon_console_map(con->con);
-
-		ret = kmscon_output_swap(iter);
-		if (ret)
+		ret = uterm_screen_use(screen);
+		if (ret) {
+			uterm_screen_unref(screen);
 			continue;
+		}
+
+		gl_viewport(screen);
+		kmscon_console_map(con->con, con->shader);
+
+		uterm_screen_swap(screen);
+		uterm_screen_unref(screen);
 	}
 }
 
@@ -155,23 +162,23 @@ static void schedule_draw(struct console *con)
 
 static void activate_outputs(struct console *con)
 {
-	struct kmscon_output *iter;
-	struct kmscon_mode *mode;
+	struct uterm_display *iter;
+	struct uterm_mode *mode;
 	int ret;
 	uint32_t y;
 
 	con->max_y = 0;
 
-	iter = kmscon_compositor_get_outputs(con->comp);
-	for ( ; iter; iter = kmscon_output_next(iter)) {
-		if (!kmscon_output_is_active(iter)) {
-			ret = kmscon_output_activate(iter, NULL);
+	iter = uterm_video_get_displays(con->video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		if (uterm_display_get_state(iter) == UTERM_DISPLAY_INACTIVE) {
+			ret = uterm_display_activate(iter, NULL);
 			if (ret)
 				continue;
 		}
 
-		mode = kmscon_output_get_current(iter);
-		y = kmscon_mode_get_height(mode);
+		mode = uterm_display_get_current(iter);
+		y = uterm_mode_get_height(mode);
 		if (y > con->max_y)
 			con->max_y = y;
 	}
@@ -191,14 +198,11 @@ static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
 	int ret;
 
 	if (action == KMSCON_VT_ENTER) {
-		ret = kmscon_compositor_wake_up(con->comp);
-		if (ret == 0) {
-			log_info("No output found\n");
-		} else if (ret > 0) {
+		ret = uterm_video_wake_up(con->video);
+		if (!ret)
 			activate_outputs(con);
-		}
 	} else {
-		kmscon_compositor_sleep(con->comp);
+		uterm_video_sleep(con->video);
 	}
 
 	return true;
@@ -234,7 +238,8 @@ static void destroy_eloop(struct console *con)
 	ev_eloop_rm_idle(con->idle);
 	ev_idle_unref(con->idle);
 	kmscon_console_unref(con->con);
-	kmscon_compositor_unref(con->comp);
+	gl_shader_unref(con->shader);
+	uterm_video_unref(con->video);
 	kmscon_vt_unref(con->vt);
 	kmscon_font_factory_unref(con->ff);
 	kmscon_symbol_table_unref(con->st);
@@ -271,15 +276,15 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_compositor_new(&con->comp);
+	ret = uterm_video_new(&con->video, UTERM_VIDEO_DRM, con->loop);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_compositor_use(con->comp);
+	ret = gl_shader_new(&con->shader);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_font_factory_new(&con->ff, con->st, con->comp);
+	ret = kmscon_font_factory_new(&con->ff, con->st);
 	if (ret)
 		goto err_loop;
 
@@ -291,7 +296,7 @@ static int setup_eloop(struct console *con)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_console_new(&con->con, con->ff, con->comp);
+	ret = kmscon_console_new(&con->con, con->ff);
 	if (ret)
 		goto err_loop;
 

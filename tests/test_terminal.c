@@ -37,12 +37,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-
 #include "eloop.h"
 #include "input.h"
 #include "log.h"
-#include "output.h"
 #include "terminal.h"
+#include "uterm.h"
 #include "vt.h"
 
 struct app {
@@ -52,7 +51,7 @@ struct app {
 	struct ev_signal *sig_chld;
 	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
-	struct kmscon_compositor *comp;
+	struct uterm_video *video;
 	struct kmscon_input *input;
 	struct kmscon_vt *vt;
 	struct kmscon_terminal *term;
@@ -117,14 +116,14 @@ static void read_input(struct kmscon_input *input,
 
 static void activate_outputs(struct app *app)
 {
-	struct kmscon_output *iter;
+	struct uterm_display *iter;
 	int ret;
 
-	iter = kmscon_compositor_get_outputs(app->comp);
+	iter = uterm_video_get_displays(app->video);
 
-	for ( ; iter; iter = kmscon_output_next(iter)) {
-		if (!kmscon_output_is_active(iter)) {
-			ret = kmscon_output_activate(iter, NULL);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		if (uterm_display_get_state(iter) == UTERM_DISPLAY_INACTIVE) {
+			ret = uterm_display_activate(iter, NULL);
 			if (ret) {
 				log_err("test: cannot activate output: %d\n",
 									ret);
@@ -146,17 +145,15 @@ static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
 	int ret;
 
 	if (action == KMSCON_VT_ENTER) {
-		ret = kmscon_compositor_wake_up(app->comp);
-		if (ret == 0)
-			log_info("test: running without active outputs\n");
-		else if (ret > 0)
+		ret = uterm_video_wake_up(app->video);
+		if (!ret)
 			activate_outputs(app);
 
 		kmscon_input_wake_up(app->input);
 	} else if (action == KMSCON_VT_LEAVE) {
 		kmscon_input_sleep(app->input);
 		kmscon_terminal_rm_all_outputs(app->term);
-		kmscon_compositor_sleep(app->comp);
+		uterm_video_sleep(app->video);
 	}
 
 	return true;
@@ -167,7 +164,7 @@ static void destroy_app(struct app *app)
 	kmscon_terminal_unref(app->term);
 	kmscon_vt_unref(app->vt);
 	kmscon_input_unref(app->input);
-	kmscon_compositor_unref(app->comp);
+	uterm_video_unref(app->video);
 	kmscon_font_factory_unref(app->ff);
 	kmscon_symbol_table_unref(app->st);
 	ev_eloop_rm_signal(app->sig_chld);
@@ -203,15 +200,11 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_compositor_new(&app->comp);
+	ret = uterm_video_new(&app->video, UTERM_VIDEO_DRM, app->eloop);
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_compositor_use(app->comp);
-	if (ret)
-		goto err_loop;
-
-	ret = kmscon_font_factory_new(&app->ff, app->st, app->comp);
+	ret = kmscon_font_factory_new(&app->ff, app->st);
 	if (ret)
 		goto err_loop;
 
@@ -227,8 +220,8 @@ static int setup_app(struct app *app)
 	if (ret)
 		goto err_loop;
 
-	ret = kmscon_terminal_new(&app->term, app->eloop, app->ff,
-							app->comp, app->st);
+	ret = kmscon_terminal_new(&app->term, app->eloop,
+					app->ff, app->video, app->st);
 	if (ret)
 		goto err_loop;
 

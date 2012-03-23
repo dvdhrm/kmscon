@@ -37,23 +37,25 @@
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
+#include "gl.h"
 #include "input.h"
 #include "log.h"
-#include "output.h"
 #include "pty.h"
 #include "terminal.h"
 #include "unicode.h"
+#include "uterm.h"
 #include "vte.h"
 
 struct term_out {
 	struct term_out *next;
-	struct kmscon_output *output;
+	struct uterm_screen *screen;
 };
 
 struct kmscon_terminal {
 	unsigned long ref;
 	struct ev_eloop *eloop;
-	struct kmscon_compositor *comp;
+	struct uterm_video *video;
+	struct gl_shader *shader;
 
 	struct term_out *outputs;
 	unsigned int max_height;
@@ -71,26 +73,22 @@ static void draw_all(struct ev_idle *idle, void *data)
 {
 	struct kmscon_terminal *term = data;
 	struct term_out *iter;
-	struct kmscon_output *output;
-	struct kmscon_context *ctx;
+	struct uterm_screen *screen;
 	int ret;
 
-	ctx = kmscon_compositor_get_context(term->comp);
 	ev_eloop_rm_idle(idle);
 
 	iter = term->outputs;
 	for (; iter; iter = iter->next) {
-		output = iter->output;
-		if (!kmscon_output_is_awake(output))
-			continue;
+		screen = iter->screen;
 
-		ret = kmscon_output_use(output);
+		ret = uterm_screen_use(screen);
 		if (ret)
 			continue;
 
-		kmscon_context_clear(ctx);
-		kmscon_console_map(term->console);
-		kmscon_output_swap(output);
+		gl_viewport(screen);
+		kmscon_console_map(term->console, term->shader);
+		uterm_screen_swap(screen);
 	}
 }
 
@@ -121,8 +119,10 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
-		struct ev_eloop *loop, struct kmscon_font_factory *ff,
-		struct kmscon_compositor *comp, struct kmscon_symbol_table *st)
+			struct ev_eloop *loop,
+			struct kmscon_font_factory *ff,
+			struct uterm_video *video,
+			struct kmscon_symbol_table *st)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -139,13 +139,13 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	memset(term, 0, sizeof(*term));
 	term->ref = 1;
 	term->eloop = loop;
-	term->comp = comp;
+	term->video = video;
 
 	ret = ev_idle_new(&term->redraw);
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_new(&term->console, ff, comp);
+	ret = kmscon_console_new(&term->console, ff);
 	if (ret)
 		goto err_idle;
 
@@ -158,12 +158,18 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_vte;
 
+	ret = gl_shader_new(&term->shader);
+	if (ret)
+		goto err_pty;
+
 	ev_eloop_ref(term->eloop);
-	kmscon_compositor_ref(term->comp);
+	uterm_video_ref(term->video);
 	*out = term;
 
 	return 0;
 
+err_pty:
+	kmscon_pty_unref(term->pty);
 err_vte:
 	kmscon_vte_unref(term->vte);
 err_con:
@@ -193,11 +199,12 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 
 	kmscon_terminal_close(term);
 	kmscon_terminal_rm_all_outputs(term);
+	gl_shader_unref(term->shader);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
 	ev_idle_unref(term->redraw);
-	kmscon_compositor_unref(term->comp);
+	uterm_video_unref(term->video);
 	ev_eloop_unref(term->eloop);
 	free(term);
 	log_debug("terminal: destroying terminal object\n");
@@ -234,32 +241,30 @@ void kmscon_terminal_close(struct kmscon_terminal *term)
 }
 
 int kmscon_terminal_add_output(struct kmscon_terminal *term,
-						struct kmscon_output *output)
+				struct uterm_display *disp)
 {
 	struct term_out *out;
 	unsigned int height;
-	struct kmscon_mode *mode;
+	int ret;
 
-	if (!term || !output)
+	if (!term || !disp)
 		return -EINVAL;
-
-	mode = kmscon_output_get_current(output);
-	if (!mode) {
-		log_warn("terminal: invalid output added to terminal\n");
-		return -EINVAL;
-	}
 
 	out = malloc(sizeof(*out));
 	if (!out)
 		return -ENOMEM;
 
 	memset(out, 0, sizeof(*out));
-	kmscon_output_ref(output);
-	out->output = output;
+	ret = uterm_screen_new_single(&out->screen, disp);
+	if (ret) {
+		free(out);
+		return ret;
+	}
+
 	out->next = term->outputs;
 	term->outputs = out;
 
-	height = kmscon_mode_get_height(mode);
+	height = uterm_screen_height(out->screen);
 	if (term->max_height < height) {
 		term->max_height = height;
 		kmscon_console_resize(term->console, 0, 0, term->max_height);
@@ -280,7 +285,7 @@ void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
 	while (term->outputs) {
 		tmp = term->outputs;
 		term->outputs = tmp->next;
-		kmscon_output_unref(tmp->output);
+		uterm_screen_unref(tmp->screen);
 		free(tmp);
 	}
 }

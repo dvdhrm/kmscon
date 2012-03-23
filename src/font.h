@@ -35,14 +35,14 @@
 #define KMSCON_FONT_H
 
 #include <stdlib.h>
-#include "output.h"
+#include "gl.h"
 #include "unicode.h"
 
 struct kmscon_font_factory;
 struct kmscon_font;
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
-	struct kmscon_symbol_table *st, struct kmscon_compositor *comp);
+				struct kmscon_symbol_table *st);
 void kmscon_font_factory_ref(struct kmscon_font_factory *ff);
 void kmscon_font_factory_unref(struct kmscon_font_factory *ff);
 
@@ -54,6 +54,7 @@ void kmscon_font_unref(struct kmscon_font *font);
 
 unsigned int kmscon_font_get_height(struct kmscon_font *font);
 unsigned int kmscon_font_get_width(struct kmscon_font *font);
-int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m);
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m,
+			struct gl_shader *shader);
 
 #endif /* KMSCON_FONT_H */

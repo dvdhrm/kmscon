@@ -38,8 +38,8 @@
 
 #include <glib.h>
 #include "font.h"
+#include "gl.h"
 #include "log.h"
-#include "output.h"
 #include "unicode.h"
 
 #include <ft2build.h>
@@ -49,8 +49,6 @@ struct kmscon_font_factory {
 	unsigned long ref;
 	struct kmscon_symbol_table *st;
 	FT_Library lib;
-	struct kmscon_compositor *comp;
-	struct kmscon_context *ctx;
 };
 
 struct kmscon_font {
@@ -64,7 +62,6 @@ struct kmscon_font {
 };
 
 struct kmscon_glyph {
-	struct kmscon_context *ctx;
 	bool valid;
 	unsigned int tex;
 	unsigned int width;
@@ -95,7 +92,6 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 		return -ENOMEM;
 
 	memset(glyph, 0, sizeof(*glyph));
-	glyph->ctx = font->ff->ctx;
 
 	val = kmscon_symbol_get(font->ff->st, &key, &len);
 
@@ -120,7 +116,7 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 	if (!bmap->width || !bmap->rows)
 		goto ready;
 
-	glyph->tex = kmscon_context_new_tex(glyph->ctx);
+	glyph->tex = gl_tex_new();
 	data = malloc(sizeof(unsigned char) * bmap->width * bmap->rows * 4);
 	if (!data) {
 		ret = -ENOMEM;
@@ -137,8 +133,7 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 		}
 	}
 
-	kmscon_context_set_tex(glyph->ctx, glyph->tex, bmap->width,
-							bmap->rows, data);
+	gl_tex_load(glyph->tex, bmap->width, bmap->rows, data);
 	free(data);
 
 	glyph->width = bmap->width;
@@ -153,7 +148,7 @@ ready:
 	return 0;
 
 err_tex:
-	kmscon_context_free_tex(glyph->ctx, glyph->tex);
+	gl_tex_free(glyph->tex);
 err_free:
 	free(glyph);
 	return ret;
@@ -165,18 +160,18 @@ static void kmscon_glyph_destroy(struct kmscon_glyph *glyph)
 		return;
 
 	if (glyph->valid)
-		kmscon_context_free_tex(glyph->ctx, glyph->tex);
+		gl_tex_free(glyph->tex);
 	free(glyph);
 }
 
 int kmscon_font_factory_new(struct kmscon_font_factory **out,
-	struct kmscon_symbol_table *st, struct kmscon_compositor *comp)
+				struct kmscon_symbol_table *st)
 {
 	struct kmscon_font_factory *ff;
 	FT_Error err;
 	int ret;
 
-	if (!out || !st || !comp)
+	if (!out || !st)
 		return -EINVAL;
 
 	log_debug("font: new font factory\n");
@@ -188,8 +183,6 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 	memset(ff, 0, sizeof(*ff));
 	ff->ref = 1;
 	ff->st = st;
-	ff->comp = comp;
-	ff->ctx = kmscon_compositor_get_context(comp);
 
 	err = FT_Init_FreeType(&ff->lib);
 	if (err) {
@@ -198,7 +191,6 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 		goto err_free;
 	}
 
-	kmscon_compositor_ref(ff->comp);
 	kmscon_symbol_table_ref(ff->st);
 	*out = ff;
 
@@ -233,7 +225,6 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (err)
 		log_warn("font: cannot deinitialize FreeType library\n");
 
-	kmscon_compositor_unref(ff->comp);
 	kmscon_symbol_table_unref(ff->st);
 	free(ff);
 }
@@ -370,7 +361,8 @@ static int kmscon_font_lookup(struct kmscon_font *font,
 	return 0;
 }
 
-int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m)
+int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m,
+			struct gl_shader *shader)
 {
 	int ret;
 	struct kmscon_glyph *glyph;
@@ -386,11 +378,11 @@ int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m)
 	if (!glyph->valid)
 		return 0;
 
-	kmscon_m4_scale(m, 1.0 / glyph->advance, 1.0 / font->height, 1);
-	kmscon_m4_trans(m, glyph->left, font->height - glyph->top, 0);
-	kmscon_m4_scale(m, glyph->width, glyph->height, 1);
+	gl_m4_scale(m, 1.0 / glyph->advance, 1.0 / font->height, 1);
+	gl_m4_translate(m, glyph->left, font->height - glyph->top, 0);
+	gl_m4_scale(m, glyph->width, glyph->height, 1);
 
-	kmscon_context_draw_tex(font->ff->ctx, val, val, 6, glyph->tex, m);
+	gl_shader_draw_tex(shader, val, val, 6, glyph->tex, m);
 
 	return 0;
 }
