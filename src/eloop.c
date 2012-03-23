@@ -816,7 +816,7 @@ int ev_eloop_run(struct ev_eloop *loop, int timeout)
 {
 	int ret;
 	struct timeval tv, start;
-	uint64_t off, msec;
+	int64_t off, msec;
 
 	if (!loop)
 		return -EINVAL;
@@ -835,10 +835,10 @@ int ev_eloop_run(struct ev_eloop *loop, int timeout)
 		} else if (timeout > 0) {
 			gettimeofday(&tv, NULL);
 			off = tv.tv_sec - start.tv_sec;
-			msec = tv.tv_usec - start.tv_usec;
+			msec = (int64_t)tv.tv_usec - (int64_t)start.tv_usec;
 			if (msec < 0) {
 				off -= 1;
-				msec = 1000000 - msec;
+				msec = 1000000 + msec;
 			}
 			off *= 1000;
 			off += msec / 1000;

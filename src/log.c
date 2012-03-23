@@ -59,10 +59,10 @@ static void log__time(long long *sec, long long *usec)
 	} else {
 		gettimeofday(&t, NULL);
 		*sec = t.tv_sec - log__ftime.tv_sec;
-		*usec = t.tv_usec - log__ftime.tv_usec;
+		*usec = (long long)t.tv_usec - (long long)log__ftime.tv_usec;
 		if (*usec < 0) {
 			*sec -= 1;
-			*usec = 1000000 - *usec;
+			*usec = 1000000 + *usec;
 		}
 	}
 }
