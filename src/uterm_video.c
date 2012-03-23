@@ -79,6 +79,7 @@ int uterm_screen_new_single(struct uterm_screen **out,
 	screen->ref = 1;
 	screen->disp = disp;
 
+	uterm_display_ref(screen->disp);
 	*out = screen;
 	return 0;
 }
@@ -96,6 +97,7 @@ void uterm_screen_unref(struct uterm_screen *screen)
 	if (!screen || !screen->ref || --screen->ref)
 		return;
 
+	uterm_display_unref(screen->disp);
 	free(screen);
 }
 
