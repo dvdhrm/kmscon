@@ -57,22 +57,22 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
+#include <linux/kd.h>
+#include <linux/vt.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <fcntl.h>
-#include <linux/kd.h>
-#include <linux/vt.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-
 #include "eloop.h"
 #include "log.h"
 #include "vt.h"
+
+#define LOG_SUBSYSTEM "vt"
 
 struct kmscon_vt {
 	unsigned long ref;
@@ -108,7 +108,7 @@ int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data)
 	vt->cb = cb;
 	vt->data = data;
 
-	log_debug("vt: create VT object\n");
+	log_debug("new vt object %p", vt);
 	*out = vt;
 	return 0;
 }
@@ -123,13 +123,10 @@ void kmscon_vt_ref(struct kmscon_vt *vt)
 
 void kmscon_vt_unref(struct kmscon_vt *vt)
 {
-	if (!vt || !vt->ref)
+	if (!vt || !vt->ref || --vt->ref)
 		return;
 
-	if (--vt->ref)
-		return;
-
-	log_debug("vt: destroy VT object\n");
+	log_debug("free vt object %p", vt);
 	kmscon_vt_close(vt);
 	free(vt);
 }
@@ -141,12 +138,12 @@ static void vt_enter(struct ev_signal *sig, int signum, void *data)
 	if (!vt || vt->fd < 0)
 		return;
 
-	log_debug("vt: entering VT\n");
+	log_debug("enter VT %p", vt);
 
 	ioctl(vt->fd, VT_RELDISP, VT_ACKACQ);
 
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS))
-		log_warn("vt: cannot set graphics mode on vt\n");
+		log_warn("cannot set graphics mode on vt %p", vt);
 
 	if (vt->cb)
 		vt->cb(vt, KMSCON_VT_ENTER, vt->data);
@@ -160,13 +157,13 @@ static void vt_leave(struct ev_signal *sig, int signum, void *data)
 		return;
 
 	if (vt->cb && !vt->cb(vt, KMSCON_VT_LEAVE, vt->data)) {
-		log_debug("vt: leaving VT denied\n");
+		log_debug("leaving VT %p denied", vt);
 		ioctl(vt->fd, VT_RELDISP, 0);
 	} else {
-		log_debug("vt: leaving VT\n");
+		log_debug("leaving VT %p", vt);
 		ioctl(vt->fd, VT_RELDISP, 1);
 		if (ioctl(vt->fd, KDSETMODE, KD_TEXT))
-			log_warn("vt: cannot set text mode on vt\n");
+			log_warn("cannot set text mode on vt %p", vt);
 	}
 }
 
@@ -197,7 +194,7 @@ static int connect_eloop(struct kmscon_vt *vt, struct ev_eloop *eloop)
 		goto err_sig1;
 
 	ret = ev_eloop_new_fd(eloop, &vt->efd, vt->fd, EV_READABLE,
-								vt_input, vt);
+				vt_input, vt);
 	if (ret)
 		goto err_sig2;
 
@@ -236,17 +233,17 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	if (id == KMSCON_VT_NEW) {
 		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
-			fd = open("/dev/tty1", O_NONBLOCK | O_NOCTTY |
-								O_CLOEXEC);
+			fd = open("/dev/tty1",
+					O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 			if (fd < 0) {
-				log_err("vt: cannot find unused tty\n");
+				log_err("cannot find parent tty");
 				return -errno;
 			}
 		}
 
 		if (ioctl(fd, VT_OPENQRY, &id) || id <= 0) {
 			close(fd);
-			log_err("vt: cannot find unused tty\n");
+			log_err("cannot get unused tty");
 			return -EINVAL;
 		}
 		close(fd);
@@ -254,11 +251,11 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 
 	snprintf(filename, sizeof(filename), "/dev/tty%d", id);
 	filename[sizeof(filename) - 1] = 0;
-	log_debug("vt: using tty %s\n", filename);
+	log_notice("using tty %s", filename);
 
 	fd = open(filename, O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
-		log_err("vt: cannot open vt\n");
+		log_err("cannot open tty %s", filename);
 		return -errno;
 	}
 
@@ -278,6 +275,8 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 	if (vt->fd >= 0)
 		return -EALREADY;
 
+	log_debug("open vt %p", vt);
+
 	ret = open_tty(id, &vt->fd, &vt->num);
 	if (ret)
 		return ret;
@@ -292,14 +291,14 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 	 */
 	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warn("vt: cannot find the current VT\n");
+		log_warn("cannot find the currently active VT");
 		vt->saved_num = -1;
 	} else {
 		vt->saved_num = vts.v_active;
 	}
 
 	if (tcgetattr(vt->fd, &vt->saved_attribs) < 0) {
-		log_err("vt: cannot get terminal attributes\n");
+		log_err("cannot get terminal attributes");
 		ret = -EFAULT;
 		goto err_eloop;
 	}
@@ -312,7 +311,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 	raw_attribs.c_oflag |= OPOST | OCRNL;
 
 	if (tcsetattr(vt->fd, TCSANOW, &raw_attribs) < 0)
-		log_warn("vt: cannot put terminal into raw mode\n");
+		log_warn("cannot put terminal into raw mode");
 
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("vt: cannot set graphics mode\n");
@@ -326,7 +325,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 	mode.acqsig = SIGUSR2;
 
 	if (ioctl(vt->fd, VT_SETMODE, &mode)) {
-		log_err("vt: cannot take control of vt handling\n");
+		log_err("cannot take control of vt handling");
 		ret = -errno;
 		goto err_text;
 	}
@@ -355,6 +354,7 @@ void kmscon_vt_close(struct kmscon_vt *vt)
 	if (!vt || vt->fd < 0)
 		return;
 
+	log_debug("closing vt %p", vt);
 	ioctl(vt->fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
 	disconnect_eloop(vt);
@@ -375,11 +375,11 @@ int kmscon_vt_enter(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_ACTIVATE, vt->num);
 	if (ret) {
-		log_warn("vt: cannot enter VT\n");
+		log_warn("cannot enter VT %p", vt);
 		return -EFAULT;
 	}
 
-	log_debug("vt: enter VT on demand\n");
+	log_debug("entering VT %p on demand", vt);
 	return 0;
 }
 
@@ -407,7 +407,7 @@ int kmscon_vt_leave(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warn("vt: cannot find current VT\n");
+		log_warn("cannot find current VT");
 		return -EFAULT;
 	}
 
@@ -416,10 +416,10 @@ int kmscon_vt_leave(struct kmscon_vt *vt)
 
 	ret = ioctl(vt->fd, VT_ACTIVATE, vt->saved_num);
 	if (ret) {
-		log_warn("vt: cannot leave VT\n");
+		log_warn("cannot leave VT %p", vt);
 		return -EFAULT;
 	}
 
-	log_debug("vt: leave VT on demand\n");
+	log_debug("leaving VT %p on demand", vt);
 	return -EINPROGRESS;
 }

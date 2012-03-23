@@ -38,7 +38,6 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-
 #include "eloop.h"
 
 struct kmscon_vt;
