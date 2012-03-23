@@ -73,8 +73,8 @@ struct video_ops {
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <gbm.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
