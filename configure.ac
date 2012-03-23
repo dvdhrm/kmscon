@@ -116,6 +116,8 @@ AC_MSG_RESULT([$debug])
 
 if test ! x$debug = xyes ; then
         AC_DEFINE([NDEBUG], [1], [No Debug])
+else
+        AC_DEFINE([LOG_ENABLE_DEBUG], [1], [Enable debug for log subsystem])
 fi
 
 AC_DEFINE([UTERM_HAVE_DRM], [1], [Use DRM uterm backend])
