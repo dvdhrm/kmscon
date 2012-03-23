@@ -35,15 +35,15 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
 #include <sys/timerfd.h>
+#include <time.h>
 #include <unistd.h>
-
 #include "eloop.h"
 #include "log.h"
+
+#define LOG_SUBSYSTEM "eloop"
 
 struct ev_eloop {
 	int efd;
@@ -121,6 +121,8 @@ static void eloop_cb(struct ev_fd *fd, int mask, void *data)
 
 	if (mask & EV_READABLE)
 		ev_eloop_dispatch(eloop, 0);
+	if (mask & (EV_HUP | EV_ERR))
+		log_warn("HUP/ERR on eloop source");
 }
 
 int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
@@ -179,22 +181,19 @@ void ev_idle_ref(struct ev_idle *idle)
 
 void ev_idle_unref(struct ev_idle *idle)
 {
-	if (!idle || !idle->ref)
-		return;
-
-	if (--idle->ref)
+	if (!idle || !idle->ref || --idle->ref)
 		return;
 
 	free(idle);
 }
 
 int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
-						ev_idle_cb cb, void *data)
+			ev_idle_cb cb, void *data)
 {
 	struct ev_idle *idle;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !cb)
 		return -EINVAL;
 
 	ret = ev_idle_new(&idle);
@@ -213,7 +212,7 @@ int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
 }
 
 int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
-						ev_idle_cb cb, void *data)
+			ev_idle_cb cb, void *data)
 {
 	if (!loop || !idle || !cb)
 		return -EINVAL;
@@ -298,22 +297,19 @@ void ev_fd_ref(struct ev_fd *fd)
 
 void ev_fd_unref(struct ev_fd *fd)
 {
-	if (!fd || !fd->ref)
-		return;
-
-	if (--fd->ref)
+	if (!fd || !fd->ref || --fd->ref)
 		return;
 
 	free(fd);
 }
 
-int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out,
-				int rfd, int mask, ev_fd_cb cb, void *data)
+int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
+			int mask, ev_fd_cb cb, void *data)
 {
 	struct ev_fd *fd;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !cb || rfd < 0)
 		return -EINVAL;
 
 	ret = ev_fd_new(&fd);
@@ -331,12 +327,12 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out,
 	return 0;
 }
 
-int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd,
-				int rfd, int mask, ev_fd_cb cb, void *data)
+int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd, int rfd,
+			int mask, ev_fd_cb cb, void *data)
 {
 	struct epoll_event ep;
 
-	if (!loop || !fd || !cb)
+	if (!loop || !fd || !cb || rfd < 0)
 		return -EINVAL;
 
 	if (fd->loop)
@@ -447,24 +443,20 @@ void ev_signal_ref(struct ev_signal *sig)
 
 void ev_signal_unref(struct ev_signal *sig)
 {
-	if (!sig || !sig->ref)
-		return;
-
-	if (--sig->ref)
+	if (!sig || !sig->ref || --sig->ref)
 		return;
 
 	ev_fd_unref(sig->fd);
 	free(sig);
 }
 
-int ev_eloop_new_signal(struct ev_eloop *loop,
-	struct ev_signal **out, int signum, ev_signal_cb cb,
-								void *data)
+int ev_eloop_new_signal(struct ev_eloop *loop, struct ev_signal **out,
+			int signum, ev_signal_cb cb, void *data)
 {
 	struct ev_signal *sig;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !cb || signum < 0)
 		return -EINVAL;
 
 	ret = ev_signal_new(&sig);
@@ -491,19 +483,21 @@ static void signal_cb(struct ev_fd *fd, int mask, void *data)
 	if (mask & EV_READABLE) {
 		len = read(fd->fd, &signal_info, sizeof(signal_info));
 		if (len != sizeof(signal_info))
-			log_warn("eloop: cannot read signalfd\n");
+			log_warn("cannot read signalfd");
 		else
 			sig->cb(sig, signal_info.ssi_signo, sig->data);
+	} else if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("HUP/ERR on signal source");
 	}
 }
 
-int ev_eloop_add_signal(struct ev_eloop *loop,
-	struct ev_signal *sig, int signum, ev_signal_cb cb, void *data)
+int ev_eloop_add_signal(struct ev_eloop *loop, struct ev_signal *sig,
+			int signum, ev_signal_cb cb, void *data)
 {
 	sigset_t mask;
 	int ret, fd;
 
-	if (!loop || !sig)
+	if (!loop || !sig || signum < 0 || !cb)
 		return -EINVAL;
 
 	if (sig->fd->loop)
@@ -516,8 +510,7 @@ int ev_eloop_add_signal(struct ev_eloop *loop,
 	if (fd < 0)
 		return -errno;
 
-	ret = ev_eloop_add_fd(loop, sig->fd, fd, EV_READABLE,
-							signal_cb, sig);
+	ret = ev_eloop_add_fd(loop, sig->fd, fd, EV_READABLE, signal_cb, sig);
 	if (ret) {
 		close(fd);
 		return ret;
@@ -584,10 +577,7 @@ void ev_timer_ref(struct ev_timer *timer)
 
 void ev_timer_unref(struct ev_timer *timer)
 {
-	if (!timer || !timer->ref)
-		return;
-
-	if (--timer->ref)
+	if (!timer || !timer->ref || --timer->ref)
 		return;
 
 	ev_fd_unref(timer->fd);
@@ -595,12 +585,13 @@ void ev_timer_unref(struct ev_timer *timer)
 }
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
-		const struct itimerspec *spec, ev_timer_cb cb, void *data)
+			const struct itimerspec *spec, ev_timer_cb cb,
+			void *data)
 {
 	struct ev_timer *timer;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !spec || !cb)
 		return -EINVAL;
 
 	ret = ev_timer_new(&timer);
@@ -627,15 +618,17 @@ static void timer_cb(struct ev_fd *fd, int mask, void *data)
 	if (mask & EV_READABLE) {
 		len = read(fd->fd, &expirations, sizeof(expirations));
 		if (len != sizeof(expirations))
-			log_warn("eloop: cannot read timerfd\n");
+			log_warn("cannot read timerfd");
 		else
 			timer->cb(timer, expirations, timer->data);
+	} else if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("HUP/ERR on timer source");
 	}
 }
 
-int ev_eloop_add_timer(struct ev_eloop *loop,
-		struct ev_timer *timer, const struct itimerspec *spec,
-						ev_timer_cb cb, void *data)
+int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
+			const struct itimerspec *spec, ev_timer_cb cb,
+			void *data)
 {
 	int ret, fd;
 
@@ -652,12 +645,12 @@ int ev_eloop_add_timer(struct ev_eloop *loop,
 	ret = timerfd_settime(fd, 0, spec, NULL);
 	if (ret) {
 		ret = -errno;
-		log_warn("eloop: cannot set timerfd: %m\n");
+		log_warn("cannot set timerfd %d: %m", ret);
 		goto err_fd;
 	}
 
 	ret = ev_eloop_add_fd(loop, timer->fd, fd, EV_READABLE,
-							timer_cb, timer);
+				timer_cb, timer);
 	if (ret)
 		goto err_fd;
 
@@ -686,7 +679,7 @@ void ev_eloop_rm_timer(struct ev_timer *timer)
 }
 
 int ev_eloop_update_timer(struct ev_timer *timer,
-						const struct itimerspec *spec)
+				const struct itimerspec *spec)
 {
 	int ret;
 
@@ -696,7 +689,7 @@ int ev_eloop_update_timer(struct ev_timer *timer,
 	ret = timerfd_settime(timer->fd->fd, 0, spec, NULL);
 	if (ret) {
 		ret = -errno;
-		log_warn("eloop: cannot set timerfd: %m\n");
+		log_warn("cannot set timerfd %d: %m", ret);
 		return ret;
 	}
 
@@ -728,7 +721,7 @@ int ev_eloop_new(struct ev_eloop **out)
 	if (ret)
 		goto err_close;
 
-	log_debug("eloop: create eloop object\n");
+	log_debug("new eloop object %p", loop);
 	*out = loop;
 	return 0;
 
@@ -749,13 +742,10 @@ void ev_eloop_ref(struct ev_eloop *loop)
 
 void ev_eloop_unref(struct ev_eloop *loop)
 {
-	if (!loop || !loop->ref)
+	if (!loop || !loop->ref || --loop->ref)
 		return;
 
-	if (--loop->ref)
-		return;
-
-	log_debug("eloop: destroy eloop object\n");
+	log_debug("free eloop object %p", loop);
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	free(loop);
@@ -781,7 +771,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
-		log_warn("eloop: epoll_wait dispatching failed: %m\n");
+		log_warn("epoll_wait dispatching failed: %m");
 		return -errno;
 	}
 

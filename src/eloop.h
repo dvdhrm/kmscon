@@ -77,9 +77,9 @@ void ev_idle_ref(struct ev_idle *idle);
 void ev_idle_unref(struct ev_idle *idle);
 
 int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
-						ev_idle_cb cb, void *data);
+			ev_idle_cb cb, void *data);
 int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
-						ev_idle_cb cb, void *data);
+			ev_idle_cb cb, void *data);
 void ev_eloop_rm_idle(struct ev_idle *idle);
 
 /* fd sources */
@@ -88,10 +88,10 @@ int ev_fd_new(struct ev_fd **out);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
 
-int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out,
-				int rfd, int mask, ev_fd_cb cb, void *data);
-int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd,
-				int rfd, int mask, ev_fd_cb cb, void *data);
+int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
+			int mask, ev_fd_cb cb, void *data);
+int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd, int rfd,
+			int mask, ev_fd_cb cb, void *data);
 void ev_eloop_rm_fd(struct ev_fd *fd);
 int ev_eloop_update_fd(struct ev_fd *fd, int mask);
 
@@ -101,11 +101,10 @@ int ev_signal_new(struct ev_signal **out);
 void ev_signal_ref(struct ev_signal *sig);
 void ev_signal_unref(struct ev_signal *sig);
 
-int ev_eloop_new_signal(struct ev_eloop *loop,
-	struct ev_signal **out, int signum, ev_signal_cb cb,
-								void *data);
-int ev_eloop_add_signal(struct ev_eloop *loop,
-	struct ev_signal *sig, int signum, ev_signal_cb cb, void *data);
+int ev_eloop_new_signal(struct ev_eloop *loop, struct ev_signal **out,
+			int signum, ev_signal_cb cb, void *data);
+int ev_eloop_add_signal(struct ev_eloop *loop, struct ev_signal *sig,
+			int signum, ev_signal_cb cb, void *data);
 void ev_eloop_rm_signal(struct ev_signal *sig);
 
 /* timer sources */
@@ -115,12 +114,13 @@ void ev_timer_ref(struct ev_timer *timer);
 void ev_timer_unref(struct ev_timer *timer);
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
-		const struct itimerspec *spec, ev_timer_cb cb, void *data);
-int ev_eloop_add_timer(struct ev_eloop *loop,
-		struct ev_timer *timer, const struct itimerspec *spec,
-						ev_timer_cb cb, void *data);
+			const struct itimerspec *spec, ev_timer_cb cb,
+			void *data);
+int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
+			const struct itimerspec *spec, ev_timer_cb cb,
+			void *data);
 void ev_eloop_rm_timer(struct ev_timer *timer);
 int ev_eloop_update_timer(struct ev_timer *timer,
-						const struct itimerspec *spec);
+				const struct itimerspec *spec);
 
 #endif /* EV_ELOOP_H */
