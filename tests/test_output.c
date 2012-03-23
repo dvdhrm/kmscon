@@ -30,9 +30,6 @@
  * arguments it prints a list of all connected outputs and their modes.
  * If you pass numbers as arguments, it will enable these outputs and show an
  * image on the given monitors for 5 seconds.
- * The application terminates automatically after 5 seconds, however, you need
- * to switch VT to re-enable output on your screen. This application does not
- * reset the screen automatically, yet.
  *
  * This lists all outputs:
  * $ ./test_output
@@ -43,6 +40,7 @@
  */
 
 #include <errno.h>
+#include <GL/gl.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
@@ -50,8 +48,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "eloop.h"
+#include "gl.h"
 #include "log.h"
-#include "output.h"
+#include "uterm.h"
 
 /* a colored quad */
 float d_vert[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
@@ -62,23 +62,26 @@ float d_col[] = { 1, 1, 0, 1,
 		0, 0, 1, 1,
 		0, 1, 1, 1 };
 
-static void sig_term(int sig)
+static void sig_term(int signum)
 {
 }
 
-static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
+static int set_outputs(struct uterm_video *video, int num, char **list)
 {
-	struct kmscon_output *iter;
+	struct uterm_display *iter;
 	int i, j, val, ret;
-	struct kmscon_context *ctx;
+	struct gl_shader *shader;
+	struct uterm_screen *screen;
 
-	ctx = kmscon_compositor_get_context(comp);
-	if (!ctx)
-		return -EINVAL;
+	ret = gl_shader_new(&shader);
+	if (ret) {
+		log_err("Cannot create shader: %d", ret);
+		return ret;
+	}
 
 	j = 0;
-	iter = kmscon_compositor_get_outputs(comp);
-	for ( ; iter; iter = kmscon_output_next(iter)) {
+	iter = uterm_video_get_displays(video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
 		for (i = 0; i < num; ++i) {
 			val = atoi(list[i]);
 			if (val == j)
@@ -86,128 +89,151 @@ static int set_outputs(struct kmscon_compositor *comp, int num, char **list)
 		}
 
 		if (i == num) {
-			log_info("Ignoring output %d\n", j);
+			log_notice("Ignoring display %d", j);
 		} else {
-			log_info("Activating output %d %p...\n", j, iter);
-			ret = kmscon_output_activate(iter, NULL);
+			log_notice("Activating display %d %p...", j, iter);
+			ret = uterm_display_activate(iter, NULL);
 			if (ret)
-				log_err("Cannot activate output %d: %d\n", j,
+				log_err("Cannot activate display %d: %d", j,
 									ret);
 			else
-				log_info("Successfully activated output %d\n",
-									j);
+				log_notice("Successfully activated display %d",
+						j);
+
+			ret = uterm_display_set_dpms(iter, UTERM_DPMS_ON);
+			if (ret)
+				log_err("Cannot set DPMS to ON: %d", ret);
 		}
 
 		++j;
 	}
 
-	iter = kmscon_compositor_get_outputs(comp);
-	for ( ; iter; iter = kmscon_output_next(iter)) {
-		if (!kmscon_output_is_active(iter))
+	iter = uterm_video_get_displays(video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		if (uterm_display_get_state(iter) != UTERM_DISPLAY_ACTIVE)
 			continue;
 
-		ret = kmscon_output_use(iter);
+		ret = uterm_screen_new_single(&screen, iter);
 		if (ret) {
-			log_err("Cannot use output %p: %d\n", iter, ret);
+			log_err("Cannot create temp-screen object: %d", ret);
 			continue;
 		}
 
-		kmscon_context_clear(ctx);
-		kmscon_context_draw_def(ctx, d_vert, d_col, 6);
-
-		ret = kmscon_output_swap(iter);
+		ret = uterm_screen_use(screen);
 		if (ret) {
-			log_err("Cannot swap buffers of output %p: %d\n",
-								iter, ret);
+			log_err("Cannot use screen: %d", ret);
+			uterm_screen_unref(screen);
 			continue;
 		}
 
-		log_info("Successfully set screen on output %p\n", iter);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glViewport(0, 0,
+				uterm_screen_width(screen),
+				uterm_screen_height(screen));
+
+		gl_shader_draw_def(shader, d_vert, d_col, 6);
+		if (gl_has_error())
+			log_err("GL error occurred");
+
+		ret = uterm_screen_swap(screen);
+		if (ret) {
+			log_err("Cannot swap screen: %d", ret);
+			uterm_screen_unref(screen);
+			continue;
+		}
+
+		log_notice("Successfully set screen on display %p", iter);
+		uterm_screen_unref(screen);
 	}
 
-	log_info("Waiting 5 seconds...\n");
+	log_notice("Waiting 5 seconds...");
 	sleep(5);
-	log_info("Exiting...\n");
+	log_notice("Exiting...");
+
+	gl_shader_unref(shader);
 
 	return 0;
 }
 
-static int list_outputs(struct kmscon_compositor *comp)
+static int list_outputs(struct uterm_video *video)
 {
-	struct kmscon_output *iter;
-	struct kmscon_mode *cur, *mode;
+	struct uterm_display *iter;
+	struct uterm_mode *cur, *mode;
 	int i;
 
-	log_info("List of Outputs:\n");
+	log_notice("List of Outputs:");
 
 	i = 0;
-	iter = kmscon_compositor_get_outputs(comp);
-	for ( ; iter; iter = kmscon_output_next(iter)) {
-		cur = kmscon_output_get_current(iter);
+	iter = uterm_video_get_displays(video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		cur = uterm_display_get_current(iter);
 
-		log_info("Output %d:\n", i++);
-		log_info("  active: %d\n", kmscon_output_is_active(iter));
-		log_info("  has current: %s\n", cur ? "yes" : "no");
+		log_notice("Output %d:", i++);
+		log_notice("  active: %d", uterm_display_get_state(iter));
+		log_notice("  has current: %s", cur ? "yes" : "no");
 
-		mode = kmscon_output_get_modes(iter);
-		for ( ; mode; mode = kmscon_mode_next(mode)) {
-			log_info("  Mode '%s':\n", kmscon_mode_get_name(mode));
-			log_info("    x: %u\n", kmscon_mode_get_width(mode));
-			log_info("    y: %u\n", kmscon_mode_get_height(mode));
+		mode = uterm_display_get_modes(iter);
+		for ( ; mode; mode = uterm_mode_next(mode)) {
+			log_notice("  Mode '%s':", uterm_mode_get_name(mode));
+			log_notice("    x: %u", uterm_mode_get_width(mode));
+			log_notice("    y: %u", uterm_mode_get_height(mode));
 		}
 	}
 
-	log_info("End of Output list\n");
+	log_notice("End of Output list");
 
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	struct kmscon_compositor *comp;
+	struct uterm_video *video;
 	int ret;
+	struct ev_eloop *eloop;
 	struct sigaction sig;
+
+	log_print_init("test_output");
+	log_set_config(&LOG_CONFIG_INFO(1, 1));
+
+	ret = ev_eloop_new(&eloop);
+	if (ret)
+		return EXIT_FAILURE;
 
 	memset(&sig, 0, sizeof(sig));
 	sig.sa_handler = sig_term;
 	sigaction(SIGTERM, &sig, NULL);
 	sigaction(SIGINT, &sig, NULL);
 
-	log_info("Creating compositor...\n");
-	ret = kmscon_compositor_new(&comp);
+	log_notice("Creating video object...");
+	ret = uterm_video_new(&video, UTERM_VIDEO_DRM, eloop);
 	if (ret) {
-		log_err("Cannot create compositor: %d\n", ret);
+		log_err("Cannot create video object: %d", ret);
 		return abs(ret);
 	}
 
-	ret = kmscon_compositor_use(comp);
-	if (ret) {
-		log_err("Cannot use compositor: %d\n", ret);
-		goto err_unref;
-	}
-
-	log_info("Wakeing up compositor...\n");
-	ret = kmscon_compositor_wake_up(comp);
+	log_notice("Wakeing up video object...");
+	ret = uterm_video_wake_up(video);
 	if (ret < 0) {
-		log_err("Cannot wakeup compositor: %d\n", ret);
+		log_err("Cannot wakeup video object: %d", ret);
 		goto err_unref;
 	}
 
 	if (argc < 2) {
-		ret = list_outputs(comp);
+		ret = list_outputs(video);
 		if (ret) {
-			log_err("Cannot list outputs: %d\n", ret);
+			log_err("Cannot list outputs: %d", ret);
 			goto err_unref;
 		}
 	} else {
-		ret = set_outputs(comp, argc - 1, &argv[1]);
+		ret = set_outputs(video, argc - 1, &argv[1]);
 		if (ret) {
-			log_err("Cannot set outputs: %d\n", ret);
+			log_err("Cannot set outputs: %d", ret);
 			goto err_unref;
 		}
 	}
 
 err_unref:
-	kmscon_compositor_unref(comp);
+	uterm_video_unref(video);
 	return abs(ret);
 }
