@@ -192,7 +192,9 @@ static void sig_term(struct ev_signal *sig, int signum, void *data)
 	terminate = 1;
 }
 
-static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
+static bool vt_switch(struct kmscon_vt *vt,
+			enum kmscon_vt_action action,
+			void *data)
 {
 	struct console *con = data;
 	int ret;

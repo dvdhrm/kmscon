@@ -42,7 +42,6 @@
 #include "eloop.h"
 
 struct kmscon_vt;
-typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt, int action, void *data);
 
 enum kmscon_vt_action {
 	KMSCON_VT_ENTER,
@@ -53,6 +52,10 @@ enum kmscon_vt_id {
 	KMSCON_VT_CUR = 0,
 	KMSCON_VT_NEW = -1,
 };
+
+typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt,
+				enum kmscon_vt_action action,
+				void *data);
 
 int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data);
 void kmscon_vt_ref(struct kmscon_vt *vt);

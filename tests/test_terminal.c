@@ -139,7 +139,9 @@ static void activate_outputs(struct app *app)
 	}
 }
 
-static bool vt_switch(struct kmscon_vt *vt, int action, void *data)
+static bool vt_switch(struct kmscon_vt *vt,
+			enum kmscon_vt_action action,
+			void *data)
 {
 	struct app *app = data;
 	int ret;
