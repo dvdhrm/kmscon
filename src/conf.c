@@ -50,18 +50,20 @@ static void print_help()
 		"General Options:\n"
 		"\t-h, --help                    Print this help and exit\n"
 		"\t-v, --verbose                 Print verbose messages\n"
-		"\t    --debug                   Enable debug mode\n",
+		"\t    --debug                   Enable debug mode\n"
+		"\t-s, --switchvt                Automatically switch to VT\n",
 		"kmscon");
 }
 
 int conf_parse_argv(int argc, char **argv)
 {
 	int show_help = 0;
-	char short_options[] = ":hv";
+	char short_options[] = ":hvs";
 	struct option long_options[] = {
 		{ "help", no_argument, NULL, 'h' },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ "debug", no_argument, &conf_global.debug, 1 },
+		{ "switchvt", no_argument, NULL, 's' },
 		{ NULL, 0, NULL, 0 },
 	};
 	int idx;
@@ -84,6 +86,9 @@ int conf_parse_argv(int argc, char **argv)
 			break;
 		case 'v':
 			conf_global.verbose = 1;
+			break;
+		case 's':
+			conf_global.switchvt = 1;
 			break;
 		case ':':
 			fprintf(stderr, "Missing argument for option -%c\n",

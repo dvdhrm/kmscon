@@ -49,6 +49,8 @@ struct conf_obj {
 	int debug;
 	/* enable verbose info messages */
 	int verbose;
+	/* enter new VT directly */
+	int switchvt;
 };
 
 extern struct conf_obj conf_global;
