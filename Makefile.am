@@ -38,6 +38,7 @@ nodist_libkmscon_core_la_SOURCES = \
 	src/output_shaders.c
 
 libkmscon_core_la_SOURCES = \
+	src/conf.c src/conf.h \
 	src/misc.c src/misc.h \
 	src/console.c src/console.h \
 	src/unicode.c src/unicode.h \
