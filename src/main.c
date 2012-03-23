@@ -142,9 +142,13 @@ int main(int argc, char **argv)
 	if (conf_global.exit)
 		return EXIT_SUCCESS;
 
+	if (!conf_global.debug && !conf_global.verbose && conf_global.silent)
+		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
+	else
+		log_set_config(&LOG_CONFIG_INFO(conf_global.debug,
+						conf_global.verbose));
+
 	log_print_init("kmscon");
-	log_set_config(&LOG_CONFIG_INFO(conf_global.debug,
-					conf_global.verbose));
 
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);

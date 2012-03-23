@@ -133,6 +133,8 @@ struct log_config {
 	LOG_CONFIG_ALL((debug), 2, 2, 2, 2, 2, 2)
 #define LOG_CONFIG_INFO(debug, info) \
 	LOG_CONFIG_ALL((debug), (info), 2, 2, 2, 2, 2)
+#define LOG_CONFIG_WARNING(debug, info, notice, warning) \
+	LOG_CONFIG_ALL((debug), (info), (notice), (warning), 2, 2, 2)
 
 void log_set_config(const struct log_config *config);
 int log_add_filter(const struct log_filter *filter,

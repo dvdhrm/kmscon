@@ -51,6 +51,7 @@ static void print_help()
 		"\t-h, --help                    Print this help and exit\n"
 		"\t-v, --verbose                 Print verbose messages\n"
 		"\t    --debug                   Enable debug mode\n"
+		"\t    --silent                  Suppress notices and warnings\n"
 		"\t-s, --switchvt                Automatically switch to VT\n",
 		"kmscon");
 }
@@ -63,6 +64,7 @@ int conf_parse_argv(int argc, char **argv)
 		{ "help", no_argument, NULL, 'h' },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ "debug", no_argument, &conf_global.debug, 1 },
+		{ "silent", no_argument, &conf_global.silent, 1 },
 		{ "switchvt", no_argument, NULL, 's' },
 		{ NULL, 0, NULL, 0 },
 	};

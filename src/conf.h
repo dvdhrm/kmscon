@@ -49,6 +49,8 @@ struct conf_obj {
 	int debug;
 	/* enable verbose info messages */
 	int verbose;
+	/* disable notices and warnings */
+	int silent;
 	/* enter new VT directly */
 	int switchvt;
 };
