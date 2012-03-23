@@ -39,11 +39,7 @@
 
 #define LOG_SUBSYSTEM "config"
 
-struct conf_obj conf_global = {
-	.exit = 0,
-	.debug = 0,
-	.verbose = 0,
-};
+struct conf_obj conf_global;
 
 static void print_help()
 {
