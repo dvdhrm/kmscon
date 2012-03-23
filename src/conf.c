@@ -59,7 +59,7 @@ int conf_parse_argv(int argc, char **argv)
 	int show_help = 0;
 	char short_options[] = ":hv";
 	struct option long_options[] = {
-		{ "help", no_argument, &show_help, 1 },
+		{ "help", no_argument, NULL, 'h' },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ "debug", no_argument, &conf_global.debug, 1 },
 		{ NULL, 0, NULL, 0 },
