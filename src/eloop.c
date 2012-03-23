@@ -798,10 +798,12 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 			mask |= EV_READABLE;
 		if (ep[i].events & EPOLLOUT)
 			mask |= EV_WRITEABLE;
-		if (ep[i].events & EPOLLHUP)
-			mask |= EV_HUP;
 		if (ep[i].events & EPOLLERR)
 			mask |= EV_ERR;
+		if (ep[i].events & EPOLLHUP) {
+			mask |= EV_HUP;
+			epoll_ctl(loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
+		}
 
 		fd->cb(fd, mask, fd->data);
 	}
