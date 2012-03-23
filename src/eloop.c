@@ -820,6 +820,7 @@ int ev_eloop_run(struct ev_eloop *loop, int timeout)
 
 	if (!loop)
 		return -EINVAL;
+	loop->exit = false;
 
 	log_debug("run for %d msecs", timeout);
 	gettimeofday(&start, NULL);
@@ -857,4 +858,6 @@ void ev_eloop_exit(struct ev_eloop *loop)
 	log_debug("exiting %p", loop);
 
 	loop->exit = true;
+	if (loop->fd->loop)
+		ev_eloop_exit(loop->fd->loop);
 }
