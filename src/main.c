@@ -183,6 +183,6 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 
 err_out:
-	log_err("cannot initialize kmscon, errno %d", ret);
+	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));
 	return -ret;
 }
