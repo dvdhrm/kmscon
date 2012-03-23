@@ -291,6 +291,7 @@ int gl_shader_new(struct gl_shader **out)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	log_debug("new shader object %p", shader);
 	*out = shader;
 	return 0;
 
@@ -314,6 +315,7 @@ void gl_shader_unref(struct gl_shader *shader)
 	if (!shader || !shader->ref || --shader->ref)
 		return;
 
+	log_debug("free shader object %p", shader);
 	free_tex_shader(shader);
 	free_def_shader(shader);
 	free(shader);
