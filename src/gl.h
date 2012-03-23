@@ -35,10 +35,12 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "uterm.h"
 
 /* miscellaneous */
 void gl_clear_error();
 bool gl_has_error();
+void gl_viewport(struct uterm_screen *screen);
 
 /*
  * Math Helpers

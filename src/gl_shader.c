@@ -72,6 +72,13 @@ bool gl_has_error()
 	return false;
 }
 
+void gl_viewport(struct uterm_screen *screen)
+{
+	glViewport(0, 0,
+			uterm_screen_width(screen),
+			uterm_screen_height(screen));
+}
+
 unsigned int gl_tex_new()
 {
 	GLuint tex = 0;
