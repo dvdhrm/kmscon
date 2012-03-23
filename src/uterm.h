@@ -128,6 +128,9 @@ int uterm_screen_new_single(struct uterm_screen **out,
 void uterm_screen_ref(struct uterm_screen *screen);
 void uterm_screen_unref(struct uterm_screen *screen);
 
+unsigned int uterm_screen_width(struct uterm_screen *screen);
+unsigned int uterm_screen_height(struct uterm_screen *screen);
+
 int uterm_screen_use(struct uterm_screen *screen);
 int uterm_screen_swap(struct uterm_screen *screen);
 

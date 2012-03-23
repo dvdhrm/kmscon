@@ -101,6 +101,22 @@ void uterm_screen_unref(struct uterm_screen *screen)
 	free(screen);
 }
 
+unsigned int uterm_screen_width(struct uterm_screen *screen)
+{
+	if (!screen)
+		return 0;
+
+	return uterm_mode_get_width(uterm_display_get_current(screen->disp));
+}
+
+unsigned int uterm_screen_height(struct uterm_screen *screen)
+{
+	if (!screen)
+		return 0;
+
+	return uterm_mode_get_height(uterm_display_get_current(screen->disp));
+}
+
 int uterm_screen_use(struct uterm_screen *screen)
 {
 	if (!screen || !display_is_online(screen->disp))
