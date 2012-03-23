@@ -40,7 +40,6 @@ nodist_libkmscon_core_la_SOURCES = \
 libkmscon_core_la_SOURCES = \
 	src/misc.c src/misc.h \
 	src/console.c src/console.h \
-	src/console_cell.c \
 	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
