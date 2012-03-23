@@ -33,24 +33,11 @@ PKG_CHECK_MODULES([GBM], [gbm])
 AC_SUBST(GBM_CFLAGS)
 AC_SUBST(GBM_LIBS)
 
-AC_MSG_CHECKING([whether to use OpenGLES2 instead of OpenGL])
-AC_ARG_ENABLE([gles2],
-              [AS_HELP_STRING([--enable-gles2], [whether to use OpenGLES2 instead of OpenGL])],
-              [force_gles2="$enableval";
-               AC_DEFINE([USE_GLES2], [1], [Define if OpenGLES2 should be used])],
-              [force_gles2=no])
-AC_MSG_RESULT([$force_gles2])
-
-if test x$force_gles2 = xyes ; then
-        PKG_CHECK_MODULES([OPENGLES2], [glesv2])
-        OPENGL_CFLAGS=$OPENGLES2_CFLAGS
-        OPENGL_LIBS=$OPENGLES2_LIBS
-else
-        PKG_CHECK_MODULES([OPENGL], [gl])
-fi
-
+PKG_CHECK_MODULES([OPENGL], [glesv2])
 AC_SUBST(OPENGL_CFLAGS)
 AC_SUBST(OPENGL_LIBS)
+
+AC_DEFINE([UTERM_HAVE_DRM], [1], [Use DRM uterm backend])
 
 PKG_CHECK_MODULES([UDEV], [libudev])
 AC_SUBST(UDEV_CFLAGS)
@@ -119,8 +106,6 @@ if test ! x$debug = xyes ; then
 else
         AC_DEFINE([LOG_ENABLE_DEBUG], [1], [Enable debug for log subsystem])
 fi
-
-AC_DEFINE([UTERM_HAVE_DRM], [1], [Use DRM uterm backend])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT([src/genshader.c])

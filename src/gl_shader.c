@@ -39,8 +39,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "gl.h"
-#include "output.h"
 #include "log.h"
+#include "uterm.h"
 
 #define LOG_SUBSYSTEM "gl"
 
