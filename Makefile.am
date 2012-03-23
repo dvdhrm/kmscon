@@ -54,7 +54,10 @@ libkmscon_core_la_SOURCES = \
 	src/pty.c src/pty.h \
 	src/uterm.h src/uterm_internal.h \
 	src/uterm_video.c \
-	src/uterm_video_drm.c
+	src/uterm_video_drm.c \
+	src/gl.h \
+	src/gl_math.c \
+	src/gl_shader.c
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
