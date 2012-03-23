@@ -48,6 +48,7 @@
 struct ev_eloop {
 	int efd;
 	unsigned long ref;
+	struct ev_fd *fd;
 
 	struct ev_idle *idle_list;
 	struct ev_idle *cur_idle;
@@ -90,6 +91,65 @@ struct ev_timer {
 	ev_timer_cb cb;
 	void *data;
 };
+
+int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
+{
+	struct ev_eloop *el;
+	int ret;
+
+	if (!out || !loop)
+		return -EINVAL;
+
+	ret = ev_eloop_new(&el);
+	if (ret)
+		return ret;
+
+	ret = ev_eloop_add_eloop(loop, el);
+	if (ret) {
+		ev_eloop_unref(el);
+		return ret;
+	}
+
+	ev_eloop_unref(el);
+	*out = el;
+	return 0;
+}
+
+static void eloop_cb(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_eloop *eloop = data;
+
+	if (mask & EV_READABLE)
+		ev_eloop_dispatch(eloop, 0);
+}
+
+int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
+{
+	int ret;
+
+	if (!loop || !add)
+		return -EINVAL;
+
+	if (add->fd->loop)
+		return -EALREADY;
+
+	ret = ev_eloop_add_fd(loop, add->fd, add->efd, EV_READABLE,
+							eloop_cb, add);
+	if (ret)
+		return ret;
+
+	ev_eloop_ref(add);
+	return 0;
+}
+
+void ev_eloop_rm_eloop(struct ev_eloop *rm)
+{
+	if (!rm || !rm->fd->loop)
+		return;
+
+	ev_eloop_rm_fd(rm->fd);
+	ev_eloop_unref(rm);
+}
 
 int ev_idle_new(struct ev_idle **out)
 {
@@ -646,6 +706,7 @@ int ev_eloop_update_timer(struct ev_timer *timer,
 int ev_eloop_new(struct ev_eloop **out)
 {
 	struct ev_eloop *loop;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -659,13 +720,23 @@ int ev_eloop_new(struct ev_eloop **out)
 
 	loop->efd = epoll_create1(EPOLL_CLOEXEC);
 	if (loop->efd < 0) {
-		free(loop);
-		return -errno;
+		ret = -errno;
+		goto err_free;
 	}
+
+	ret = ev_fd_new(&loop->fd);
+	if (ret)
+		goto err_close;
 
 	log_debug("eloop: create eloop object\n");
 	*out = loop;
 	return 0;
+
+err_close:
+	close(loop->efd);
+err_free:
+	free(loop);
+	return ret;
 }
 
 void ev_eloop_ref(struct ev_eloop *loop)
@@ -685,6 +756,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 		return;
 
 	log_debug("eloop: destroy eloop object\n");
+	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	free(loop);
 }
