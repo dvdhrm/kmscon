@@ -33,10 +33,12 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
+#include <sys/time.h>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
@@ -55,6 +57,7 @@ struct ev_eloop {
 
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
+	bool exit;
 };
 
 struct ev_idle {
@@ -757,7 +760,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	struct ev_fd *fd;
 	int i, count, mask;
 
-	if (!loop)
+	if (!loop || loop->exit)
 		return -EINVAL;
 
 	/* dispatch idle events */
@@ -802,4 +805,53 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	loop->cur_fds_cnt = 0;
 
 	return 0;
+}
+
+/* ev_eloop_dispatch() performs one idle-roundtrip. This function performs as
+ * many idle-roundtrips as needed to run \timeout milliseconds.
+ * If \timeout is 0, this is equal to ev_eloop_dispath(), if \timeout is <0,
+ * this runs until \loop->exit becomes true.
+ */
+int ev_eloop_run(struct ev_eloop *loop, int timeout)
+{
+	int ret;
+	struct timeval tv, start;
+	uint64_t off, msec;
+
+	if (!loop)
+		return -EINVAL;
+
+	gettimeofday(&start, NULL);
+
+	while (!loop->exit) {
+		ret = ev_eloop_dispatch(loop, timeout);
+		if (ret)
+			return ret;
+
+		if (!timeout) {
+			break;
+		} else if (timeout > 0) {
+			gettimeofday(&tv, NULL);
+			off = tv.tv_sec - start.tv_sec;
+			msec = tv.tv_usec - start.tv_usec;
+			if (msec < 0) {
+				off -= 1;
+				msec = 1000000 - msec;
+			}
+			off *= 1000;
+			off += msec / 1000;
+			if (off >= timeout)
+				break;
+		}
+	}
+
+	return 0;
+}
+
+void ev_eloop_exit(struct ev_eloop *loop)
+{
+	if (!loop)
+		return;
+
+	loop->exit = true;
 }

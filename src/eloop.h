@@ -63,6 +63,8 @@ void ev_eloop_ref(struct ev_eloop *loop);
 void ev_eloop_unref(struct ev_eloop *loop);
 
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout);
+int ev_eloop_run(struct ev_eloop *loop, int timeout);
+void ev_eloop_exit(struct ev_eloop *loop);
 
 /* eloop sources */
 
