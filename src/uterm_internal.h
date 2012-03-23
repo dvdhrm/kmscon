@@ -275,4 +275,9 @@ static inline bool video_is_awake(const struct uterm_video *video)
 	return video->flags & VIDEO_AWAKE;
 }
 
+static inline bool video_need_hotplug(const struct uterm_video *video)
+{
+	return video->flags & VIDEO_HOTPLUG;
+}
+
 #endif /* UTERM_INTERNAL_H */

@@ -118,5 +118,7 @@ if test ! x$debug = xyes ; then
         AC_DEFINE([NDEBUG], [1], [No Debug])
 fi
 
+AC_DEFINE([UTERM_HAVE_DRM], [1], [Use DRM uterm backend])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT([src/genshader.c])
