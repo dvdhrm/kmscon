@@ -386,6 +386,30 @@ static int display_swap(struct uterm_display *disp)
 	return 0;
 }
 
+static void show_displays(struct uterm_video *video)
+{
+	int ret;
+	struct uterm_display *iter;
+
+	if (!video_is_awake(video))
+		return;
+
+	for (iter = video->displays; iter; iter = iter->next) {
+		if (!display_is_online(iter))
+			continue;
+		if (iter->dpms != UTERM_DPMS_ON)
+			continue;
+
+		ret = drmModeSetCrtc(video->drm.fd, iter->drm.crtc_id,
+			iter->drm.rb[iter->drm.current_rb].fb, 0, 0,
+			&iter->drm.conn_id, 1, &iter->current_mode->drm.info);
+		if (ret) {
+			log_err("cannot set drm-crtc on display %p", iter);
+			continue;
+		}
+	}
+}
+
 static int get_dpms(struct uterm_display *disp, drmModeConnector *conn)
 {
 	int i, ret;
@@ -864,6 +888,7 @@ static int video_wake_up(struct uterm_video *video)
 		return ret;
 	}
 
+	show_displays(video);
 	return 0;
 }
 
