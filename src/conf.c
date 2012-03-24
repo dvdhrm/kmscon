@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,14 +48,23 @@ static void print_help()
 		"Usage:\n"
 		"\t%1$s [options]\n"
 		"\t%1$s [options] -h\n"
+		"\t%1$s [options] -l /bin/sh [sh-arguments]\n"
+		"\n"
 		"General Options:\n"
 		"\t-h, --help                    Print this help and exit\n"
 		"\t-v, --verbose                 Print verbose messages\n"
 		"\t    --debug                   Enable debug mode\n"
 		"\t    --silent                  Suppress notices and warnings\n"
 		"\t-s, --switchvt                Automatically switch to VT\n"
+		"\n"
+		"Login Process Options:\n"
+		"\t-l, --login <login-process>   Start the given login process instead\n"
+		"\t                              of the default process; all following\n"
+		"\t                              arguments are passed as argv to this\n"
+		"\t                              process\n"
+		"\n"
 		"Input Device Options:\n"
-		"\t-l, --xkb-layout <layout>     Set XkbLayout for input devices\n"
+		"\t    --xkb-layout <layout>     Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant>   Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options>   Set XkbOptions for input devices\n",
 		"kmscon");
@@ -70,9 +80,10 @@ int conf_parse_argv(int argc, char **argv)
 		{ "debug", no_argument, &conf_global.debug, 1 },
 		{ "silent", no_argument, &conf_global.silent, 1 },
 		{ "switchvt", no_argument, NULL, 's' },
-		{ "xkb-layout", required_argument, NULL, 'l' },
-		{ "xkb-variant", required_argument, NULL, -1 },
-		{ "xkb-options", required_argument, NULL, -2 },
+		{ "xkb-layout", required_argument, NULL, -1 },
+		{ "xkb-variant", required_argument, NULL, -2 },
+		{ "xkb-options", required_argument, NULL, -3 },
+		{ "login", required_argument, NULL, 'l' },
 		{ NULL, 0, NULL, 0 },
 	};
 	int idx;
@@ -99,15 +110,19 @@ int conf_parse_argv(int argc, char **argv)
 		case 's':
 			conf_global.switchvt = 1;
 			break;
-		case 'l':
+		case -1:
 			conf_global.xkb_layout = optarg;
 			break;
-		case -1:
+		case -2:
 			conf_global.xkb_variant = optarg;
 			break;
-		case -2:
+		case -3:
 			conf_global.xkb_options = optarg;
 			break;
+		case 'l':
+			conf_global.login = optarg;
+			--optind;
+			goto done;
 		case ':':
 			fprintf(stderr, "Missing argument for option -%c\n",
 				optopt);
@@ -123,8 +138,15 @@ int conf_parse_argv(int argc, char **argv)
 		}
 	}
 
-	if (optind != argc)
-		fprintf(stderr, "Unparsed remaining arguments\n");
+done:
+	if (conf_global.login) {
+		conf_global.argv = &argv[optind];
+	} else {
+		conf_global.login = getenv("SHELL") ? : _PATH_BSHELL;
+		conf_global.argv = (char*[]){ conf_global.login, "-i", NULL };
+		if (optind != argc)
+			fprintf(stderr, "Unparsed remaining arguments\n");
+	}
 
 	if (conf_global.debug)
 		conf_global.verbose = 1;

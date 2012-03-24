@@ -25,7 +25,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <paths.h>
 #include <pty.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -33,7 +32,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-
+#include "conf.h"
 #include "eloop.h"
 #include "log.h"
 #include "misc.h"
@@ -120,12 +119,8 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 static void __attribute__((noreturn))
 exec_child(int pty_master)
 {
-	const char *sh;
-
 	setenv("TERM", "linux", 1);
-
-	sh = getenv("SHELL") ?: _PATH_BSHELL;
-	execlp(sh, sh, "-i", NULL);
+	execvp(conf_global.login, conf_global.argv);
 
 	log_err("failed to exec child: %m");
 

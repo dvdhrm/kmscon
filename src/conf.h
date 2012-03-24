@@ -58,6 +58,11 @@ struct conf_obj {
 	const char *xkb_layout;
 	const char *xkb_variant;
 	const char *xkb_options;
+
+	/* login process */
+	char *login;
+	/* argv for login process */
+	char **argv;
 };
 
 extern struct conf_obj conf_global;
