@@ -53,6 +53,8 @@
 #include "kbd.h"
 #include "log.h"
 
+#define LOG_SUBSYSTEM "input"
+
 /* How many longs are needed to hold \n bits. */
 #define NLONGS(n) (((n) + LONG_BIT - 1) / LONG_BIT)
 
@@ -134,14 +136,14 @@ static void device_data_arrived(struct ev_fd *fd, int mask, void *data)
 			if (errno == EWOULDBLOCK)
 				break;
 
-			log_warn("input: reading device %s failed %d\n",
+			log_warn("reading device %s failed %d",
 						device->devnode, errno);
 			remove_device(input, device->devnode);
 		} else if (len == 0) {
-			log_debug("input: EOF device %s\n", device->devnode);
+			log_debug("EOF device %s", device->devnode);
 			remove_device(input, device->devnode);
 		} else if (len % sizeof(*ev)) {
-			log_warn("input: read invalid input_event\n");
+			log_warn("read invalid input_event");
 		} else {
 			n = len / sizeof(*ev);
 			for (i = 0; i < n; i++)
@@ -164,8 +166,8 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 
 	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
 	if (device->rfd < 0) {
-		log_warn("input: cannot open input device %s: %d\n",
-						device->devnode, errno);
+		log_warn("cannot open input device %s: %d",
+				device->devnode, errno);
 		return -errno;
 	}
 
@@ -175,8 +177,8 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 			ioctl(device->rfd, EVIOCGLED(sizeof(ledbits)),
 								&ledbits);
 			if (errno)
-				log_warn("input: cannot discover state of LEDs (%s): %m\n",
-                                                        device->devnode);
+				log_warn("cannot discover state of LEDs %s: %m",
+						device->devnode);
 		}
 
 		/* rediscover the keyboard state if sth changed during sleep */
@@ -221,8 +223,6 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 	if (!out || !input)
 		return -EINVAL;
 
-	log_debug("input: new input device %s\n", devnode);
-
 	device = malloc(sizeof(*device));
 	if (!device)
 		return -ENOMEM;
@@ -247,6 +247,7 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 	device->features = features;
 	device->rfd = -1;
 
+	log_debug("new input device %s", devnode);
 	*out = device;
 	return 0;
 }
@@ -267,9 +268,9 @@ static void kmscon_input_device_unref(struct kmscon_input_device *device)
 	if (--device->ref)
 		return;
 
+	log_debug("destroying input device %s", device->devnode);
 	kmscon_input_device_sleep(device);
 	kmscon_kbd_unref(device->kbd);
-	log_debug("input: destroying input device %s\n", device->devnode);
 	free(device->devnode);
 	free(device);
 }
@@ -286,8 +287,6 @@ int kmscon_input_new(struct kmscon_input **out)
 	if (!input)
 		return -ENOMEM;
 
-	log_debug("input: creating input object\n");
-
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
@@ -297,20 +296,20 @@ int kmscon_input_new(struct kmscon_input **out)
 					conf_global.xkb_variant,
 					conf_global.xkb_options);
 	if (ret) {
-		log_warn("input: cannot create xkb description\n");
+		log_warn("cannot create xkb description");
 		goto err_free;
 	}
 
 	input->udev = udev_new();
 	if (!input->udev) {
-		log_warn("input: cannot create udev object\n");
+		log_warn("cannot create udev object");
 		ret = -EFAULT;
 		goto err_xkb;
 	}
 
 	input->monitor = udev_monitor_new_from_netlink(input->udev, "udev");
 	if (!input->monitor) {
-		log_warn("input: cannot create udev monitor\n");
+		log_warn("cannot create udev monitor");
 		ret = -EFAULT;
 		goto err_udev;
 	}
@@ -318,18 +317,19 @@ int kmscon_input_new(struct kmscon_input **out)
 	ret = udev_monitor_filter_add_match_subsystem_devtype(input->monitor,
 								"input", NULL);
 	if (ret) {
-		log_warn("input: cannot add udev filter\n");
+		log_warn("cannot add udev filter");
 		ret = -EFAULT;
 		goto err_monitor;
 	}
 
 	ret = udev_monitor_enable_receiving(input->monitor);
 	if (ret) {
-		log_warn("input: cannot start udev monitor\n");
+		log_warn("cannot start udev monitor");
 		ret = -EFAULT;
 		goto err_monitor;
 	}
 
+	log_debug("new input object");
 	*out = input;
 	return 0;
 
@@ -354,24 +354,21 @@ void kmscon_input_ref(struct kmscon_input *input)
 
 void kmscon_input_unref(struct kmscon_input *input)
 {
-	if (!input || !input->ref)
+	if (!input || !input->ref || --input->ref)
 		return;
 
-	if (--input->ref)
-		return;
-
+	log_debug("free input object");
 	kmscon_input_disconnect_eloop(input);
 	udev_monitor_unref(input->monitor);
 	udev_unref(input->udev);
 	kmscon_kbd_desc_unref(input->desc);
 	free(input);
-	log_debug("input: destroying input object\n");
 }
 
 /*
  * See if the device has anything useful to offer.
  * We go over the desired features and return a mask of enum device_feature's.
- * */
+ */
 static unsigned int probe_device_features(const char *node)
 {
 	int i, fd;
@@ -417,8 +414,7 @@ static unsigned int probe_device_features(const char *node)
 
 err_ioctl:
 	if (errno != ENOTTY)
-		log_warn("input: cannot probe features of device (%s): %m\n",
-									node);
+		log_warn("cannot probe features of device (%s): %m", node);
 	close(fd);
 	return 0;
 }
@@ -440,22 +436,20 @@ static void add_device(struct kmscon_input *input,
 
 	features = probe_device_features(node);
 	if (!(features & FEATURE_HAS_KEYS)) {
-		log_debug("input: ignoring non-useful device %s\n", node);
+		log_debug("ignoring non-useful device %s", node);
 		return;
 	}
 
 	ret = kmscon_input_device_new(&device, input, node, features);
 	if (ret) {
-		log_warn("input: cannot create input device for %s\n",
-									node);
+		log_warn("cannot create input device for %s", node);
 		return;
 	}
 
 	if (input->state == INPUT_AWAKE) {
 		ret = kmscon_input_device_wake_up(device);
 		if (ret) {
-			log_warn("input: cannot wake up new device %s\n",
-									node);
+			log_warn("cannot wake up new device %s", node);
 			kmscon_input_device_unref(device);
 			return;
 		}
@@ -463,7 +457,7 @@ static void add_device(struct kmscon_input *input,
 
 	device->next = input->devices;
 	input->devices = device;
-	log_debug("input: added device %s (features: %#x)\n", node, features);
+	log_debug("added device %s (features: %#x)", node, features);
 }
 
 static void remove_device(struct kmscon_input *input, const char *node)
@@ -484,7 +478,7 @@ static void remove_device(struct kmscon_input *input, const char *node)
 				prev->next = iter->next;
 
 			kmscon_input_device_unref(iter);
-			log_debug("input: removed device %s\n", node);
+			log_debug("removed device %s", node);
 			break;
 		}
 
@@ -497,9 +491,6 @@ static void remove_device_udev(struct kmscon_input *input,
 					struct udev_device *udev_device)
 {
 	const char *node;
-
-	if (!udev_device)
-		return;
 
 	node = udev_device_get_devnode(udev_device);
 	if (!node)
@@ -520,7 +511,7 @@ static void device_changed(struct ev_fd *fd, int mask, void *data)
 
 	action = udev_device_get_action(udev_device);
 	if (!action) {
-		log_warn("input: cannot get action field of new device\n");
+		log_warn("cannot get action field of new device");
 		goto err_device;
 	}
 
@@ -544,19 +535,19 @@ static void add_initial_devices(struct kmscon_input *input)
 
 	e = udev_enumerate_new(input->udev);
 	if (!e) {
-		log_warn("input: cannot create udev enumeration\n");
+		log_warn("cannot create udev enumeration");
 		return;
 	}
 
 	ret = udev_enumerate_add_match_subsystem(e, "input");
 	if (ret) {
-		log_warn("input: cannot add match to udev enumeration\n");
+		log_warn("cannot add match to udev enumeration");
 		goto err_enum;
 	}
 
 	ret = udev_enumerate_scan_devices(e);
 	if (ret) {
-		log_warn("input: cannot scan udev enumeration\n");
+		log_warn("cannot scan udev enumeration");
 		goto err_enum;
 	}
 
@@ -567,11 +558,8 @@ static void add_initial_devices(struct kmscon_input *input)
 			continue;
 
 		udev_device = udev_device_new_from_syspath(input->udev, syspath);
-		if (!udev_device) {
-			log_warn("input: cannot create device "
-							"from udev path\n");
+		if (!udev_device)
 			continue;
-		}
 
 		add_device(input, udev_device);
 		udev_device_unref(udev_device);
@@ -637,6 +625,8 @@ void kmscon_input_sleep(struct kmscon_input *input)
 	if (!input || input->state == INPUT_ASLEEP)
 		return;
 
+	log_debug("going asleep");
+
 	for (iter = input->devices; iter; iter = iter->next)
 		kmscon_input_device_sleep(iter);
 
@@ -651,6 +641,7 @@ void kmscon_input_wake_up(struct kmscon_input *input)
 	if (!input || input->state == INPUT_AWAKE)
 		return;
 
+	log_debug("waking up");
 	prev = NULL;
 	iter = input->devices;
 
@@ -665,8 +656,8 @@ void kmscon_input_wake_up(struct kmscon_input *input)
 			tmp = iter;
 			iter = iter->next;
 
-			log_warn("input: device %s does not wake up, "
-					"removing device\n", tmp->devnode);
+			log_warn("device %s does not wake up, removing device",
+					tmp->devnode);
 			kmscon_input_device_unref(tmp);
 		} else {
 			prev = iter;
