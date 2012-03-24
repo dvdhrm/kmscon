@@ -438,7 +438,7 @@ static uint16_t find_shift_level(struct xkb_desc *desc, xkb_keycode_t keycode,
 	struct xkb_kt_map_entry *entry;
 	uint8_t masked_mods;
 
-	type = XkbKeyKeyType(desc, keycode, group);
+	type = XkbKeyType(desc, keycode, group);
 
 	masked_mods = type->mods.mask & mods;
 
@@ -554,12 +554,9 @@ static struct xkb_indicator_map *find_indicator_map(struct xkb_desc *desc,
 						const char *indicator_name)
 {
 	int i;
-	uint32_t atom;
-
-	atom = xkb_intern_atom(indicator_name);
 
 	for (i=0; i < XkbNumIndicators; i++)
-		if (desc->names->indicators[i] == atom)
+		if (!strcmp(desc->names->indicators[i], indicator_name))
 			return &desc->indicators->maps[i];
 
 	return NULL;
