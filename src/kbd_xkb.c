@@ -571,7 +571,7 @@ static struct xkb_indicator_map *find_indicator_map(struct xkb_desc *desc,
  */
 void kmscon_kbd_reset(struct kmscon_kbd *kbd, const unsigned long *ledbits)
 {
-	int i;
+	unsigned int i;
 	struct xkb_desc *desc;
 	struct xkb_state *state;
 	struct xkb_indicator_map *im;

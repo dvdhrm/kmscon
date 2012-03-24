@@ -254,7 +254,7 @@ static bool log__omit(const char *file,
 	int val;
 	struct log_dynconf *dconf;
 
-	if (sev >= LOG_SEV_NUM || sev < 0)
+	if (sev >= LOG_SEV_NUM)
 		return false;
 
 	if (config) {
@@ -405,7 +405,7 @@ static void log__submit(const char *file,
 
 	log__time(&sec, &usec);
 
-	if (sev < LOG_SEV_NUM && sev >= 0)
+	if (sev < LOG_SEV_NUM)
 		prefix = log__sev2str[sev];
 
 	if (prefix) {

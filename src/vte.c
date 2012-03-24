@@ -858,8 +858,9 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 
 void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 {
-	int state, i;
+	int state;
 	uint32_t ucs4;
+	size_t i;
 
 	if (!vte || !vte->con)
 		return;

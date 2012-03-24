@@ -82,7 +82,7 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 	const uint32_t *val;
 	size_t len;
 	unsigned char *data, d;
-	unsigned int i, j;
+	int i, j;
 
 	if (!out)
 		return -EINVAL;

@@ -751,7 +751,7 @@ static int hotplug(struct uterm_video *video)
 	drmModeRes *res;
 	drmModeConnector *conn;
 	struct uterm_display *disp, *tmp;
-	unsigned int i;
+	int i;
 
 	if (!video_is_awake(video) || !video_need_hotplug(video))
 		return 0;
@@ -812,7 +812,7 @@ static int monitor(struct uterm_video *video)
 {
 	struct udev_device *dev;
 	const char *action, *val;
-	unsigned int id;
+	int id;
 
 	dev = udev_monitor_receive_device(video->umon);
 	if (!dev) {

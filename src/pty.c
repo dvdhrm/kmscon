@@ -377,14 +377,16 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 		goto buf;
 
 	ret = write(pty->fd, u8, len);
-	if (ret == len) {
+	if (ret < 0) {
+		if (errno != EWOULDBLOCK) {
+			log_warn("pty: cannot write to child process\n");
+			return ret;
+		}
+	} else if (ret == len) {
 		return 0;
 	} else if (ret > 0) {
 		len -= ret;
 		u8 = &u8[ret];
-	} else if (ret < 0 && errno != EWOULDBLOCK) {
-		log_warn("pty: cannot write to child process\n");
-		return ret;
 	}
 
 	ev_eloop_update_fd(pty->efd, EV_READABLE | EV_WRITEABLE);
