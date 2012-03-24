@@ -40,6 +40,7 @@ nodist_libkmscon_core_la_SOURCES = \
 libkmscon_core_la_SOURCES = \
 	src/conf.c src/conf.h \
 	src/misc.c src/misc.h \
+	src/ui.c src/ui.h \
 	src/console.c src/console.h \
 	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \
