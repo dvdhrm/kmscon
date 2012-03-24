@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include "conf.h"
 #include "eloop.h"
 #include "input.h"
@@ -41,6 +42,7 @@ struct kmscon_app {
 	struct ev_eloop *vt_eloop;
 	struct ev_signal *sig_term;
 	struct ev_signal *sig_int;
+	struct ev_signal *sig_child;
 	struct kmscon_vt *vt;
 	bool exit;
 	struct uterm_video *video;
@@ -54,6 +56,32 @@ static void sig_generic(struct ev_signal *sig, int signum, void *data)
 
 	ev_eloop_exit(app->eloop);
 	log_info("terminating due to caught signal %d", signum);
+}
+
+static void sig_child(struct ev_signal *sig, int signum, void *data)
+{
+	pid_t pid;
+	int status;
+
+	while (1) {
+		pid = waitpid(-1, &status, WNOHANG);
+		if (pid == -1) {
+			if (errno != ECHILD)
+				log_warn("cannot wait on child: %m");
+			break;
+		} else if (pid == 0) {
+			break;
+		} else if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				log_info("child %d exited with status %d",
+					pid, WEXITSTATUS(status));
+			else
+				log_info("child %d exited successfully", pid);
+		} else if (WIFSIGNALED(status)) {
+			log_info("child %d exited by signal %d", pid,
+					WTERMSIG(status));
+		}
+	}
 }
 
 static bool vt_switch(struct kmscon_vt *vt,
@@ -87,6 +115,7 @@ static void destroy_app(struct kmscon_app *app)
 	uterm_video_unref(app->video);
 	kmscon_vt_unref(app->vt);
 	ev_eloop_rm_eloop(app->vt_eloop);
+	ev_eloop_rm_signal(app->sig_child);
 	ev_eloop_rm_signal(app->sig_int);
 	ev_eloop_rm_signal(app->sig_term);
 	ev_eloop_unref(app->eloop);
@@ -107,6 +136,11 @@ static int setup_app(struct kmscon_app *app)
 
 	ret = ev_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
 					sig_generic, app);
+	if (ret)
+		goto err_app;
+
+	ret = ev_eloop_new_signal(app->eloop, &app->sig_child, SIGCHLD,
+					sig_child, app);
 	if (ret)
 		goto err_app;
 
