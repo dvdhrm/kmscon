@@ -160,7 +160,7 @@ int kmscon_input_device_wake_up(struct kmscon_input_device *device)
 	if (!device || !device->input || !device->input->eloop)
 		return -EINVAL;
 
-	if (device->fd)
+	if (device->rfd >= 0)
 		return 0;
 
 	device->rfd = open(device->devnode, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
@@ -204,9 +204,7 @@ void kmscon_input_device_sleep(struct kmscon_input_device *device)
 	if (device->rfd < 0)
 		return;
 
-	if (device->features & FEATURE_HAS_KEYS)
-		ev_eloop_rm_fd(device->fd);
-
+	ev_eloop_rm_fd(device->fd);
 	device->fd = NULL;
 	close(device->rfd);
 	device->rfd = -1;
