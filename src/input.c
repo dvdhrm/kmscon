@@ -52,6 +52,7 @@
 #include "input.h"
 #include "kbd.h"
 #include "log.h"
+#include "misc.h"
 
 #define LOG_SUBSYSTEM "input"
 
@@ -88,8 +89,7 @@ struct kmscon_input {
 	struct kmscon_input_device *devices;
 
 	struct ev_eloop *eloop;
-	kmscon_input_cb cb;
-	void *data;
+	struct kmscon_hook *hook;
 
 	struct udev *udev;
 	struct udev_monitor *monitor;
@@ -116,8 +116,8 @@ static void notify_key(struct kmscon_input_device *device,
 	if (ret && ret != -ENOKEY)
 		return;
 
-	if (ret != -ENOKEY && input->cb)
-		input->cb(input, &ev, input->data);
+	if (ret != -ENOKEY)
+		kmscon_hook_call(input->hook, input, &ev);
 }
 
 static void device_data_arrived(struct ev_fd *fd, int mask, void *data)
@@ -276,13 +276,17 @@ int kmscon_input_new(struct kmscon_input **out)
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
 
+	ret = kmscon_hook_new(&input->hook);
+	if (ret)
+		goto err_free;
+
 	ret = kmscon_kbd_desc_new(&input->desc,
 					conf_global.xkb_layout,
 					conf_global.xkb_variant,
 					conf_global.xkb_options);
 	if (ret) {
 		log_warn("cannot create xkb description");
-		goto err_free;
+		goto err_hook;
 	}
 
 	input->udev = udev_new();
@@ -324,6 +328,8 @@ err_udev:
 	udev_unref(input->udev);
 err_xkb:
 	kmscon_kbd_desc_unref(input->desc);
+err_hook:
+	kmscon_hook_free(input->hook);
 err_free:
 	free(input);
 	return ret;
@@ -347,6 +353,7 @@ void kmscon_input_unref(struct kmscon_input *input)
 	udev_monitor_unref(input->monitor);
 	udev_unref(input->udev);
 	kmscon_kbd_desc_unref(input->desc);
+	kmscon_hook_free(input->hook);
 	free(input);
 }
 
@@ -555,12 +562,12 @@ err_enum:
 }
 
 int kmscon_input_connect_eloop(struct kmscon_input *input,
-		struct ev_eloop *eloop, kmscon_input_cb cb, void *data)
+				struct ev_eloop *eloop)
 {
 	int ret;
 	int fd;
 
-	if (!input || !eloop || !cb)
+	if (!input || !eloop)
 		return -EINVAL;
 
 	if (input->eloop)
@@ -574,8 +581,6 @@ int kmscon_input_connect_eloop(struct kmscon_input *input,
 
 	ev_eloop_ref(eloop);
 	input->eloop = eloop;
-	input->cb = cb;
-	input->data = data;
 
 	add_initial_devices(input);
 
@@ -599,8 +604,23 @@ void kmscon_input_disconnect_eloop(struct kmscon_input *input)
 	input->monitor_fd = NULL;
 	ev_eloop_unref(input->eloop);
 	input->eloop = NULL;
-	input->cb = NULL;
-	input->data = NULL;
+}
+
+int kmscon_input_register_cb(struct kmscon_input *input, kmscon_input_cb cb,
+				void *data)
+{
+	if (!input || !cb)
+		return -EINVAL;
+
+	return kmscon_hook_add_cast(input->hook, cb, data);
+}
+
+void kmscon_input_unregister_cb(struct kmscon_input *input, kmscon_input_cb cb)
+{
+	if (!input || !cb)
+		return;
+
+	kmscon_hook_rm_cast(input->hook, cb);
 }
 
 void kmscon_input_sleep(struct kmscon_input *input)
