@@ -110,16 +110,10 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 	free(pty);
 }
 
-/*
- * TODO:
- *   - Decide which terminal we're emulating and set TERM accordingly.
- *   - Decide what to exec here: login, some getty equivalent, a shell...
- *   - Might also need to update some details in utmp wtmp and friends.
- */
 static void __attribute__((noreturn))
 exec_child(int pty_master)
 {
-	setenv("TERM", "linux", 1);
+	setenv("TERM", conf_global.term, 1);
 	execvp(conf_global.login, conf_global.argv);
 
 	log_err("failed to exec child: %m");

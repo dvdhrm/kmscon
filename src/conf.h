@@ -59,6 +59,8 @@ struct conf_obj {
 	const char *xkb_variant;
 	const char *xkb_options;
 
+	/* TERM value */
+	const char *term;
 	/* login process */
 	char *login;
 	/* argv for login process */

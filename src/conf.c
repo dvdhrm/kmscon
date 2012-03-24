@@ -57,11 +57,13 @@ static void print_help()
 		"\t    --silent                  Suppress notices and warnings\n"
 		"\t-s, --switchvt                Automatically switch to VT\n"
 		"\n"
-		"Login Process Options:\n"
+		"Terminal Options:\n"
 		"\t-l, --login <login-process>   Start the given login process instead\n"
 		"\t                              of the default process; all following\n"
 		"\t                              arguments are passed as argv to this\n"
 		"\t                              process\n"
+		"\t-t, --term <TERM>             Value of the TERM environment variable\n"
+		"\t                              for the child process\n"
 		"\n"
 		"Input Device Options:\n"
 		"\t    --xkb-layout <layout>     Set XkbLayout for input devices\n"
@@ -73,7 +75,7 @@ static void print_help()
 int conf_parse_argv(int argc, char **argv)
 {
 	int show_help = 0;
-	char short_options[] = ":hvsl:";
+	char short_options[] = ":hvsl:t:";
 	struct option long_options[] = {
 		{ "help", no_argument, NULL, 'h' },
 		{ "verbose", no_argument, NULL, 'v' },
@@ -84,6 +86,7 @@ int conf_parse_argv(int argc, char **argv)
 		{ "xkb-variant", required_argument, NULL, -2 },
 		{ "xkb-options", required_argument, NULL, -3 },
 		{ "login", required_argument, NULL, 'l' },
+		{ "term", required_argument, NULL, 't' },
 		{ NULL, 0, NULL, 0 },
 	};
 	int idx;
@@ -123,6 +126,9 @@ int conf_parse_argv(int argc, char **argv)
 			conf_global.login = optarg;
 			--optind;
 			goto done;
+		case 't':
+			conf_global.term = optarg;
+			break;
 		case ':':
 			fprintf(stderr, "Missing argument for option -%c\n",
 				optopt);
@@ -157,6 +163,9 @@ done:
 		conf_global.xkb_variant = "";
 	if (!conf_global.xkb_options)
 		conf_global.xkb_options = "";
+
+	if (!conf_global.term)
+		conf_global.term = "linux";
 
 	if (show_help) {
 		print_help();
