@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include "conf.h"
 #include "eloop.h"
 #include "input.h"
 #include "log.h"
@@ -249,6 +250,8 @@ int main(int argc, char **argv)
 	int ret;
 
 	log_info("test: starting\n");
+	conf_parse_argv(argc, argv);
+	log_set_config(&LOG_CONFIG_INFO(1, 1));
 	memset(&app, 0, sizeof(app));
 
 	ret = setup_app(&app);
