@@ -52,20 +52,27 @@ static void print_help()
 		"\t-v, --verbose                 Print verbose messages\n"
 		"\t    --debug                   Enable debug mode\n"
 		"\t    --silent                  Suppress notices and warnings\n"
-		"\t-s, --switchvt                Automatically switch to VT\n",
+		"\t-s, --switchvt                Automatically switch to VT\n"
+		"Input Device Options:\n"
+		"\t-l, --xkb-layout <layout>     Set XkbLayout for input devices\n"
+		"\t    --xkb-variant <variant>   Set XkbVariant for input devices\n"
+		"\t    --xkb-options <options>   Set XkbOptions for input devices\n",
 		"kmscon");
 }
 
 int conf_parse_argv(int argc, char **argv)
 {
 	int show_help = 0;
-	char short_options[] = ":hvs";
+	char short_options[] = ":hvsl:";
 	struct option long_options[] = {
 		{ "help", no_argument, NULL, 'h' },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ "debug", no_argument, &conf_global.debug, 1 },
 		{ "silent", no_argument, &conf_global.silent, 1 },
 		{ "switchvt", no_argument, NULL, 's' },
+		{ "xkb-layout", required_argument, NULL, 'l' },
+		{ "xkb-variant", required_argument, NULL, -1 },
+		{ "xkb-options", required_argument, NULL, -2 },
 		{ NULL, 0, NULL, 0 },
 	};
 	int idx;
@@ -92,6 +99,15 @@ int conf_parse_argv(int argc, char **argv)
 		case 's':
 			conf_global.switchvt = 1;
 			break;
+		case 'l':
+			conf_global.xkb_layout = optarg;
+			break;
+		case -1:
+			conf_global.xkb_variant = optarg;
+			break;
+		case -2:
+			conf_global.xkb_options = optarg;
+			break;
 		case ':':
 			fprintf(stderr, "Missing argument for option -%c\n",
 				optopt);
@@ -112,6 +128,13 @@ int conf_parse_argv(int argc, char **argv)
 
 	if (conf_global.debug)
 		conf_global.verbose = 1;
+
+	if (!conf_global.xkb_layout)
+		conf_global.xkb_layout = "us";
+	if (!conf_global.xkb_variant)
+		conf_global.xkb_variant = "";
+	if (!conf_global.xkb_options)
+		conf_global.xkb_options = "";
 
 	if (show_help) {
 		print_help();

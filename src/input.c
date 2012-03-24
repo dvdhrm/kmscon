@@ -47,7 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include "conf.h"
 #include "eloop.h"
 #include "input.h"
 #include "kbd.h"
@@ -278,7 +278,6 @@ int kmscon_input_new(struct kmscon_input **out)
 {
 	int ret;
 	struct kmscon_input *input;
-	static const char *layout, *variant, *options;
 
 	if (!out)
 		return -EINVAL;
@@ -293,12 +292,10 @@ int kmscon_input_new(struct kmscon_input **out)
 	input->ref = 1;
 	input->state = INPUT_ASLEEP;
 
-	/* TODO: Make properly configurable */
-	layout = getenv("KMSCON_XKB_LAYOUT") ?: "us";
-	variant = getenv("KMSCON_XKB_VARIANT") ?: "";
-	options = getenv("KMSCON_XKB_OPTIONS") ?: "";
-
-	ret = kmscon_kbd_desc_new(&input->desc, layout, variant, options);
+	ret = kmscon_kbd_desc_new(&input->desc,
+					conf_global.xkb_layout,
+					conf_global.xkb_variant,
+					conf_global.xkb_options);
 	if (ret) {
 		log_warn("input: cannot create xkb description\n");
 		goto err_free;

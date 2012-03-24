@@ -53,6 +53,11 @@ struct conf_obj {
 	int silent;
 	/* enter new VT directly */
 	int switchvt;
+
+	/* input KBD layout */
+	const char *xkb_layout;
+	const char *xkb_variant;
+	const char *xkb_options;
 };
 
 extern struct conf_obj conf_global;
