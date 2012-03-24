@@ -39,6 +39,8 @@
 #include "misc.h"
 #include "pty.h"
 
+#define LOG_SUBSYSTEM "pty"
+
 /* Match N_TTY_BUF_SIZE from the kernel to read as much as we can. */
 #define KMSCON_NREAD 4096
 
@@ -61,10 +63,8 @@ int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
 	struct kmscon_pty *pty;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !input_cb)
 		return -EINVAL;
-
-	log_debug("pty: new pty object\n");
 
 	pty = malloc(sizeof(*pty));
 	if (!pty)
@@ -81,6 +81,7 @@ int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
 	if (ret)
 		goto err_free;
 
+	log_debug("new pty object");
 	ev_eloop_ref(pty->eloop);
 	*out = pty;
 	return 0;
@@ -100,17 +101,14 @@ void kmscon_pty_ref(struct kmscon_pty *pty)
 
 void kmscon_pty_unref(struct kmscon_pty *pty)
 {
-	if (!pty || !pty->ref)
+	if (!pty || !pty->ref || --pty->ref)
 		return;
 
-	if (--pty->ref)
-		return;
-
+	log_debug("free pty object");
 	kmscon_pty_close(pty);
 	kmscon_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
 	free(pty);
-	log_debug("pty: destroying pty object\n");
 }
 
 /*
@@ -129,7 +127,7 @@ exec_child(int pty_master)
 	sh = getenv("SHELL") ?: _PATH_BSHELL;
 	execlp(sh, sh, "-i", NULL);
 
-	log_err("pty: failed to exec child: %m\n");
+	log_err("failed to exec child: %m");
 
 	_exit(EXIT_FAILURE);
 }
@@ -146,50 +144,50 @@ static int setup_child(int master, struct winsize *ws)
 	sigemptyset(&sigset);
 	ret = sigprocmask(SIG_SETMASK, &sigset, NULL);
 	if (ret)
-		log_warn("pty: cannot reset blocked signals: %m\n");
+		log_warn("cannot reset blocked signals: %m");
 
 	ret = grantpt(master);
 	if (ret < 0) {
-		log_err("pty: grantpt failed: %m");
+		log_err("grantpt failed: %m");
 		goto err_out;
 	}
 
 	ret = unlockpt(master);
 	if (ret < 0) {
-		log_err("pty: cannot unlock pty: %m");
+		log_err("cannot unlock pty: %m");
 		goto err_out;
 	}
 
 	slave_name = ptsname(master);
 	if (!slave_name) {
-		log_err("pty: cannot find slave name: %m");
+		log_err("cannot find slave name: %m");
 		goto err_out;
 	}
 
 	/* This also loses our controlling tty. */
 	pid = setsid();
 	if (pid < 0) {
-		log_err("pty: cannot start a new session: %m");
+		log_err("cannot start a new session: %m");
 		goto err_out;
 	}
 
 	/* And the slave pty becomes our controlling tty. */
 	slave = open(slave_name, O_RDWR | O_CLOEXEC);
 	if (slave < 0) {
-		log_err("pty: cannot open slave: %m");
+		log_err("cannot open slave: %m");
 		goto err_out;
 	}
 
 	if (ws) {
 		ret = ioctl(slave, TIOCSWINSZ, ws);
 		if (ret)
-			log_warn("pty: cannot set slave window size: %m");
+			log_warn("cannot set slave window size: %m");
 	}
 
 	if (dup2(slave, STDIN_FILENO) != STDIN_FILENO ||
 			dup2(slave, STDOUT_FILENO) != STDOUT_FILENO ||
 			dup2(slave, STDERR_FILENO) != STDERR_FILENO) {
-		log_err("pty: cannot duplicate slave: %m");
+		log_err("cannot duplicate slave: %m");
 		goto err_out;
 	}
 
@@ -227,15 +225,15 @@ static int pty_spawn(struct kmscon_pty *pty, unsigned short width,
 
 	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
 	if (master < 0) {
-		log_err("pty: cannot open master: %m");
+		log_err("cannot open master: %m");
 		return -errno;
 	}
 
-	log_debug("pty: forking child\n");
+	log_debug("forking child");
 	pid = fork();
 	switch (pid) {
 	case -1:
-		log_err("pty: cannot fork: %m");
+		log_err("cannot fork: %m");
 		ret = -errno;
 		goto err_master;
 	case 0:
@@ -270,7 +268,7 @@ static int send_buf(struct kmscon_pty *pty)
 		}
 
 		if (ret < 0 && errno != EWOULDBLOCK) {
-			log_warn("pty: cannot write to child process\n");
+			log_warn("cannot write to child process");
 			return ret;
 		}
 
@@ -293,9 +291,9 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 
 	if (mask & (EV_ERR | EV_HUP)) {
 		if (mask & EV_ERR)
-			log_warn("pty: error on child pty socket\n");
+			log_warn("error on child pty socket");
 		else
-			log_debug("pty: child closed remote end\n");
+			log_debug("child closed remote end");
 
 		goto err;
 	}
@@ -312,10 +310,10 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 			if (pty->input_cb)
 				pty->input_cb(pty, pty->io_buf, len, pty->data);
 		} else if (len == 0) {
-			log_debug("pty: child closed remote end\n");
+			log_debug("child closed remote end");
 			goto err;
 		} else if (errno != EWOULDBLOCK) {
-			log_err("pty: cannot read from pty: %m\n");
+			log_err("cannot read from pty: %m");
 			goto err;
 		}
 	}
@@ -379,7 +377,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 	ret = write(pty->fd, u8, len);
 	if (ret < 0) {
 		if (errno != EWOULDBLOCK) {
-			log_warn("pty: cannot write to child process\n");
+			log_warn("cannot write to child process");
 			return ret;
 		}
 	} else if (ret == len) {
@@ -394,7 +392,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 buf:
 	ret = kmscon_ring_write(pty->msgbuf, u8, len);
 	if (ret)
-		log_warn("pty: cannot allocate buffer; dropping input\n");
+		log_warn("cannot allocate buffer; dropping input");
 
 	return 0;
 }
@@ -418,9 +416,9 @@ void kmscon_pty_resize(struct kmscon_pty *pty,
 	 */
 	ret = ioctl(pty->fd, TIOCSWINSZ, &ws);
 	if (ret) {
-		log_warn("pty: cannot set window size\n");
+		log_warn("cannot set window size");
 		return;
 	}
 
-	log_debug("pty: window size set to %hdx%hd\n", ws.ws_col, ws.ws_row);
+	log_debug("window size set to %hdx%hd", ws.ws_col, ws.ws_row);
 }

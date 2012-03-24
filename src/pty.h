@@ -35,7 +35,7 @@
  *
  * The pty can be closed voluntarily using the kmson_pty_close method. The
  * child process can also exit at will; this will be communicated through the
- * closed_cb callback. The pty object does not wait on the child processes it
+ * input callback. The pty object does not wait on the child processes it
  * spawns; this is the responsibility of the object's user.
  */
 
