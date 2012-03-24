@@ -534,10 +534,8 @@ static int init_device(struct uterm_video *video, struct udev_device *dev)
 	log_info("probing %s", udev_device_get_sysname(dev));
 
 	node = udev_device_get_devnode(dev);
-	if (!node) {
-		log_err("cannot get device node");
+	if (!node)
 		return -ENODEV;
-	}
 
 	drm->id = get_id(dev);
 	if (drm->id < 0) {
@@ -554,7 +552,8 @@ static int init_device(struct uterm_video *video, struct udev_device *dev)
 
 	drm->gbm = gbm_create_device(drm->fd);
 	if (!drm->gbm) {
-		log_err("cannot create drm device for %s", node);
+		log_err("cannot create gbm device for %s (permission denied)",
+			node);
 		ret = -EFAULT;
 		goto err_close;
 	}
