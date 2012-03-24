@@ -35,6 +35,8 @@
 #include "log.h"
 #include "imKStoUCS.h"
 
+#define LOG_SUBSYSTEM "kbd_dumb"
+
 /*
  * This is a very "dumb" and simple fallback backend for keycodes
  * interpretation. It uses direct mapping from kernel keycodes to X keysyms
@@ -411,16 +413,15 @@ int kmscon_kbd_desc_new(struct kmscon_kbd_desc **out, const char *layout,
 	if (!out)
 		return -EINVAL;
 
-	log_debug("kbd-dumb: new keyboard description (%s, %s, %s)\n",
-						layout, variant, options);
-
 	desc = malloc(sizeof(*desc));
 	if (!desc)
 		return -ENOMEM;
 
 	memset(desc, 0, sizeof(*desc));
-
 	desc->ref = 1;
+
+	log_debug("new keyboard description (%s, %s, %s)",
+						layout, variant, options);
 	*out = desc;
 	return 0;
 }
@@ -441,7 +442,7 @@ void kmscon_kbd_desc_unref(struct kmscon_kbd_desc *desc)
 	if (--desc->ref)
 		return;
 
-	log_debug("kbd-dumb: destroying keyboard description\n");
+	log_debug("destroying keyboard description");
 
 	free(desc);
 }

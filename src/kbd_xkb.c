@@ -69,6 +69,8 @@
 #include "log.h"
 #include "imKStoUCS.h"
 
+#define LOG_SUBSYSTEM "kbd_xkb"
+
 struct kmscon_kbd_desc {
 	unsigned long ref;
 
@@ -945,20 +947,6 @@ int kmscon_kbd_desc_new(struct kmscon_kbd_desc **out, const char *layout,
 				const char *variant, const char *options)
 {
 	struct kmscon_kbd_desc *desc;
-
-	if (!out)
-		return -EINVAL;
-
-	log_debug("kbd-xkb: new keyboard description (%s, %s, %s)\n",
-						layout, variant, options);
-
-	desc = malloc(sizeof(*desc));
-	if (!desc)
-		return -ENOMEM;
-
-	memset(desc, 0, sizeof(*desc));
-	desc->ref = 1;
-
 	struct xkb_rule_names rmlvo = {
 		.rules = "evdev",
 		.model = "evdev",
@@ -967,9 +955,19 @@ int kmscon_kbd_desc_new(struct kmscon_kbd_desc **out, const char *layout,
 		.options = options,
 	};
 
+	if (!out)
+		return -EINVAL;
+
+	desc = malloc(sizeof(*desc));
+	if (!desc)
+		return -ENOMEM;
+
+	memset(desc, 0, sizeof(*desc));
+	desc->ref = 1;
+
 	desc->desc = xkb_compile_keymap_from_rules(&rmlvo);
 	if (!desc->desc) {
-		log_err("kbd-xkb: cannot compile keymap from rules\n");
+		log_err("cannot compile keymap from rules");
 		free(desc);
 		return -EFAULT;
 	}
@@ -981,6 +979,8 @@ int kmscon_kbd_desc_new(struct kmscon_kbd_desc **out, const char *layout,
 	init_indicators(desc->desc);
 	init_autorepeat(desc->desc);
 
+	log_debug("new keyboard description (%s, %s, %s)",
+						layout, variant, options);
 	*out = desc;
 	return 0;
 }
@@ -1001,13 +1001,7 @@ void kmscon_kbd_desc_unref(struct kmscon_kbd_desc *desc)
 	if (--desc->ref)
 		return;
 
-	log_debug("kbd-xkb: destroying keyboard description\n");
-
-	/*
-	 * XXX: Seems this doesn't really free everything, valgrind shows some
-	 * big leaks from libxkbcommon. Hopefully we use just one up until we
-	 * exit.
-	 */
+	log_debug("destroying keyboard description");
 	xkb_free_keymap(desc->desc);
 	free(desc);
 }
