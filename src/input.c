@@ -70,7 +70,6 @@ enum device_feature {
 };
 
 struct kmscon_input_device {
-	size_t ref;
 	struct kmscon_input_device *next;
 	struct kmscon_input *input;
 
@@ -228,7 +227,6 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 		return -ENOMEM;
 
 	memset(device, 0, sizeof(*device));
-	device->ref = 1;
 
 	device->devnode = strdup(devnode);
 	if (!device->devnode) {
@@ -252,20 +250,9 @@ static int kmscon_input_device_new(struct kmscon_input_device **out,
 	return 0;
 }
 
-/* static void kmscon_input_device_ref(struct kmscon_input_device *device) */
-/* { */
-/* 	if (!device) */
-/* 		return; */
-
-/* 	++device->ref; */
-/* } */
-
-static void kmscon_input_device_unref(struct kmscon_input_device *device)
+static void kmscon_input_device_free(struct kmscon_input_device *device)
 {
-	if (!device || !device->ref)
-		return;
-
-	if (--device->ref)
+	if (!device)
 		return;
 
 	log_debug("destroying input device %s", device->devnode);
@@ -450,7 +437,7 @@ static void add_device(struct kmscon_input *input,
 		ret = kmscon_input_device_wake_up(device);
 		if (ret) {
 			log_warn("cannot wake up new device %s", node);
-			kmscon_input_device_unref(device);
+			kmscon_input_device_free(device);
 			return;
 		}
 	}
@@ -477,7 +464,7 @@ static void remove_device(struct kmscon_input *input, const char *node)
 			else
 				prev->next = iter->next;
 
-			kmscon_input_device_unref(iter);
+			kmscon_input_device_free(iter);
 			log_debug("removed device %s", node);
 			break;
 		}
@@ -607,7 +594,7 @@ void kmscon_input_disconnect_eloop(struct kmscon_input *input)
 	while (input->devices) {
 		tmp = input->devices;
 		input->devices = tmp->next;
-		kmscon_input_device_unref(tmp);
+		kmscon_input_device_free(tmp);
 	}
 
 	ev_eloop_rm_fd(input->monitor_fd);
@@ -658,7 +645,7 @@ void kmscon_input_wake_up(struct kmscon_input *input)
 
 			log_warn("device %s does not wake up, removing device",
 					tmp->devnode);
-			kmscon_input_device_unref(tmp);
+			kmscon_input_device_free(tmp);
 		} else {
 			prev = iter;
 			iter = iter->next;
