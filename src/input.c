@@ -637,7 +637,7 @@ void kmscon_input_sleep(struct kmscon_input *input)
 {
 	struct kmscon_input_device *iter;
 
-	if (!input)
+	if (!input || input->state == INPUT_ASLEEP)
 		return;
 
 	for (iter = input->devices; iter; iter = iter->next)
@@ -651,7 +651,7 @@ void kmscon_input_wake_up(struct kmscon_input *input)
 	struct kmscon_input_device *iter, *prev, *tmp;
 	int ret;
 
-	if (!input)
+	if (!input || input->state == INPUT_AWAKE)
 		return;
 
 	prev = NULL;
