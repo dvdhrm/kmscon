@@ -363,7 +363,7 @@ static int display_swap(struct uterm_display *disp)
 {
 	int ret;
 
-	if (!display_is_conn(disp) || !video_is_awake(disp->video))
+	if (!display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 	if (disp->dpms != UTERM_DPMS_ON)
 		return -EINVAL;
