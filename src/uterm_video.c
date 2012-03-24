@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
+#include "misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
 
@@ -423,11 +424,15 @@ int uterm_video_new(struct uterm_video **out,
 	video->ops = ops;
 	video->eloop = eloop;
 
+	ret = kmscon_hook_new(&video->hook);
+	if (ret)
+		goto err_free;
+
 	video->udev = udev_new();
 	if (!video->udev) {
 		log_err("cannot create udev object");
 		ret = -EFAULT;
-		goto err_free;
+		goto err_hook;
 	}
 
 	video->umon = udev_monitor_new_from_netlink(video->udev, "udev");
@@ -464,6 +469,8 @@ err_umon:
 	udev_monitor_unref(video->umon);
 err_udev:
 	udev_unref(video->udev);
+err_hook:
+	kmscon_hook_free(video->hook);
 err_free:
 	free(video);
 	return ret;
@@ -497,6 +504,7 @@ void uterm_video_unref(struct uterm_video *video)
 	ev_eloop_rm_fd(video->umon_fd);
 	udev_monitor_unref(video->umon);
 	udev_unref(video->udev);
+	kmscon_hook_free(video->hook);
 	ev_eloop_unref(video->eloop);
 	free(video);
 	__sync_fetch_and_sub(&video_protect, 1);
@@ -516,6 +524,23 @@ struct uterm_display *uterm_video_get_displays(struct uterm_video *video)
 		return NULL;
 
 	return video->displays;
+}
+
+int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
+				void *data)
+{
+	if (!video || !cb)
+		return -EINVAL;
+
+	return kmscon_hook_add_cast(video->hook, cb, data);
+}
+
+void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb)
+{
+	if (!video || !cb)
+		return;
+
+	kmscon_hook_rm_cast(video->hook, cb);
 }
 
 void uterm_video_sleep(struct uterm_video *video)

@@ -47,6 +47,7 @@
 /* #include <xf86drmMode.h> TODO: missing header protection */
 #include "eloop.h"
 #include "log.h"
+#include "misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
 
@@ -460,6 +461,7 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 	disp->dpms = get_dpms(disp, conn);
 	log_info("display %p DPMS is %s", disp,
 			uterm_dpms_to_name(disp->dpms));
+	VIDEO_CB(video, disp, UTERM_NEW);
 }
 
 static void unbind_display(struct uterm_display *disp)
@@ -467,6 +469,7 @@ static void unbind_display(struct uterm_display *disp)
 	if (!display_is_conn(disp))
 		return;
 
+	VIDEO_CB(disp->video, disp, UTERM_GONE);
 	display_deactivate(disp);
 	disp->video = NULL;
 	disp->flags &= ~DISPLAY_AVAILABLE;
