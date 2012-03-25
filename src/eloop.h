@@ -42,13 +42,10 @@
 struct ev_eloop;
 struct ev_idle;
 struct ev_fd;
-struct ev_signal;
 struct ev_timer;
 
 typedef void (*ev_idle_cb) (struct ev_idle *idle, void *data);
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
-typedef void (*ev_signal_cb)
-			(struct ev_signal *sig, int signum, void *data);
 typedef void (*ev_signal_shared_cb)
 	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
 typedef void (*ev_timer_cb)
@@ -101,16 +98,6 @@ void ev_eloop_rm_fd(struct ev_fd *fd);
 int ev_eloop_update_fd(struct ev_fd *fd, int mask);
 
 /* signal sources */
-
-int ev_signal_new(struct ev_signal **out);
-void ev_signal_ref(struct ev_signal *sig);
-void ev_signal_unref(struct ev_signal *sig);
-
-int ev_eloop_new_signal(struct ev_eloop *loop, struct ev_signal **out,
-			int signum, ev_signal_cb cb, void *data);
-int ev_eloop_add_signal(struct ev_eloop *loop, struct ev_signal *sig,
-			int signum, ev_signal_cb cb, void *data);
-void ev_eloop_rm_signal(struct ev_signal *sig);
 
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data);
