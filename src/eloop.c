@@ -32,6 +32,7 @@
  */
 
 #include <errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -540,7 +541,7 @@ int ev_eloop_add_signal(struct ev_eloop *loop, struct ev_signal *sig,
 		return ret;
 	}
 
-	sigprocmask(SIG_BLOCK, &mask, NULL);
+	pthread_sigmask(SIG_BLOCK, &mask, NULL);
 	sig->cb = cb;
 	sig->data = data;
 	ev_signal_ref(sig);
@@ -617,7 +618,7 @@ static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 	if (ret)
 		goto err_sig;
 
-	sigprocmask(SIG_BLOCK, &mask, NULL);
+	pthread_sigmask(SIG_BLOCK, &mask, NULL);
 	sig->next = loop->sig_list;
 	loop->sig_list = sig;
 

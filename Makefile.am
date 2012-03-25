@@ -97,7 +97,8 @@ libkmscon_core_la_LIBADD = \
 	$(FREETYPE2_LIBS) \
 	$(XPROTO_LIBS) \
 	$(XKBCOMMON_LIBS) \
-	$(GLIB_LIBS)
+	$(GLIB_LIBS) \
+	-lpthread
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la

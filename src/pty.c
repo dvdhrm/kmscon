@@ -25,6 +25,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <pty.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -131,7 +132,7 @@ static int setup_child(int master, struct winsize *ws)
 
 	/* The child should not inherit our signal mask. */
 	sigemptyset(&sigset);
-	ret = sigprocmask(SIG_SETMASK, &sigset, NULL);
+	ret = pthread_sigmask(SIG_SETMASK, &sigset, NULL);
 	if (ret)
 		log_warn("cannot reset blocked signals: %m");
 
