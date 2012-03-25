@@ -313,7 +313,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 		return -errno;
 	}
 
-	ret = ev_eloop_new_fd(pty->eloop, &pty->efd, pty->fd,
+	ret = ev_eloop_new_fd(pty->eloop, &pty->efd, master,
 					EV_READABLE, pty_input, pty);
 	if (ret)
 		goto err_master;
@@ -371,7 +371,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 buf:
 	ret = kmscon_ring_write(pty->msgbuf, u8, len);
 	if (ret)
-		log_warn("cannot allocate buffer; dropping input");
+		log_warn("cannot allocate buffer; dropping output");
 
 	return 0;
 }
