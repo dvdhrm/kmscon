@@ -260,15 +260,11 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 	ssize_t len;
 	struct kmscon_pty *pty = data;
 
-	if (!pty || pty->fd < 0)
-		return;
-
-	if (mask & (EV_ERR | EV_HUP)) {
-		if (mask & EV_ERR)
-			log_warn("error on child pty socket");
-		else
-			log_debug("child closed remote end");
-
+	if (mask & EV_ERR) {
+		log_warn("error on child pty socket");
+		goto err;
+	} else if (mask & EV_HUP) {
+		log_debug("child closed remote end");
 		goto err;
 	}
 
@@ -295,8 +291,6 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 	return;
 
 err:
-	ev_eloop_rm_fd(pty->efd);
-	pty->efd = NULL;
 	if (pty->input_cb)
 		pty->input_cb(pty, NULL, 0, pty->data);
 }
@@ -365,7 +359,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 			log_warn("cannot write to child process");
 			return ret;
 		}
-	} else if (ret == len) {
+	} else if (ret >= len) {
 		return 0;
 	} else if (ret > 0) {
 		len -= ret;
