@@ -66,6 +66,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
 #include "eloop.h"
@@ -84,8 +85,7 @@ struct kmscon_vt {
 	kmscon_vt_cb cb;
 	void *data;
 
-	struct ev_signal *sig1;
-	struct ev_signal *sig2;
+	struct ev_eloop *eloop;
 	struct ev_fd *efd;
 };
 
@@ -131,7 +131,8 @@ void kmscon_vt_unref(struct kmscon_vt *vt)
 	free(vt);
 }
 
-static void vt_enter(struct ev_signal *sig, int signum, void *data)
+static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data)
 {
 	struct kmscon_vt *vt = data;
 
@@ -149,7 +150,8 @@ static void vt_enter(struct ev_signal *sig, int signum, void *data)
 		vt->cb(vt, KMSCON_VT_ENTER, vt->data);
 }
 
-static void vt_leave(struct ev_signal *sig, int signum, void *data)
+static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data)
 {
 	struct kmscon_vt *vt = data;
 
@@ -185,11 +187,11 @@ static int connect_eloop(struct kmscon_vt *vt, struct ev_eloop *eloop)
 	if (!vt || !eloop || vt->fd < 0)
 		return -EINVAL;
 
-	ret = ev_eloop_new_signal(eloop, &vt->sig1, SIGUSR1, vt_leave, vt);
+	ret = ev_eloop_register_signal_cb(eloop, SIGUSR1, vt_leave, vt);
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_new_signal(eloop, &vt->sig2, SIGUSR2, vt_enter, vt);
+	ret = ev_eloop_register_signal_cb(eloop, SIGUSR2, vt_enter, vt);
 	if (ret)
 		goto err_sig1;
 
@@ -198,14 +200,14 @@ static int connect_eloop(struct kmscon_vt *vt, struct ev_eloop *eloop)
 	if (ret)
 		goto err_sig2;
 
+	vt->eloop = eloop;
+	ev_eloop_ref(vt->eloop);
 	return 0;
 
 err_sig2:
-	ev_eloop_rm_signal(vt->sig2);
-	vt->sig2 = NULL;
+	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR2, vt_enter, vt);
 err_sig1:
-	ev_eloop_rm_signal(vt->sig1);
-	vt->sig1 = NULL;
+	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR1, vt_leave, vt);
 	return ret;
 }
 
@@ -214,12 +216,12 @@ static void disconnect_eloop(struct kmscon_vt *vt)
 	if (!vt)
 		return;
 
-	ev_eloop_rm_signal(vt->sig1);
-	ev_eloop_rm_signal(vt->sig2);
 	ev_eloop_rm_fd(vt->efd);
-	vt->sig1 = NULL;
-	vt->sig2 = NULL;
+	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR1, vt_leave, vt);
+	ev_eloop_unref(vt->eloop);
 	vt->efd = NULL;
+	vt->eloop = NULL;
 }
 
 static int open_tty(int id, int *tty_fd, int *tty_num)
