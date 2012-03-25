@@ -188,7 +188,7 @@ static int setup_child(int master, struct winsize *ws)
 
 err_out:
 	ret = -errno;
-	if (slave > 0)
+	if (slave >= 0)
 		close(slave);
 	close(master);
 	return ret;
