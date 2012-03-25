@@ -774,8 +774,12 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
-		log_warn("epoll_wait dispatching failed: %m");
-		return -errno;
+		if (errno == EINTR) {
+			count = 0;
+		} else {
+			log_warn("epoll_wait dispatching failed: %m");
+			return -errno;
+		}
 	}
 
 	loop->cur_fds = ep;
