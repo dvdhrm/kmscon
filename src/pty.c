@@ -49,6 +49,7 @@ struct kmscon_pty {
 	struct ev_eloop *eloop;
 
 	int fd;
+	pid_t child;
 	struct ev_fd *efd;
 	struct kmscon_ring *msgbuf;
 	char io_buf[KMSCON_NREAD];
@@ -198,50 +199,36 @@ err_out:
  * a little bit more control of the process, and as a bonus avoid linking to
  * the libutil library in glibc.
  */
-static int pty_spawn(struct kmscon_pty *pty, unsigned short width,
-							unsigned short height)
+static int pty_spawn(struct kmscon_pty *pty, int master,
+			unsigned short width, unsigned short height)
 {
 	int ret;
 	pid_t pid;
-	int master;
 	struct winsize ws;
-
-	if (pty->fd >= 0)
-		return -EALREADY;
 
 	memset(&ws, 0, sizeof(ws));
 	ws.ws_col = width;
 	ws.ws_row = height;
-
-	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
-	if (master < 0) {
-		log_err("cannot open master: %m");
-		return -errno;
-	}
 
 	log_debug("forking child");
 	pid = fork();
 	switch (pid) {
 	case -1:
 		log_err("cannot fork: %m");
-		ret = -errno;
-		goto err_master;
+		return -errno;
 	case 0:
 		ret = setup_child(master, &ws);
 		if (ret)
-			goto err_master;
+			return ret;
 		exec_child(pty->fd);
 		abort();
 	default:
 		pty->fd = master;
+		pty->child = pid;
 		break;
 	}
 
 	return 0;
-
-err_master:
-	close(master);
-	return ret;
 }
 
 static int send_buf(struct kmscon_pty *pty)
@@ -321,6 +308,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 							unsigned short height)
 {
 	int ret;
+	int master;
 
 	if (!pty)
 		return -EINVAL;
@@ -328,19 +316,29 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	if (pty->fd >= 0)
 		return -EALREADY;
 
-	ret = pty_spawn(pty, width, height);
-	if (ret)
-		return ret;
+	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
+	if (master < 0) {
+		log_err("cannot open master: %m");
+		return -errno;
+	}
 
 	ret = ev_eloop_new_fd(pty->eloop, &pty->efd, pty->fd,
 					EV_READABLE, pty_input, pty);
-	if (ret) {
-		close(pty->fd);
-		pty->fd = -1;
-		return ret;
-	}
+	if (ret)
+		goto err_master;
+
+	ret = pty_spawn(pty, master, width, height);
+	if (ret)
+		goto err_fd;
 
 	return 0;
+
+err_fd:
+	ev_eloop_rm_fd(pty->efd);
+	pty->efd = NULL;
+err_master:
+	close(master);
+	return ret;
 }
 
 void kmscon_pty_close(struct kmscon_pty *pty)
