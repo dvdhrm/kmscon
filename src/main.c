@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/signalfd.h>
 #include <sys/wait.h>
 #include "conf.h"
 #include "eloop.h"
@@ -40,9 +41,6 @@
 struct kmscon_app {
 	struct ev_eloop *eloop;
 	struct ev_eloop *vt_eloop;
-	struct ev_signal *sig_term;
-	struct ev_signal *sig_int;
-	struct ev_signal *sig_child;
 	struct kmscon_vt *vt;
 	bool exit;
 	struct uterm_video *video;
@@ -50,15 +48,17 @@ struct kmscon_app {
 	struct kmscon_ui *ui;
 };
 
-static void sig_generic(struct ev_signal *sig, int signum, void *data)
+static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data)
 {
 	struct kmscon_app *app = data;
 
 	ev_eloop_exit(app->eloop);
-	log_info("terminating due to caught signal %d", signum);
+	log_info("terminating due to caught signal %d", info->ssi_signo);
 }
 
-static void sig_child(struct ev_signal *sig, int signum, void *data)
+static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data)
 {
 	pid_t pid;
 	int status;
@@ -114,10 +114,10 @@ static void destroy_app(struct kmscon_app *app)
 	kmscon_input_unref(app->input);
 	uterm_video_unref(app->video);
 	kmscon_vt_unref(app->vt);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGCHLD, sig_child, app);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, sig_generic, app);
 	ev_eloop_rm_eloop(app->vt_eloop);
-	ev_eloop_rm_signal(app->sig_child);
-	ev_eloop_rm_signal(app->sig_int);
-	ev_eloop_rm_signal(app->sig_term);
 	ev_eloop_unref(app->eloop);
 }
 
@@ -129,18 +129,18 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
-	ret = ev_eloop_new_signal(app->eloop, &app->sig_term, SIGTERM,
-					sig_generic, app);
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGTERM,
+						sig_generic, app);
 	if (ret)
 		goto err_app;
 
-	ret = ev_eloop_new_signal(app->eloop, &app->sig_int, SIGINT,
-					sig_generic, app);
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGINT,
+						sig_generic, app);
 	if (ret)
 		goto err_app;
 
-	ret = ev_eloop_new_signal(app->eloop, &app->sig_child, SIGCHLD,
-					sig_child, app);
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGCHLD,
+						sig_child, app);
 	if (ret)
 		goto err_app;
 
