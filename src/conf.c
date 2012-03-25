@@ -41,6 +41,7 @@
 #define LOG_SUBSYSTEM "config"
 
 struct conf_obj conf_global;
+static char *def_argv[] = { NULL, "-i", NULL };
 
 static void print_help()
 {
@@ -149,7 +150,8 @@ done:
 		conf_global.argv = &argv[optind];
 	} else {
 		conf_global.login = getenv("SHELL") ? : _PATH_BSHELL;
-		conf_global.argv = (char*[]){ conf_global.login, "-i", NULL };
+		def_argv[0] = conf_global.login;
+		conf_global.argv = def_argv;
 		if (optind != argc)
 			fprintf(stderr, "Unparsed remaining arguments\n");
 	}
