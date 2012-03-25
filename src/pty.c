@@ -28,9 +28,11 @@
 #include <pthread.h>
 #include <pty.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
 #include "conf.h"
@@ -110,6 +112,39 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 	kmscon_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
 	free(pty);
+}
+
+static bool pty_is_open(struct kmscon_pty *pty)
+{
+	return pty->fd >= 0;
+}
+
+static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data);
+
+static void pty_close(struct kmscon_pty *pty, bool user)
+{
+	bool called = true;
+
+	if (!pty || !pty_is_open(pty))
+		return;
+
+	if (pty->efd) {
+		called = false;
+		ev_eloop_rm_fd(pty->efd);
+		pty->efd = NULL;
+	}
+
+	if (!user) {
+		if (!called)
+			pty->input_cb(pty, NULL, 0, pty->data);
+
+		return;
+	}
+
+	ev_eloop_unregister_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
+	close(pty->fd);
+	pty->fd = -1;
 }
 
 static void __attribute__((noreturn))
@@ -291,8 +326,22 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 	return;
 
 err:
-	if (pty->input_cb)
-		pty->input_cb(pty, NULL, 0, pty->data);
+	pty_close(pty, false);
+}
+
+static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+			void *data)
+{
+	struct kmscon_pty *pty = data;
+
+	if (info->ssi_pid != pty->child)
+		return;
+
+	log_info("child exited: pid: %u status: %d utime: %llu stime: %llu",
+			info->ssi_pid, info->ssi_status,
+			info->ssi_utime, info->ssi_stime);
+
+	pty_close(pty, false);
 }
 
 int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
@@ -304,7 +353,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	if (!pty)
 		return -EINVAL;
 
-	if (pty->fd >= 0)
+	if (pty_is_open(pty))
 		return -EALREADY;
 
 	master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC | O_NONBLOCK);
@@ -318,12 +367,18 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	if (ret)
 		goto err_master;
 
-	ret = pty_spawn(pty, master, width, height);
+	ret = ev_eloop_register_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
 	if (ret)
 		goto err_fd;
 
+	ret = pty_spawn(pty, master, width, height);
+	if (ret)
+		goto err_sig;
+
 	return 0;
 
+err_sig:
+	ev_eloop_unregister_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
 err_fd:
 	ev_eloop_rm_fd(pty->efd);
 	pty->efd = NULL;
@@ -334,20 +389,17 @@ err_master:
 
 void kmscon_pty_close(struct kmscon_pty *pty)
 {
-	if (!pty || pty->fd < 0)
+	if (!pty || !pty_is_open(pty))
 		return;
 
-	ev_eloop_rm_fd(pty->efd);
-	pty->efd = NULL;
-	close(pty->fd);
-	pty->fd = -1;
+	pty_close(pty, true);
 }
 
 int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 {
 	int ret;
 
-	if (!pty || pty->fd < 0 || !u8 || !len)
+	if (!pty || !pty_is_open(pty) || !u8 || !len)
 		return -EINVAL;
 
 	if (!kmscon_ring_is_empty(pty->msgbuf))
@@ -382,7 +434,7 @@ void kmscon_pty_resize(struct kmscon_pty *pty,
 	int ret;
 	struct winsize ws;
 
-	if (!pty || pty->fd < 0)
+	if (!pty || !pty_is_open(pty))
 		return;
 
 	memset(&ws, 0, sizeof(ws));
