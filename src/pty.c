@@ -126,7 +126,7 @@ static int setup_child(int master, struct winsize *ws)
 	int ret;
 	sigset_t sigset;
 	pid_t pid;
-	const char *slave_name;
+	char slave_name[128];
 	int slave = -1;
 
 	/* The child should not inherit our signal mask. */
@@ -147,8 +147,8 @@ static int setup_child(int master, struct winsize *ws)
 		goto err_out;
 	}
 
-	slave_name = ptsname(master);
-	if (!slave_name) {
+	ret = ptsname_r(master, slave_name, sizeof(slave_name));
+	if (ret) {
 		log_err("cannot find slave name: %m");
 		goto err_out;
 	}
