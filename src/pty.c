@@ -120,10 +120,10 @@ exec_child(int pty_master)
 
 	log_err("failed to exec child: %m");
 
-	_exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
-static int setup_child(int master, struct winsize *ws)
+static void setup_child(int master, struct winsize *ws)
 {
 	int ret;
 	sigset_t sigset;
@@ -184,14 +184,14 @@ static int setup_child(int master, struct winsize *ws)
 
 	close(master);
 	close(slave);
-	return 0;
+	return;
 
 err_out:
 	ret = -errno;
 	if (slave >= 0)
 		close(slave);
 	close(master);
-	return ret;
+	exit(EXIT_FAILURE);
 }
 
 /*
@@ -202,7 +202,6 @@ err_out:
 static int pty_spawn(struct kmscon_pty *pty, int master,
 			unsigned short width, unsigned short height)
 {
-	int ret;
 	pid_t pid;
 	struct winsize ws;
 
@@ -217,11 +216,9 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		log_err("cannot fork: %m");
 		return -errno;
 	case 0:
-		ret = setup_child(master, &ws);
-		if (ret)
-			return ret;
+		setup_child(master, &ws);
 		exec_child(pty->fd);
-		abort();
+		exit(EXIT_FAILURE);
 	default:
 		pty->fd = master;
 		pty->child = pid;
