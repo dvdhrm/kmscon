@@ -41,6 +41,7 @@
 #include <sys/signalfd.h>
 #include <sys/time.h>
 #include <sys/timerfd.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include "eloop.h"
@@ -425,6 +426,32 @@ int ev_eloop_update_fd(struct ev_fd *fd, int mask)
 	return 0;
 }
 
+static void sig_child()
+{
+	pid_t pid;
+	int status;
+
+	while (1) {
+		pid = waitpid(-1, &status, WNOHANG);
+		if (pid == -1) {
+			if (errno != ECHILD)
+				log_warn("cannot wait on child: %m");
+			break;
+		} else if (pid == 0) {
+			break;
+		} else if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				log_debug("child %d exited with status %d",
+					pid, WEXITSTATUS(status));
+			else
+				log_debug("child %d exited successfully", pid);
+		} else if (WIFSIGNALED(status)) {
+			log_debug("child %d exited by signal %d", pid,
+					WTERMSIG(status));
+		}
+	}
+}
+
 static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 {
 	struct ev_signal_shared *sig = data;
@@ -437,6 +464,9 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 			log_warn("cannot read signalfd");
 		else
 			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
+
+		if (info.ssi_signo == SIGCHLD)
+			sig_child();
 	} else if (mask & (EV_HUP | EV_ERR)) {
 		log_warn("HUP/ERR on signal source");
 	}
