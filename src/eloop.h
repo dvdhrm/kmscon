@@ -36,6 +36,7 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <sys/signalfd.h>
 #include <time.h>
 
 struct ev_eloop;
@@ -48,6 +49,8 @@ typedef void (*ev_idle_cb) (struct ev_idle *idle, void *data);
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
 typedef void (*ev_signal_cb)
 			(struct ev_signal *sig, int signum, void *data);
+typedef void (*ev_signal_shared_cb)
+	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
 typedef void (*ev_timer_cb)
 			(struct ev_timer *timer, uint64_t num, void *data);
 
@@ -108,6 +111,11 @@ int ev_eloop_new_signal(struct ev_eloop *loop, struct ev_signal **out,
 int ev_eloop_add_signal(struct ev_eloop *loop, struct ev_signal *sig,
 			int signum, ev_signal_cb cb, void *data);
 void ev_eloop_rm_signal(struct ev_signal *sig);
+
+int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
+				ev_signal_shared_cb cb, void *data);
+void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
+					ev_signal_shared_cb cb, void *data);
 
 /* timer sources */
 

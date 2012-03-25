@@ -44,8 +44,17 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
+#include "misc.h"
 
 #define LOG_SUBSYSTEM "eloop"
+
+struct ev_signal_shared {
+	struct ev_signal_shared *next;
+
+	struct ev_fd *fd;
+	int signum;
+	struct kmscon_hook *hook;
+};
 
 struct ev_eloop {
 	int efd;
@@ -54,6 +63,8 @@ struct ev_eloop {
 
 	struct ev_idle *idle_list;
 	struct ev_idle *cur_idle;
+
+	struct ev_signal_shared *sig_list;
 
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
@@ -137,6 +148,16 @@ int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
 
 	if (add->fd->loop)
 		return -EALREADY;
+
+	/* This adds the epoll-fd into the parent epoll-set. This works
+	 * perfectly well with registered FDs, timers, etc. However, we use
+	 * shared signals in this event-loop so if the parent and child have
+	 * overlapping shared-signals, then the signal will be randomly
+	 * delivered to either the parent-hook or child-hook but never both.
+	 * TODO:
+	 * We may fix this by linking the childs-sig_list into the parent's
+	 * siglist but we didn't need this, yet, so ignore it here.
+	 */
 
 	ret = ev_eloop_add_fd(loop, add->fd, add->efd, EV_READABLE,
 							eloop_cb, add);
@@ -545,6 +566,130 @@ void ev_eloop_rm_signal(struct ev_signal *sig)
 	 */
 }
 
+static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_signal_shared *sig = data;
+	struct signalfd_siginfo info;
+	int len;
+
+	if (mask & EV_READABLE) {
+		len = read(fd->fd, &info, sizeof(info));
+		if (len != sizeof(info))
+			log_warn("cannot read signalfd");
+		else
+			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
+	} else if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("HUP/ERR on signal source");
+	}
+}
+
+static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
+			int signum)
+{
+	sigset_t mask;
+	int ret, fd;
+	struct ev_signal_shared *sig;
+
+	if (!out || !loop || signum < 0)
+		return -EINVAL;
+
+	sig = malloc(sizeof(*sig));
+	if (!sig)
+		return -ENOMEM;
+	memset(sig, 0, sizeof(*sig));
+	sig->signum = signum;
+
+	ret = kmscon_hook_new(&sig->hook);
+	if (ret)
+		goto err_free;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, signum);
+
+	fd = signalfd(-1, &mask, SFD_CLOEXEC);
+	if (fd < 0) {
+		ret = -errno;
+		goto err_hook;
+	}
+
+	ret = ev_eloop_new_fd(loop, &sig->fd, fd, EV_READABLE,
+				shared_signal_cb, sig);
+	if (ret)
+		goto err_sig;
+
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+	sig->next = loop->sig_list;
+	loop->sig_list = sig;
+
+	*out = sig;
+	return 0;
+
+err_sig:
+	close(fd);
+err_hook:
+	kmscon_hook_free(sig->hook);
+err_free:
+	free(sig);
+	return ret;
+}
+
+static void signal_free(struct ev_signal_shared *sig)
+{
+	int fd;
+
+	if (!sig)
+		return;
+
+	fd = sig->fd->fd;
+	ev_eloop_rm_fd(sig->fd);
+	close(fd);
+	kmscon_hook_free(sig->hook);
+	free(sig);
+	/* We do not unblock the signal here as there may be other subsystems
+	 * which blocked this signal so we do not want to interfere. If you need
+	 * a clean sigmask then do it yourself.
+	 */
+}
+
+int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
+				ev_signal_shared_cb cb, void *data)
+{
+	struct ev_signal_shared *sig;
+	int ret;
+
+	if (!loop || signum < 0 || !cb)
+		return -EINVAL;
+
+	for (sig = loop->sig_list; sig; sig = sig->next) {
+		if (sig->signum == signum)
+			break;
+	}
+
+	if (!sig) {
+		ret = signal_new(&sig, loop, signum);
+		if (ret)
+			return ret;
+	}
+
+	return kmscon_hook_add_cast(sig->hook, cb, data);
+}
+
+void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
+					ev_signal_shared_cb cb, void *data)
+{
+	struct ev_signal_shared *sig;
+
+	if (!loop)
+		return;
+
+	for (sig = loop->sig_list; sig; sig = sig->next) {
+		if (sig->signum == signum) {
+			kmscon_hook_rm_cast(sig->hook, cb, data);
+			return;
+		}
+	}
+}
+
 int ev_timer_new(struct ev_timer **out)
 {
 	struct ev_timer *timer;
@@ -745,10 +890,18 @@ void ev_eloop_ref(struct ev_eloop *loop)
 
 void ev_eloop_unref(struct ev_eloop *loop)
 {
+	struct ev_signal_shared *sig;
+
 	if (!loop || !loop->ref || --loop->ref)
 		return;
 
 	log_debug("free eloop object %p", loop);
+
+	while ((sig = loop->sig_list)) {
+		loop->sig_list = sig->next;
+		signal_free(sig);
+	}
+
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	free(loop);
