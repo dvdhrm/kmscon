@@ -227,7 +227,7 @@ int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data)
 	return 0;
 }
 
-void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb)
+void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data)
 {
 	struct hook_entry *entry, *tmp;
 
@@ -235,11 +235,11 @@ void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb)
 		return;
 
 	tmp = NULL;
-	if (hook->entries->cb == cb) {
+	if (hook->entries->cb == cb && hook->entries->data == data) {
 		tmp = hook->entries;
 		hook->entries = tmp->next;
 	} else for (entry = hook->entries; entry->next; entry = entry->next) {
-		if (entry->next->cb == cb) {
+		if (entry->next->cb == cb && entry->next->data == data) {
 			tmp = entry->next;
 			entry->next = tmp->next;
 			break;

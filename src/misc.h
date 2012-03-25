@@ -51,11 +51,11 @@ typedef void (*kmscon_hook_cb) (void *parent, void *arg, void *data);
 int kmscon_hook_new(struct kmscon_hook **out);
 void kmscon_hook_free(struct kmscon_hook *hook);
 int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data);
-void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb);
+void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data);
 void kmscon_hook_call(struct kmscon_hook *hook, void *parent, void *arg);
 #define kmscon_hook_add_cast(hook, cb, data) \
 	kmscon_hook_add((hook), (kmscon_hook_cb)(cb), (data))
-#define kmscon_hook_rm_cast(hook, cb) \
-	kmscon_hook_rm((hook), (kmscon_hook_cb)(cb))
+#define kmscon_hook_rm_cast(hook, cb, data) \
+	kmscon_hook_rm((hook), (kmscon_hook_cb)(cb), (data))
 
 #endif /* KMSCON_MISC_H */

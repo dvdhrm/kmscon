@@ -535,12 +535,13 @@ int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
 	return kmscon_hook_add_cast(video->hook, cb, data);
 }
 
-void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb)
+void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
+				void *data)
 {
 	if (!video || !cb)
 		return;
 
-	kmscon_hook_rm_cast(video->hook, cb);
+	kmscon_hook_rm_cast(video->hook, cb, data);
 }
 
 void uterm_video_sleep(struct uterm_video *video)

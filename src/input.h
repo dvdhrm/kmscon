@@ -87,7 +87,8 @@ int kmscon_input_connect_eloop(struct kmscon_input *input,
 void kmscon_input_disconnect_eloop(struct kmscon_input *input);
 int kmscon_input_register_cb(struct kmscon_input *input, kmscon_input_cb cb,
 				void *data);
-void kmscon_input_unregister_cb(struct kmscon_input *input, kmscon_input_cb cb);
+void kmscon_input_unregister_cb(struct kmscon_input *input, kmscon_input_cb cb,
+				void *data);
 
 void kmscon_input_sleep(struct kmscon_input *input);
 void kmscon_input_wake_up(struct kmscon_input *input);

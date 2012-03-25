@@ -137,9 +137,9 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	return 0;
 
 err_input:
-	kmscon_input_unregister_cb(ui->input, input_event);
+	kmscon_input_unregister_cb(ui->input, input_event, ui);
 err_video:
-	uterm_video_unregister_cb(ui->video, video_event);
+	uterm_video_unregister_cb(ui->video, video_event, ui);
 err_term:
 	kmscon_terminal_unref(ui->term);
 err_ff:
@@ -156,8 +156,8 @@ void kmscon_ui_free(struct kmscon_ui *ui)
 	if (!ui)
 		return;
 
-	kmscon_input_unregister_cb(ui->input, input_event);
-	uterm_video_unregister_cb(ui->video, video_event);
+	kmscon_input_unregister_cb(ui->input, input_event, ui);
+	uterm_video_unregister_cb(ui->video, video_event, ui);
 	kmscon_terminal_unref(ui->term);
 	kmscon_font_factory_unref(ui->ff);
 	kmscon_symbol_table_unref(ui->st);

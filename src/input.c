@@ -615,12 +615,13 @@ int kmscon_input_register_cb(struct kmscon_input *input, kmscon_input_cb cb,
 	return kmscon_hook_add_cast(input->hook, cb, data);
 }
 
-void kmscon_input_unregister_cb(struct kmscon_input *input, kmscon_input_cb cb)
+void kmscon_input_unregister_cb(struct kmscon_input *input, kmscon_input_cb cb,
+				void *data)
 {
 	if (!input || !cb)
 		return;
 
-	kmscon_hook_rm_cast(input->hook, cb);
+	kmscon_hook_rm_cast(input->hook, cb, data);
 }
 
 void kmscon_input_sleep(struct kmscon_input *input)
