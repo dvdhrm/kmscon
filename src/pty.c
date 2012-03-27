@@ -428,6 +428,22 @@ buf:
 	return 0;
 }
 
+void kmscon_pty_signal(struct kmscon_pty *pty, int signum)
+{
+	int ret;
+
+	if (!pty || !pty_is_open(pty) || signum < 0)
+		return;
+
+	ret = ioctl(pty->fd, TIOCSIG, signum);
+	if (ret) {
+		log_warn("cannot send signal %d to child", signum);
+		return;
+	}
+
+	log_debug("send signal %d to child", signum);
+}
+
 void kmscon_pty_resize(struct kmscon_pty *pty,
 			unsigned short width, unsigned short height)
 {
