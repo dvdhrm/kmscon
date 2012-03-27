@@ -8,11 +8,11 @@ console.
     - libdrm: accessing the kernel graphics layer
     - mesa: providing an OpenGL implementation (must be compiled with EGL, gbm
             and GL libraries)
-    - udev: providing input device hotplug
-    - xproto (build time dependency): definition of key symbols
+    - udev: providing input, video, etc. hotplug support
+    - xproto (build time dependency): definition of keysymbols (TODO: remove it)
     - libxkbcommon: keyboard handling (optional but strongly recommended)
                     Without libxkbcommon, basic US-ASCII input is provided.
-    - glib: only for Unicode handling
+    - glib: only for Unicode handling (TODO: remove it)
     - One of:
       - freetype2: drawing generic text
       - pango: drawing text with pango (use --enable-pango)
@@ -22,9 +22,17 @@ console.
   To compile the kmscon binary, run the standard autotools commands:
     $ ./configure [--enable-debug] [--enable-pango]
     $ make
-    $ make install
+    $ make install (TODO: this is currently not supported)
   To compile the test applications, run:
     $ make check
+
+== Running ==
+  To get usage information, run:
+    $ ./kmscon --help
+  You can then run kmscon with:
+    $ ./kmscon [options] --switchvt
+  The --switchvt option will make your machine switch the active VT directly to
+  kmscon after starting it.
 
 == License ==
   This software is licensed under the terms of the MIT license. Please see
@@ -45,7 +53,7 @@ console.
 
 == Code Base ==
   The kmscon code is split into several independent subsystems:
-    - output:
+    - uterm:
       This code manages the KMS/DRI output and provides OpenGL framebuffers.
     - console:
       This draws the text on the screen and provides an API for any terminal
