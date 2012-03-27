@@ -57,19 +57,18 @@ static void video_event(struct uterm_video *video,
 			void *data)
 {
 	struct kmscon_ui *ui = data;
-	struct uterm_display *iter;
 	int ret;
 
-	kmscon_terminal_rm_all_outputs(ui->term);
-	iter = uterm_video_get_displays(ui->video);
-	for ( ; iter; iter = uterm_display_next(iter)) {
-		if (uterm_display_get_state(iter) == UTERM_DISPLAY_INACTIVE) {
-			ret = uterm_display_activate(iter, NULL);
+	if (ev->action == UTERM_NEW) {
+		if (uterm_display_get_state(ev->display) == UTERM_DISPLAY_INACTIVE) {
+			ret = uterm_display_activate(ev->display, NULL);
 			if (ret)
-				continue;
+				return;
+			ret = uterm_display_set_dpms(ev->display, UTERM_DPMS_ON);
+			if (ret)
+				return;
 		}
-
-		kmscon_terminal_add_output(ui->term, iter);
+		kmscon_terminal_add_display(ui->term, ev->display);
 	}
 }
 
@@ -77,14 +76,6 @@ static void input_event(struct kmscon_input *input,
 			struct kmscon_input_event *ev,
 			void *data)
 {
-	struct kmscon_ui *ui = data;
-	int ret;
-
-	ret = kmscon_terminal_input(ui->term, ev);
-	if (ret) {
-		kmscon_terminal_close(ui->term);
-		ev_eloop_exit(ui->eloop);
-	}
 }
 
 int kmscon_ui_new(struct kmscon_ui **out,
@@ -114,7 +105,8 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	if (ret)
 		goto err_st;
 
-	ret = kmscon_terminal_new(&ui->term, eloop, ui->ff, ui->video, ui->st);
+	ret = kmscon_terminal_new(&ui->term, eloop, ui->st, ui->ff, ui->video,
+					ui->input);
 	if (ret)
 		goto err_ff;
 

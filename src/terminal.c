@@ -1,7 +1,7 @@
 /*
  * kmscon - Terminal
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -30,10 +30,13 @@
  * runs a fully functional terminal emulation on it.
  */
 
+#define GL_GLEXT_PROTOTYPES
+
 #include <errno.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
@@ -46,8 +49,12 @@
 #include "uterm.h"
 #include "vte.h"
 
-struct term_out {
-	struct term_out *next;
+#define LOG_SUBSYSTEM "terminal"
+
+struct screen {
+	struct screen *next;
+	struct screen *prev;
+	struct uterm_display *disp;
 	struct uterm_screen *screen;
 };
 
@@ -55,9 +62,12 @@ struct kmscon_terminal {
 	unsigned long ref;
 	struct ev_eloop *eloop;
 	struct uterm_video *video;
+	struct kmscon_input *input;
 	struct gl_shader *shader;
+	bool opened;
 
-	struct term_out *outputs;
+	struct screen *screens;
+	unsigned int max_width;
 	unsigned int max_height;
 
 	struct kmscon_console *console;
@@ -65,20 +75,20 @@ struct kmscon_terminal {
 	struct kmscon_vte *vte;
 	struct kmscon_pty *pty;
 
-	kmscon_terminal_closed_cb closed_cb;
-	void *closed_data;
+	kmscon_terminal_event_cb cb;
+	void *data;
 };
 
 static void draw_all(struct ev_idle *idle, void *data)
 {
 	struct kmscon_terminal *term = data;
-	struct term_out *iter;
+	struct screen *iter;
 	struct uterm_screen *screen;
 	int ret;
 
 	ev_eloop_rm_idle(idle);
 
-	iter = term->outputs;
+	iter = term->screens;
 	for (; iter; iter = iter->next) {
 		screen = iter->screen;
 
@@ -87,6 +97,8 @@ static void draw_all(struct ev_idle *idle, void *data)
 			continue;
 
 		gl_viewport(screen);
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		kmscon_console_map(term->console, term->shader);
 		uterm_screen_swap(screen);
 	}
@@ -96,12 +108,96 @@ static void schedule_redraw(struct kmscon_terminal *term)
 {
 	int ret;
 
-	if (!term || !term->eloop)
-		return;
-
 	ret = ev_eloop_add_idle(term->eloop, term->redraw, draw_all, term);
 	if (ret && ret != -EALREADY)
-		log_warn("terminal: cannot schedule redraw\n");
+		log_warn("terminal: cannot schedule redraw");
+}
+
+static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
+{
+	struct screen *scr;
+	int ret;
+	unsigned int width, height;
+	bool resize;
+
+	scr = malloc(sizeof(*scr));
+	if (!scr)
+		return -ENOMEM;
+	memset(scr, 0, sizeof(*scr));
+	scr->disp = disp;
+
+	ret = uterm_screen_new_single(&scr->screen, disp);
+	if (ret) {
+		free(scr);
+		return ret;
+	}
+
+	scr->next = term->screens;
+	if (scr->next)
+		scr->next->prev = scr;
+	term->screens = scr;
+
+	resize = false;
+	width = uterm_screen_width(scr->screen);
+	height = uterm_screen_height(scr->screen);
+	if (term->max_width < width) {
+		term->max_width = width;
+		resize = true;
+	}
+	if (term->max_height < height) {
+		term->max_height = height;
+		resize = true;
+	}
+
+	if (resize)
+		kmscon_console_resize(term->console, 0, 0, term->max_height);
+
+	log_debug("added display %p to terminal %p", disp, term);
+	schedule_redraw(term);
+	uterm_display_ref(scr->disp);
+	return 0;
+}
+
+static void free_screen(struct screen *scr)
+{
+	uterm_screen_unref(scr->screen);
+	uterm_display_unref(scr->disp);
+	free(scr);
+}
+
+static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
+{
+	struct screen *scr;
+
+	for (scr = term->screens; scr; scr = scr->next) {
+		if (scr->disp == disp) {
+			if (scr->prev)
+				scr->prev->next = scr->next;
+			if (scr->next)
+				scr->next->prev = scr->prev;
+			if (term->screens == scr)
+				term->screens = scr->next;
+			break;
+		}
+	}
+
+	if (!scr)
+		return;
+
+	log_debug("removed display %p from terminal %p", disp, term);
+	free_screen(scr);
+	if (!term->screens && term->cb)
+		term->cb(term, KMSCON_TERMINAL_NO_DISPLAY, term->data);
+}
+
+static void rm_all_screens(struct kmscon_terminal *term)
+{
+	struct screen *scr;
+
+	while ((scr = term->screens)) {
+		term->screens = scr->next;
+		free_screen(scr);
+	}
 }
 
 static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
@@ -110,27 +206,59 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	struct kmscon_terminal *term = data;
 
 	if (!len) {
-		if (term->closed_cb)
-			term->closed_cb(term, term->closed_data);
+		if (term->cb)
+			term->cb(term, KMSCON_TERMINAL_HUP, term->data);
 	} else {
 		kmscon_vte_input(term->vte, u8, len);
 		schedule_redraw(term);
 	}
 }
 
+static void video_event(struct uterm_video *video,
+			struct uterm_video_hotplug *ev,
+			void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	if (ev->action == UTERM_GONE)
+		rm_display(term, ev->display);
+}
+
+static void input_event(struct kmscon_input *input,
+			struct kmscon_input_event *ev,
+			void *data)
+{
+	struct kmscon_terminal *term = data;
+	int ret;
+	const char *u8;
+	size_t len;
+
+	if (!term->opened)
+		return;
+
+	ret = kmscon_vte_handle_keyboard(term->vte, ev, &u8, &len);
+	switch (ret) {
+		case KMSCON_VTE_SEND:
+			kmscon_pty_write(term->pty, u8, len);
+			break;
+		case KMSCON_VTE_DROP:
+		default:
+			break;
+	}
+}
+
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
+			struct kmscon_symbol_table *st,
 			struct kmscon_font_factory *ff,
 			struct uterm_video *video,
-			struct kmscon_symbol_table *st)
+			struct kmscon_input *input)
 {
 	struct kmscon_terminal *term;
 	int ret;
 
-	if (!out)
+	if (!out || !loop || !st || !ff || !video || !input)
 		return -EINVAL;
-
-	log_debug("terminal: new terminal object\n");
 
 	term = malloc(sizeof(*term));
 	if (!term)
@@ -140,6 +268,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->ref = 1;
 	term->eloop = loop;
 	term->video = video;
+	term->input = input;
 
 	ret = ev_idle_new(&term->redraw);
 	if (ret)
@@ -162,12 +291,26 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_pty;
 
+	ret = uterm_video_register_cb(term->video, video_event, term);
+	if (ret)
+		goto err_shader;
+
+	ret = kmscon_input_register_cb(term->input, input_event, term);
+	if (ret)
+		goto err_video;
+
 	ev_eloop_ref(term->eloop);
 	uterm_video_ref(term->video);
+	kmscon_input_ref(term->input);
 	*out = term;
 
+	log_debug("new terminal object %p", term);
 	return 0;
 
+err_video:
+	uterm_video_unregister_cb(term->video, video_event, term);
+err_shader:
+	gl_shader_unref(term->shader);
 err_pty:
 	kmscon_pty_unref(term->pty);
 err_vte:
@@ -197,21 +340,25 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	if (--term->ref)
 		return;
 
+	log_debug("free terminal object %p", term);
 	kmscon_terminal_close(term);
-	kmscon_terminal_rm_all_outputs(term);
+	rm_all_screens(term);
+	kmscon_input_unregister_cb(term->input, input_event, term);
+	uterm_video_unregister_cb(term->video, video_event, term);
 	gl_shader_unref(term->shader);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
+	ev_eloop_rm_idle(term->redraw);
 	ev_idle_unref(term->redraw);
+	kmscon_input_unref(term->input);
 	uterm_video_unref(term->video);
 	ev_eloop_unref(term->eloop);
 	free(term);
-	log_debug("terminal: destroying terminal object\n");
 }
 
 int kmscon_terminal_open(struct kmscon_terminal *term,
-			kmscon_terminal_closed_cb closed_cb, void *data)
+			kmscon_terminal_event_cb cb, void *data)
 {
 	int ret;
 	unsigned short width, height;
@@ -225,8 +372,9 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 	if (ret)
 		return ret;
 
-	term->closed_cb = closed_cb;
-	term->closed_data = data;
+	term->opened = true;
+	term->cb = cb;
+	term->data = data;
 	return 0;
 }
 
@@ -236,81 +384,16 @@ void kmscon_terminal_close(struct kmscon_terminal *term)
 		return;
 
 	kmscon_pty_close(term->pty);
-	term->closed_data = NULL;
-	term->closed_cb = NULL;
+	term->data = NULL;
+	term->cb = NULL;
+	term->opened = false;
 }
 
-int kmscon_terminal_add_output(struct kmscon_terminal *term,
+int kmscon_terminal_add_display(struct kmscon_terminal *term,
 				struct uterm_display *disp)
 {
-	struct term_out *out;
-	unsigned int height;
-	int ret;
-
 	if (!term || !disp)
 		return -EINVAL;
 
-	out = malloc(sizeof(*out));
-	if (!out)
-		return -ENOMEM;
-
-	memset(out, 0, sizeof(*out));
-	ret = uterm_screen_new_single(&out->screen, disp);
-	if (ret) {
-		free(out);
-		return ret;
-	}
-
-	out->next = term->outputs;
-	term->outputs = out;
-
-	height = uterm_screen_height(out->screen);
-	if (term->max_height < height) {
-		term->max_height = height;
-		kmscon_console_resize(term->console, 0, 0, term->max_height);
-	}
-
-	schedule_redraw(term);
-
-	return 0;
-}
-
-void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term)
-{
-	struct term_out *tmp;
-
-	if (!term)
-		return;
-
-	while (term->outputs) {
-		tmp = term->outputs;
-		term->outputs = tmp->next;
-		uterm_screen_unref(tmp->screen);
-		free(tmp);
-	}
-}
-
-int kmscon_terminal_input(struct kmscon_terminal *term,
-					const struct kmscon_input_event *ev)
-{
-	int ret;
-	const char *u8;
-	size_t len;
-
-	if (!term || !ev)
-		return -EINVAL;
-
-	ret = kmscon_vte_handle_keyboard(term->vte, ev, &u8, &len);
-	switch (ret) {
-		case KMSCON_VTE_SEND:
-			ret = kmscon_pty_write(term->pty, u8, len);
-			if (ret)
-				return ret;
-			break;
-		case KMSCON_VTE_DROP:
-		default:
-			break;
-	}
-
-	return 0;
+	return add_display(term, disp);
 }

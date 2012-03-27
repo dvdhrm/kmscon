@@ -1,7 +1,7 @@
 /*
  * kmscon - Terminal
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -38,31 +38,36 @@
 #include "eloop.h"
 #include "font.h"
 #include "gl.h"
+#include "input.h"
 #include "unicode.h"
 #include "uterm.h"
 
 struct kmscon_terminal;
 
-typedef void (*kmscon_terminal_closed_cb) (struct kmscon_terminal *term,
-								void *data);
+enum kmscon_terminal_etype {
+	KMSCON_TERMINAL_HUP,		/* child closed */
+	KMSCON_TERMINAL_NO_DISPLAY,	/* no more display connected */
+};
+
+typedef void (*kmscon_terminal_event_cb)
+		(struct kmscon_terminal *term,
+		enum kmscon_terminal_etype type,
+		void *data);
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
+			struct kmscon_symbol_table *st,
 			struct kmscon_font_factory *ff,
 			struct uterm_video *video,
-			struct kmscon_symbol_table *st);
+			struct kmscon_input *input);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 
 int kmscon_terminal_open(struct kmscon_terminal *term,
-			kmscon_terminal_closed_cb closed_cb, void *data);
+			kmscon_terminal_event_cb event_cb, void *data);
 void kmscon_terminal_close(struct kmscon_terminal *term);
 
-int kmscon_terminal_add_output(struct kmscon_terminal *term,
+int kmscon_terminal_add_display(struct kmscon_terminal *term,
 				struct uterm_display *disp);
-void kmscon_terminal_rm_all_outputs(struct kmscon_terminal *term);
-
-int kmscon_terminal_input(struct kmscon_terminal *term,
-					const struct kmscon_input_event *ev);
 
 #endif /* KMSCON_TERMINAL_H */
