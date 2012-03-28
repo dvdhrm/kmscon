@@ -69,9 +69,10 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "log.h"
 #include "unicode.h"
+
+#define LOG_SUBSYSTEM "unicode"
 
 #define KMSCON_UCS4_MAXLEN 10
 #define KMSCON_UCS4_MAX 0x7fffffffUL
@@ -190,7 +191,7 @@ void kmscon_symbol_table_unref(struct kmscon_symbol_table *st)
 kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
 {
 	if (ucs4 > KMSCON_UCS4_MAX) {
-		log_warn("unicode: invalid ucs4 character\n");
+		log_warn("invalid ucs4 character");
 		return 0;
 	} else {
 		return ucs4;
@@ -208,7 +209,7 @@ kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
 		return sym;
 
 	if (ucs4 > KMSCON_UCS4_MAX) {
-		log_warn("unicode: invalid ucs4 character\n");
+		log_warn("invalid ucs4 character");
 		return sym;
 	}
 
@@ -224,7 +225,7 @@ kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
 	if (nsym)
 		return nsym;
 
-	log_debug("unicode: adding new composed symbol\n");
+	log_debug("adding new composed symbol");
 
 	nval = malloc(sizeof(uint32_t) * s);
 	if (!nval)
