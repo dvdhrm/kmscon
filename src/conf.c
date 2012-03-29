@@ -83,9 +83,9 @@ int conf_parse_argv(int argc, char **argv)
 		{ "debug", no_argument, &conf_global.debug, 1 },
 		{ "silent", no_argument, &conf_global.silent, 1 },
 		{ "switchvt", no_argument, NULL, 's' },
-		{ "xkb-layout", required_argument, NULL, -1 },
-		{ "xkb-variant", required_argument, NULL, -2 },
-		{ "xkb-options", required_argument, NULL, -3 },
+		{ "xkb-layout", required_argument, NULL, 1001 },
+		{ "xkb-variant", required_argument, NULL, 1002 },
+		{ "xkb-options", required_argument, NULL, 1003 },
 		{ "login", required_argument, NULL, 'l' },
 		{ "term", required_argument, NULL, 't' },
 		{ NULL, 0, NULL, 0 },
@@ -114,13 +114,13 @@ int conf_parse_argv(int argc, char **argv)
 		case 's':
 			conf_global.switchvt = 1;
 			break;
-		case -1:
+		case 1001:
 			conf_global.xkb_layout = optarg;
 			break;
-		case -2:
+		case 1002:
 			conf_global.xkb_variant = optarg;
 			break;
-		case -3:
+		case 1003:
 			conf_global.xkb_options = optarg;
 			break;
 		case 'l':
