@@ -45,7 +45,7 @@ enum kmscon_vte_keyboard_action {
 	KMSCON_VTE_SEND,
 };
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st);
+int kmscon_vte_new(struct kmscon_vte **out);
 void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 

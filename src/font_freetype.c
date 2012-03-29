@@ -47,7 +47,6 @@
 
 struct kmscon_font_factory {
 	unsigned long ref;
-	struct kmscon_symbol_table *st;
 	FT_Library lib;
 };
 
@@ -93,7 +92,7 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 
 	memset(glyph, 0, sizeof(*glyph));
 
-	val = kmscon_symbol_get(font->ff->st, &key, &len);
+	val = kmscon_symbol_get(&key, &len);
 
 	if (!val[0])
 		goto ready;
@@ -164,14 +163,13 @@ static void kmscon_glyph_destroy(struct kmscon_glyph *glyph)
 	free(glyph);
 }
 
-int kmscon_font_factory_new(struct kmscon_font_factory **out,
-				struct kmscon_symbol_table *st)
+int kmscon_font_factory_new(struct kmscon_font_factory **out)
 {
 	struct kmscon_font_factory *ff;
 	FT_Error err;
 	int ret;
 
-	if (!out || !st)
+	if (!out)
 		return -EINVAL;
 
 	log_debug("font: new font factory\n");
@@ -182,7 +180,6 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 
 	memset(ff, 0, sizeof(*ff));
 	ff->ref = 1;
-	ff->st = st;
 
 	err = FT_Init_FreeType(&ff->lib);
 	if (err) {
@@ -191,7 +188,6 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out,
 		goto err_free;
 	}
 
-	kmscon_symbol_table_ref(ff->st);
 	*out = ff;
 
 	return 0;
@@ -225,7 +221,6 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (err)
 		log_warn("font: cannot deinitialize FreeType library\n");
 
-	kmscon_symbol_table_unref(ff->st);
 	free(ff);
 }
 

@@ -2,7 +2,7 @@
  * kmscon - Unicode Handling
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
- * Copyright (c) 2011 University of Tuebingen
+ * Copyright (c) 2011-2012 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -64,9 +64,12 @@
  * push the new symbol into the symbol table.
  */
 
+/* TODO: Remove the glib dependencies */
+
 #include <errno.h>
 #include <glib.h>
 #include <inttypes.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include "log.h"
@@ -81,12 +84,10 @@
 const kmscon_symbol_t kmscon_symbol_default = 0;
 static const char default_u8[] = { 0 };
 
-struct kmscon_symbol_table {
-	unsigned long ref;
-	GArray *index;
-	GHashTable *symbols;
-	uint32_t next_id;
-};
+static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t table_next_id;
+static GArray *table_index;
+static GHashTable *table_symbols;
 
 static guint hash_ucs4(gconstpointer key)
 {
@@ -126,66 +127,43 @@ static gboolean cmp_ucs4(gconstpointer a, gconstpointer b)
 	}
 }
 
-int kmscon_symbol_table_new(struct kmscon_symbol_table **out)
+static void table_lock()
 {
-	struct kmscon_symbol_table *st;
-	int ret;
+	pthread_mutex_lock(&table_mutex);
+}
+
+static void table_unlock()
+{
+	pthread_mutex_unlock(&table_mutex);
+}
+
+static int table__init()
+{
 	static const uint32_t *val = NULL; /* we need an lvalue for glib */
 
-	if (!out)
-		return -EINVAL;
+	if (table_symbols)
+		return 0;
 
-	st = malloc(sizeof(*st));
-	if (!st)
+	table_next_id = KMSCON_UCS4_MAX + 2;
+
+	table_index = g_array_new(FALSE, TRUE, sizeof(uint32_t*));
+	if (!table_index) {
+		log_err("cannot allocate table-index");
 		return -ENOMEM;
-
-	memset(st, 0, sizeof(*st));
-	st->ref = 1;
-	st->next_id = KMSCON_UCS4_MAX + 2;
-
-	st->index = g_array_new(FALSE, TRUE, sizeof(uint32_t*));
-	if (!st->index) {
-		ret = -ENOMEM;
-		goto err_free;
 	}
-	g_array_append_val(st->index, val);
 
-	st->symbols = g_hash_table_new_full(hash_ucs4, cmp_ucs4,
+	/* first entry is not used so add dummy */
+	g_array_append_val(table_index, val);
+
+	table_symbols = g_hash_table_new_full(hash_ucs4, cmp_ucs4,
 						(GDestroyNotify) free, NULL);
-	if (!st->symbols) {
-		ret = -ENOMEM;
-		goto err_arr;
+	if (!table_symbols) {
+		log_err("cannot allocate hash-table");
+		g_array_unref(table_index);
+		return -ENOMEM;
 	}
 
-	*out = st;
 	return 0;
-
-err_arr:
-	g_array_unref(st->index);
-err_free:
-	free(st);
-	return ret;
-}
-
-void kmscon_symbol_table_ref(struct kmscon_symbol_table *st)
-{
-	if (!st)
-		return;
-
-	++st->ref;
-}
-
-void kmscon_symbol_table_unref(struct kmscon_symbol_table *st)
-{
-	if (!st || !st->ref)
-		return;
-
-	if (--st->ref)
-		return;
-
-	g_hash_table_unref(st->symbols);
-	g_array_unref(st->index);
-	free(st);
 }
 
 kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
@@ -196,47 +174,6 @@ kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
 	} else {
 		return ucs4;
 	}
-}
-
-kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
-					kmscon_symbol_t sym, uint32_t ucs4)
-{
-	uint32_t buf[KMSCON_UCS4_MAXLEN + 1], nsym, *nval;
-	const uint32_t *ptr;
-	size_t s;
-
-	if (!st)
-		return sym;
-
-	if (ucs4 > KMSCON_UCS4_MAX) {
-		log_warn("invalid ucs4 character");
-		return sym;
-	}
-
-	ptr = kmscon_symbol_get(st, &sym, &s);
-	if (s >= KMSCON_UCS4_MAXLEN)
-		return sym;
-
-	memcpy(buf, ptr, s * sizeof(uint32_t));
-	buf[s++] = ucs4;
-	buf[s++] = KMSCON_UCS4_MAX + 1;
-
-	nsym = GPOINTER_TO_UINT(g_hash_table_lookup(st->symbols, buf));
-	if (nsym)
-		return nsym;
-
-	log_debug("adding new composed symbol");
-
-	nval = malloc(sizeof(uint32_t) * s);
-	if (!nval)
-		return sym;
-
-	memcpy(nval, buf, s * sizeof(uint32_t));
-	nsym = st->next_id++;
-	g_hash_table_insert(st->symbols, nval, GUINT_TO_POINTER(nsym));
-	g_array_append_val(st->index, nval);
-
-	return nsym;
 }
 
 /*
@@ -250,8 +187,7 @@ kmscon_symbol_t kmscon_symbol_append(struct kmscon_symbol_table *st,
  * This always returns a valid value. If an error happens, the default character
  * is returned. If \size is NULL, then the size value is omitted.
  */
-const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
-					kmscon_symbol_t *sym, size_t *size)
+static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
 
@@ -261,13 +197,19 @@ const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
 		return sym;
 	}
 
-	if (!st)
-		goto def_value;
+	if (table__init()) {
+		if (size)
+			*size = 1;
+		return &kmscon_symbol_default;
+	}
 
-	ucs4 = g_array_index(st->index, uint32_t*,
-						*sym - (KMSCON_UCS4_MAX + 1));
-	if (!ucs4)
-		goto def_value;
+	ucs4 = g_array_index(table_index, uint32_t*,
+				*sym - (KMSCON_UCS4_MAX + 1));
+	if (!ucs4) {
+		if (size)
+			*size = 1;
+		return &kmscon_symbol_default;
+	}
 
 	if (size) {
 		*size = 0;
@@ -276,35 +218,91 @@ const uint32_t *kmscon_symbol_get(const struct kmscon_symbol_table *st,
 	}
 
 	return ucs4;
-
-def_value:
-	if (size)
-		*size = 1;
-	return &kmscon_symbol_default;
 }
 
-const char *kmscon_symbol_get_u8(const struct kmscon_symbol_table *st,
-					kmscon_symbol_t sym, size_t *size)
+const uint32_t *kmscon_symbol_get(kmscon_symbol_t *sym, size_t *size)
+{
+	const uint32_t *res;
+
+	table_lock();
+	res = table__get(sym, size);
+	table_unlock();
+
+	return res;
+}
+
+kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
+{
+	uint32_t buf[KMSCON_UCS4_MAXLEN + 1], nsym, *nval;
+	const uint32_t *ptr;
+	size_t s;
+	kmscon_symbol_t rsym;
+
+	table_lock();
+
+	if (table__init()) {
+		rsym = sym;
+		goto unlock;
+	}
+
+	if (ucs4 > KMSCON_UCS4_MAX) {
+		log_warn("invalid ucs4 character");
+		rsym = sym;
+		goto unlock;
+	}
+
+	ptr = table__get(&sym, &s);
+	if (s >= KMSCON_UCS4_MAXLEN) {
+		rsym = sym;
+		goto unlock;
+	}
+
+	memcpy(buf, ptr, s * sizeof(uint32_t));
+	buf[s++] = ucs4;
+	buf[s++] = KMSCON_UCS4_MAX + 1;
+
+	nsym = GPOINTER_TO_UINT(g_hash_table_lookup(table_symbols, buf));
+	if (nsym) {
+		rsym = nsym;
+		goto unlock;
+	}
+
+	log_debug("adding new composed symbol");
+
+	nval = malloc(sizeof(uint32_t) * s);
+	if (!nval) {
+		rsym = sym;
+		goto unlock;
+	}
+
+	memcpy(nval, buf, s * sizeof(uint32_t));
+	nsym = table_next_id++;
+	g_hash_table_insert(table_symbols, nval, GUINT_TO_POINTER(nsym));
+	g_array_append_val(table_index, nval);
+	rsym = nsym;
+
+unlock:
+	table_unlock();
+	return rsym;
+}
+
+const char *kmscon_symbol_get_u8(kmscon_symbol_t sym, size_t *size)
 {
 	const uint32_t *ucs4;
 	gchar *val;
 	glong len;
 
-	if (!st)
-		goto def_value;
-
-	ucs4 = kmscon_symbol_get(st, &sym, size);
+	ucs4 = kmscon_symbol_get(&sym, size);
 	val = g_ucs4_to_utf8(ucs4, *size, NULL, &len, NULL);
-	if (!val || len < 0)
-		goto def_value;
+	if (!val || len < 0) {
+		if (size)
+			*size = 1;
+		return default_u8;
+	}
 
-	*size = len;
-	return val;
-
-def_value:
 	if (size)
-		*size = 1;
-	return default_u8;
+		*size = len;
+	return val;
 }
 
 void kmscon_symbol_free_u8(const char *s)

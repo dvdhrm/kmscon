@@ -102,34 +102,26 @@ static void test1(struct kmscon_buffer *buf)
 
 static void test2()
 {
-	struct kmscon_symbol_table *st;
-	int ret;
 	kmscon_symbol_t sym, sym2, sym3, sym4;
 	const uint32_t *str;
 	size_t len, i;
 
 	log_info("Test2:\n");
 
-	ret = kmscon_symbol_table_new(&st);
-	if (ret)
-		return;
-
 	sym = kmscon_symbol_make('a');
-	sym2 = kmscon_symbol_append(st, sym, '^');
-	sym3 = kmscon_symbol_append(st, sym2, '^');
-	sym4 = kmscon_symbol_append(st, sym, '^');
+	sym2 = kmscon_symbol_append(sym, '^');
+	sym3 = kmscon_symbol_append(sym2, '^');
+	sym4 = kmscon_symbol_append(sym, '^');
 
 	log_info("equality: %i %i %i\n", sym == sym2, sym2 == sym4,
 								sym3 == sym2);
 
-	str = kmscon_symbol_get(st, &sym3, &len);
+	str = kmscon_symbol_get(&sym3, &len);
 
 	printf("sym3: ");
 	for (i = 0; i < len; ++i)
 		printf("%c", str[i]);
 	printf("\n");
-
-	kmscon_symbol_table_unref(st);
 }
 
 static void test3()

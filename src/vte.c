@@ -104,7 +104,6 @@ enum parser_action {
 
 struct kmscon_vte {
 	unsigned long ref;
-	struct kmscon_symbol_table *st;
 	struct kmscon_console *con;
 
 	const char *kbd_sym;
@@ -115,7 +114,7 @@ struct kmscon_vte {
 	int csi_argv[CSI_ARG_MAX];
 };
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
+int kmscon_vte_new(struct kmscon_vte **out)
 {
 	struct kmscon_vte *vte;
 	int ret;
@@ -131,14 +130,12 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_symbol_table *st)
 
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
-	vte->st = st;
 	vte->state = STATE_GROUND;
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
 		goto err_free;
 
-	kmscon_symbol_table_ref(vte->st);
 	*out = vte;
 	return 0;
 
@@ -166,7 +163,6 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 	kmscon_console_unref(vte->con);
 	kmscon_utf8_mach_free(vte->mach);
 	kmscon_symbol_free_u8(vte->kbd_sym);
-	kmscon_symbol_table_unref(vte->st);
 	free(vte);
 	log_debug("vte: destroying vte object\n");
 }
@@ -926,7 +922,7 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	if (ev->unicode != KMSCON_INPUT_INVALID) {
 		kmscon_symbol_free_u8(vte->kbd_sym);
 		sym = kmscon_symbol_make(ev->unicode);
-		vte->kbd_sym = kmscon_symbol_get_u8(vte->st, sym, len);
+		vte->kbd_sym = kmscon_symbol_get_u8(sym, len);
 		*u8 = vte->kbd_sym;
 		return KMSCON_VTE_SEND;
 	}

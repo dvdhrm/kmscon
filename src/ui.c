@@ -38,7 +38,6 @@
 #include "log.h"
 #include "terminal.h"
 #include "ui.h"
-#include "unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "config"
@@ -47,7 +46,6 @@ struct kmscon_ui {
 	struct ev_eloop *eloop;
 	struct uterm_video *video;
 	struct kmscon_input *input;
-	struct kmscon_symbol_table *st;
 	struct kmscon_font_factory *ff;
 	struct kmscon_terminal *term;
 };
@@ -97,15 +95,11 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	ui->video = video;
 	ui->input = input;
 
-	ret = kmscon_symbol_table_new(&ui->st);
+	ret = kmscon_font_factory_new(&ui->ff);
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_font_factory_new(&ui->ff, ui->st);
-	if (ret)
-		goto err_st;
-
-	ret = kmscon_terminal_new(&ui->term, eloop, ui->st, ui->ff, ui->video,
+	ret = kmscon_terminal_new(&ui->term, eloop, ui->ff, ui->video,
 					ui->input);
 	if (ret)
 		goto err_ff;
@@ -136,8 +130,6 @@ err_term:
 	kmscon_terminal_unref(ui->term);
 err_ff:
 	kmscon_font_factory_unref(ui->ff);
-err_st:
-	kmscon_symbol_table_unref(ui->st);
 err_free:
 	free(ui);
 	return ret;
@@ -152,7 +144,6 @@ void kmscon_ui_free(struct kmscon_ui *ui)
 	uterm_video_unregister_cb(ui->video, video_event, ui);
 	kmscon_terminal_unref(ui->term);
 	kmscon_font_factory_unref(ui->ff);
-	kmscon_symbol_table_unref(ui->st);
 	kmscon_input_unref(ui->input);
 	uterm_video_unref(ui->video);
 	ev_eloop_unref(ui->eloop);

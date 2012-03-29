@@ -39,7 +39,6 @@
 #include "font.h"
 #include "gl.h"
 #include "input.h"
-#include "unicode.h"
 #include "uterm.h"
 
 struct kmscon_terminal;
@@ -56,7 +55,6 @@ typedef void (*kmscon_terminal_event_cb)
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct kmscon_symbol_table *st,
 			struct kmscon_font_factory *ff,
 			struct uterm_video *video,
 			struct kmscon_input *input);
