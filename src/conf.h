@@ -65,6 +65,9 @@ struct conf_obj {
 	char *login;
 	/* argv for login process */
 	char **argv;
+
+	/* seat name */
+	const char *seat;
 };
 
 extern struct conf_obj conf_global;

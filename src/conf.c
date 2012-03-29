@@ -57,6 +57,7 @@ static void print_help()
 		"\t    --debug                   Enable debug mode\n"
 		"\t    --silent                  Suppress notices and warnings\n"
 		"\t-s, --switchvt                Automatically switch to VT\n"
+		"\t    --seat <seat-name>        Select seat; default: seat0\n"
 		"\n"
 		"Terminal Options:\n"
 		"\t-l, --login <login-process>   Start the given login process instead\n"
@@ -88,6 +89,7 @@ int conf_parse_argv(int argc, char **argv)
 		{ "xkb-options", required_argument, NULL, 1003 },
 		{ "login", required_argument, NULL, 'l' },
 		{ "term", required_argument, NULL, 't' },
+		{ "seat", required_argument, NULL, 1004 },
 		{ NULL, 0, NULL, 0 },
 	};
 	int idx;
@@ -122,6 +124,9 @@ int conf_parse_argv(int argc, char **argv)
 			break;
 		case 1003:
 			conf_global.xkb_options = optarg;
+			break;
+		case 1004:
+			conf_global.seat = optarg;
 			break;
 		case 'l':
 			conf_global.login = optarg;
@@ -168,6 +173,9 @@ done:
 
 	if (!conf_global.term)
 		conf_global.term = "linux";
+
+	if (!conf_global.seat)
+		conf_global.seat = "seat0";
 
 	if (show_help) {
 		print_help();

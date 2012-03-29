@@ -45,6 +45,7 @@
 #include <unistd.h>
 #include <xf86drm.h>
 /* #include <xf86drmMode.h> TODO: missing header protection */
+#include "conf.h"
 #include "eloop.h"
 #include "log.h"
 #include "misc.h"
@@ -658,7 +659,7 @@ static int video_init(struct uterm_video *video)
 {
 	struct udev_enumerate *e;
 	struct udev_list_entry *name;
-	const char *path;
+	const char *path, *seat;
 	struct udev_device *dev;
 	int ret;
 
@@ -693,6 +694,14 @@ static int video_init(struct uterm_video *video)
 		ret = -EFAULT;
 		goto err_enum;
 	}
+	if (strcmp(conf_global.seat, "seat0")) {
+		ret = udev_enumerate_add_match_tag(e, conf_global.seat);
+		if (ret) {
+			log_err("cannot add udev match (%d): %m", ret);
+			ret = -EFAULT;
+			goto err_enum;
+		}
+	}
 	ret = udev_enumerate_scan_devices(e);
 	if (ret) {
 		log_err("cannot scan udev devices (%d): %m", ret);
@@ -707,8 +716,15 @@ static int video_init(struct uterm_video *video)
 		dev = udev_device_new_from_syspath(video->udev, path);
 		if (!dev)
 			continue;
+		seat = udev_device_get_property_value(dev, "ID_SEAT");
+		if (!seat)
+			seat = "seat0";
+		if (strcmp(conf_global.seat, seat)) {
+			log_debug("ignoring %s (wrong seat)", path);
+			udev_device_unref(dev);
+			continue;
+		}
 
-		/* TODO: more sophisticated device selection */
 		ret = init_device(video, dev);
 		udev_device_unref(dev);
 		if (!ret)

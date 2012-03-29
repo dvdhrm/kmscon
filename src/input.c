@@ -416,7 +416,7 @@ static void add_device(struct kmscon_input *input,
 {
 	int ret;
 	struct kmscon_input_device *device;
-	const char *node;
+	const char *node, *seat;
 	unsigned int features;
 
 	if (!input || !udev_device)
@@ -425,6 +425,14 @@ static void add_device(struct kmscon_input *input,
 	node = udev_device_get_devnode(udev_device);
 	if (!node)
 		return;
+
+	seat = udev_device_get_property_value(udev_device, "ID_SEAT");
+	if (!seat)
+		seat = "seat0";
+	if (strcmp(seat, conf_global.seat)) {
+		log_debug("ignoring device  %s (wrong seat)", node);
+		return;
+	}
 
 	features = probe_device_features(node);
 	if (!(features & FEATURE_HAS_KEYS)) {
@@ -535,6 +543,14 @@ static void add_initial_devices(struct kmscon_input *input)
 	if (ret) {
 		log_warn("cannot add match to udev enumeration");
 		goto err_enum;
+	}
+
+	if (strcmp(conf_global.seat, "seat0")) {
+		ret = udev_enumerate_add_match_tag(e, conf_global.seat);
+		if (ret) {
+			log_warn("cannot add match to udev enumeration");
+			goto err_enum;
+		}
 	}
 
 	ret = udev_enumerate_scan_devices(e);
