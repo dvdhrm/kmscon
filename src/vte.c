@@ -59,6 +59,8 @@
 #include "unicode.h"
 #include "vte.h"
 
+#define LOG_SUBSYSTEM "vte"
+
 /* Input parser states */
 enum parser_state {
 	STATE_NONE,		/* placeholder */
@@ -122,8 +124,6 @@ int kmscon_vte_new(struct kmscon_vte **out)
 	if (!out)
 		return -EINVAL;
 
-	log_debug("vte: new vte object\n");
-
 	vte = malloc(sizeof(*vte));
 	if (!vte)
 		return -ENOMEM;
@@ -136,6 +136,7 @@ int kmscon_vte_new(struct kmscon_vte **out)
 	if (ret)
 		goto err_free;
 
+	log_debug("new vte object");
 	*out = vte;
 	return 0;
 
@@ -160,11 +161,11 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 	if (--vte->ref)
 		return;
 
+	log_debug("destroying vte object");
 	kmscon_console_unref(vte->con);
 	kmscon_utf8_mach_free(vte->mach);
 	kmscon_symbol_free_u8(vte->kbd_sym);
 	free(vte);
-	log_debug("vte: destroying vte object\n");
 }
 
 void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con)
@@ -284,7 +285,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			/* nothing to do here */
 			break;
 		default:
-			log_warn("vte: unhandled control char %u\n", ctrl);
+			log_warn("unhandled control char %u", ctrl);
 	}
 }
 
@@ -364,7 +365,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 			/* nothing to do here */
 			break;
 		default:
-			log_warn("vte: unhandled escape seq %u\n", data);
+			log_warn("unhandled escape seq %u", data);
 	}
 }
 
@@ -417,7 +418,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				kmscon_console_erase_current_line(vte->con);
 			break;
 		default:
-			log_debug("vte: unhandled CSI sequence %c\n", data);
+			log_debug("unhandled CSI sequence %c", data);
 	}
 }
 
@@ -468,7 +469,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 		case ACTION_OSC_END:
 			break;
 		default:
-			log_warn("vte: invalid action %d\n", action);
+			log_warn("invalid action %d", action);
 	}
 }
 
@@ -849,7 +850,7 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 		return;
 	}
 
-	log_warn("vte: unhandled input %u in state %d\n", raw, vte->state);
+	log_warn("unhandled input %u in state %d", raw, vte->state);
 }
 
 void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
