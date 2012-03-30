@@ -35,12 +35,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "console.h"
 #include "font.h"
 #include "gl.h"
 #include "log.h"
 #include "unicode.h"
+
+#define LOG_SUBSYSTEM "console"
 
 #define DEFAULT_WIDTH 80
 #define DEFAULT_HEIGHT 24
@@ -272,8 +273,6 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 	memset(buf, 0, sizeof(*buf));
 	buf->ref = 1;
 
-	log_debug("console: new buffer object\n");
-
 	ret = gl_m4_stack_new(&buf->stack);
 	if (ret)
 		goto err_free;
@@ -282,6 +281,7 @@ int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 	if (ret)
 		goto err_stack;
 
+	log_debug("new buffer object");
 	*out = buf;
 	return 0;
 
@@ -310,6 +310,7 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 	if (--buf->ref)
 		return;
 
+	log_debug("destroying buffer object");
 	kmscon_buffer_clear_sb(buf);
 
 	for (i = 0; i < buf->scroll_y; ++i)
@@ -324,7 +325,6 @@ void kmscon_buffer_unref(struct kmscon_buffer *buf)
 	free(buf->mbottom_buf);
 	gl_m4_stack_free(buf->stack);
 	free(buf);
-	log_debug("console: destroying buffer object\n");
 }
 
 /*
@@ -346,7 +346,7 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 	if (!line) {
 		ret = new_line(&line);
 		if (ret) {
-			log_warn("console: cannot allocate line (%d); dropping scrollback-buffer line\n", ret);
+			log_warn("cannot allocate line (%d); dropping scrollback-buffer line", ret);
 			return;
 		}
 	}
@@ -555,7 +555,7 @@ static int resize_mtop(struct kmscon_buffer *buf, unsigned int y)
 	} else {
 		mv = y - buf->mtop_y;
 		if (mv >= buf->scroll_y) {
-			log_debug("console: setting margin size above buffer size; trimming margin\n");
+			log_debug("setting margin size above buffer size; trimming margin");
 			if (buf->scroll_y <= 1)
 				return 0;
 			mv = buf->scroll_y - 1;
@@ -605,7 +605,7 @@ static int resize_mbottom(struct kmscon_buffer *buf, unsigned int y)
 	} else {
 		mv = y - buf->mbottom_y;
 		if (mv >= buf->scroll_y) {
-			log_debug("console: setting margin size above buffer size; trimming margin\n");
+			log_debug("setting margin size above buffer size; trimming margin");
 			if (buf->scroll_y <= 1)
 				return 0;
 			mv = buf->scroll_y - 1;
@@ -656,7 +656,7 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 
 	margin = buf->mtop_y + buf->mbottom_y;
 	if (y <= margin) {
-		log_debug("console: reducing buffer size below margin size; destroying margins\n");
+		log_debug("reducing buffer size below margin size; destroying margins");
 		resize_mtop(buf, 0);
 		resize_mbottom(buf, 0);
 	}
@@ -669,7 +669,7 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 	/* Adjust x size by simply setting the new value */
 	buf->size_x = x;
 
-	log_debug("console: resize buffer to %ux%u\n", x, y);
+	log_debug("resize buffer to %ux%u", x, y);
 
 	return 0;
 }
@@ -780,7 +780,7 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 
 			m = gl_m4_stack_push(buf->stack);
 			if (!m) {
-				log_warn("console: cannot push matrix\n");
+				log_warn("cannot push matrix");
 				break;
 			}
 
@@ -818,7 +818,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		return;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
-		log_warn("console: writing beyond buffer boundary\n");
+		log_warn("writing beyond buffer boundary");
 		return;
 	}
 
@@ -832,7 +832,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		y = y - buf->mtop_y - buf->scroll_y;
 		slot = &buf->mbottom_buf[y];
 	} else {
-		log_warn("console: writing to invalid buffer space\n");
+		log_warn("writing to invalid buffer space");
 		return;
 	}
 
@@ -840,7 +840,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	if (!line) {
 		ret = new_line(&line);
 		if (ret) {
-			log_warn("console: cannot allocate line (%d); dropping input\n", ret);
+			log_warn("cannot allocate line (%d); dropping input", ret);
 			return;
 		}
 
@@ -852,8 +852,7 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	if (x >= line->size) {
 		ret = resize_line(line, buf->size_x);
 		if (ret) {
-			log_warn("console: cannot resize line (%d); "
-						"dropping input\n", ret);
+			log_warn("cannot resize line (%d); dropping input", ret);
 			return;
 		}
 	}
@@ -870,7 +869,7 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 		return kmscon_symbol_default;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
-		log_warn("console: reading out of buffer bounds\n");
+		log_warn("reading out of buffer bounds");
 		return kmscon_symbol_default;
 	}
 
@@ -883,7 +882,7 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 		y = y - buf->mtop_y - buf->scroll_y;
 		line = buf->mbottom_buf[y];
 	} else {
-		log_warn("console: reading from invalid buffer space\n");
+		log_warn("reading from invalid buffer space");
 		return kmscon_symbol_default;
 	}
 
@@ -1000,7 +999,6 @@ int kmscon_console_new(struct kmscon_console **out,
 	con->ref = 1;
 	con->auto_wrap = true;
 	con->ff = ff;
-	log_debug("console: new console\n");
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
@@ -1012,6 +1010,7 @@ int kmscon_console_new(struct kmscon_console **out,
 	num = kmscon_buffer_get_mbottom(con->cells);
 	con->margin_bottom = con->cells_y - 1 - num;
 
+	log_debug("new console");
 	kmscon_font_factory_ref(con->ff);
 	*out = con;
 
@@ -1042,11 +1041,11 @@ void kmscon_console_unref(struct kmscon_console *con)
 	if (--con->ref)
 		return;
 
+	log_debug("destroying console");
 	kmscon_font_unref(con->font);
 	kmscon_buffer_unref(con->cells);
 	kmscon_font_factory_unref(con->ff);
 	free(con);
-	log_debug("console: destroying console\n");
 }
 
 unsigned int kmscon_console_get_width(struct kmscon_console *con)
@@ -1104,7 +1103,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (x == con->cells_x && y == con->cells_y && height == con->res_y)
 		return 0;
 
-	log_debug("console: resizing to %ux%u:%u\n", x, y, height);
+	log_debug("resizing to %ux%u:%u", x, y, height);
 
 	ret = kmscon_buffer_resize(con->cells, x, y);
 	if (ret)
@@ -1121,7 +1120,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	ret = kmscon_font_factory_load(con->ff, &font, 0,
 							height / con->cells_y);
 	if (ret) {
-		log_err("console: cannot create new font: %d\n", ret);
+		log_err("cannot create new font: %d", ret);
 		return ret;
 	}
 
@@ -1129,7 +1128,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	con->font = font;
 	con->res_x = con->cells_x * kmscon_font_get_width(con->font);
 	con->res_y = height;
-	log_debug("console: new resolution %ux%u\n", con->res_x, con->res_y);
+	log_debug("new resolution %ux%u", con->res_x, con->res_y);
 
 	return 0;
 }
