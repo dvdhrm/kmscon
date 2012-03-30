@@ -34,7 +34,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "log.h"
 #include "misc.h"
+
+#define LOG_SUBSYSTEM "misc"
 
 #define RING_SIZE 512
 
@@ -265,4 +268,90 @@ void kmscon_hook_call(struct kmscon_hook *hook, void *parent, void *arg)
 		if (hook->cur_entry)
 			hook->cur_entry = hook->cur_entry->next;
 	}
+}
+
+/* Hash Tables
+ * This is currently a wrapper around the GHashTable glib object. We should
+ * replace this with an own hash-table to avoid glib dependency. However, I
+ * currently don't have the time so we use glib.
+ * TODO: Write an own hash-table implementation!
+ */
+
+#include <glib.h>
+
+struct kmscon_hashtable {
+	GHashTable *tbl;
+};
+
+unsigned int kmscon_direct_hash(const void *data)
+{
+	return g_direct_hash(data);
+}
+
+int kmscon_direct_equal(const void *data1, const void *data2)
+{
+	return g_direct_equal(data1, data2);
+}
+
+int kmscon_hashtable_new(struct kmscon_hashtable **out,
+				kmscon_hash_cb hash_cb,
+				kmscon_equal_cb equal_cb,
+				kmscon_free_cb free_key,
+				kmscon_free_cb free_value)
+{
+	struct kmscon_hashtable *tbl;
+
+	if (!out || !hash_cb || !equal_cb)
+		return -EINVAL;
+
+	tbl = malloc(sizeof(*tbl));
+	if (!tbl)
+		return -ENOMEM;
+	memset(tbl, 0, sizeof(*tbl));
+
+	tbl->tbl = g_hash_table_new_full(hash_cb, equal_cb,
+						free_key, free_value);
+	if (!tbl->tbl) {
+		log_err("cannot allocate GHashTable");
+		free(tbl);
+		return -ENOMEM;
+	}
+
+	*out = tbl;
+	return 0;
+}
+
+void kmscon_hashtable_free(struct kmscon_hashtable *tbl)
+{
+	if (!tbl)
+		return;
+
+	g_hash_table_unref(tbl->tbl);
+}
+
+int kmscon_hashtable_insert(struct kmscon_hashtable *tbl, void *key,
+				void *data)
+{
+	if (!tbl)
+		return -EINVAL;
+
+	g_hash_table_insert(tbl->tbl, key, data);
+	return 0;
+}
+
+bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key)
+{
+	void *val;
+	gboolean res;
+
+	if (!tbl)
+		return -EINVAL;
+
+	res = g_hash_table_lookup_extended(tbl->tbl, key, NULL, &val);
+	if (res != TRUE)
+		return false;
+
+	if (out)
+		*out = val;
+	return true;
 }
