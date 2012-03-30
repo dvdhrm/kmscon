@@ -35,7 +35,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <glib.h>
 #include "font.h"
 #include "gl.h"
@@ -44,6 +43,8 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#define LOG_SUBSYSTEM "font_freetype2"
 
 struct kmscon_font_factory {
 	unsigned long ref;
@@ -172,8 +173,6 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out)
 	if (!out)
 		return -EINVAL;
 
-	log_debug("font: new font factory\n");
-
 	ff = malloc(sizeof(*ff));
 	if (!ff)
 		return -ENOMEM;
@@ -183,11 +182,12 @@ int kmscon_font_factory_new(struct kmscon_font_factory **out)
 
 	err = FT_Init_FreeType(&ff->lib);
 	if (err) {
-		log_warn("font: cannot initialize FreeType library\n");
+		log_warn("cannot initialize FreeType library");
 		ret = -EFAULT;
 		goto err_free;
 	}
 
+	log_debug("new font factory");
 	*out = ff;
 
 	return 0;
@@ -215,11 +215,11 @@ void kmscon_font_factory_unref(struct kmscon_font_factory *ff)
 	if (--ff->ref)
 		return;
 
-	log_debug("font: destroying font factory\n");
+	log_debug("destroying font factory");
 
 	err = FT_Done_FreeType(ff->lib);
 	if (err)
-		log_warn("font: cannot deinitialize FreeType library\n");
+		log_warn("cannot deinitialize FreeType library");
 
 	free(ff);
 }
@@ -239,7 +239,7 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 	if (!width)
 		width = height;
 
-	log_debug("font: loading new font %s\n", path);
+	log_debug("loading new font %s", path);
 
 	font = malloc(sizeof(*font));
 	if (!font)
@@ -256,20 +256,20 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 		if (err == FT_Err_Unknown_File_Format)
 			estr = "unknown file format";
 
-		log_warn("font: cannot load font: %s\n", estr);
+		log_warn("cannot load font: %s", estr);
 		ret = -EFAULT;
 		goto err_free;
 	}
 
 	if (!font->face->charmap) {
-		log_warn("font: cannot load charmap of new font\n");
+		log_warn("cannot load charmap of new font");
 		ret = -EFAULT;
 		goto err_face;
 	}
 
 	err = FT_Set_Pixel_Sizes(font->face, width, height);
 	if (err) {
-		log_warn("font: cannot set pixel size of font\n");
+		log_warn("cannot set pixel size of font");
 		ret = -EFAULT;
 		goto err_face;
 	}
@@ -310,7 +310,7 @@ void kmscon_font_unref(struct kmscon_font *font)
 	if (--font->ref)
 		return;
 
-	log_debug("font: destroying font\n");
+	log_debug("destroying font");
 
 	g_hash_table_unref(font->glyphs);
 	FT_Done_Face(font->face);
