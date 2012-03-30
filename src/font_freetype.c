@@ -35,10 +35,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
 #include "font.h"
 #include "gl.h"
 #include "log.h"
+#include "misc.h"
 #include "unicode.h"
 
 #include <ft2build.h>
@@ -58,7 +58,7 @@ struct kmscon_font {
 	FT_Face face;
 	unsigned int width;
 	unsigned int height;
-	GHashTable *glyphs;
+	struct kmscon_hashtable *glyphs;
 };
 
 struct kmscon_glyph {
@@ -274,12 +274,11 @@ int kmscon_font_factory_load(struct kmscon_font_factory *ff,
 		goto err_face;
 	}
 
-	font->glyphs = g_hash_table_new_full(g_direct_hash, g_direct_equal,
-				NULL, (GDestroyNotify) kmscon_glyph_destroy);
-	if (!font->glyphs) {
-		ret = -ENOMEM;
+	ret = kmscon_hashtable_new(&font->glyphs, kmscon_direct_hash,
+				kmscon_direct_equal, NULL,
+				(kmscon_free_cb)kmscon_glyph_destroy);
+	if (ret)
 		goto err_face;
-	}
 
 	kmscon_font_factory_ref(ff);
 	font->ff = ff;
@@ -312,7 +311,7 @@ void kmscon_font_unref(struct kmscon_font *font)
 
 	log_debug("destroying font");
 
-	g_hash_table_unref(font->glyphs);
+	kmscon_hashtable_free(font->glyphs);
 	FT_Done_Face(font->face);
 	kmscon_font_factory_unref(font->ff);
 	free(font);
@@ -339,17 +338,19 @@ static int kmscon_font_lookup(struct kmscon_font *font,
 {
 	struct kmscon_glyph *glyph;
 	int ret;
+	bool res;
 
 	if (!font || !out)
 		return -EINVAL;
 
-	glyph = g_hash_table_lookup(font->glyphs, GUINT_TO_POINTER(key));
-	if (!glyph) {
+	res = kmscon_hashtable_find(font->glyphs, (void**)&glyph,
+					(void*)(long)key);
+	if (!res) {
 		ret = kmscon_glyph_new(&glyph, key, font);
 		if (ret)
 			return ret;
 
-		g_hash_table_insert(font->glyphs, GUINT_TO_POINTER(key), glyph);
+		kmscon_hashtable_insert(font->glyphs, (void*)(long)key, glyph);
 	}
 
 	*out = glyph;

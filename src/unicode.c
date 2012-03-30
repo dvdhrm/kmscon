@@ -73,6 +73,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "log.h"
+#include "misc.h"
 #include "unicode.h"
 
 #define LOG_SUBSYSTEM "unicode"
@@ -87,7 +88,7 @@ static const char default_u8[] = { 0 };
 static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t table_next_id;
 static GArray *table_index;
-static GHashTable *table_symbols;
+static struct kmscon_hashtable *table_symbols;
 
 static guint hash_ucs4(gconstpointer key)
 {
@@ -140,6 +141,7 @@ static void table_unlock()
 static int table__init()
 {
 	static const uint32_t *val = NULL; /* we need an lvalue for glib */
+	int ret;
 
 	if (table_symbols)
 		return 0;
@@ -155,10 +157,9 @@ static int table__init()
 	/* first entry is not used so add dummy */
 	g_array_append_val(table_index, val);
 
-	table_symbols = g_hash_table_new_full(hash_ucs4, cmp_ucs4,
-						(GDestroyNotify) free, NULL);
-	if (!table_symbols) {
-		log_err("cannot allocate hash-table");
+	ret = kmscon_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
+					free, NULL);
+	if (ret) {
 		g_array_unref(table_index);
 		return -ENOMEM;
 	}
@@ -237,6 +238,8 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 	const uint32_t *ptr;
 	size_t s;
 	kmscon_symbol_t rsym;
+	void *tmp;
+	bool res;
 
 	table_lock();
 
@@ -261,9 +264,9 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 	buf[s++] = ucs4;
 	buf[s++] = KMSCON_UCS4_MAX + 1;
 
-	nsym = GPOINTER_TO_UINT(g_hash_table_lookup(table_symbols, buf));
-	if (nsym) {
-		rsym = nsym;
+	res = kmscon_hashtable_find(table_symbols, &tmp, buf);
+	if (res) {
+		rsym = (uint32_t)(long)tmp;
 		goto unlock;
 	}
 
@@ -277,7 +280,7 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 
 	memcpy(nval, buf, s * sizeof(uint32_t));
 	nsym = table_next_id++;
-	g_hash_table_insert(table_symbols, nval, GUINT_TO_POINTER(nsym));
+	kmscon_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
 	g_array_append_val(table_index, nval);
 	rsym = nsym;
 
