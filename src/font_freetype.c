@@ -133,7 +133,7 @@ static int kmscon_glyph_new(struct kmscon_glyph **out, kmscon_symbol_t key,
 		}
 	}
 
-	gl_tex_load(glyph->tex, bmap->width, bmap->rows, data);
+	gl_tex_load(glyph->tex, bmap->width, 0, bmap->rows, data);
 	free(data);
 
 	glyph->width = bmap->width;

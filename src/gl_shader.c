@@ -98,7 +98,7 @@ void gl_tex_free(unsigned int tex)
 	glDeleteTextures(1, &tex);
 }
 
-void gl_tex_load(unsigned int tex, unsigned int width,
+void gl_tex_load(unsigned int tex, unsigned int width, unsigned int stride,
 			unsigned int height, void *buf)
 {
 	if (!buf || !width || !height)
@@ -110,8 +110,10 @@ void gl_tex_load(unsigned int tex, unsigned int width,
 	 */
 
 	glBindTexture(GL_TEXTURE_2D, tex);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
 			GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 struct gl_shader {

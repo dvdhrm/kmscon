@@ -73,7 +73,7 @@ float *gl_m4_stack_tip(struct gl_m4_stack *stack);
 
 unsigned int gl_tex_new();
 void gl_tex_free(unsigned int tex);
-void gl_tex_load(unsigned int tex, unsigned int width,
+void gl_tex_load(unsigned int tex, unsigned int width, unsigned int stride,
 			unsigned int height, void *buf);
 
 /*
