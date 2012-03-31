@@ -67,7 +67,7 @@ fi
 AM_CONDITIONAL([USE_XKBCOMMON], [test x$enable_xkbcommon = xyes])
 AC_MSG_RESULT([$enable_xkbcommon])
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0])
+PKG_CHECK_MODULES([GLIB], [glib-2.0 cairo pango pangocairo])
 AC_SUBST(GLIB_CFLAGS)
 AC_SUBST(GLIB_LIBS)
 

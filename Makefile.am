@@ -55,7 +55,8 @@ libkmscon_core_la_SOURCES = \
 	src/uterm_video_drm.c \
 	src/gl.h \
 	src/gl_math.c \
-	src/gl_shader.c
+	src/gl_shader.c \
+	src/font_pango.c
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \

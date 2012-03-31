@@ -1,7 +1,7 @@
 /*
  * kmscon - Font Management
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -26,13 +26,43 @@
 
 /*
  * Font Management
- * A font factory helps loading and initializing fonts. The font object is used
- * to draw glyphs onto the screen.
- * Efficient caching is used to allow fast drawing operations.
+ * The output of a console is a fixed-size table. That is, it consists of many
+ * cells where each character is printed either into a single cell or spread
+ * across multiple cells. However, there will never be multiple characters in a
+ * single cell so cell indexes are the smallest position information.
+ * The classic console uses one character per cell. Newer consoles may allow
+ * widened characters, though. Common are characters that are double-width and
+ * characters that are double-width+double-height.
+ * If you mix many different widths/heights then this might get very
+ * memory-consuming as we need to have one loaded font for each size to get
+ * decent results. Therefore, avoid widths/heights other than the ones
+ * mentioned.
+ *
+ * Therefore, this layer does not provide the classic font APIs, instead it
+ * offers a font_screen object which represents the whole screen. You specify
+ * the x/y coordinates of your framebuffer/target and the font plus point-size
+ * that you want to use. This layer automatically computes the pixel size and
+ * resulting row/column counts.
+ * For reversed logic you can also specify row/column counts and the API
+ * calculates the required font-point-size.
+ * In both situations you never have to deal with font related details! The only
+ * thing you need to know is the row/column count of the resulting table and
+ * all the characters in the table.
+ *
+ * When drawing a screen you need to tell the font layer where to draw the
+ * characters. For performance reasons this is split into several tasks:
+ *   1: Start a drawing operation. This resets the screen and prepares the font
+ *      for drawing. It clears all previous entries.
+ *   2: Add each character you want to draw to the font_screen object with its
+ *      cell position and cell width. The width is probably always 1/1 but for
+ *      multi-cell characters you can specify other widths/heights.
+ *   3: Perform the drawing operation. This instructs the font-layer to actually
+ *      draw all the added characters to your surface.
+ * You need to perform all 3 steps for every frame you render.
  */
 
-#ifndef KMSCON_FONT_H
-#define KMSCON_FONT_H
+#ifndef FONT_FONT_H
+#define FONT_FONT_H
 
 #include <stdlib.h>
 #include "gl.h"
@@ -56,4 +86,66 @@ unsigned int kmscon_font_get_width(struct kmscon_font *font);
 int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m,
 			struct gl_shader *shader);
 
-#endif /* KMSCON_FONT_H */
+/* font attributes */
+
+enum font_style {
+	FONT_NORMAL,
+	FONT_ITALIC,
+	FONT_OBLIQUE,
+};
+
+struct font_attr {
+	const char *name;	/* use NULL for default */
+	unsigned int points;
+	unsigned int dpi;	/* use 0 for default */
+	bool bold;
+	enum font_style style;
+};
+
+#define FONT_ATTR(_name, _points, _dpi) &(const struct font_attr){ \
+		.name = (_name), \
+		.points = (_points), \
+		.dpi = (_dpi), \
+		.bold = false, \
+		.style = FONT_NORMAL, \
+	}
+
+/* font draw/assemble buffers */
+
+struct font_buffer {
+	unsigned int width;
+	unsigned int stride;
+	unsigned int height;
+	char *data;
+};
+
+int font_buffer_new(struct font_buffer **out, unsigned int width,
+			unsigned int height);
+void font_buffer_free(struct font_buffer *buf);
+
+/* font screens */
+
+struct font_screen;
+
+int font_screen_new(struct font_screen **out, struct font_buffer *buf,
+			const struct font_attr *attr,
+			struct gl_shader *shader);
+int font_screen_new_fixed(struct font_screen **out, struct font_buffer *buf,
+			const struct font_attr *attr,
+			unsigned int cols, unsigned int rows,
+			struct gl_shader *shader);
+void font_screen_free(struct font_screen *screen);
+
+unsigned int font_screen_columns(struct font_screen *screen);
+unsigned int font_screen_rows(struct font_screen *screen);
+unsigned int font_screen_points(struct font_screen *screen);
+unsigned int font_screen_width(struct font_screen *screen);
+unsigned int font_screen_height(struct font_screen *screen);
+
+int font_screen_draw_start(struct font_screen *screen);
+int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
+				unsigned int cellx, unsigned int celly,
+				unsigned int width, unsigned int height);
+int font_screen_draw_perform(struct font_screen *screen, float *m);
+
+#endif /* FONT_FONT_H */
