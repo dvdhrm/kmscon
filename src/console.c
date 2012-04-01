@@ -59,8 +59,6 @@ struct line {
 };
 
 struct kmscon_buffer {
-	unsigned long ref;
-
 	unsigned int sb_count;
 	struct line *sb_first;
 	struct line *sb_last;
@@ -619,7 +617,6 @@ static int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 		return -ENOMEM;
 
 	memset(buf, 0, sizeof(*buf));
-	buf->ref = 1;
 
 	ret = gl_m4_stack_new(&buf->stack);
 	if (ret)
@@ -640,22 +637,11 @@ err_free:
 	return ret;
 }
 
-static void kmscon_buffer_ref(struct kmscon_buffer *buf)
-{
-	if (!buf)
-		return;
-
-	++buf->ref;
-}
-
-static void kmscon_buffer_unref(struct kmscon_buffer *buf)
+static void kmscon_buffer_free(struct kmscon_buffer *buf)
 {
 	unsigned int i;
 
-	if (!buf || !buf->ref)
-		return;
-
-	if (--buf->ref)
+	if (!buf)
 		return;
 
 	log_debug("destroying buffer object");
@@ -1052,7 +1038,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 
 	log_debug("destroying console");
 	kmscon_font_unref(con->font);
-	kmscon_buffer_unref(con->cells);
+	kmscon_buffer_free(con->cells);
 	kmscon_font_factory_unref(con->ff);
 	free(con);
 }
