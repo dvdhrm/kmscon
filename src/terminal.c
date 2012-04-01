@@ -56,6 +56,8 @@ struct screen {
 	struct screen *prev;
 	struct uterm_display *disp;
 	struct uterm_screen *screen;
+	struct font_buffer *buf;
+	struct font_screen *fscr;
 };
 
 struct kmscon_terminal {
@@ -99,7 +101,7 @@ static void draw_all(struct ev_idle *idle, void *data)
 		gl_viewport(screen);
 		glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		kmscon_console_map(term->console, term->shader);
+		kmscon_console_draw(term->console, iter->fscr);
 		uterm_screen_swap(screen);
 	}
 }
@@ -118,7 +120,6 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct screen *scr;
 	int ret;
 	unsigned int width, height;
-	bool resize;
 
 	scr = malloc(sizeof(*scr));
 	if (!scr)
@@ -127,39 +128,45 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	scr->disp = disp;
 
 	ret = uterm_screen_new_single(&scr->screen, disp);
-	if (ret) {
-		free(scr);
-		return ret;
-	}
+	if (ret)
+		goto err_free;
+
+	width = uterm_screen_width(scr->screen);
+	height = uterm_screen_height(scr->screen);
+
+	ret = font_buffer_new(&scr->buf, width, height);
+	if (ret)
+		goto err_screen;
+
+	ret = font_screen_new_fixed(&scr->fscr, scr->buf, FONT_ATTR(NULL, 12, 0),
+				80, 24,
+				term->shader);
+	if (ret)
+		goto err_buf;
 
 	scr->next = term->screens;
 	if (scr->next)
 		scr->next->prev = scr;
 	term->screens = scr;
 
-	resize = false;
-	width = uterm_screen_width(scr->screen);
-	height = uterm_screen_height(scr->screen);
-	if (term->max_width < width) {
-		term->max_width = width;
-		resize = true;
-	}
-	if (term->max_height < height) {
-		term->max_height = height;
-		resize = true;
-	}
-
-	if (resize)
-		kmscon_console_resize(term->console, 0, 0, term->max_height);
-
 	log_debug("added display %p to terminal %p", disp, term);
 	schedule_redraw(term);
 	uterm_display_ref(scr->disp);
 	return 0;
+
+err_buf:
+	font_buffer_free(scr->buf);
+err_screen:
+	uterm_screen_unref(scr->screen);
+err_free:
+	free(scr);
+	return ret;
 }
 
 static void free_screen(struct screen *scr)
 {
+	font_screen_free(scr->fscr);
+	font_buffer_free(scr->buf);
 	uterm_screen_unref(scr->screen);
 	uterm_display_unref(scr->disp);
 	free(scr);

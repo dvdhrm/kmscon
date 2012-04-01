@@ -722,32 +722,22 @@ static int kmscon_buffer_set_margins(struct kmscon_buffer *buf,
 }
 
 static void kmscon_buffer_draw(struct kmscon_buffer *buf,
-				struct kmscon_font *font,
-				struct gl_shader *shader)
+				struct font_screen *fscr)
 {
-	float xs, ys;
 	unsigned int i, j, k, num;
 	struct line *iter, *line = NULL;
 	struct cell *cell;
-	float *m;
 	int idx;
+	float m[16];
 
-	if (!buf || !font)
+	if (!buf || !fscr)
 		return;
 
-	m = gl_m4_stack_tip(buf->stack);
-	gl_m4_identity(m);
-
-	xs = 1.0 / buf->size_x;
-	ys = 1.0 / buf->size_y;
-	gl_m4_scale(m, 2, 2, 1);
-	gl_m4_translate(m, -0.5, -0.5, 0);
-	gl_m4_scale(m, xs, ys, 1);
+	font_screen_draw_start(fscr);
 
 	iter = buf->position;
 	k = 0;
 	idx = 0;
-
 	for (i = 0; i < buf->size_y; ++i) {
 		if (iter) {
 			line = iter;
@@ -788,18 +778,14 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
-
-			m = gl_m4_stack_push(buf->stack);
-			if (!m) {
-				log_warn("cannot push matrix");
-				break;
-			}
-
-			gl_m4_translate(m, j, i, 0);
-			kmscon_font_draw(font, cell->ch, m, shader);
-			m = gl_m4_stack_pop(buf->stack);
+			font_screen_draw_char(fscr, cell->ch, j, i, 1, 1);
 		}
 	}
+
+	gl_m4_identity(m);
+	gl_m4_translate(m, -1, -1, 0);
+	gl_m4_scale(m, 2, 2, 1);
+	font_screen_draw_perform(fscr, m);
 }
 
 static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
@@ -1130,19 +1116,12 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	return 0;
 }
 
-/*
- * This maps the console onto the current GL framebuffer. It expects the
- * framebuffer to have 0/0 in the middle, -1/-1 in the upper left and 1/1 in
- * the lower right (default GL settings).
- * This does not clear the screen, nor does it paint the background. Instead
- * the background is transparent and blended on top of the framebuffer.
- */
-void kmscon_console_map(struct kmscon_console *con, struct gl_shader *shader)
+void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
 	if (!con)
 		return;
 
-	kmscon_buffer_draw(con->cells, con->font, shader);
+	kmscon_buffer_draw(con->cells, fscr);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)

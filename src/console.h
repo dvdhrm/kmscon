@@ -54,8 +54,7 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height);
 
-void kmscon_console_map(struct kmscon_console *con,
-			struct gl_shader *shader);
+void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);
 void kmscon_console_newline(struct kmscon_console *con);
