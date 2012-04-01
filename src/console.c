@@ -104,7 +104,6 @@ struct kmscon_console {
 
 	/* console cells */
 	struct kmscon_buffer *cells;
-	unsigned int margin_top;	/* idx of first scroll line */
 	unsigned int margin_bottom;	/* idx of last scroll line */
 	bool rel_addr;			/* is relative addressing used? */
 	bool auto_wrap;			/* auto wrap on end of line? */
@@ -723,14 +722,6 @@ static int kmscon_buffer_set_margins(struct kmscon_buffer *buf,
 	}
 }
 
-static unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf)
-{
-	if (!buf)
-		return 0;
-
-	return buf->mtop_y;
-}
-
 static unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
 {
 	if (!buf)
@@ -1006,7 +997,7 @@ static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
 	if (!con->rel_addr)
 		return y;
 
-	return con->margin_top + y;
+	return con->cells->mtop_y + y;
 }
 
 int kmscon_console_new(struct kmscon_console **out,
@@ -1032,7 +1023,6 @@ int kmscon_console_new(struct kmscon_console **out,
 	if (ret)
 		goto err_free;
 
-	con->margin_top = kmscon_buffer_get_mtop(con->cells);
 	num = kmscon_buffer_get_mbottom(con->cells);
 	con->margin_bottom = con->cells->size_y - 1 - num;
 
@@ -1136,7 +1126,6 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (ret)
 		return ret;
 
-	con->margin_top = kmscon_buffer_get_mtop(con->cells);
 	num = kmscon_buffer_get_mbottom(con->cells);
 	con->margin_bottom = con->cells->size_y - 1 - num;
 
@@ -1254,12 +1243,12 @@ void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
 		num = con->cells->size_y;
 
 	if (con->rel_addr) {
-		diff = con->cursor_y - con->margin_top;
+		diff = con->cursor_y - con->cells->mtop_y;
 		if (num > diff) {
 			num -= diff;
 			if (scroll)
 				kmscon_buffer_scroll_down(con->cells, num);
-			con->cursor_y = con->margin_top;
+			con->cursor_y = con->cells->mtop_y;
 		} else {
 			con->cursor_y -= num;
 		}
