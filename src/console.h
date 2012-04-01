@@ -1,7 +1,7 @@
 /*
  * kmscon - Console Management
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -26,10 +26,6 @@
 
 /*
  * Console Management
- * The console management uses OpenGL, cairo and pango to draw a console to a
- * framebuffer. It is independent of the other subsystems and can also be used
- * in other applications.
- *
  * This console does not emulate any terminal at all. This subsystem just
  * provides functions to draw a console to a framebuffer and modifying the state
  * of it.
@@ -44,37 +40,7 @@
 #include "gl.h"
 #include "unicode.h"
 
-struct kmscon_buffer;
 struct kmscon_console;
-
-/* console buffer with cell objects */
-
-int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
-							unsigned int y);
-void kmscon_buffer_ref(struct kmscon_buffer *buf);
-void kmscon_buffer_unref(struct kmscon_buffer *buf);
-
-int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
-							unsigned int y);
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
-			struct gl_shader *shader);
-void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max);
-void kmscon_buffer_clear_sb(struct kmscon_buffer *buf);
-
-int kmscon_buffer_set_margins(struct kmscon_buffer *buf, unsigned int top,
-							unsigned int bottom);
-unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf);
-unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf);
-unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf);
-unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf);
-void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
-					unsigned int y, kmscon_symbol_t ch);
-kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
-							unsigned int y);
-void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num);
-void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num);
-void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
-		unsigned int y_from, unsigned int x_to, unsigned int y_to);
 
 /* console objects */
 

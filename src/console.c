@@ -1,7 +1,7 @@
 /*
  * kmscon - Console Management
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -257,76 +257,6 @@ static struct line *get_line(struct kmscon_buffer *buf, unsigned int y)
 	return NULL;
 }
 
-int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
-								unsigned int y)
-{
-	struct kmscon_buffer *buf;
-	int ret;
-
-	if (!out)
-		return -EINVAL;
-
-	buf = malloc(sizeof(*buf));
-	if (!buf)
-		return -ENOMEM;
-
-	memset(buf, 0, sizeof(*buf));
-	buf->ref = 1;
-
-	ret = gl_m4_stack_new(&buf->stack);
-	if (ret)
-		goto err_free;
-
-	ret = kmscon_buffer_resize(buf, x, y);
-	if (ret)
-		goto err_stack;
-
-	log_debug("new buffer object");
-	*out = buf;
-	return 0;
-
-err_stack:
-	gl_m4_stack_free(buf->stack);
-err_free:
-	free(buf);
-	return ret;
-}
-
-void kmscon_buffer_ref(struct kmscon_buffer *buf)
-{
-	if (!buf)
-		return;
-
-	++buf->ref;
-}
-
-void kmscon_buffer_unref(struct kmscon_buffer *buf)
-{
-	unsigned int i;
-
-	if (!buf || !buf->ref)
-		return;
-
-	if (--buf->ref)
-		return;
-
-	log_debug("destroying buffer object");
-	kmscon_buffer_clear_sb(buf);
-
-	for (i = 0; i < buf->scroll_y; ++i)
-		free_line(buf->scroll_buf[i]);
-	for (i = 0; i < buf->mtop_y; ++i)
-		free_line(buf->mtop_buf[i]);
-	for (i = 0; i < buf->mbottom_y; ++i)
-		free_line(buf->mbottom_buf[i]);
-
-	free(buf->scroll_buf);
-	free(buf->mtop_buf);
-	free(buf->mbottom_buf);
-	gl_m4_stack_free(buf->stack);
-	free(buf);
-}
-
 /*
  * This links the given line into the scrollback-buffer. This always succeeds.
  */
@@ -399,59 +329,6 @@ static struct line *get_from_scrollback(struct kmscon_buffer *buf)
 	line->next = NULL;
 	line->prev = NULL;
 	return line;
-}
-
-/* set maximum scrollback buffer size */
-void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf, unsigned int max)
-{
-	struct line *line;
-
-	if (!buf)
-		return;
-
-	while (buf->sb_count > max) {
-		line = buf->sb_first;
-		if (!line)
-			break;
-
-		buf->sb_first = line->next;
-		if (line->next)
-			line->next->prev = NULL;
-		else
-			buf->sb_last = NULL;
-		buf->sb_count--;
-
-		if (buf->position == line) {
-			if (buf->sb_first)
-				buf->position = buf->sb_first;
-			else
-				buf->position = NULL;
-		}
-
-		free_line(line);
-	}
-
-	buf->sb_max = max;
-}
-
-/* clear scrollback buffer */
-void kmscon_buffer_clear_sb(struct kmscon_buffer *buf)
-{
-	struct line *iter, *tmp;
-
-	if (!buf)
-		return;
-
-	for (iter = buf->sb_first; iter; ) {
-		tmp = iter;
-		iter = iter->next;
-		free_line(tmp);
-	}
-
-	buf->sb_first = NULL;
-	buf->sb_last = NULL;
-	buf->sb_count = 0;
-	buf->position = NULL;
 }
 
 /*
@@ -637,7 +514,7 @@ static int resize_mbottom(struct kmscon_buffer *buf, unsigned int y)
  * any way. This would take too long if multiple resize-operations are
  * performed.
  */
-int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
+static int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 								unsigned int y)
 {
 	int ret;
@@ -674,8 +551,133 @@ int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
 	return 0;
 }
 
-int kmscon_buffer_set_margins(struct kmscon_buffer *buf, unsigned int top,
-							unsigned int bottom)
+/* set maximum scrollback buffer size */
+static void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf,
+					unsigned int max)
+{
+	struct line *line;
+
+	if (!buf)
+		return;
+
+	while (buf->sb_count > max) {
+		line = buf->sb_first;
+		if (!line)
+			break;
+
+		buf->sb_first = line->next;
+		if (line->next)
+			line->next->prev = NULL;
+		else
+			buf->sb_last = NULL;
+		buf->sb_count--;
+
+		if (buf->position == line) {
+			if (buf->sb_first)
+				buf->position = buf->sb_first;
+			else
+				buf->position = NULL;
+		}
+
+		free_line(line);
+	}
+
+	buf->sb_max = max;
+}
+
+/* clear scrollback buffer */
+static void kmscon_buffer_clear_sb(struct kmscon_buffer *buf)
+{
+	struct line *iter, *tmp;
+
+	if (!buf)
+		return;
+
+	for (iter = buf->sb_first; iter; ) {
+		tmp = iter;
+		iter = iter->next;
+		free_line(tmp);
+	}
+
+	buf->sb_first = NULL;
+	buf->sb_last = NULL;
+	buf->sb_count = 0;
+	buf->position = NULL;
+}
+
+static int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
+				unsigned int y)
+{
+	struct kmscon_buffer *buf;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+
+	buf = malloc(sizeof(*buf));
+	if (!buf)
+		return -ENOMEM;
+
+	memset(buf, 0, sizeof(*buf));
+	buf->ref = 1;
+
+	ret = gl_m4_stack_new(&buf->stack);
+	if (ret)
+		goto err_free;
+
+	ret = kmscon_buffer_resize(buf, x, y);
+	if (ret)
+		goto err_stack;
+
+	log_debug("new buffer object");
+	*out = buf;
+	return 0;
+
+err_stack:
+	gl_m4_stack_free(buf->stack);
+err_free:
+	free(buf);
+	return ret;
+}
+
+static void kmscon_buffer_ref(struct kmscon_buffer *buf)
+{
+	if (!buf)
+		return;
+
+	++buf->ref;
+}
+
+static void kmscon_buffer_unref(struct kmscon_buffer *buf)
+{
+	unsigned int i;
+
+	if (!buf || !buf->ref)
+		return;
+
+	if (--buf->ref)
+		return;
+
+	log_debug("destroying buffer object");
+	kmscon_buffer_clear_sb(buf);
+
+	for (i = 0; i < buf->scroll_y; ++i)
+		free_line(buf->scroll_buf[i]);
+	for (i = 0; i < buf->mtop_y; ++i)
+		free_line(buf->mtop_buf[i]);
+	for (i = 0; i < buf->mbottom_y; ++i)
+		free_line(buf->mbottom_buf[i]);
+
+	free(buf->scroll_buf);
+	free(buf->mtop_buf);
+	free(buf->mbottom_buf);
+	gl_m4_stack_free(buf->stack);
+	free(buf);
+}
+
+static int kmscon_buffer_set_margins(struct kmscon_buffer *buf,
+					unsigned int top,
+					unsigned int bottom)
 {
 	int ret;
 
@@ -695,7 +697,7 @@ int kmscon_buffer_set_margins(struct kmscon_buffer *buf, unsigned int top,
 	}
 }
 
-unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf)
+static unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf)
 {
 	if (!buf)
 		return 0;
@@ -703,7 +705,7 @@ unsigned int kmscon_buffer_get_mtop(struct kmscon_buffer *buf)
 	return buf->mtop_y;
 }
 
-unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
+static unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
 {
 	if (!buf)
 		return 0;
@@ -711,8 +713,9 @@ unsigned int kmscon_buffer_get_mbottom(struct kmscon_buffer *buf)
 	return buf->mbottom_y;
 }
 
-void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
-			struct gl_shader *shader)
+static void kmscon_buffer_draw(struct kmscon_buffer *buf,
+				struct kmscon_font *font,
+				struct gl_shader *shader)
 {
 	float xs, ys;
 	unsigned int i, j, k, num;
@@ -791,7 +794,7 @@ void kmscon_buffer_draw(struct kmscon_buffer *buf, struct kmscon_font *font,
 	}
 }
 
-unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf)
+static unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf)
 {
 	if (!buf)
 		return 0;
@@ -799,7 +802,7 @@ unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf)
 	return buf->size_x;
 }
 
-unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf)
+static unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf)
 {
 	if (!buf)
 		return 0;
@@ -807,7 +810,7 @@ unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf)
 	return buf->size_y;
 }
 
-void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
+static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 				unsigned int y, kmscon_symbol_t ch)
 {
 	struct line *line, **slot;
@@ -860,8 +863,9 @@ void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	line->cells[x].ch = ch;
 }
 
-kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
-								unsigned int y)
+static kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf,
+						unsigned int x,
+						unsigned int y)
 {
 	struct line *line;
 
@@ -895,7 +899,8 @@ kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf, unsigned int x,
 	return line->cells[x].ch;
 }
 
-void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num)
+static void kmscon_buffer_scroll_down(struct kmscon_buffer *buf,
+					unsigned int num)
 {
 	unsigned int i;
 
@@ -914,7 +919,8 @@ void kmscon_buffer_scroll_down(struct kmscon_buffer *buf, unsigned int num)
 	buf->scroll_fill = buf->scroll_y;
 }
 
-void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num)
+static void kmscon_buffer_scroll_up(struct kmscon_buffer *buf,
+					unsigned int num)
 {
 	unsigned int i;
 
@@ -934,8 +940,11 @@ void kmscon_buffer_scroll_up(struct kmscon_buffer *buf, unsigned int num)
 	buf->scroll_fill = buf->scroll_y;
 }
 
-void kmscon_buffer_erase_region(struct kmscon_buffer *buf, unsigned int x_from,
-		unsigned int y_from, unsigned int x_to, unsigned int y_to)
+static void kmscon_buffer_erase_region(struct kmscon_buffer *buf,
+					unsigned int x_from,
+					unsigned int y_from,
+					unsigned int x_to,
+					unsigned int y_to)
 {
 	unsigned int to;
 	struct line *line;
