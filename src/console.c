@@ -59,24 +59,36 @@ struct line {
 };
 
 struct kmscon_buffer {
-	unsigned int sb_count;
-	struct line *sb_first;
-	struct line *sb_last;
-	unsigned int sb_max;
+	/* scroll-back buffer */
+	unsigned int sb_count;		/* number of lines in sb */
+	struct line *sb_first;		/* first line; was moved first */
+	struct line *sb_last;		/* last line; was moved last*/
+	unsigned int sb_max;		/* max-limit of lines in sb */
 
+	/* current position in sb; if NULL, the main screen is shown */
 	struct line *position;
+	/* fixed=true means that if the current focus is on the sb, then the
+	 * focus will stay on the line even if new lines are added to the sb or
+	 * removed. fixed=false means the distance from the current position to
+	 * the main-buffer is kept constant. In most situations this means that
+	 * the sb seems to scroll-up while staying on the line
+	 */
+	bool fixed_position;
 
-	unsigned int size_x;
-	unsigned int size_y;
+	/* current cell/row count of the main screen */
+	unsigned int size_x;		/* cell count */
+	unsigned int size_y;		/* row count */
 
-	unsigned int scroll_y;
-	unsigned int scroll_fill;
-	struct line **scroll_buf;
+	/* main scroll buffer */
+	unsigned int scroll_y;		/* number of rows in this buffer */
+	unsigned int scroll_fill;	/* current fill; last line pushed */
+	struct line **scroll_buf;	/* lines of the buffer */
 
-	unsigned int mtop_y;
-	struct line **mtop_buf;
-	unsigned int mbottom_y;
-	struct line **mbottom_buf;
+	/* margin buffers */
+	unsigned int mtop_y;		/* number of rows in top margin */
+	struct line **mtop_buf;		/* lines of the top margin */
+	unsigned int mbottom_y;		/* number of rows in bottom margin */
+	struct line **mbottom_buf;	/* lines of the bottom margin */
 
 	struct gl_m4_stack *stack;
 };
@@ -104,9 +116,8 @@ struct kmscon_console {
 	unsigned int cursor_y;
 };
 
-/*
- * Console Buffer and Cell Objects
- * A console buffer maintains an array of the lines of the current screen buffer
+/* Console Buffer and Cell Objects
+ * A console buffer maintains an array of lines of the current screen buffer
  * and a list of lines in the scrollback buffer. The screen buffer can be
  * modified, the scrollback buffer is constant.
  *
@@ -134,7 +145,7 @@ struct kmscon_console {
  * A single line is represented by a "struct line". It has an array of cells
  * which can be accessed directly. The length of each line may vary and for
  * faster resizing we also keep a \size member.
- * A line may be shorter than the current buffer width. We do not resize them to
+ * Lines may be shorter than the current buffer width. We do not resize them to
  * speed up the buffer operations. If a line is printed which is longer or
  * shorted than the screen width, it is simply filled with spaces or truncated
  * to screen width.
@@ -144,8 +155,8 @@ struct kmscon_console {
  * Screen position:
  * The current screen position may be any line inside the scrollback buffer. If
  * it is NULL, the current position is set to the current screen buffer.
- * If it is non-NULL it will stick to the given line and will not scroll back on
- * new input.
+ * If it is non-NULL it will stick to the given line and will not scroll back
+ * on new input.
  *
  * Cells
  * A single cell describes a single character that is printed in that cell. The
@@ -255,8 +266,9 @@ static struct line *get_line(struct kmscon_buffer *buf, unsigned int y)
 	return NULL;
 }
 
-/*
- * This links the given line into the scrollback-buffer. This always succeeds.
+/* This links the given line into the scrollback-buffer. This always succeeds.
+ * If \line is NULL then an empty line is created that is pushed to the
+ * scrollback buffer.
  */
 static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 {
@@ -271,6 +283,10 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 		return;
 	}
 
+	/* line==NULL means the line is empty. The scrollback buffer cannot
+	 * contain such lines, though. Therefore, explicitely allocate a new
+	 * empty line with line!=NULL but size=0.
+	 */
 	if (!line) {
 		ret = new_line(&line);
 		if (ret) {
@@ -279,6 +295,12 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 		}
 	}
 
+	/* Remove a line from the scrollback buffer if it reaches its maximum.
+	 * We must take care to correctly keep the current position as the new
+	 * line is linked in after we remove the top-most line here.
+	 * sb_max == 0 is tested earlier so we can assume sb_max > 0 here. In
+	 * other words, buf->sb_first is a valid line if sb_count >= sb_max.
+	 */
 	if (buf->sb_count >= buf->sb_max) {
 		tmp = buf->sb_first;
 		buf->sb_first = tmp->next;
@@ -288,8 +310,21 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 			buf->sb_last = NULL;
 		buf->sb_count--;
 
-		if (buf->position == tmp)
-			buf->position = line;
+		/* (position==tmp && !next) means we have sb_max=1 so set
+		 * position to the new line. Otherwise, set to new first line.
+		 * If position!=tmp and we have a fixed_position then nothing
+		 * needs to be done because we can stay at the same line. If we
+		 * have no fixed_position, we need to set the position to the
+		 * next inserted line, which can be "line", too.
+		 */
+		if (buf->position) {
+			if (buf->position == tmp || !buf->fixed_position) {
+				if (buf->position->next)
+					buf->position = buf->position->next;
+				else
+					buf->position = line;
+			}
+		}
 		free_line(tmp);
 	}
 
@@ -303,9 +338,7 @@ static void link_to_scrollback(struct kmscon_buffer *buf, struct line *line)
 	buf->sb_count++;
 }
 
-/*
- * Unlinks last line from the scrollback buffer. Returns NULL if it is empty.
- */
+/* Unlinks last line from the scrollback buffer, Returns NULL if it is empty */
 static struct line *get_from_scrollback(struct kmscon_buffer *buf)
 {
 	struct line *line;
@@ -321,16 +354,25 @@ static struct line *get_from_scrollback(struct kmscon_buffer *buf)
 		buf->sb_first = NULL;
 	buf->sb_count--;
 
-	if (buf->position == line)
-		buf->position = NULL;
+	/* correctly move the current position if it is set in the sb */
+	if (buf->position) {
+		if (buf->fixed_position) {
+			if (buf->position == line)
+				buf->position = NULL;
+		} else if (!buf->position->prev) {
+			if (buf->position == line)
+				buf->position = NULL;
+		} else {
+			buf->position = buf->position->prev;
+		}
+	}
 
 	line->next = NULL;
 	line->prev = NULL;
 	return line;
 }
 
-/*
- * Resize scroll buffer. Despite being used for scroll region only, it is kept
+/* Resize scroll buffer. Despite being used for scroll region only, it is kept
  * big enough to hold both margins too. We do this to allow fast merges of
  * margins and scroll buffer.
  */
@@ -341,16 +383,15 @@ static int resize_scrollbuf(struct kmscon_buffer *buf, unsigned int y)
 
 	/* Resize y size by adjusting the scroll-buffer size */
 	if (y < buf->scroll_y) {
-		/*
-		 * Shrink scroll-buffer. First move enough elements from the
+		/* Shrink scroll-buffer. First move enough elements from the
 		 * scroll-buffer into the scroll-back buffer so we can shrink
 		 * it without loosing data.
 		 * Then reallocate the buffer (we shrink it so we never fail
 		 * here) and correctly set values in \buf. If the buffer has
-		 * unused lines, we can shrink it down without moving lines into
-		 * the scrollback-buffer so first calculate the current fill of
-		 * the buffer and then move appropriate amount of elements to
-		 * the scrollback buffer.
+		 * unused lines, we can shrink it down without moving lines
+		 * into the scrollback-buffer so first calculate the current
+		 * fill of the buffer and then move appropriate amount of
+		 * elements to the scrollback buffer.
 		 */
 
 		if (buf->scroll_fill > y) {
@@ -369,8 +410,7 @@ static int resize_scrollbuf(struct kmscon_buffer *buf, unsigned int y)
 		if (buf->scroll_fill > y)
 			buf->scroll_fill = y;
 	} else if (y > buf->scroll_y) {
-		/*
-		 * Increase scroll-buffer to new size. Reset all new elements
+		/* Increase scroll-buffer to new size. Reset all new elements
 		 * to NULL so they are empty. Copy existing buffer into new
 		 * buffer and correctly set values in \buf.
 		 * If we have more space in the buffer, we simply move lines
@@ -506,10 +546,9 @@ static int resize_mbottom(struct kmscon_buffer *buf, unsigned int y)
 	return 0;
 }
 
-/*
- * Resize the current console buffer
- * This resizes the current buffer. We do not resize the lines or modify them in
- * any way. This would take too long if multiple resize-operations are
+/* Resize the current console buffer
+ * This resizes the current buffer. We do not resize the lines or modify them
+ * in any way. This would take too long if multiple resize-operations are
  * performed.
  */
 static int kmscon_buffer_resize(struct kmscon_buffer *buf, unsigned int x,
@@ -570,6 +609,9 @@ static void kmscon_buffer_set_max_sb(struct kmscon_buffer *buf,
 			buf->sb_last = NULL;
 		buf->sb_count--;
 
+		/* We treat fixed/unfixed position the same here because we
+		 * remove lines from the TOP of the scrollback buffer.
+		 */
 		if (buf->position == line) {
 			if (buf->sb_first)
 				buf->position = buf->sb_first;
@@ -963,6 +1005,15 @@ static void kmscon_buffer_erase_region(struct kmscon_buffer *buf,
 	}
 }
 
+/* Console Object
+ * The console object is a state-machine that represents the current state of
+ * the whole console. Besides managing the buffer it also controls the current
+ * cursor position on similar.
+ * The functions that are provided by this console are exactly the ones that
+ * are needed to emulate the classic VTs. Therefore, they are designed to have
+ * the desired behavior and configuration-options.
+ */
+
 static inline unsigned int to_abs_x(struct kmscon_console *con, unsigned int x)
 {
 	return x;
@@ -1061,8 +1112,8 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 
 /*
  * Resize console to \x and \y. The \height argument is just a quality hint for
- * internal rendering. It is supposed to be the maximal height in pixels of your
- * output. The internal texture will have this height (the width is computed
+ * internal rendering. It is supposed to be the maximal height in pixels of
+ * your output. The internal texture will have this height (the width is calced
  * automatically from the font and height). You can still use *_map() to map
  * this texture to arbitrary outputs but if you have huge resolutions, this
  * would result in bad quality if you do not specify a proper height here.
@@ -1130,13 +1181,10 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 
 /*
  * This maps the console onto the current GL framebuffer. It expects the
- * framebuffer to have 0/0 in the middle, -1/-1 in the upper left and 1/1 in the
- * lower right (default GL settings).
- * This does not clear the screen, nor does it paint the background. Instead the
- * background is transparent and blended on top of the framebuffer.
- *
- * You must have called kmscon_console_draw() before, otherwise this will map an
- * empty image onto the screen.
+ * framebuffer to have 0/0 in the middle, -1/-1 in the upper left and 1/1 in
+ * the lower right (default GL settings).
+ * This does not clear the screen, nor does it paint the background. Instead
+ * the background is transparent and blended on top of the framebuffer.
  */
 void kmscon_console_map(struct kmscon_console *con, struct gl_shader *shader)
 {
