@@ -104,8 +104,6 @@ struct kmscon_console {
 
 	/* console cells */
 	struct kmscon_buffer *cells;
-	unsigned int cells_x;
-	unsigned int cells_y;
 	unsigned int margin_top;	/* idx of first scroll line */
 	unsigned int margin_bottom;	/* idx of last scroll line */
 	bool rel_addr;			/* is relative addressing used? */
@@ -822,22 +820,6 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 	}
 }
 
-static unsigned int kmscon_buffer_get_width(struct kmscon_buffer *buf)
-{
-	if (!buf)
-		return 0;
-
-	return buf->size_x;
-}
-
-static unsigned int kmscon_buffer_get_height(struct kmscon_buffer *buf)
-{
-	if (!buf)
-		return 0;
-
-	return buf->size_y;
-}
-
 static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 				unsigned int y, kmscon_symbol_t ch)
 {
@@ -1050,11 +1032,9 @@ int kmscon_console_new(struct kmscon_console **out,
 	if (ret)
 		goto err_free;
 
-	con->cells_x = kmscon_buffer_get_width(con->cells);
-	con->cells_y = kmscon_buffer_get_height(con->cells);
 	con->margin_top = kmscon_buffer_get_mtop(con->cells);
 	num = kmscon_buffer_get_mbottom(con->cells);
-	con->margin_bottom = con->cells_y - 1 - num;
+	con->margin_bottom = con->cells->size_y - 1 - num;
 
 	log_debug("new console");
 	kmscon_font_factory_ref(con->ff);
@@ -1099,7 +1079,7 @@ unsigned int kmscon_console_get_width(struct kmscon_console *con)
 	if (!con)
 		return 0;
 
-	return con->cells_x;
+	return con->cells->size_x;
 }
 
 unsigned int kmscon_console_get_height(struct kmscon_console *con)
@@ -1107,7 +1087,7 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 	if (!con)
 		return 0;
 
-	return con->cells_y;
+	return con->cells->size_y;
 }
 
 /*
@@ -1140,13 +1120,14 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 		return -EINVAL;
 
 	if (!x)
-		x = con->cells_x;
+		x = con->cells->size_x;
 	if (!y)
-		y = con->cells_y;
+		y = con->cells->size_y;
 	if (!height)
 		height = con->res_y;
 
-	if (x == con->cells_x && y == con->cells_y && height == con->res_y)
+	if (x == con->cells->size_x && y == con->cells->size_y &&
+						height == con->res_y)
 		return 0;
 
 	log_debug("resizing to %ux%u:%u", x, y, height);
@@ -1155,16 +1136,14 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (ret)
 		return ret;
 
-	con->cells_x = kmscon_buffer_get_width(con->cells);
-	con->cells_y = kmscon_buffer_get_height(con->cells);
 	con->margin_top = kmscon_buffer_get_mtop(con->cells);
 	num = kmscon_buffer_get_mbottom(con->cells);
-	con->margin_bottom = con->cells_y - 1 - num;
+	con->margin_bottom = con->cells->size_y - 1 - num;
 
 	kmscon_console_move_to(con, con->cursor_x, con->cursor_y);
 
 	ret = kmscon_font_factory_load(con->ff, &font, 0,
-							height / con->cells_y);
+					height / con->cells->size_y);
 	if (ret) {
 		log_err("cannot create new font: %d", ret);
 		return ret;
@@ -1172,7 +1151,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 
 	kmscon_font_unref(con->font);
 	con->font = font;
-	con->res_x = con->cells_x * kmscon_font_get_width(con->font);
+	con->res_x = con->cells->size_x * kmscon_font_get_width(con->font);
 	con->res_y = height;
 	log_debug("new resolution %ux%u", con->res_x, con->res_y);
 
@@ -1199,7 +1178,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 	if (!con)
 		return;
 
-	if (con->cursor_x >= con->cells_x) {
+	if (con->cursor_x >= con->cells->size_x) {
 		if (con->auto_wrap) {
 			con->cursor_x = 0;
 			con->cursor_y++;
@@ -1208,7 +1187,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 				kmscon_buffer_scroll_up(con->cells, 1);
 			}
 		} else {
-			con->cursor_x = con->cells_x - 1;
+			con->cursor_x = con->cells->size_x - 1;
 		}
 	}
 
@@ -1234,12 +1213,12 @@ void kmscon_console_backspace(struct kmscon_console *con)
 	if (!con)
 		return;
 
-	if (con->cursor_x >= con->cells_x) {
-		con->cursor_x = con->cells_x - 2;
+	if (con->cursor_x >= con->cells->size_x) {
+		con->cursor_x = con->cells->size_x - 2;
 	} else if (con->cursor_x > 0) {
 		con->cursor_x--;
 	} else if (con->auto_wrap) {
-		con->cursor_x = con->cells_x - 1;
+		con->cursor_x = con->cells->size_x - 1;
 		kmscon_console_move_up(con, 1, true);
 	}
 }
@@ -1251,15 +1230,15 @@ void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 		return;
 
 	con->cursor_x = to_abs_x(con, x);
-	if (con->cursor_x >= con->cells_x)
-		con->cursor_x = con->cells_x - 1;
+	if (con->cursor_x >= con->cells->size_x)
+		con->cursor_x = con->cells->size_x - 1;
 
 	con->cursor_y = to_abs_y(con, y);
 	if (con->cursor_y > con->margin_bottom) {
 		if (con->rel_addr)
 			con->cursor_y = con->margin_bottom;
-		else if (con->cursor_y >= con->cells_y)
-			con->cursor_y = con->cells_y - 1;
+		else if (con->cursor_y >= con->cells->size_y)
+			con->cursor_y = con->cells->size_y - 1;
 	}
 }
 
@@ -1271,8 +1250,8 @@ void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
 	if (!con || !num)
 		return;
 
-	if (num > con->cells_y)
-		num = con->cells_y;
+	if (num > con->cells->size_y)
+		num = con->cells->size_y;
 
 	if (con->rel_addr) {
 		diff = con->cursor_y - con->margin_top;
@@ -1304,8 +1283,8 @@ void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
 	if (!con || !num)
 		return;
 
-	if (num > con->cells_y)
-		num = con->cells_y;
+	if (num > con->cells->size_y)
+		num = con->cells->size_y;
 
 	if (con->rel_addr) {
 		diff = con->margin_bottom - con->cursor_y;
@@ -1318,12 +1297,12 @@ void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
 			con->cursor_y += num;
 		}
 	} else {
-		diff = con->cells_y - con->cursor_y - 1;
+		diff = con->cells->size_y - con->cursor_y - 1;
 		if (num > diff) {
 			num -= diff;
 			if (scroll)
 				kmscon_buffer_scroll_up(con->cells, num);
-			con->cursor_y = con->cells_y - 1;
+			con->cursor_y = con->cells->size_y - 1;
 		} else {
 			con->cursor_y += num;
 		}
@@ -1335,11 +1314,11 @@ void kmscon_console_move_left(struct kmscon_console *con, unsigned int num)
 	if (!con || !num)
 		return;
 
-	if (num > con->cells_x)
-		num = con->cells_x;
+	if (num > con->cells->size_x)
+		num = con->cells->size_x;
 
-	if (con->cursor_x >= con->cells_x)
-		con->cursor_x = con->cells_x - 1;
+	if (con->cursor_x >= con->cells->size_x)
+		con->cursor_x = con->cells->size_x - 1;
 
 	if (num > con->cursor_x)
 		con->cursor_x = 0;
@@ -1352,11 +1331,11 @@ void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
 	if (!con || !num)
 		return;
 
-	if (num > con->cells_x)
-		num = con->cells_x;
+	if (num > con->cells->size_x)
+		num = con->cells->size_x;
 
-	if (num + con->cursor_x >= con->cells_x)
-		con->cursor_x = con->cells_x - 1;
+	if (num + con->cursor_x >= con->cells->size_x)
+		con->cursor_x = con->cells->size_x - 1;
 	else
 		con->cursor_x += num;
 }
@@ -1366,7 +1345,7 @@ void kmscon_console_move_line_end(struct kmscon_console *con)
 	if (!con)
 		return;
 
-	con->cursor_x = con->cells_x - 1;
+	con->cursor_x = con->cells->size_x - 1;
 }
 
 void kmscon_console_move_line_home(struct kmscon_console *con)
@@ -1384,8 +1363,8 @@ void kmscon_console_erase_cursor(struct kmscon_console *con)
 	if (!con)
 		return;
 
-	if (con->cursor_x >= con->cells_x)
-		x = con->cells_x - 1;
+	if (con->cursor_x >= con->cells->size_x)
+		x = con->cells->size_x - 1;
 	else
 		x = con->cursor_x;
 
@@ -1400,13 +1379,13 @@ void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 	if (!con)
 		return;
 
-	if (con->cursor_x >= con->cells_x)
-		x = con->cells_x - 1;
+	if (con->cursor_x >= con->cells->size_x)
+		x = con->cells->size_x - 1;
 	else
 		x = con->cursor_x;
 
 	kmscon_buffer_erase_region(con->cells, x, con->cursor_y,
-					con->cells_x - 1, con->cursor_y);
+					con->cells->size_x - 1, con->cursor_y);
 }
 
 void kmscon_console_erase_home_to_cursor(struct kmscon_console *con)
@@ -1424,7 +1403,7 @@ void kmscon_console_erase_current_line(struct kmscon_console *con)
 		return;
 
 	kmscon_buffer_erase_region(con->cells, 0, con->cursor_y,
-					con->cells_x - 1, con->cursor_y);
+					con->cells->size_x - 1, con->cursor_y);
 }
 
 void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con)
@@ -1443,13 +1422,13 @@ void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con)
 	if (!con)
 		return;
 
-	if (con->cursor_x >= con->cells_x)
-		x = con->cells_x - 1;
+	if (con->cursor_x >= con->cells->size_x)
+		x = con->cells->size_x - 1;
 	else
 		x = con->cursor_x;
 
 	kmscon_buffer_erase_region(con->cells, x, con->cursor_y,
-					con->cells_x - 1, con->cells_y - 1);
+			con->cells->size_x - 1, con->cells->size_y - 1);
 }
 
 void kmscon_console_erase_screen(struct kmscon_console *con)
@@ -1458,5 +1437,5 @@ void kmscon_console_erase_screen(struct kmscon_console *con)
 		return;
 
 	kmscon_buffer_erase_region(con->cells, 0, 0,
-					con->cells_x - 1, con->cells_y - 1);
+			con->cells->size_x - 1, con->cells->size_y - 1);
 }
