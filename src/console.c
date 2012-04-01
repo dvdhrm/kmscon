@@ -89,18 +89,10 @@ struct kmscon_buffer {
 	struct line **mtop_buf;		/* lines of the top margin */
 	unsigned int mbottom_y;		/* number of rows in bottom margin */
 	struct line **mbottom_buf;	/* lines of the bottom margin */
-
-	struct gl_m4_stack *stack;
 };
 
 struct kmscon_console {
 	size_t ref;
-	struct kmscon_font_factory *ff;
-
-	/* font */
-	unsigned int res_x;
-	unsigned int res_y;
-	struct kmscon_font *font;
 
 	/* console cells */
 	struct kmscon_buffer *cells;
@@ -656,20 +648,14 @@ static int kmscon_buffer_new(struct kmscon_buffer **out, unsigned int x,
 
 	memset(buf, 0, sizeof(*buf));
 
-	ret = gl_m4_stack_new(&buf->stack);
-	if (ret)
-		goto err_free;
-
 	ret = kmscon_buffer_resize(buf, x, y);
 	if (ret)
-		goto err_stack;
+		goto err_free;
 
 	log_debug("new buffer object");
 	*out = buf;
 	return 0;
 
-err_stack:
-	gl_m4_stack_free(buf->stack);
 err_free:
 	free(buf);
 	return ret;
@@ -695,7 +681,6 @@ static void kmscon_buffer_free(struct kmscon_buffer *buf)
 	free(buf->scroll_buf);
 	free(buf->mtop_buf);
 	free(buf->mbottom_buf);
-	gl_m4_stack_free(buf->stack);
 	free(buf);
 }
 
@@ -977,8 +962,7 @@ static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
 	return con->cells->mtop_y + y;
 }
 
-int kmscon_console_new(struct kmscon_console **out,
-			struct kmscon_font_factory *ff)
+int kmscon_console_new(struct kmscon_console **out)
 {
 	struct kmscon_console *con;
 	int ret;
@@ -993,14 +977,12 @@ int kmscon_console_new(struct kmscon_console **out,
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
 	con->auto_wrap = true;
-	con->ff = ff;
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
 		goto err_free;
 
 	log_debug("new console");
-	kmscon_font_factory_ref(con->ff);
 	*out = con;
 
 	return 0;
@@ -1031,9 +1013,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 		return;
 
 	log_debug("destroying console");
-	kmscon_font_unref(con->font);
 	kmscon_buffer_free(con->cells);
-	kmscon_font_factory_unref(con->ff);
 	free(con);
 }
 
@@ -1051,69 +1031,6 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 		return 0;
 
 	return con->cells->size_y;
-}
-
-/*
- * Resize console to \x and \y. The \height argument is just a quality hint for
- * internal rendering. It is supposed to be the maximal height in pixels of
- * your output. The internal texture will have this height (the width is calced
- * automatically from the font and height). You can still use *_map() to map
- * this texture to arbitrary outputs but if you have huge resolutions, this
- * would result in bad quality if you do not specify a proper height here.
- *
- * You need to have an active GL context when calling this. You must call this
- * before calling *_draw(). Otherwise *_draw() will not work.
- * Pass 0 for each parameter if you want to use the current value. Therefore:
- * kmscon_console_resize(con, 0, 0, 0) has no effect as it doesn't change
- * anything.
- * If you called this once you must make sure that the GL context stays alive
- * for as long as this console object does. Otherwise, on deinitialization we
- * may call invalid OpenGL functions.
- * TODO: Use proper dependencies here. Maybe pass in a kmscon_output or similar
- * so we correctly activate GL contexts.
- */
-int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
-					unsigned int y, unsigned int height)
-{
-	int ret;
-	struct kmscon_font *font;
-
-	if (!con)
-		return -EINVAL;
-
-	if (!x)
-		x = con->cells->size_x;
-	if (!y)
-		y = con->cells->size_y;
-	if (!height)
-		height = con->res_y;
-
-	if (x == con->cells->size_x && y == con->cells->size_y &&
-						height == con->res_y)
-		return 0;
-
-	log_debug("resizing to %ux%u:%u", x, y, height);
-
-	ret = kmscon_buffer_resize(con->cells, x, y);
-	if (ret)
-		return ret;
-
-	kmscon_console_move_to(con, con->cursor_x, con->cursor_y);
-
-	ret = kmscon_font_factory_load(con->ff, &font, 0,
-					height / con->cells->size_y);
-	if (ret) {
-		log_err("cannot create new font: %d", ret);
-		return ret;
-	}
-
-	kmscon_font_unref(con->font);
-	con->font = font;
-	con->res_x = con->cells->size_x * kmscon_font_get_width(con->font);
-	con->res_y = height;
-	log_debug("new resolution %ux%u", con->res_x, con->res_y);
-
-	return 0;
 }
 
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)

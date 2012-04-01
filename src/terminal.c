@@ -256,14 +256,13 @@ static void input_event(struct kmscon_input *input,
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct kmscon_font_factory *ff,
 			struct uterm_video *video,
 			struct kmscon_input *input)
 {
 	struct kmscon_terminal *term;
 	int ret;
 
-	if (!out || !loop || !ff || !video || !input)
+	if (!out || !loop || !video || !input)
 		return -EINVAL;
 
 	term = malloc(sizeof(*term));
@@ -280,7 +279,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_new(&term->console, ff);
+	ret = kmscon_console_new(&term->console);
 	if (ret)
 		goto err_idle;
 

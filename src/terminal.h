@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include "console.h"
 #include "eloop.h"
-#include "font.h"
 #include "gl.h"
 #include "input.h"
 #include "uterm.h"
@@ -55,7 +54,6 @@ typedef void (*kmscon_terminal_event_cb)
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct kmscon_font_factory *ff,
 			struct uterm_video *video,
 			struct kmscon_input *input);
 void kmscon_terminal_ref(struct kmscon_terminal *term);

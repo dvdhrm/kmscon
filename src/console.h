@@ -44,8 +44,7 @@ struct kmscon_console;
 
 /* console objects */
 
-int kmscon_console_new(struct kmscon_console **out,
-			struct kmscon_font_factory *ff);
+int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
 
