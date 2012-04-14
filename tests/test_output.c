@@ -53,6 +53,9 @@
 #include "uterm.h"
 #include "test_include.h"
 
+/* eloop object */
+static struct ev_eloop *eloop;
+
 /* a colored quad */
 float d_vert[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
 float d_col[] = { 1, 1, 0, 1,
@@ -144,7 +147,7 @@ static int set_outputs(struct uterm_video *video, int num, char **list)
 	}
 
 	log_notice("Waiting 5 seconds...");
-	sleep(5);
+	ev_eloop_run(eloop, 5000);
 	log_notice("Exiting...");
 
 	gl_shader_unref(shader);
@@ -186,7 +189,6 @@ int main(int argc, char **argv)
 {
 	struct uterm_video *video;
 	int ret;
-	struct ev_eloop *eloop;
 
 	ret = test_prepare(argc, argv, &eloop);
 	if (ret)
