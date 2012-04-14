@@ -28,14 +28,13 @@
  * Test KMS/DRI output subsystem
  * This is an example how to use the output subsystem. Invoked without
  * arguments it prints a list of all connected outputs and their modes.
- * If you pass numbers as arguments, it will enable these outputs and show an
- * image on the given monitors for 5 seconds.
+ * If you pass any argument it will enable all outputs for 5seconds.
  *
  * This lists all outputs:
  * $ ./test_output
  *
- * This would show a test screen on output 0 and 4:
- * $ ./test_output 0 4
+ * This would show a test screen:
+ * $ ./test_output something
  * The test screen is a colored quad with 4 different colors in each corner.
  */
 
@@ -65,10 +64,10 @@ float d_col[] = { 1, 1, 0, 1,
 		0, 0, 1, 1,
 		0, 1, 1, 1 };
 
-static int set_outputs(struct uterm_video *video, int num, char **list)
+static int set_outputs(struct uterm_video *video)
 {
 	struct uterm_display *iter;
-	int i, j, val, ret;
+	int j, ret;
 	struct gl_shader *shader;
 	struct uterm_screen *screen;
 
@@ -81,28 +80,16 @@ static int set_outputs(struct uterm_video *video, int num, char **list)
 	j = 0;
 	iter = uterm_video_get_displays(video);
 	for ( ; iter; iter = uterm_display_next(iter)) {
-		for (i = 0; i < num; ++i) {
-			val = atoi(list[i]);
-			if (val == j)
-				break;
-		}
+		log_notice("Activating display %d %p...", j, iter);
+		ret = uterm_display_activate(iter, NULL);
+		if (ret)
+			log_err("Cannot activate display %d: %d", j, ret);
+		else
+			log_notice("Successfully activated display %d", j);
 
-		if (i == num) {
-			log_notice("Ignoring display %d", j);
-		} else {
-			log_notice("Activating display %d %p...", j, iter);
-			ret = uterm_display_activate(iter, NULL);
-			if (ret)
-				log_err("Cannot activate display %d: %d", j,
-									ret);
-			else
-				log_notice("Successfully activated display %d",
-						j);
-
-			ret = uterm_display_set_dpms(iter, UTERM_DPMS_ON);
-			if (ret)
-				log_err("Cannot set DPMS to ON: %d", ret);
-		}
+		ret = uterm_display_set_dpms(iter, UTERM_DPMS_ON);
+		if (ret)
+			log_err("Cannot set DPMS to ON: %d", ret);
 
 		++j;
 	}
@@ -211,7 +198,7 @@ int main(int argc, char **argv)
 			goto err_unref;
 		}
 	} else {
-		ret = set_outputs(video, argc - 1, &argv[1]);
+		ret = set_outputs(video);
 		if (ret) {
 			log_err("Cannot set outputs: %d", ret);
 			goto err_unref;
