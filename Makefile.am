@@ -107,7 +107,7 @@ kmscon_LDADD = libkmscon-core.la
 test_console_SOURCES = tests/test_console.c
 test_console_LDADD = libkmscon-core.la
 
-test_output_SOURCES = tests/test_output.c
+test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
 
 test_vt_SOURCES = tests/test_vt.c

@@ -51,6 +51,7 @@
 #include "gl.h"
 #include "log.h"
 #include "uterm.h"
+#include "test_include.h"
 
 /* a colored quad */
 float d_vert[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
@@ -187,26 +188,19 @@ int main(int argc, char **argv)
 	int ret;
 	struct ev_eloop *eloop;
 
-	log_print_init("test_output");
-	log_set_config(&LOG_CONFIG_INFO(1, 1));
-
-	ret = ev_eloop_new(&eloop);
+	ret = test_prepare(argc, argv, &eloop);
 	if (ret)
-		return EXIT_FAILURE;
+		goto err_fail;
 
 	log_notice("Creating video object...");
 	ret = uterm_video_new(&video, UTERM_VIDEO_DRM, eloop);
-	if (ret) {
-		log_err("Cannot create video object: %d", ret);
-		return abs(ret);
-	}
+	if (ret)
+		goto err_exit;
 
 	log_notice("Wakeing up video object...");
 	ret = uterm_video_wake_up(video);
-	if (ret < 0) {
-		log_err("Cannot wakeup video object: %d", ret);
+	if (ret < 0)
 		goto err_unref;
-	}
 
 	if (argc < 2) {
 		ret = list_outputs(video);
@@ -224,5 +218,9 @@ int main(int argc, char **argv)
 
 err_unref:
 	uterm_video_unref(video);
+err_exit:
+	test_exit(eloop);
+err_fail:
+	test_fail(ret);
 	return abs(ret);
 }
