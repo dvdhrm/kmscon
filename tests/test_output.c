@@ -42,7 +42,6 @@
 #include <errno.h>
 #include <GL/gl.h>
 #include <inttypes.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,10 +60,6 @@ float d_col[] = { 1, 1, 0, 1,
 		1, 1, 1, 1,
 		0, 0, 1, 1,
 		0, 1, 1, 1 };
-
-static void sig_term(int signum)
-{
-}
 
 static int set_outputs(struct uterm_video *video, int num, char **list)
 {
@@ -191,7 +186,6 @@ int main(int argc, char **argv)
 	struct uterm_video *video;
 	int ret;
 	struct ev_eloop *eloop;
-	struct sigaction sig;
 
 	log_print_init("test_output");
 	log_set_config(&LOG_CONFIG_INFO(1, 1));
@@ -199,11 +193,6 @@ int main(int argc, char **argv)
 	ret = ev_eloop_new(&eloop);
 	if (ret)
 		return EXIT_FAILURE;
-
-	memset(&sig, 0, sizeof(sig));
-	sig.sa_handler = sig_term;
-	sigaction(SIGTERM, &sig, NULL);
-	sigaction(SIGINT, &sig, NULL);
 
 	log_notice("Creating video object...");
 	ret = uterm_video_new(&video, UTERM_VIDEO_DRM, eloop);
