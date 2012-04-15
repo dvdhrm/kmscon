@@ -176,6 +176,7 @@ struct hook_entry {
 };
 
 struct kmscon_hook {
+	unsigned int num;
 	struct hook_entry *entries;
 	struct hook_entry *cur_entry;
 };
@@ -211,6 +212,14 @@ void kmscon_hook_free(struct kmscon_hook *hook)
 	free(hook);
 }
 
+unsigned int kmscon_hook_num(struct kmscon_hook *hook)
+{
+	if (!hook)
+		return 0;
+
+	return hook->num;
+}
+
 int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data)
 {
 	struct hook_entry *entry;
@@ -227,6 +236,7 @@ int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data)
 
 	entry->next = hook->entries;
 	hook->entries = entry;
+	hook->num++;
 	return 0;
 }
 
@@ -254,6 +264,7 @@ void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data)
 		if (hook->cur_entry == tmp)
 			hook->cur_entry = tmp->next;
 		free(tmp);
+		hook->num--;
 	}
 }
 
