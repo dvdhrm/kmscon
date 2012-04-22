@@ -34,6 +34,14 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stddef.h>
+
+/* miscellaneous */
+
+#define kmscon_offsetof(pointer, type, member) ({ \
+		const typeof(((type*)0)->member) *__ptr = (pointer); \
+		(type*)(((char*)__ptr) - offsetof(type, member)); \
+	})
 
 /* ring buffer for arbitrary byte-streams */
 
