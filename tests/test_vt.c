@@ -1,7 +1,7 @@
 /*
  * test_console - Test VT Layer
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -29,7 +29,7 @@
  * This opens a new VT and prints some text on it. You can then change the VT
  * and change back. This is only to test the VT subsystem and event engine.
  * This automatically switches to the new VT. Currently, the display gets
- * freezed then because we aren't painting to the framebuffer yet. Use
+ * frozen because we aren't painting to the framebuffer yet. Use
  * ctrl+alt+FX (or some equivalent) to switch back to X/VT.
  */
 
@@ -43,70 +43,44 @@
 #include "eloop.h"
 #include "log.h"
 #include "vt.h"
-
-static bool terminate;
-
-static void sig_term(struct ev_signal *sig, int signum, void *data)
-{
-	terminate = true;
-}
+#include "test_include.h"
 
 int main(int argc, char **argv)
 {
 	int ret;
-	struct ev_eloop *loop;
+	struct ev_eloop *eloop;
 	struct kmscon_vt *vt;
-	struct ev_signal *sig;
 
-	ret = ev_eloop_new(&loop);
-	if (ret) {
-		log_err("Cannot create eloop\n");
-		goto err_out;
-	}
-
-	ret = ev_eloop_new_signal(loop, &sig, SIGINT, sig_term, NULL);
-	if (ret) {
-		log_err("Cannot add signal\n");
-		goto err_loop;
-	}
+	ret = test_prepare(argc, argv, &eloop);
+	if (ret)
+		goto err_fail;
 
 	ret = kmscon_vt_new(&vt, NULL, NULL);
-	if (ret) {
-		log_err("Cannot create vt\n");
-		goto err_sig;
-	}
+	if (ret)
+		goto err_exit;
 
-	ret = kmscon_vt_open(vt, KMSCON_VT_NEW, loop);
-	if (ret) {
-		log_err("Cannot open VT\n");
+	ret = kmscon_vt_open(vt, KMSCON_VT_NEW, eloop);
+	if (ret)
 		goto err_vt;
-	}
 
 	ret = kmscon_vt_enter(vt);
 	if (ret)
-		log_warn("Cannot switch to VT\n");
+		log_warn("Cannot switch to VT");
 
-	while (!terminate) {
-		ret = ev_eloop_dispatch(loop, -1);
-		if (ret) {
-			log_err("Dispatcher failed\n");
-			break;
-		}
-	}
+	ev_eloop_run(eloop, -1);
 
 	log_debug("Terminating\n");
 
 	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
 	ret = kmscon_vt_leave(vt);
 	if (ret == -EINPROGRESS)
-		ev_eloop_dispatch(loop, 1000);
+		ev_eloop_run(eloop, 50);
 
 err_vt:
 	kmscon_vt_unref(vt);
-err_sig:
-	ev_eloop_rm_signal(sig);
-err_loop:
-	ev_eloop_unref(loop);
-err_out:
+err_exit:
+	test_exit(eloop);
+err_fail:
+	test_fail(ret);
 	return abs(ret);
 }
