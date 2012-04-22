@@ -755,6 +755,7 @@ static void video_destroy(struct uterm_video *video)
 
 	log_info("free drm device");
 	ev_eloop_rm_fd(drm->efd);
+	eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	eglDestroyContext(drm->disp, drm->ctx);
 	eglTerminate(drm->disp);
 	gbm_device_destroy(drm->gbm);
