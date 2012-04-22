@@ -578,6 +578,8 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
 		if (sig->signum == signum) {
 			kmscon_hook_rm_cast(sig->hook, cb, data);
+			if (!kmscon_hook_num(sig->hook))
+				signal_free(sig);
 			return;
 		}
 	}
