@@ -729,14 +729,15 @@ int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
 
 int font_screen_draw_perform(struct font_screen *screen, float *m)
 {
-	static const float val[] = { 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1 };
+	static const float ver[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
+	static const float tex[] = { 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1 };
 
 	if (!screen)
 		return -EINVAL;
 
 	gl_tex_load(screen->tex, screen->buf->width, screen->buf->stride,
 			screen->buf->height, screen->buf->data);
-	gl_shader_draw_tex(screen->shader, val, val, 6, screen->tex, m);
+	gl_shader_draw_tex(screen->shader, ver, tex, 6, screen->tex, m);
 	cairo_restore(screen->cr);
 
 	return 0;

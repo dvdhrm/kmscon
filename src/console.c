@@ -768,8 +768,6 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 	}
 
 	gl_m4_identity(m);
-	gl_m4_translate(m, -1, -1, 0);
-	gl_m4_scale(m, 2, 2, 1);
 	font_screen_draw_perform(fscr, m);
 }
 
