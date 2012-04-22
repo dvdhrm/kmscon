@@ -3,7 +3,9 @@ EXTRA_DIST = README TODO COPYING
 CLEANFILES =
 
 bin_PROGRAMS = kmscon
-check_PROGRAMS = test_console test_output test_vt test_buffer test_terminal \
+check_PROGRAMS = \
+	test_output \
+	test_vt \
 	test_input
 noinst_PROGRAMS = genshader
 noinst_LTLIBRARIES = libkmscon-core.la
@@ -104,20 +106,11 @@ libkmscon_core_la_LIBADD = \
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la
 
-test_console_SOURCES = tests/test_console.c
-test_console_LDADD = libkmscon-core.la
-
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
 
 test_vt_SOURCES = tests/test_vt.c
 test_vt_LDADD = libkmscon-core.la
-
-test_buffer_SOURCES = tests/test_buffer.c
-test_buffer_LDADD = libkmscon-core.la
-
-test_terminal_SOURCES = tests/test_terminal.c
-test_terminal_LDADD = libkmscon-core.la
 
 test_input_SOURCES = tests/test_input.c
 test_input_LDADD = libkmscon-core.la
