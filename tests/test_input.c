@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/signalfd.h>
 #include <unistd.h>
 
 #include <X11/keysym.h>
@@ -39,16 +40,11 @@
 #include "input.h"
 #include "kbd.h"
 #include "log.h"
-
-static bool terminate;
-
-static void sig_term(struct ev_signal *sig, int signum, void *data)
-{
-	terminate = true;
-}
+#include "test_include.h"
 
 /* Pressing Ctrl-\ should toggle the capturing. */
-static void sig_quit(struct ev_signal *sig, int signum, void *data)
+static void sig_quit(struct ev_eloop *p, struct signalfd_siginfo *info,
+			void *data)
 {
 	struct kmscon_input *input = data;
 
@@ -103,68 +99,49 @@ static void input_arrived(struct kmscon_input *input,
 int main(int argc, char **argv)
 {
 	int ret;
-	struct ev_eloop *loop;
+	struct ev_eloop *eloop;
 	struct kmscon_input *input;
-	struct ev_signal *sigint, *sigquit;
+
+	ret = test_prepare(argc, argv, &eloop);
+	if (ret)
+		goto err_fail;
 
 	if (!setlocale(LC_ALL, "")) {
-		log_err("Cannot set locale: %m\n");
+		log_err("Cannot set locale: %m");
 		ret = -EFAULT;
-		goto err_out;
-	}
-
-	ret = ev_eloop_new(&loop);
-	if (ret) {
-		log_err("Cannot create eloop\n");
-		goto err_out;
+		goto err_exit;
 	}
 
 	ret = kmscon_input_new(&input);
-	if (ret) {
-		log_err("Cannot create input\n");
-		goto err_loop;
-	}
+	if (ret)
+		goto err_exit;
 
-	ret = ev_eloop_new_signal(loop, &sigint, SIGINT, sig_term, NULL);
-	if (ret) {
-		log_err("Cannot add INT signal\n");
+	ret = ev_eloop_register_signal_cb(eloop, SIGQUIT, sig_quit, input);
+	if (ret)
 		goto err_input;
-	}
 
-	ret = ev_eloop_new_signal(loop, &sigquit, SIGQUIT, sig_quit, input);
-	if (ret) {
-		log_err("Cannot add quit signal\n");
-		goto err_sigint;
-	}
-
-	ret = kmscon_input_connect_eloop(input, loop, input_arrived, NULL);
-	if (ret) {
-		log_err("Cannot connect input\n");
+	ret = kmscon_input_connect_eloop(input, eloop);
+	if (ret)
 		goto err_sigquit;
-	}
+
+	ret = kmscon_input_register_cb(input, input_arrived, NULL);
+	if (ret)
+		goto err_sigquit;
 
 	kmscon_input_wake_up(input);
 
 	system("stty -echo");
-
-	while (!terminate) {
-		ret = ev_eloop_dispatch(loop, -1);
-		if (ret) {
-			log_err("Dispatcher failed\n");
-			break;
-		}
-	}
-
+	ev_eloop_run(eloop, -1);
 	system("stty echo");
 
+	kmscon_input_unregister_cb(input, input_arrived, NULL);
 err_sigquit:
-	ev_eloop_rm_signal(sigquit);
-err_sigint:
-	ev_eloop_rm_signal(sigint);
+	ev_eloop_unregister_signal_cb(eloop, SIGQUIT, sig_quit, input);
 err_input:
 	kmscon_input_unref(input);
-err_loop:
-	ev_eloop_unref(loop);
-err_out:
+err_exit:
+	test_exit(eloop);
+err_fail:
+	test_fail(ret);
 	return abs(ret);
 }
