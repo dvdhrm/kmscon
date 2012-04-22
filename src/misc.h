@@ -30,7 +30,7 @@
  */
 
 #ifndef KMSCON_MISC_H
-#define kMSCON_MISC_H
+#define KMSCON_MISC_H
 
 #include <stdbool.h>
 #include <stdlib.h>
