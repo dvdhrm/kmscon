@@ -540,6 +540,9 @@ static int screen_new(struct font_screen **out, struct font_buffer *buf,
 	if (!buf->width || !buf->height || !buf->stride || !buf->data)
 		return -EINVAL;
 
+	log_debug("new screen with size %ux%u for table %ux%u",
+			buf->width, buf->height, cols, rows);
+
 	screen = malloc(sizeof(*screen));
 	if (!screen)
 		return -ENOMEM;
@@ -640,6 +643,7 @@ void font_screen_free(struct font_screen *screen)
 	if (!screen)
 		return;
 
+	log_debug("free screen");
 	face_unref(screen->faces.bold);
 	face_unref(screen->faces.normal);
 	cairo_destroy(screen->cr);
