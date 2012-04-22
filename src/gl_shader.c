@@ -107,13 +107,18 @@ void gl_tex_load(unsigned int tex, unsigned int width, unsigned int stride,
 	/* With OpenGL instead of OpenGLES2 we must use this on linux:
 	 * glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA,
 	 *              GL_UNSIGNED_BYTE, buf);
+	 *
+	 * TODO: Check what kind of stride we need to support here.
+	 * GL_UNPACK_ROW_LENGTH only supports specifying a single row but
+	 * doesn't allow pixel strides. cairo currently works fine without
+	 * touching it but we should probably fix this properly.
 	 */
 
 	glBindTexture(GL_TEXTURE_2D, tex);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
+	/* glPixelStorei(GL_UNPACK_ROW_LENGTH, stride); */
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
 			GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	/* glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); */
 }
 
 struct gl_shader {
