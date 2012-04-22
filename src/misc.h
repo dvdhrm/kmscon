@@ -92,4 +92,66 @@ int kmscon_hashtable_insert(struct kmscon_hashtable *tbl, void *key,
 				void *data);
 bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key);
 
+/* double linked list */
+
+struct kmscon_dlist {
+	struct kmscon_dlist *next;
+	struct kmscon_dlist *prev;
+};
+
+#define KMSCON_DLIST_INIT(head) { &(head), &(head) }
+
+static inline void kmscon_dlist_init(struct kmscon_dlist *list)
+{
+	list->next = list;
+	list->prev = list;
+}
+
+static inline void kmscon_dlist__link(struct kmscon_dlist *prev,
+					struct kmscon_dlist *next,
+					struct kmscon_dlist *n)
+{
+	next->prev = n;
+	n->next = next;
+	n->prev = prev;
+	prev->next = n;
+}
+
+static inline void kmscon_dlist_link(struct kmscon_dlist *head,
+					struct kmscon_dlist *n)
+{
+	return kmscon_dlist__link(head, head->next, n);
+}
+
+static inline void kmscon_dlist_link_tail(struct kmscon_dlist *head,
+					struct kmscon_dlist *n)
+{
+	return kmscon_dlist__link(head->prev, head, n);
+}
+
+static inline void kmscon_dlist__unlink(struct kmscon_dlist *prev,
+					struct kmscon_dlist *next)
+{
+	next->prev = prev;
+	prev->next = next;
+}
+
+static inline void kmscon_dlist_unlink(struct kmscon_dlist *e)
+{
+	kmscon_dlist__unlink(e->prev, e->next);
+	e->prev = NULL;
+	e->next = NULL;
+}
+
+static inline bool kmscon_dlist_empty(struct kmscon_dlist *head)
+{
+	return head->next == head;
+}
+
+#define kmscon_dlist_entry(ptr, type, member) \
+	kmscon_offsetof((ptr), type, member)
+
+#define kmscon_dlist_for_each(iter, head) \
+	for (iter = (head)->next; iter != (head); iter = iter->next)
+
 #endif /* KMSCON_MISC_H */
