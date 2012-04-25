@@ -122,6 +122,10 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
+	ret = uterm_video_use(app->video);
+	if (ret)
+		goto err_app;
+
 	ret = kmscon_input_new(&app->input);
 	if (ret)
 		goto err_app;

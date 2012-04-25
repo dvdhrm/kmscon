@@ -163,6 +163,10 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	if (display_is_online(disp))
 		return 0;
 
+	ret = video_do_use(disp->video);
+	if (ret)
+		return ret;
+
 	log_info("activating display %p to %ux%u", disp,
 			mode->drm.info.hdisplay, mode->drm.info.vdisplay);
 
@@ -251,6 +255,8 @@ err_saved:
 
 static void display_deactivate(struct uterm_display *disp)
 {
+	int ret;
+
 	if (!display_is_online(disp))
 		return;
 
@@ -268,6 +274,10 @@ static void display_deactivate(struct uterm_display *disp)
 		drmModeFreeCrtc(disp->drm.saved_crtc);
 		disp->drm.saved_crtc = NULL;
 	}
+
+	ret = video_do_use(disp->video);
+	if (ret)
+		return;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDeleteFramebuffers(1, &disp->drm.fb);
@@ -344,8 +354,14 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 
 static int display_use(struct uterm_display *disp)
 {
+	int ret;
+
 	if (!display_is_online(disp))
 		return -EINVAL;
+
+	ret = video_do_use(disp->video);
+	if (ret)
+		return ret;
 
 	/* TODO: we need triple buffering as a VSYNC may still be pending */
 	glBindFramebuffer(GL_FRAMEBUFFER, disp->drm.fb);
@@ -622,18 +638,6 @@ static int init_device(struct uterm_video *video, struct udev_device *dev)
 		goto err_disp;
 	}
 
-	/*
-	 * We allow only one global video object. See uterm_video_new for the
-	 * reasons. If we every change this we need proper context-management
-	 * and should remove this call here.
-	 */
-	if (!eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
-								drm->ctx)) {
-		log_err("cannot activate egl context");
-		ret = -EFAULT;
-		goto err_ctx;
-	}
-
 	ret = ev_eloop_new_fd(video->eloop, &drm->efd, drm->fd,
 				EV_READABLE, event, video);
 	if (ret)
@@ -755,12 +759,30 @@ static void video_destroy(struct uterm_video *video)
 
 	log_info("free drm device");
 	ev_eloop_rm_fd(drm->efd);
-	eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	if (eglGetCurrentContext() == drm->ctx)
+		eglMakeCurrent(drm->disp,
+				EGL_NO_SURFACE,
+				EGL_NO_SURFACE,
+				EGL_NO_CONTEXT);
 	eglDestroyContext(drm->disp, drm->ctx);
 	eglTerminate(drm->disp);
 	gbm_device_destroy(drm->gbm);
 	drmDropMaster(drm->fd);
 	close(drm->fd);
+}
+
+static int video_use(struct uterm_video *video)
+{
+	if (eglGetCurrentContext() == video->drm.ctx)
+		return 0;
+
+	if (!eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+				video->drm.ctx)) {
+		log_err("cannot activate egl context");
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 static int hotplug(struct uterm_video *video)
@@ -931,6 +953,7 @@ const struct video_ops drm_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
+	.use = video_use,
 	.poll = video_poll,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
