@@ -161,7 +161,7 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	if (!video || !video_is_awake(video) || !mode)
 		return -EINVAL;
 	if (display_is_online(disp))
-		return 0;
+		return -EINVAL;
 
 	ret = video_do_use(disp->video);
 	if (ret)
