@@ -659,7 +659,7 @@ err_close:
 	return ret;
 }
 
-static int video_init(struct uterm_video *video)
+static int video_init(struct uterm_video *video, struct udev_device *dev_ign)
 {
 	struct udev_enumerate *e;
 	struct udev_list_entry *name;

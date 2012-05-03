@@ -454,7 +454,7 @@ int uterm_video_new(struct uterm_video **out,
 	if (ret)
 		goto err_umon;
 
-	ret = VIDEO_CALL(video->ops->init, 0, video);
+	ret = VIDEO_CALL(video->ops->init, 0, video, NULL);
 	if (ret)
 		goto err_umon_add;
 

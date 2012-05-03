@@ -57,7 +57,7 @@ struct display_ops {
 };
 
 struct video_ops {
-	int (*init) (struct uterm_video *video);
+	int (*init) (struct uterm_video *video, struct udev_device *dev);
 	void (*destroy) (struct uterm_video *video);
 	void (*segfault) (struct uterm_video *video);
 	int (*use) (struct uterm_video *video);
