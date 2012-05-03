@@ -33,8 +33,6 @@
  * not limited to classic text-terminals but rather to all kind of applications
  * that need graphical output (with OpenGL) or direct keyboard/mouse/etc. input
  * from the kernel.
- * This API is divided into categories. Each sub-API implements one aspect.
- * Currently, only video output is available. Other sub-APIs will follow.
  */
 
 #ifndef UTERM_UTERM_H
@@ -55,9 +53,7 @@
  * much more configuration as fbdev and is the recommended way to access video
  * hardware on modern computers.
  * Modern mesa provides 3D acceleration on fbdev, too. This is used in systems
- * like Android. This will allow us to provide an fbdev backend here, however,
- * we haven't implemented this yet, as this requires the Android software stack
- * on your system which is really not what we want.
+ * like Android. This will allow us to provide an fbdev backend here.
  *
  * Famous linux graphics systems like X.Org/X11 or Wayland use fbdev or DRM
  * internally to access the video hardware. This API allows low-level access to
@@ -69,10 +65,10 @@
  * If VT support is not available (very unlikely) you need other ways to switch
  * between applications.
  *
- * The main object by this API is uterm_video. This object scans the system for
- * video devices, either fbdev or drm. You cannot use both simulatneously,
- * though. This wouldn't make sense as often both fbdev and drm devices refer to
- * the same output. Use "UTERM_VIDEO_DRM" to scan for DRM devices. Otherwise,
+ * The main object by this API is uterm_video. This object attaches to a single
+ * graphics card via DRM or on a single frambuffer via fbdev. Many DRM drivers
+ * also provide an fbdev driver so you must go sure not to write to both
+ * simulatneously. Use "UTERM_VIDEO_DRM" to scan for DRM devices. Otherwise,
  * fbdev is used. DRM is the recommended way. Use fbdev only on embedded devices
  * which do not come with an DRM driver.
  * The uterm_video object scans for graphic-cards and connected displays. Each
