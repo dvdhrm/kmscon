@@ -805,6 +805,19 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	free(loop);
 }
 
+void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
+{
+	int i;
+
+	if (!loop || !fd)
+		return;
+
+	for (i = 0; i < loop->cur_fds_cnt; ++i) {
+		if (loop->cur_fds[i].data.ptr == fd)
+			loop->cur_fds[i].data.ptr = NULL;
+	}
+}
+
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
 	struct epoll_event ep[32];
