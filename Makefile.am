@@ -69,7 +69,8 @@ libkmscon_core_la_SOURCES += \
 else
 libkmscon_core_la_SOURCES += \
 	src/kbd_dumb.c src/kbd.h \
-	external/imKStoUCS.c external/imKStoUCS.h
+	external/imKStoUCS.c external/imKStoUCS.h \
+	src/uterm_input_dumb.c
 endif
 
 if USE_PANGO

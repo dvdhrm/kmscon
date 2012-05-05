@@ -295,4 +295,42 @@ static inline bool input_bit_is_set(const unsigned long *array, int bit)
 	return !!(array[bit / LONG_BIT] & (1LL << (bit % LONG_BIT)));
 }
 
+/* kbd API */
+
+struct kbd_desc;
+struct kbd_dev;
+
+int kbd_desc_new(struct kbd_desc **out,
+			const char *layout,
+			const char *variant,
+			const char *options);
+void kbd_desc_ref(struct kbd_desc *desc);
+void kbd_desc_unref(struct kbd_desc *desc);
+
+int kbd_dev_new(struct kbd_dev **out, struct kbd_desc *desc);
+void kbd_dev_ref(struct kbd_dev *state);
+void kbd_dev_unref(struct kbd_dev *state);
+
+/*
+ * This resets the keyboard state in case it got out of sync. It's mainly used
+ * to sync our notion of the keyboard state with what the keyboard LEDs show.
+ */
+void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits);
+
+/*
+ * This is the entry point to the keyboard processing.
+ * We get an evdev scancode and the keyboard state, and should put out a
+ * proper input event.
+ * Some evdev input events shouldn't result in us sending an input event
+ * (e.g. a key release):
+ * - If the event was filled out, 0 is returned.
+ * - Otherwise, if there was no error, -ENOKEY is returned.
+ */
+int kbd_dev_process_key(struct kbd_dev *kbd,
+			uint16_t key_state,
+			uint16_t code,
+			struct uterm_input_event *out);
+
+void kbd_dev_keysym_to_string(uint32_t keysym, char *str, size_t size);
+
 #endif /* UTERM_INTERNAL_H */
