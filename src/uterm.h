@@ -189,5 +189,57 @@ void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
 void uterm_video_sleep(struct uterm_video *video);
 int uterm_video_wake_up(struct uterm_video *video);
 bool uterm_video_is_awake(struct uterm_video *video);
+void uterm_video_poll(struct uterm_video *video);
+
+/*
+ * System Monitor
+ * This watches the system for new seats, graphics devices or other devices that
+ * are used by terminals.
+ */
+
+struct uterm_monitor;
+struct uterm_monitor_seat;
+struct uterm_monitor_dev;
+
+enum uterm_monitor_event_type {
+	UTERM_MONITOR_NEW_SEAT,
+	UTERM_MONITOR_FREE_SEAT,
+	UTERM_MONITOR_NEW_DEV,
+	UTERM_MONITOR_FREE_DEV,
+	UTERM_MONITOR_HOTPLUG_DEV,
+};
+
+enum uterm_monitor_dev_type {
+	UTERM_MONITOR_DRM,
+	UTERM_MONITOR_FBDEV,
+};
+
+struct uterm_monitor_event {
+	unsigned int type;
+
+	struct uterm_monitor_seat *seat;
+	const char *seat_name;
+	void *seat_data;
+
+	struct uterm_monitor_dev *dev;
+	unsigned int dev_type;
+	const char *dev_node;
+	void *dev_data;
+};
+
+typedef void (*uterm_monitor_cb) (struct uterm_monitor *mon,
+					struct uterm_monitor_event *event,
+					void *data);
+
+int uterm_monitor_new(struct uterm_monitor **out,
+			struct ev_eloop *eloop,
+			uterm_monitor_cb cb,
+			void *data);
+void uterm_monitor_ref(struct uterm_monitor *mon);
+void uterm_monitor_unref(struct uterm_monitor *mon);
+void uterm_monitor_scan(struct uterm_monitor *mon);
+
+void uterm_monitor_set_seat_data(struct uterm_monitor_seat *seat, void *data);
+void uterm_monitor_set_dev_data(struct uterm_monitor_dev *dev, void *data);
 
 #endif /* UTERM_UTERM_H */

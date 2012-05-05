@@ -55,6 +55,7 @@ libkmscon_core_la_SOURCES = \
 	src/uterm.h src/uterm_internal.h \
 	src/uterm_video.c \
 	src/uterm_video_drm.c \
+	src/uterm_monitor.c \
 	src/gl.h \
 	src/gl_math.c \
 	src/gl_shader.c \
@@ -80,6 +81,7 @@ endif
 
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	$(SYSTEMD_CFLAGS) \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
@@ -91,6 +93,7 @@ libkmscon_core_la_CPPFLAGS = \
 	$(XKBCOMMON_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
+	$(SYSTEMD_LIBS) \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
