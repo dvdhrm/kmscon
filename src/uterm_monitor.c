@@ -318,51 +318,82 @@ static int get_fb_id(struct udev_device *dev)
 static void monitor_udev_add(struct uterm_monitor *mon,
 				struct udev_device *dev)
 {
-	const char *sname, *subs, *node;
+	const char *sname, *subs, *node, *name, *sysname;
 	struct kmscon_dlist *iter;
 	struct uterm_monitor_seat *seat;
 	unsigned int type;
 	int id;
+	struct udev_device *p;
+
+	name = udev_device_get_syspath(dev);
+	if (!name) {
+		log_debug("cannot get syspath of udev device");
+		return;
+	}
 
 	if (monitor_find_dev(mon, dev)) {
-		log_debug("adding already available device");
+		log_debug("adding already available device %s", name);
 		return;
 	}
 
 	node = udev_device_get_devnode(dev);
-	if (!node) {
-		log_debug("adding device without device node");
+	if (!node)
 		return;
-	}
 
 	subs = udev_device_get_subsystem(dev);
 	if (!subs) {
-		log_debug("adding device with invalid subsystem");
+		log_debug("adding device with invalid subsystem %s", name);
 		return;
 	}
 
 	if (!strcmp(subs, "drm")) {
+		if (udev_device_has_tag(dev, "seat") != 1) {
+			log_debug("adding non-seat'ed device %s", name);
+			return;
+		}
 		id = get_card_id(dev);
 		if (id < 0) {
-			log_debug("adding drm sub-device");
+			log_debug("adding drm sub-device %s", name);
 			return;
 		}
+		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
 	} else if (!strcmp(subs, "graphics")) {
-		id = get_fb_id(dev);
-		if (id < 0) {
-			log_debug("adding fbdev sub-device");
+		if (udev_device_has_tag(dev, "seat") != 1) {
+			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
+		id = get_fb_id(dev);
+		if (id < 0) {
+			log_debug("adding fbdev sub-device %s", name);
+			return;
+		}
+		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_FBDEV;
 	} else if (!strcmp(subs, "input")) {
+		sysname = udev_device_get_sysname(dev);
+		if (!sysname || strncmp(sysname, "event", 5)) {
+			log_debug("adding unsupported input dev %s", name);
+			return;
+		}
+		p = udev_device_get_parent_with_subsystem_devtype(dev,
+								"input", NULL);
+		if (!p) {
+			log_debug("adding device without parent %s", name);
+			return;
+		}
+		if (udev_device_has_tag(p, "seat") != 1) {
+			log_debug("adding non-seat'ed device %s", name);
+			return;
+		}
+		sname = udev_device_get_property_value(p, "ID_SEAT");
 		type = UTERM_MONITOR_INPUT;
 	} else {
-		log_debug("adding device with unknown subsystem %s", subs);
+		log_debug("adding device with unknown subsystem %s (%s)",
+				subs, name);
 		return;
 	}
 
-	sname = udev_device_get_property_value(dev, "ID_SEAT");
 	if (!sname)
 		sname = "seat0";
 
@@ -375,7 +406,8 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 	}
 
 	if (iter == &mon->seats) {
-		log_debug("adding device for unknown seat %s", sname);
+		log_debug("adding device for unknown seat %s (%s)",
+				sname, name);
 		return;
 	}
 
@@ -562,14 +594,6 @@ int uterm_monitor_new(struct uterm_monitor **out,
 		goto err_umon;
 	}
 
-	ret = udev_monitor_filter_add_match_tag(mon->umon, "seat");
-	if (ret) {
-		errno = -ret;
-		log_err("cannot add udev filter (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_umon;
-	}
-
 	ret = udev_monitor_enable_receiving(mon->umon);
 	if (ret) {
 		errno = -ret;
@@ -687,13 +711,6 @@ void uterm_monitor_scan(struct uterm_monitor *mon)
 	}
 
 	ret = udev_enumerate_add_match_subsystem(e, "input");
-	if (ret) {
-		errno = -ret;
-		log_err("cannot add udev match (%d): %m", ret);
-		goto out_enum;
-	}
-
-	ret = udev_enumerate_add_match_tag(e, "seat");
 	if (ret) {
 		errno = -ret;
 		log_err("cannot add udev match (%d): %m", ret);
