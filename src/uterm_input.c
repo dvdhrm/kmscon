@@ -247,6 +247,7 @@ int uterm_input_new(struct uterm_input **out,
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->eloop = eloop;
+	kmscon_dlist_init(&input->devices);
 
 	ret = kmscon_hook_new(&input->hook);
 	if (ret)
