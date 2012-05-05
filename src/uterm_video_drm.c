@@ -44,7 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <xf86drm.h>
-/* #include <xf86drmMode.h> TODO: missing header protection */
+#include <xf86drmMode.h>
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
