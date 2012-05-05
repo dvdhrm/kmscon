@@ -38,7 +38,6 @@
 #include <unistd.h>
 #include "conf.h"
 #include "eloop.h"
-#include "kbd.h"
 #include "log.h"
 #include "misc.h"
 #include "uterm.h"
@@ -62,7 +61,7 @@ struct uterm_input_dev {
 	int rfd;
 	char *node;
 	struct ev_fd *fd;
-	struct kmscon_kbd *kbd;
+	struct kbd_dev *kbd;
 };
 
 struct uterm_input {
@@ -71,7 +70,7 @@ struct uterm_input {
 	bool awake;
 
 	struct kmscon_hook *hook;
-	struct kmscon_kbd_desc *desc;
+	struct kbd_desc *desc;
 
 	struct kmscon_dlist devices;
 };
@@ -89,8 +88,7 @@ static void notify_key(struct uterm_input_dev *dev,
 	if (type != EV_KEY)
 		return;
 
-	/* TODO: fix cast to (void*) */
-	ret = kmscon_kbd_process_key(dev->kbd, value, code, (void*)&ev);
+	ret = kbd_dev_process_key(dev->kbd, value, code, &ev);
 	if (ret)
 		return;
 
@@ -157,7 +155,7 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 		}
 
 		/* rediscover the keyboard state if sth changed during sleep */
-		kmscon_kbd_reset(dev->kbd, ledbits);
+		kbd_dev_reset(dev->kbd, ledbits);
 
 		ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd,
 						dev->rfd, EV_READABLE,
@@ -202,7 +200,7 @@ static void input_new_dev(struct uterm_input *input,
 	if (!dev->node)
 		goto err_free;
 
-	ret = kmscon_kbd_new(&dev->kbd, input->desc);
+	ret = kbd_dev_new(&dev->kbd, input->desc);
 	if (ret)
 		goto err_node;
 
@@ -217,7 +215,7 @@ static void input_new_dev(struct uterm_input *input,
 	return;
 
 err_kbd:
-	kmscon_kbd_unref(dev->kbd);
+	kbd_dev_unref(dev->kbd);
 err_node:
 	free(dev->node);
 err_free:
@@ -229,7 +227,7 @@ static void input_free_dev(struct uterm_input_dev *dev)
 	log_debug("free device %s", dev->node);
 	input_sleep_dev(dev);
 	kmscon_dlist_unlink(&dev->list);
-	kmscon_kbd_unref(dev->kbd);
+	kbd_dev_unref(dev->kbd);
 	free(dev->node);
 	free(dev);
 }
@@ -254,7 +252,7 @@ int uterm_input_new(struct uterm_input **out,
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_kbd_desc_new(&input->desc,
+	ret = kbd_desc_new(&input->desc,
 					conf_global.xkb_layout,
 					conf_global.xkb_variant,
 					conf_global.xkb_options);
@@ -296,7 +294,7 @@ void uterm_input_unref(struct uterm_input *input)
 		input_free_dev(dev);
 	}
 
-	kmscon_kbd_desc_unref(input->desc);
+	kbd_desc_unref(input->desc);
 	kmscon_hook_free(input->hook);
 	ev_eloop_unref(input->eloop);
 	free(input);
