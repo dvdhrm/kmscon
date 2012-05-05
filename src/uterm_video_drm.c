@@ -517,25 +517,6 @@ static void unbind_display(struct uterm_display *disp)
 	uterm_display_unref(disp);
 }
 
-static int get_id(struct udev_device *dev)
-{
-	const char *name;
-	char *end;
-	int devnum;
-
-	name = udev_device_get_sysname(dev);
-	if (!name)
-		return -ENODEV;
-	if (strncmp(name, "card", 4) || !name[4])
-		return -ENODEV;
-
-	devnum = strtol(&name[4], &end, 10);
-	if (devnum < 0 || *end)
-		return -ENODEV;
-
-	return devnum;
-}
-
 static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
 						unsigned int usec, void *data)
 {
@@ -565,9 +546,9 @@ static void event(struct ev_fd *fd, int mask, void *data)
 	}
 }
 
-static int init_device(struct uterm_video *video, struct udev_device *dev)
+static int video_init(struct uterm_video *video, const char *node)
 {
-	const char *node, *ext;
+	const char *ext;
 	int ret;
 	EGLint major, minor;
 	EGLenum api;
@@ -575,17 +556,7 @@ static int init_device(struct uterm_video *video, struct udev_device *dev)
 		{ EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
 	struct drm_video *drm = &video->drm;
 
-	log_info("probing %s", udev_device_get_sysname(dev));
-
-	node = udev_device_get_devnode(dev);
-	if (!node)
-		return -ENODEV;
-
-	drm->id = get_id(dev);
-	if (drm->id < 0) {
-		log_err("cannot get device id");
-		return -ENODEV;
-	}
+	log_info("probing %s", node);
 
 	drm->fd = open(node, O_RDWR | O_CLOEXEC);
 	if (drm->fd < 0) {
@@ -656,93 +627,6 @@ err_gbm:
 	gbm_device_destroy(drm->gbm);
 err_close:
 	close(drm->fd);
-	return ret;
-}
-
-static int video_init(struct uterm_video *video, struct udev_device *dev_ign)
-{
-	struct udev_enumerate *e;
-	struct udev_list_entry *name;
-	const char *path, *seat;
-	struct udev_device *dev;
-	int ret;
-
-	ret = udev_monitor_filter_add_match_subsystem_devtype(video->umon,
-							"drm", "drm_minor");
-	if (ret) {
-		log_err("cannot add udev filter (%d): %m", ret);
-		return -EFAULT;
-	}
-
-	ret = udev_monitor_enable_receiving(video->umon);
-	if (ret) {
-		log_err("cannot start udev_monitor (%d): %m", ret);
-		return -EFAULT;
-	}
-
-	e = udev_enumerate_new(video->udev);
-	if (!e) {
-		log_err("cannot create udev_enumerate object");
-		return -EFAULT;
-	}
-
-	ret = udev_enumerate_add_match_subsystem(e, "drm");
-	if (ret) {
-		log_err("cannot add udev match (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-	ret = udev_enumerate_add_match_sysname(e, "card[0-9]*");
-	if (ret) {
-		log_err("cannot add udev match (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-	if (strcmp(conf_global.seat, "seat0")) {
-		ret = udev_enumerate_add_match_tag(e, conf_global.seat);
-		if (ret) {
-			log_err("cannot add udev match (%d): %m", ret);
-			ret = -EFAULT;
-			goto err_enum;
-		}
-	}
-	ret = udev_enumerate_scan_devices(e);
-	if (ret) {
-		log_err("cannot scan udev devices (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-
-	udev_list_entry_foreach(name, udev_enumerate_get_list_entry(e)) {
-		path = udev_list_entry_get_name(name);
-		if (!path || !*path)
-			continue;
-		dev = udev_device_new_from_syspath(video->udev, path);
-		if (!dev)
-			continue;
-		seat = udev_device_get_property_value(dev, "ID_SEAT");
-		if (!seat)
-			seat = "seat0";
-		if (strcmp(conf_global.seat, seat)) {
-			log_debug("ignoring %s (wrong seat)", path);
-			udev_device_unref(dev);
-			continue;
-		}
-
-		ret = init_device(video, dev);
-		udev_device_unref(dev);
-		if (!ret)
-			goto done;
-	}
-
-	ret = -ENODEV;
-	log_err("no drm device found");
-	goto err_enum;
-
-done:
-	ret = 0;
-err_enum:
-	udev_enumerate_unref(e);
 	return ret;
 }
 
@@ -847,53 +731,9 @@ static int hotplug(struct uterm_video *video)
 	return 0;
 }
 
-static int monitor(struct uterm_video *video)
+static int video_poll(struct uterm_video *video)
 {
-	struct udev_device *dev;
-	const char *action, *val;
-	int id;
-
-	dev = udev_monitor_receive_device(video->umon);
-	if (!dev) {
-		log_warn("cannot receive device from udev_monitor");
-		return 0;
-	}
-
-	action = udev_device_get_action(dev);
-	if (!action)
-		goto ignore;
-	if (strcmp(action, "change"))
-		goto ignore;
-
-	val = udev_device_get_property_value(dev, "HOTPLUG");
-	if (strcmp(val, "1"))
-		goto ignore;
-
-	id = get_id(dev);
-	if (id != video->drm.id)
-		goto ignore;
-
 	video->flags |= VIDEO_HOTPLUG;
-ignore:
-	udev_device_unref(dev);
-	return 0;
-}
-
-static int video_poll(struct uterm_video *video, int mask)
-{
-	int ret;
-
-	if (mask & (EV_HUP | EV_ERR)) {
-		log_err("udev_monitor closed unexpectedly");
-		return -EFAULT;
-	}
-
-	if (mask & EV_READABLE) {
-		ret = monitor(video);
-		if (ret)
-			return ret;
-	}
-
 	return hotplug(video);
 }
 

@@ -57,11 +57,11 @@ struct display_ops {
 };
 
 struct video_ops {
-	int (*init) (struct uterm_video *video, struct udev_device *dev);
+	int (*init) (struct uterm_video *video, const char *node);
 	void (*destroy) (struct uterm_video *video);
 	void (*segfault) (struct uterm_video *video);
 	int (*use) (struct uterm_video *video);
-	int (*poll) (struct uterm_video *video, int mask);
+	int (*poll) (struct uterm_video *video);
 	void (*sleep) (struct uterm_video *video);
 	int (*wake_up) (struct uterm_video *video);
 };
@@ -102,7 +102,6 @@ struct drm_display {
 };
 
 struct drm_video {
-	int id;
 	int fd;
 	struct ev_fd *efd;
 	struct gbm_device *gbm;
@@ -258,10 +257,6 @@ struct uterm_video {
 	unsigned long ref;
 	unsigned int flags;
 	struct ev_eloop *eloop;
-
-	struct udev *udev;
-	struct udev_monitor *umon;
-	struct ev_fd *umon_fd;
 
 	struct uterm_display *displays;
 	struct kmscon_hook *hook;

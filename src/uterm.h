@@ -173,8 +173,9 @@ int uterm_display_get_dpms(const struct uterm_display *disp);
 /* video interface */
 
 int uterm_video_new(struct uterm_video **out,
-			int type,
-			struct ev_eloop *eloop);
+			struct ev_eloop *eloop,
+			unsigned int type,
+			const char *node);
 void uterm_video_ref(struct uterm_video *video);
 void uterm_video_unref(struct uterm_video *video);
 

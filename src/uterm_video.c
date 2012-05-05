@@ -351,47 +351,14 @@ int uterm_display_get_dpms(const struct uterm_display *disp)
 	return disp->dpms;
 }
 
-static void video_poll(struct ev_fd *fd, int mask, void *data)
-{
-	struct uterm_video *video = data;
-	int ret;
-
-	ret = VIDEO_CALL(video->ops->poll, 0, video, mask);
-	if (ret) {
-		ev_eloop_rm_fd(video->umon_fd);
-		video->umon_fd = NULL;
-	}
-}
-
-static volatile int video_protect = 0;
-
 int uterm_video_new(struct uterm_video **out,
-			int type,
-			struct ev_eloop *eloop)
+			struct ev_eloop *eloop,
+			unsigned int type,
+			const char *node)
 {
 	struct uterm_video *video;
-	int ret, ufd;
+	int ret;
 	const struct video_ops *ops;
-
-	/*
-	 * We allow only one global video object. The reason behind this is that
-	 * the OpenGL API has thread-awareness and we want to hide this behind
-	 * our API. Otherwise, the caller would need to manage GL-contexts
-	 * himself and this makes the API complex. Furthermore, there is really
-	 * no reason why someone wants two video objects in the same process.
-	 * That would mean that you want to control two graphic-cards in one
-	 * process and we have never heard of a situation where this was needed.
-	 * If you think you need two video objects, feel free to contact us and
-	 * we might add a proper GL-context management API.
-	 * But for now we protect this by a GCC-atomic. *_unref() decrements the
-	 * counter again.
-	 */
-	ret = __sync_fetch_and_add(&video_protect, 1);
-	if (ret) {
-		__sync_fetch_and_sub(&video_protect, 1);
-		log_err("cannot create multiple instances");
-		return -ENOTSUP;
-	}
 
 	if (!out || !eloop)
 		return -EINVAL;
@@ -400,14 +367,14 @@ int uterm_video_new(struct uterm_video **out,
 	case UTERM_VIDEO_DRM:
 		if (!drm_available) {
 			log_err("DRM backend is not available");
-			return -ENOTSUP;
+			return -EOPNOTSUPP;
 		}
 		ops = &drm_video_ops;
 		break;
 	case UTERM_VIDEO_FBDEV:
 		if (!fbdev_available) {
 			log_err("FBDEV backend is not available");
-			return -ENOTSUP;
+			return -EOPNOTSUPP;
 		}
 		ops = &fbdev_video_ops;
 		break;
@@ -428,47 +395,15 @@ int uterm_video_new(struct uterm_video **out,
 	if (ret)
 		goto err_free;
 
-	video->udev = udev_new();
-	if (!video->udev) {
-		log_err("cannot create udev object");
-		ret = -EFAULT;
+	ret = VIDEO_CALL(video->ops->init, 0, video, node);
+	if (ret)
 		goto err_hook;
-	}
-
-	video->umon = udev_monitor_new_from_netlink(video->udev, "udev");
-	if (!video->umon) {
-		log_err("cannot create udev monitor");
-		ret = -EFAULT;
-		goto err_udev;
-	}
-
-	ufd = udev_monitor_get_fd(video->umon);
-	if (ufd < 0) {
-		log_err("cannot get udev-monitor fd");
-		ret = -EFAULT;
-		goto err_umon;
-	}
-
-	ret = ev_eloop_new_fd(video->eloop, &video->umon_fd, ufd,
-				EV_READABLE, video_poll, video);
-	if (ret)
-		goto err_umon;
-
-	ret = VIDEO_CALL(video->ops->init, 0, video, NULL);
-	if (ret)
-		goto err_umon_add;
 
 	ev_eloop_ref(video->eloop);
 	log_info("new device %p", video);
 	*out = video;
 	return 0;
 
-err_umon_add:
-	ev_eloop_rm_fd(video->umon_fd);
-err_umon:
-	udev_monitor_unref(video->umon);
-err_udev:
-	udev_unref(video->udev);
 err_hook:
 	kmscon_hook_free(video->hook);
 err_free:
@@ -501,13 +436,9 @@ void uterm_video_unref(struct uterm_video *video)
 		uterm_display_unref(disp);
 	}
 
-	ev_eloop_rm_fd(video->umon_fd);
-	udev_monitor_unref(video->umon);
-	udev_unref(video->udev);
 	kmscon_hook_free(video->hook);
 	ev_eloop_unref(video->eloop);
 	free(video);
-	__sync_fetch_and_sub(&video_protect, 1);
 }
 
 void uterm_video_segfault(struct uterm_video *video)
@@ -573,4 +504,12 @@ int uterm_video_wake_up(struct uterm_video *video)
 bool uterm_video_is_awake(struct uterm_video *video)
 {
 	return video && video_is_awake(video);
+}
+
+void uterm_video_poll(struct uterm_video *video)
+{
+	if (!video)
+		return;
+
+	VIDEO_CALL(video->ops->poll, 0, video);
 }

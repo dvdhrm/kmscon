@@ -118,7 +118,10 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
-	ret = uterm_video_new(&app->video, UTERM_VIDEO_DRM, app->eloop);
+	ret = uterm_video_new(&app->video,
+				app->eloop,
+				UTERM_VIDEO_DRM,
+				"/dev/dri/card0");
 	if (ret)
 		goto err_app;
 
