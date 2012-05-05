@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 		goto err_fail;
 
 	log_notice("Creating video object...");
-	ret = uterm_video_new(&video, UTERM_VIDEO_DRM, eloop);
+	ret = uterm_video_new(&video, eloop, UTERM_VIDEO_DRM, "/dev/dri/card0");
 	if (ret)
 		goto err_exit;
 
