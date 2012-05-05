@@ -175,6 +175,7 @@ static void monitor_new_seat(struct uterm_monitor *mon, const char *name)
 		return;
 	memset(seat, 0, sizeof(*seat));
 	seat->mon = mon;
+	kmscon_dlist_init(&seat->devices);
 
 	seat->name = strdup(name);
 	if (!seat->name)
@@ -498,6 +499,7 @@ int uterm_monitor_new(struct uterm_monitor **out,
 	mon->eloop = eloop;
 	mon->cb = cb;
 	mon->data = data;
+	kmscon_dlist_init(&mon->seats);
 
 	ret = sd_login_monitor_new("seat", &mon->sd_mon);
 	if (ret) {
