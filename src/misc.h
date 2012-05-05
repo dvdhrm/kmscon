@@ -154,4 +154,8 @@ static inline bool kmscon_dlist_empty(struct kmscon_dlist *head)
 #define kmscon_dlist_for_each(iter, head) \
 	for (iter = (head)->next; iter != (head); iter = iter->next)
 
+#define kmscon_dlist_for_each_safe(iter, tmp, head) \
+	for (iter = (head)->next, tmp = iter->next; iter != (head); \
+		iter = tmp, tmp = iter->next)
+
 #endif /* KMSCON_MISC_H */
