@@ -108,6 +108,7 @@ static void seat_new_dev(struct uterm_monitor_seat *seat,
 	ev.dev_data = dev->data;
 	dev->seat->mon->cb(dev->seat->mon, &ev, dev->seat->mon->data);
 
+	log_debug("new device %s on %s", node, seat->name);
 	return;
 
 err_free:
@@ -117,6 +118,8 @@ err_free:
 static void seat_free_dev(struct uterm_monitor_dev *dev)
 {
 	struct uterm_monitor_event ev;
+
+	log_debug("free device %s on %s", dev->node, dev->seat->name);
 
 	kmscon_dlist_unlink(&dev->list);
 
@@ -186,6 +189,7 @@ static void monitor_new_seat(struct uterm_monitor *mon, const char *name)
 	ev.seat_data = seat->data;
 	seat->mon->cb(seat->mon, &ev, seat->mon->data);
 
+	log_debug("new seat %s", name);
 	return;
 
 err_free:
@@ -196,6 +200,8 @@ static void monitor_free_seat(struct uterm_monitor_seat *seat)
 {
 	struct uterm_monitor_event ev;
 	struct uterm_monitor_dev *dev;
+
+	log_debug("free seat %s", seat->name);
 
 	while (seat->devices.next != &seat->devices) {
 		dev = kmscon_dlist_entry(seat->devices.next,
@@ -698,11 +704,15 @@ void uterm_monitor_scan(struct uterm_monitor *mon)
 
 	udev_list_entry_foreach(entry, udev_enumerate_get_list_entry(e)) {
 		path = udev_list_entry_get_name(entry);
-		if (!path)
+		if (!path) {
+			log_debug("udev device without syspath");
 			continue;
+		}
 		dev = udev_device_new_from_syspath(mon->udev, path);
-		if (!dev)
+		if (!dev) {
+			log_debug("cannot get udev device for %s", path);
 			continue;
+		}
 
 		monitor_udev_add(mon, dev);
 		udev_device_unref(dev);
