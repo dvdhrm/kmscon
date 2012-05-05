@@ -348,6 +348,8 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			return;
 		}
 		type = UTERM_MONITOR_FBDEV;
+	} else if (!strcmp(subs, "input")) {
+		type = UTERM_MONITOR_INPUT;
 	} else {
 		log_debug("adding device with unknown subsystem %s", subs);
 		return;
@@ -543,6 +545,15 @@ int uterm_monitor_new(struct uterm_monitor **out,
 		goto err_umon;
 	}
 
+	ret = udev_monitor_filter_add_match_subsystem_devtype(mon->umon,
+							"input", NULL);
+	if (ret) {
+		errno = -ret;
+		log_err("cannot add udev filter (%d): %m", ret);
+		ret = -EFAULT;
+		goto err_umon;
+	}
+
 	ret = udev_monitor_filter_add_match_tag(mon->umon, "seat");
 	if (ret) {
 		errno = -ret;
@@ -659,6 +670,13 @@ void uterm_monitor_scan(struct uterm_monitor *mon)
 	}
 
 	ret = udev_enumerate_add_match_subsystem(e, "graphics");
+	if (ret) {
+		errno = -ret;
+		log_err("cannot add udev match (%d): %m", ret);
+		goto out_enum;
+	}
+
+	ret = udev_enumerate_add_match_subsystem(e, "input");
 	if (ret) {
 		errno = -ret;
 		log_err("cannot add udev match (%d): %m", ret);

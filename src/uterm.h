@@ -213,6 +213,7 @@ enum uterm_monitor_event_type {
 enum uterm_monitor_dev_type {
 	UTERM_MONITOR_DRM,
 	UTERM_MONITOR_FBDEV,
+	UTERM_MONITOR_INPUT,
 };
 
 struct uterm_monitor_event {
