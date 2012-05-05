@@ -664,6 +664,8 @@ void uterm_monitor_scan(struct uterm_monitor *mon)
 	if (!mon)
 		return;
 
+	monitor_refresh_seats(mon);
+
 	e = udev_enumerate_new(mon->udev);
 	if (!e) {
 		log_err("cannot create udev enumeration");
