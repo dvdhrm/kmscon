@@ -242,7 +242,7 @@ void uterm_input_unregister_cb(struct uterm_input *input,
 
 void uterm_input_sleep(struct uterm_input *input);
 void uterm_input_wake_up(struct uterm_input *input);
-bool uterm_input_is_asleep(struct uterm_input *input);
+bool uterm_input_is_awake(struct uterm_input *input);
 
 /*
  * System Monitor
