@@ -38,6 +38,7 @@
 #ifndef UTERM_UTERM_H
 #define UTERM_UTERM_H
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
@@ -191,6 +192,57 @@ void uterm_video_sleep(struct uterm_video *video);
 int uterm_video_wake_up(struct uterm_video *video);
 bool uterm_video_is_awake(struct uterm_video *video);
 void uterm_video_poll(struct uterm_video *video);
+
+/*
+ * Input Devices
+ * This input object can combine multiple linux input devices into a single
+ * device and notifies the application about events. It has several different
+ * keyboard backends so the full XKB feature set is available.
+ */
+
+struct uterm_input;
+
+enum uterm_input_modifier {
+	UTERM_SHIFT_MASK	= (1 << 0),
+	UTERM_LOCK_MASK		= (1 << 1),
+	UTERM_CONTROL_MASK	= (1 << 2),
+	UTERM_MOD1_MASK		= (1 << 3),
+	UTERM_MOD2_MASK		= (1 << 4),
+	UTERM_MOD3_MASK		= (1 << 5),
+	UTERM_MOD4_MASK		= (1 << 6),
+	UTERM_MOD5_MASK		= (1 << 7),
+};
+
+#define UTERM_INPUT_INVALID 0xffffffff
+
+struct uterm_input_event {
+	uint16_t keycode;	/* linux keycode - KEY_* - linux/input.h */
+	uint32_t keysym;	/* X keysym - XK_* - X11/keysym.h */
+	unsigned int mods;	/* active modifiers - uterm_modifier mask */
+	uint32_t unicode;	/* ucs4 unicode value or UTERM_INPUT_INVALID */
+};
+
+typedef void (*uterm_input_cb) (struct uterm_input *input,
+				struct uterm_input_event *ev,
+				void *data);
+
+int uterm_input_new(struct uterm_input **out, struct ev_eloop *eloop);
+void uterm_input_ref(struct uterm_input *input);
+void uterm_input_unref(struct uterm_input *input);
+
+void uterm_input_add_dev(struct uterm_input *input, const char *node);
+void uterm_input_remove_dev(struct uterm_input *input, const char *node);
+
+int uterm_input_register_cb(struct uterm_input *input,
+				uterm_input_cb cb,
+				void *data);
+void uterm_input_unregister_cb(struct uterm_input *input,
+				uterm_input_cb cb,
+				void *data);
+
+void uterm_input_sleep(struct uterm_input *input);
+void uterm_input_wake_up(struct uterm_input *input);
+bool uterm_input_is_asleep(struct uterm_input *input);
 
 /*
  * System Monitor

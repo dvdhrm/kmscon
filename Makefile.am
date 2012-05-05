@@ -56,6 +56,7 @@ libkmscon_core_la_SOURCES = \
 	src/uterm_video.c \
 	src/uterm_video_drm.c \
 	src/uterm_monitor.c \
+	src/uterm_input.c \
 	src/gl.h \
 	src/gl_math.c \
 	src/gl_shader.c \

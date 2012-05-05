@@ -30,6 +30,7 @@
 
 #include <inttypes.h>
 #include <libudev.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
@@ -287,6 +288,11 @@ static inline bool video_need_hotplug(const struct uterm_video *video)
 static inline int video_do_use(struct uterm_video *video)
 {
 	return VIDEO_CALL(video->ops->use, 0, video);
+}
+
+static inline bool input_bit_is_set(const unsigned long *array, int bit)
+{
+	return !!(array[bit / LONG_BIT] & (1LL << (bit % LONG_BIT)));
 }
 
 #endif /* UTERM_INTERNAL_H */
