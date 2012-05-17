@@ -56,10 +56,8 @@ struct ev_eloop {
 	unsigned long ref;
 	struct ev_fd *fd;
 
-	struct ev_idle *idle_list;
-	struct ev_idle *cur_idle;
-
 	struct kmscon_dlist sig_list;
+	struct kmscon_hook *idlers;
 
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
@@ -100,16 +98,6 @@ struct ev_signal_shared {
 	struct ev_fd *fd;
 	int signum;
 	struct kmscon_hook *hook;
-};
-
-struct ev_idle {
-	unsigned long ref;
-	struct ev_eloop *loop;
-	struct ev_idle *next;
-	struct ev_idle *prev;
-
-	ev_idle_cb cb;
-	void *data;
 };
 
 /*
@@ -260,10 +248,14 @@ int ev_eloop_new(struct ev_eloop **out)
 	loop->ref = 1;
 	kmscon_dlist_init(&loop->sig_list);
 
+	ret = kmscon_hook_new(&loop->idlers);
+	if (ret)
+		goto err_free;
+
 	loop->efd = epoll_create1(EPOLL_CLOEXEC);
 	if (loop->efd < 0) {
 		ret = -errno;
-		goto err_free;
+		goto err_idlers;
 	}
 
 	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop);
@@ -276,6 +268,8 @@ int ev_eloop_new(struct ev_eloop **out)
 
 err_close:
 	close(loop->efd);
+err_idlers:
+	kmscon_hook_free(loop->idlers);
 err_free:
 	free(loop);
 	return ret;
@@ -307,6 +301,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
+	kmscon_hook_free(loop->idlers);
 	free(loop);
 }
 
@@ -333,12 +328,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		return -EINVAL;
 
 	/* dispatch idle events */
-	loop->cur_idle = loop->idle_list;
-	while (loop->cur_idle) {
-		loop->cur_idle->cb(loop->cur_idle, loop->cur_idle->data);
-		if (loop->cur_idle)
-			loop->cur_idle = loop->cur_idle->next;
-	}
+	kmscon_hook_call(loop->idlers, loop, NULL);
 
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
@@ -1018,123 +1008,8 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
 }
 
 /*
- * Idle sources
+ * Shared signals
  */
-
-int ev_idle_new(struct ev_idle **out)
-{
-	struct ev_idle *idle;
-
-	if (!out)
-		return -EINVAL;
-
-	idle = malloc(sizeof(*idle));
-	if (!idle)
-		return -ENOMEM;
-
-	memset(idle, 0, sizeof(*idle));
-	idle->ref = 1;
-
-	*out = idle;
-	return 0;
-}
-
-void ev_idle_ref(struct ev_idle *idle)
-{
-	if (!idle)
-		return;
-
-	++idle->ref;
-}
-
-void ev_idle_unref(struct ev_idle *idle)
-{
-	if (!idle || !idle->ref || --idle->ref)
-		return;
-
-	free(idle);
-}
-
-int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
-			ev_idle_cb cb, void *data)
-{
-	struct ev_idle *idle;
-	int ret;
-
-	if (!out || !loop || !cb)
-		return -EINVAL;
-
-	ret = ev_idle_new(&idle);
-	if (ret)
-		return ret;
-
-	ret = ev_eloop_add_idle(loop, idle, cb, data);
-	if (ret) {
-		ev_idle_unref(idle);
-		return ret;
-	}
-
-	ev_idle_unref(idle);
-	*out = idle;
-	return 0;
-}
-
-int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
-			ev_idle_cb cb, void *data)
-{
-	if (!loop || !idle || !cb)
-		return -EINVAL;
-
-	if (idle->next || idle->prev || idle->loop)
-		return -EALREADY;
-
-	idle->next = loop->idle_list;
-	if (idle->next)
-		idle->next->prev = idle;
-	loop->idle_list = idle;
-
-	idle->loop = loop;
-	idle->cb = cb;
-	idle->data = data;
-
-	ev_idle_ref(idle);
-	ev_eloop_ref(loop);
-
-	return 0;
-}
-
-void ev_eloop_rm_idle(struct ev_idle *idle)
-{
-	struct ev_eloop *loop;
-
-	if (!idle || !idle->loop)
-		return;
-
-	loop = idle->loop;
-
-	/*
-	 * If the loop is currently dispatching, we need to check whether we are
-	 * the current element and correctly set it to the next element.
-	 */
-	if (loop->cur_idle == idle)
-		loop->cur_idle = idle->next;
-
-	if (idle->prev)
-		idle->prev->next = idle->next;
-	if (idle->next)
-		idle->next->prev = idle->prev;
-	if (loop->idle_list == idle)
-		loop->idle_list = idle->next;
-
-	idle->next = NULL;
-	idle->prev = NULL;
-	idle->loop = NULL;
-	idle->cb = NULL;
-	idle->data = NULL;
-
-	ev_idle_unref(idle);
-	ev_eloop_unref(loop);
-}
 
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data)
@@ -1179,4 +1054,26 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 			return;
 		}
 	}
+}
+
+/*
+ * Idle sources
+ */
+
+int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+			      void *data)
+{
+	if (!eloop)
+		return -EINVAL;
+
+	return kmscon_hook_add_cast(eloop->idlers, cb, data);
+}
+
+void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+				 void *data)
+{
+	if (!eloop)
+		return;
+
+	kmscon_hook_rm_cast(eloop->idlers, cb, data);
 }

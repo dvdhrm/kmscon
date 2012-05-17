@@ -72,8 +72,8 @@ struct kmscon_terminal {
 	unsigned int max_width;
 	unsigned int max_height;
 
+	bool redraw;
 	struct kmscon_console *console;
-	struct ev_idle *redraw;
 	struct kmscon_vte *vte;
 	struct kmscon_pty *pty;
 
@@ -81,14 +81,15 @@ struct kmscon_terminal {
 	void *data;
 };
 
-static void draw_all(struct ev_idle *idle, void *data)
+static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct kmscon_terminal *term = data;
 	struct screen *iter;
 	struct uterm_screen *screen;
 	int ret;
 
-	ev_eloop_rm_idle(idle);
+	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
+	term->redraw = false;
 
 	iter = term->screens;
 	for (; iter; iter = iter->next) {
@@ -110,9 +111,14 @@ static void schedule_redraw(struct kmscon_terminal *term)
 {
 	int ret;
 
-	ret = ev_eloop_add_idle(term->eloop, term->redraw, draw_all, term);
-	if (ret && ret != -EALREADY)
-		log_warn("terminal: cannot schedule redraw");
+	if (term->redraw)
+		return;
+
+	ret = ev_eloop_register_idle_cb(term->eloop, draw_all, term);
+	if (ret)
+		log_warn("cannot schedule redraw");
+	else
+		term->redraw = true;
 }
 
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
@@ -275,13 +281,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->video = video;
 	term->input = input;
 
-	ret = ev_idle_new(&term->redraw);
-	if (ret)
-		goto err_free;
-
 	ret = kmscon_console_new(&term->console);
 	if (ret)
-		goto err_idle;
+		goto err_free;
 
 	ret = kmscon_vte_new(&term->vte);
 	if (ret)
@@ -322,8 +324,6 @@ err_vte:
 	kmscon_vte_unref(term->vte);
 err_con:
 	kmscon_console_unref(term->console);
-err_idle:
-	ev_idle_unref(term->redraw);
 err_free:
 	free(term);
 	return ret;
@@ -354,8 +354,8 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
-	ev_eloop_rm_idle(term->redraw);
-	ev_idle_unref(term->redraw);
+	if (term->redraw)
+		ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	kmscon_input_unref(term->input);
 	uterm_video_unref(term->video);
 	ev_eloop_unref(term->eloop);

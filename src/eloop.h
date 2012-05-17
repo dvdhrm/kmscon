@@ -46,7 +46,7 @@ struct ev_fd;
 struct ev_timer;
 struct ev_counter;
 
-typedef void (*ev_idle_cb) (struct ev_idle *idle, void *data);
+typedef void (*ev_idle_cb) (struct ev_eloop *eloop, void *unused, void *data);
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
 typedef void (*ev_signal_shared_cb)
 	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
