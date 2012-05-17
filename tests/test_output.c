@@ -186,6 +186,10 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_exit;
 
+	ret = uterm_video_use(video);
+	if (ret)
+		goto err_unref;
+
 	log_notice("Wakeing up video object...");
 	ret = uterm_video_wake_up(video);
 	if (ret < 0)
