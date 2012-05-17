@@ -285,7 +285,7 @@ static int send_buf(struct kmscon_pty *pty)
 		return 0;
 	}
 
-	ev_eloop_update_fd(pty->efd, EV_READABLE);
+	ev_fd_update(pty->efd, EV_READABLE);
 	return 0;
 }
 
@@ -418,7 +418,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 		u8 = &u8[ret];
 	}
 
-	ev_eloop_update_fd(pty->efd, EV_READABLE | EV_WRITEABLE);
+	ev_fd_update(pty->efd, EV_READABLE | EV_WRITEABLE);
 
 buf:
 	ret = kmscon_ring_write(pty->msgbuf, u8, len);

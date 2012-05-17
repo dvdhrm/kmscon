@@ -86,11 +86,12 @@ struct ev_idle {
 
 struct ev_fd {
 	unsigned long ref;
-	struct ev_eloop *loop;
-
+	int fd;
+	int mask;
 	ev_fd_cb cb;
 	void *data;
-	int fd;
+
+	struct ev_eloop *loop;
 };
 
 struct ev_timer {
@@ -133,7 +134,7 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 	return 0;
 }
 
-static void eloop_cb(struct ev_fd *fd, int mask, void *data)
+static void eloop_event(struct ev_fd *fd, int mask, void *data)
 {
 	struct ev_eloop *eloop = data;
 
@@ -163,8 +164,7 @@ int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
 	 * siglist but we didn't need this, yet, so ignore it here.
 	 */
 
-	ret = ev_eloop_add_fd(loop, add->fd, add->efd, EV_READABLE,
-							eloop_cb, add);
+	ret = ev_eloop_add_fd(loop, add->fd);
 	if (ret)
 		return ret;
 
@@ -296,11 +296,11 @@ void ev_eloop_rm_idle(struct ev_idle *idle)
 	ev_eloop_unref(loop);
 }
 
-int ev_fd_new(struct ev_fd **out)
+int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
 {
 	struct ev_fd *fd;
 
-	if (!out)
+	if (!out || rfd < 0)
 		return -EINVAL;
 
 	fd = malloc(sizeof(*fd));
@@ -309,7 +309,10 @@ int ev_fd_new(struct ev_fd **out)
 
 	memset(fd, 0, sizeof(*fd));
 	fd->ref = 1;
-	fd->fd = -1;
+	fd->fd = rfd;
+	fd->mask = mask;
+	fd->cb = cb;
+	fd->data = data;
 
 	*out = fd;
 	return 0;
@@ -336,20 +339,52 @@ bool ev_fd_is_bound(struct ev_fd *fd)
 	return fd && fd->loop;
 }
 
+void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
+{
+	if (!fd)
+		return;
+
+	fd->cb = cb;
+	fd->data = data;
+}
+
+void ev_fd_update(struct ev_fd *fd, int mask)
+{
+	struct epoll_event ep;
+
+	if (!fd)
+		return;
+
+	fd->mask = mask;
+
+	if (!fd->loop)
+		return;
+
+	memset(&ep, 0, sizeof(ep));
+	if (fd->mask & EV_READABLE)
+		ep.events |= EPOLLIN;
+	if (fd->mask & EV_WRITEABLE)
+		ep.events |= EPOLLOUT;
+	ep.data.ptr = fd;
+
+	if (epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep))
+		log_warning("cannot update epoll fd (%d): %m", errno);
+}
+
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data)
 {
 	struct ev_fd *fd;
 	int ret;
 
-	if (!out || !loop || !cb || rfd < 0)
+	if (!out || !loop || rfd < 0)
 		return -EINVAL;
 
-	ret = ev_fd_new(&fd);
+	ret = ev_fd_new(&fd, rfd, mask, cb, data);
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_add_fd(loop, fd, rfd, mask, cb, data);
+	ret = ev_eloop_add_fd(loop, fd);
 	if (ret) {
 		ev_fd_unref(fd);
 		return ret;
@@ -360,31 +395,27 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 	return 0;
 }
 
-int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd, int rfd,
-			int mask, ev_fd_cb cb, void *data)
+int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
 	struct epoll_event ep;
 
-	if (!loop || !fd || !cb || rfd < 0)
+	if (!loop || !fd)
 		return -EINVAL;
 
 	if (fd->loop)
 		return -EALREADY;
 
 	memset(&ep, 0, sizeof(ep));
-	if (mask & EV_READABLE)
+	if (fd->mask & EV_READABLE)
 		ep.events |= EPOLLIN;
-	if (mask & EV_WRITEABLE)
+	if (fd->mask & EV_WRITEABLE)
 		ep.events |= EPOLLOUT;
 	ep.data.ptr = fd;
 
-	if (epoll_ctl(loop->efd, EPOLL_CTL_ADD, rfd, &ep) < 0)
+	if (epoll_ctl(loop->efd, EPOLL_CTL_ADD, fd->fd, &ep) < 0)
 		return -errno;
 
 	fd->loop = loop;
-	fd->cb = cb;
-	fd->data = data;
-	fd->fd = rfd;
 
 	ev_fd_ref(fd);
 	ev_eloop_ref(loop);
@@ -414,31 +445,8 @@ void ev_eloop_rm_fd(struct ev_fd *fd)
 	}
 
 	fd->loop = NULL;
-	fd->cb = NULL;
-	fd->data = NULL;
-	fd->fd = -1;
 	ev_fd_unref(fd);
 	ev_eloop_unref(loop);
-}
-
-int ev_eloop_update_fd(struct ev_fd *fd, int mask)
-{
-	struct epoll_event ep;
-
-	if (!fd || !fd->loop)
-		return -EINVAL;
-
-	memset(&ep, 0, sizeof(ep));
-	if (mask & EV_READABLE)
-		ep.events |= EPOLLIN;
-	if (mask & EV_WRITEABLE)
-		ep.events |= EPOLLOUT;
-	ep.data.ptr = fd;
-
-	if (epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep))
-		return -errno;
-
-	return 0;
 }
 
 static void sig_child()
@@ -603,7 +611,6 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 int ev_timer_new(struct ev_timer **out)
 {
 	struct ev_timer *timer;
-	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -614,12 +621,6 @@ int ev_timer_new(struct ev_timer **out)
 
 	memset(timer, 0, sizeof(*timer));
 	timer->ref = 1;
-
-	ret = ev_fd_new(&timer->fd);
-	if (ret) {
-		free(timer);
-		return ret;
-	}
 
 	*out = timer;
 	return 0;
@@ -638,7 +639,6 @@ void ev_timer_unref(struct ev_timer *timer)
 	if (!timer || !timer->ref || --timer->ref)
 		return;
 
-	ev_fd_unref(timer->fd);
 	free(timer);
 }
 
@@ -707,7 +707,7 @@ int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
 		goto err_fd;
 	}
 
-	ret = ev_eloop_add_fd(loop, timer->fd, fd, EV_READABLE,
+	ret = ev_eloop_new_fd(loop, &timer->fd, fd, EV_READABLE,
 				timer_cb, timer);
 	if (ret)
 		goto err_fd;
@@ -732,6 +732,7 @@ void ev_eloop_rm_timer(struct ev_timer *timer)
 
 	fd = timer->fd->fd;
 	ev_eloop_rm_fd(timer->fd);
+	timer->fd = NULL;
 	close(fd);
 	ev_timer_unref(timer);
 }
@@ -741,7 +742,7 @@ int ev_eloop_update_timer(struct ev_timer *timer,
 {
 	int ret;
 
-	if (!timer || !timer->fd->loop)
+	if (!timer || !ev_fd_is_bound(timer->fd))
 		return -EINVAL;
 
 	ret = timerfd_settime(timer->fd->fd, 0, spec, NULL);
@@ -768,6 +769,33 @@ int ev_eloop_update_timer(struct ev_timer *timer,
  * be ignored when increasing with small values, only.
  */
 
+static void counter_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_counter *cnt = data;
+	int ret;
+	uint64_t val;
+
+	if (mask & (EV_HUP | EV_ERR)) {
+		log_warning("HUP/ERR on eventfd");
+		return;
+	}
+
+	if (!(mask & EV_READABLE))
+		return;
+
+	ret = read(cnt->fd, &val, sizeof(val));
+	if (ret < 0) {
+		if (errno != EAGAIN)
+			log_warning("reading eventfd failed (%d): %m", errno);
+	} else if (ret == 0) {
+		log_warning("EOF on eventfd");
+	} else if (ret != sizeof(val)) {
+		log_warning("read %d bytes instead of 8 on eventfd", ret);
+	} else if (cnt->cb) {
+		cnt->cb(cnt, val, cnt->data);
+	}
+}
+
 int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data)
 {
 	struct ev_counter *cnt;
@@ -791,7 +819,7 @@ int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data)
 		goto err_free;
 	}
 
-	ret = ev_fd_new(&cnt->efd);
+	ret = ev_fd_new(&cnt->efd, cnt->fd, EV_READABLE, counter_event, cnt);
 	if (ret)
 		goto err_close;
 
@@ -884,33 +912,6 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 	return 0;
 }
 
-static void counter_event(struct ev_fd *fd, int mask, void *data)
-{
-	struct ev_counter *cnt = data;
-	int ret;
-	uint64_t val;
-
-	if (mask & (EV_HUP | EV_ERR)) {
-		log_warning("HUP/ERR on eventfd");
-		return;
-	}
-
-	if (!(mask & EV_READABLE))
-		return;
-
-	ret = read(cnt->fd, &val, sizeof(val));
-	if (ret < 0) {
-		if (errno != EAGAIN)
-			log_warning("reading eventfd failed (%d): %m", errno);
-	} else if (ret == 0) {
-		log_warning("EOF on eventfd");
-	} else if (ret != sizeof(val)) {
-		log_warning("read %d bytes instead of 8 on eventfd", ret);
-	} else if (cnt->cb) {
-		cnt->cb(cnt, val, cnt->data);
-	}
-}
-
 int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
 {
 	int ret;
@@ -921,8 +922,7 @@ int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
 	if (ev_fd_is_bound(cnt->efd))
 		return -EALREADY;
 
-	ret = ev_eloop_add_fd(eloop, cnt->efd, cnt->fd, EV_READABLE,
-			      counter_event, cnt);
+	ret = ev_eloop_add_fd(eloop, cnt->efd);
 	if (ret)
 		return ret;
 
@@ -961,7 +961,7 @@ int ev_eloop_new(struct ev_eloop **out)
 		goto err_free;
 	}
 
-	ret = ev_fd_new(&loop->fd);
+	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop);
 	if (ret)
 		goto err_close;
 
