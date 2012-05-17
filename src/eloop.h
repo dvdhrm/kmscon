@@ -44,6 +44,7 @@ struct ev_eloop;
 struct ev_idle;
 struct ev_fd;
 struct ev_timer;
+struct ev_counter;
 
 typedef void (*ev_idle_cb) (struct ev_idle *idle, void *data);
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
@@ -51,6 +52,8 @@ typedef void (*ev_signal_shared_cb)
 	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
 typedef void (*ev_timer_cb)
 			(struct ev_timer *timer, uint64_t num, void *data);
+typedef void (*ev_counter_cb)
+			(struct ev_counter *cnt, uint64_t num, void *data);
 
 enum ev_eloop_flags {
 	EV_READABLE = 0x01,
@@ -122,5 +125,21 @@ int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
 void ev_eloop_rm_timer(struct ev_timer *timer);
 int ev_eloop_update_timer(struct ev_timer *timer,
 				const struct itimerspec *spec);
+
+/* counter sources */
+
+int ev_counter_new(struct ev_counter **out, ev_counter_cb, void *data);
+void ev_counter_ref(struct ev_counter *cnt);
+void ev_counter_unref(struct ev_counter *cnt);
+
+bool ev_counter_is_bound(struct ev_counter *cnt);
+void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
+			    void *data);
+void ev_counter_inc(struct ev_counter *cnt, uint64_t val);
+
+int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
+			 ev_counter_cb cb, void *data);
+int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt);
+void ev_eloop_rm_counter(struct ev_counter *cnt);
 
 #endif /* EV_ELOOP_H */
