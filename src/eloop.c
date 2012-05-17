@@ -96,10 +96,11 @@ struct ev_fd {
 
 struct ev_timer {
 	unsigned long ref;
-
-	struct ev_fd *fd;
 	ev_timer_cb cb;
 	void *data;
+
+	int fd;
+	struct ev_fd *efd;
 };
 
 struct ev_counter {
@@ -608,9 +609,50 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 	}
 }
 
-int ev_timer_new(struct ev_timer **out)
+/*
+ * Timer sources
+ * Timer sources allow delaying a specific event by an relative timeout. The
+ * timeout can be set to trigger after a specific time. Optionally, you can
+ * also make the timeout trigger every next time the timeout elapses so you
+ * basically get a pulse that reliably calls the callback.
+ * The callback gets as parameter the number of timeouts that elapsed since it
+ * was last called (in case the application couldn't call the callback fast
+ * enough). The timeout can be specified with nano-seconds precision. However,
+ * real precision depends on the operating-system and hardware.
+ */
+
+static void timer_cb(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_timer *timer = data;
+	uint64_t expirations;
+	int len;
+
+	if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("HUP/ERR on timer source");
+		return;
+	}
+
+	if (mask & EV_READABLE) {
+		len = read(timer->fd, &expirations, sizeof(expirations));
+		if (len < 0) {
+			if (errno != EAGAIN)
+				log_warning("cannot read timerfd (%d): %m",
+					    errno);
+		} else if (len == 0) {
+			log_warning("EOF on timer source");
+		} else if (len != sizeof(expirations)) {
+			log_warn("invalid size %d read on timerfd", len);
+		} else if (timer->cb) {
+			timer->cb(timer, expirations, timer->data);
+		}
+	}
+}
+
+int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
+		 ev_timer_cb cb, void *data)
 {
 	struct ev_timer *timer;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -621,14 +663,40 @@ int ev_timer_new(struct ev_timer **out)
 
 	memset(timer, 0, sizeof(*timer));
 	timer->ref = 1;
+	timer->cb = cb;
+	timer->data = data;
+
+	timer->fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+	if (timer->fd < 0) {
+		log_error("cannot create timerfd (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_free;
+	}
+
+	ret = timerfd_settime(timer->fd, 0, spec, NULL);
+	if (ret) {
+		log_warn("cannot set timerfd (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_close;
+	}
+
+	ret = ev_fd_new(&timer->efd, timer->fd, EV_READABLE, timer_cb, timer);
+	if (ret)
+		goto err_close;
 
 	*out = timer;
 	return 0;
+
+err_close:
+	close(timer->fd);
+err_free:
+	free(timer);
+	return ret;
 }
 
 void ev_timer_ref(struct ev_timer *timer)
 {
-	if (!timer)
+	if (!timer || !timer->ref)
 		return;
 
 	++timer->ref;
@@ -639,7 +707,35 @@ void ev_timer_unref(struct ev_timer *timer)
 	if (!timer || !timer->ref || --timer->ref)
 		return;
 
+	ev_fd_unref(timer->efd);
+	close(timer->fd);
 	free(timer);
+}
+
+bool ev_timer_is_bound(struct ev_timer *timer)
+{
+	return timer && ev_fd_is_bound(timer->efd);
+}
+
+void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
+{
+	if (!timer)
+		return;
+
+	timer->cb = cb;
+	timer->data = data;
+}
+
+void ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
+{
+	int ret;
+
+	if (!timer || !spec)
+		return;
+
+	ret = timerfd_settime(timer->fd, 0, spec, NULL);
+	if (ret)
+		log_warn("cannot set timerfd (%d): %m", errno);
 }
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
@@ -649,14 +745,14 @@ int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 	struct ev_timer *timer;
 	int ret;
 
-	if (!out || !loop || !spec || !cb)
+	if (!out || !loop)
 		return -EINVAL;
 
-	ret = ev_timer_new(&timer);
+	ret = ev_timer_new(&timer, spec, cb, data);
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_add_timer(loop, timer, spec, cb, data);
+	ret = ev_eloop_add_timer(loop, timer);
 	if (ret) {
 		ev_timer_unref(timer);
 		return ret;
@@ -667,92 +763,31 @@ int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 	return 0;
 }
 
-static void timer_cb(struct ev_fd *fd, int mask, void *data)
+int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer)
 {
-	struct ev_timer *timer = data;
-	uint64_t expirations;
-	int len;
+	int ret;
 
-	if (mask & EV_READABLE) {
-		len = read(fd->fd, &expirations, sizeof(expirations));
-		if (len != sizeof(expirations))
-			log_warn("cannot read timerfd");
-		else
-			timer->cb(timer, expirations, timer->data);
-	} else if (mask & (EV_HUP | EV_ERR)) {
-		log_warn("HUP/ERR on timer source");
-	}
-}
-
-int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
-			const struct itimerspec *spec, ev_timer_cb cb,
-			void *data)
-{
-	int ret, fd;
-
-	if (!loop || !timer || !spec || !cb)
+	if (!loop || !timer)
 		return -EINVAL;
 
-	if (timer->fd->loop)
+	if (ev_fd_is_bound(timer->efd))
 		return -EALREADY;
 
-	fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-
-	ret = timerfd_settime(fd, 0, spec, NULL);
-	if (ret) {
-		ret = -errno;
-		log_warn("cannot set timerfd %d: %m", ret);
-		goto err_fd;
-	}
-
-	ret = ev_eloop_new_fd(loop, &timer->fd, fd, EV_READABLE,
-				timer_cb, timer);
+	ret = ev_eloop_add_fd(loop, timer->efd);
 	if (ret)
-		goto err_fd;
+		return ret;
 
-	timer->cb = cb;
-	timer->data = data;
 	ev_timer_ref(timer);
-
 	return 0;
-
-err_fd:
-	close(fd);
-	return ret;
 }
 
 void ev_eloop_rm_timer(struct ev_timer *timer)
 {
-	int fd;
-
-	if (!timer || !timer->fd->loop)
+	if (!timer || !ev_fd_is_bound(timer->efd))
 		return;
 
-	fd = timer->fd->fd;
-	ev_eloop_rm_fd(timer->fd);
-	timer->fd = NULL;
-	close(fd);
+	ev_eloop_rm_fd(timer->efd);
 	ev_timer_unref(timer);
-}
-
-int ev_eloop_update_timer(struct ev_timer *timer,
-				const struct itimerspec *spec)
-{
-	int ret;
-
-	if (!timer || !ev_fd_is_bound(timer->fd))
-		return -EINVAL;
-
-	ret = timerfd_settime(timer->fd->fd, 0, spec, NULL);
-	if (ret) {
-		ret = -errno;
-		log_warn("cannot set timerfd %d: %m", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 /*

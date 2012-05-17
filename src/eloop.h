@@ -113,19 +113,20 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 
 /* timer sources */
 
-int ev_timer_new(struct ev_timer **out);
+int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
+		 ev_timer_cb cb, void *data);
 void ev_timer_ref(struct ev_timer *timer);
 void ev_timer_unref(struct ev_timer *timer);
+
+bool ev_timer_is_bound(struct ev_timer *timer);
+void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data);
+void ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec);
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 			const struct itimerspec *spec, ev_timer_cb cb,
 			void *data);
-int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer,
-			const struct itimerspec *spec, ev_timer_cb cb,
-			void *data);
+int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer);
 void ev_eloop_rm_timer(struct ev_timer *timer);
-int ev_eloop_update_timer(struct ev_timer *timer,
-				const struct itimerspec *spec);
 
 /* counter sources */
 
