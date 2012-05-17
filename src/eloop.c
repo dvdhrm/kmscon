@@ -51,14 +51,6 @@
 
 #define LOG_SUBSYSTEM "eloop"
 
-struct ev_signal_shared {
-	struct kmscon_dlist list;
-
-	struct ev_fd *fd;
-	int signum;
-	struct kmscon_hook *hook;
-};
-
 struct ev_eloop {
 	int efd;
 	unsigned long ref;
@@ -72,16 +64,6 @@ struct ev_eloop {
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
 	bool exit;
-};
-
-struct ev_idle {
-	unsigned long ref;
-	struct ev_eloop *loop;
-	struct ev_idle *next;
-	struct ev_idle *prev;
-
-	ev_idle_cb cb;
-	void *data;
 };
 
 struct ev_fd {
@@ -112,6 +94,347 @@ struct ev_counter {
 	struct ev_fd *efd;
 };
 
+struct ev_signal_shared {
+	struct kmscon_dlist list;
+
+	struct ev_fd *fd;
+	int signum;
+	struct kmscon_hook *hook;
+};
+
+struct ev_idle {
+	unsigned long ref;
+	struct ev_eloop *loop;
+	struct ev_idle *next;
+	struct ev_idle *prev;
+
+	ev_idle_cb cb;
+	void *data;
+};
+
+/*
+ * Shared signals
+ */
+
+static void sig_child()
+{
+	pid_t pid;
+	int status;
+
+	while (1) {
+		pid = waitpid(-1, &status, WNOHANG);
+		if (pid == -1) {
+			if (errno != ECHILD)
+				log_warn("cannot wait on child: %m");
+			break;
+		} else if (pid == 0) {
+			break;
+		} else if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) != 0)
+				log_debug("child %d exited with status %d",
+					pid, WEXITSTATUS(status));
+			else
+				log_debug("child %d exited successfully", pid);
+		} else if (WIFSIGNALED(status)) {
+			log_debug("child %d exited by signal %d", pid,
+					WTERMSIG(status));
+		}
+	}
+}
+
+static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_signal_shared *sig = data;
+	struct signalfd_siginfo info;
+	int len;
+
+	if (mask & EV_READABLE) {
+		len = read(fd->fd, &info, sizeof(info));
+		if (len != sizeof(info))
+			log_warn("cannot read signalfd");
+		else
+			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
+
+		if (info.ssi_signo == SIGCHLD)
+			sig_child();
+	} else if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("HUP/ERR on signal source");
+	}
+}
+
+static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
+			int signum)
+{
+	sigset_t mask;
+	int ret, fd;
+	struct ev_signal_shared *sig;
+
+	if (!out || !loop || signum < 0)
+		return -EINVAL;
+
+	sig = malloc(sizeof(*sig));
+	if (!sig)
+		return -ENOMEM;
+	memset(sig, 0, sizeof(*sig));
+	sig->signum = signum;
+
+	ret = kmscon_hook_new(&sig->hook);
+	if (ret)
+		goto err_free;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, signum);
+
+	fd = signalfd(-1, &mask, SFD_CLOEXEC);
+	if (fd < 0) {
+		ret = -errno;
+		goto err_hook;
+	}
+
+	ret = ev_eloop_new_fd(loop, &sig->fd, fd, EV_READABLE,
+				shared_signal_cb, sig);
+	if (ret)
+		goto err_sig;
+
+	pthread_sigmask(SIG_BLOCK, &mask, NULL);
+	kmscon_dlist_link(&loop->sig_list, &sig->list);
+
+	*out = sig;
+	return 0;
+
+err_sig:
+	close(fd);
+err_hook:
+	kmscon_hook_free(sig->hook);
+err_free:
+	free(sig);
+	return ret;
+}
+
+static void signal_free(struct ev_signal_shared *sig)
+{
+	int fd;
+
+	if (!sig)
+		return;
+
+	kmscon_dlist_unlink(&sig->list);
+	fd = sig->fd->fd;
+	ev_eloop_rm_fd(sig->fd);
+	close(fd);
+	kmscon_hook_free(sig->hook);
+	free(sig);
+	/* We do not unblock the signal here as there may be other subsystems
+	 * which blocked this signal so we do not want to interfere. If you need
+	 * a clean sigmask then do it yourself.
+	 */
+}
+
+/*
+ * Eloop mainloop
+ */
+
+static void eloop_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct ev_eloop *eloop = data;
+
+	if (mask & EV_READABLE)
+		ev_eloop_dispatch(eloop, 0);
+	if (mask & (EV_HUP | EV_ERR))
+		log_warn("HUP/ERR on eloop source");
+}
+
+int ev_eloop_new(struct ev_eloop **out)
+{
+	struct ev_eloop *loop;
+	int ret;
+
+	if (!out)
+		return -EINVAL;
+
+	loop = malloc(sizeof(*loop));
+	if (!loop)
+		return -ENOMEM;
+
+	memset(loop, 0, sizeof(*loop));
+	loop->ref = 1;
+	kmscon_dlist_init(&loop->sig_list);
+
+	loop->efd = epoll_create1(EPOLL_CLOEXEC);
+	if (loop->efd < 0) {
+		ret = -errno;
+		goto err_free;
+	}
+
+	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop);
+	if (ret)
+		goto err_close;
+
+	log_debug("new eloop object %p", loop);
+	*out = loop;
+	return 0;
+
+err_close:
+	close(loop->efd);
+err_free:
+	free(loop);
+	return ret;
+}
+
+void ev_eloop_ref(struct ev_eloop *loop)
+{
+	if (!loop)
+		return;
+
+	++loop->ref;
+}
+
+void ev_eloop_unref(struct ev_eloop *loop)
+{
+	struct ev_signal_shared *sig;
+
+	if (!loop || !loop->ref || --loop->ref)
+		return;
+
+	log_debug("free eloop object %p", loop);
+
+	while (loop->sig_list.next != &loop->sig_list) {
+		sig = kmscon_dlist_entry(loop->sig_list.next,
+					struct ev_signal_shared,
+					list);
+		signal_free(sig);
+	}
+
+	ev_fd_unref(loop->fd);
+	close(loop->efd);
+	free(loop);
+}
+
+void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
+{
+	int i;
+
+	if (!loop || !fd)
+		return;
+
+	for (i = 0; i < loop->cur_fds_cnt; ++i) {
+		if (loop->cur_fds[i].data.ptr == fd)
+			loop->cur_fds[i].data.ptr = NULL;
+	}
+}
+
+int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
+{
+	struct epoll_event ep[32];
+	struct ev_fd *fd;
+	int i, count, mask;
+
+	if (!loop || loop->exit)
+		return -EINVAL;
+
+	/* dispatch idle events */
+	loop->cur_idle = loop->idle_list;
+	while (loop->cur_idle) {
+		loop->cur_idle->cb(loop->cur_idle, loop->cur_idle->data);
+		if (loop->cur_idle)
+			loop->cur_idle = loop->cur_idle->next;
+	}
+
+	/* dispatch fd events */
+	count = epoll_wait(loop->efd, ep, 32, timeout);
+	if (count < 0) {
+		if (errno == EINTR) {
+			count = 0;
+		} else {
+			log_warn("epoll_wait dispatching failed: %m");
+			return -errno;
+		}
+	}
+
+	loop->cur_fds = ep;
+	loop->cur_fds_cnt = count;
+
+	for (i = 0; i < count; ++i) {
+		fd = ep[i].data.ptr;
+		if (!fd || !fd->cb)
+			continue;
+
+		mask = 0;
+		if (ep[i].events & EPOLLIN)
+			mask |= EV_READABLE;
+		if (ep[i].events & EPOLLOUT)
+			mask |= EV_WRITEABLE;
+		if (ep[i].events & EPOLLERR)
+			mask |= EV_ERR;
+		if (ep[i].events & EPOLLHUP) {
+			mask |= EV_HUP;
+			epoll_ctl(loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
+		}
+
+		fd->cb(fd, mask, fd->data);
+	}
+
+	loop->cur_fds = NULL;
+	loop->cur_fds_cnt = 0;
+
+	return 0;
+}
+
+/* ev_eloop_dispatch() performs one idle-roundtrip. This function performs as
+ * many idle-roundtrips as needed to run \timeout milliseconds.
+ * If \timeout is 0, this is equal to ev_eloop_dispath(), if \timeout is <0,
+ * this runs until \loop->exit becomes true.
+ */
+int ev_eloop_run(struct ev_eloop *loop, int timeout)
+{
+	int ret;
+	struct timeval tv, start;
+	int64_t off, msec;
+
+	if (!loop)
+		return -EINVAL;
+	loop->exit = false;
+
+	log_debug("run for %d msecs", timeout);
+	gettimeofday(&start, NULL);
+
+	while (!loop->exit) {
+		ret = ev_eloop_dispatch(loop, timeout);
+		if (ret)
+			return ret;
+
+		if (!timeout) {
+			break;
+		} else if (timeout > 0) {
+			gettimeofday(&tv, NULL);
+			off = tv.tv_sec - start.tv_sec;
+			msec = (int64_t)tv.tv_usec - (int64_t)start.tv_usec;
+			if (msec < 0) {
+				off -= 1;
+				msec = 1000000 + msec;
+			}
+			off *= 1000;
+			off += msec / 1000;
+			if (off >= timeout)
+				break;
+		}
+	}
+
+	return 0;
+}
+
+void ev_eloop_exit(struct ev_eloop *loop)
+{
+	if (!loop)
+		return;
+
+	log_debug("exiting %p", loop);
+
+	loop->exit = true;
+	if (loop->fd->loop)
+		ev_eloop_exit(loop->fd->loop);
+}
+
 int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 {
 	struct ev_eloop *el;
@@ -133,16 +456,6 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 	ev_eloop_unref(el);
 	*out = el;
 	return 0;
-}
-
-static void eloop_event(struct ev_fd *fd, int mask, void *data)
-{
-	struct ev_eloop *eloop = data;
-
-	if (mask & EV_READABLE)
-		ev_eloop_dispatch(eloop, 0);
-	if (mask & (EV_HUP | EV_ERR))
-		log_warn("HUP/ERR on eloop source");
 }
 
 int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
@@ -182,120 +495,9 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
 	ev_eloop_unref(rm);
 }
 
-int ev_idle_new(struct ev_idle **out)
-{
-	struct ev_idle *idle;
-
-	if (!out)
-		return -EINVAL;
-
-	idle = malloc(sizeof(*idle));
-	if (!idle)
-		return -ENOMEM;
-
-	memset(idle, 0, sizeof(*idle));
-	idle->ref = 1;
-
-	*out = idle;
-	return 0;
-}
-
-void ev_idle_ref(struct ev_idle *idle)
-{
-	if (!idle)
-		return;
-
-	++idle->ref;
-}
-
-void ev_idle_unref(struct ev_idle *idle)
-{
-	if (!idle || !idle->ref || --idle->ref)
-		return;
-
-	free(idle);
-}
-
-int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
-			ev_idle_cb cb, void *data)
-{
-	struct ev_idle *idle;
-	int ret;
-
-	if (!out || !loop || !cb)
-		return -EINVAL;
-
-	ret = ev_idle_new(&idle);
-	if (ret)
-		return ret;
-
-	ret = ev_eloop_add_idle(loop, idle, cb, data);
-	if (ret) {
-		ev_idle_unref(idle);
-		return ret;
-	}
-
-	ev_idle_unref(idle);
-	*out = idle;
-	return 0;
-}
-
-int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
-			ev_idle_cb cb, void *data)
-{
-	if (!loop || !idle || !cb)
-		return -EINVAL;
-
-	if (idle->next || idle->prev || idle->loop)
-		return -EALREADY;
-
-	idle->next = loop->idle_list;
-	if (idle->next)
-		idle->next->prev = idle;
-	loop->idle_list = idle;
-
-	idle->loop = loop;
-	idle->cb = cb;
-	idle->data = data;
-
-	ev_idle_ref(idle);
-	ev_eloop_ref(loop);
-
-	return 0;
-}
-
-void ev_eloop_rm_idle(struct ev_idle *idle)
-{
-	struct ev_eloop *loop;
-
-	if (!idle || !idle->loop)
-		return;
-
-	loop = idle->loop;
-
-	/*
-	 * If the loop is currently dispatching, we need to check whether we are
-	 * the current element and correctly set it to the next element.
-	 */
-	if (loop->cur_idle == idle)
-		loop->cur_idle = idle->next;
-
-	if (idle->prev)
-		idle->prev->next = idle->next;
-	if (idle->next)
-		idle->next->prev = idle->prev;
-	if (loop->idle_list == idle)
-		loop->idle_list = idle->next;
-
-	idle->next = NULL;
-	idle->prev = NULL;
-	idle->loop = NULL;
-	idle->cb = NULL;
-	idle->data = NULL;
-
-	ev_idle_unref(idle);
-	ev_eloop_unref(loop);
-}
+/*
+ * FD sources
+ */
 
 int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
 {
@@ -448,165 +650,6 @@ void ev_eloop_rm_fd(struct ev_fd *fd)
 	fd->loop = NULL;
 	ev_fd_unref(fd);
 	ev_eloop_unref(loop);
-}
-
-static void sig_child()
-{
-	pid_t pid;
-	int status;
-
-	while (1) {
-		pid = waitpid(-1, &status, WNOHANG);
-		if (pid == -1) {
-			if (errno != ECHILD)
-				log_warn("cannot wait on child: %m");
-			break;
-		} else if (pid == 0) {
-			break;
-		} else if (WIFEXITED(status)) {
-			if (WEXITSTATUS(status) != 0)
-				log_debug("child %d exited with status %d",
-					pid, WEXITSTATUS(status));
-			else
-				log_debug("child %d exited successfully", pid);
-		} else if (WIFSIGNALED(status)) {
-			log_debug("child %d exited by signal %d", pid,
-					WTERMSIG(status));
-		}
-	}
-}
-
-static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
-{
-	struct ev_signal_shared *sig = data;
-	struct signalfd_siginfo info;
-	int len;
-
-	if (mask & EV_READABLE) {
-		len = read(fd->fd, &info, sizeof(info));
-		if (len != sizeof(info))
-			log_warn("cannot read signalfd");
-		else
-			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
-
-		if (info.ssi_signo == SIGCHLD)
-			sig_child();
-	} else if (mask & (EV_HUP | EV_ERR)) {
-		log_warn("HUP/ERR on signal source");
-	}
-}
-
-static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
-			int signum)
-{
-	sigset_t mask;
-	int ret, fd;
-	struct ev_signal_shared *sig;
-
-	if (!out || !loop || signum < 0)
-		return -EINVAL;
-
-	sig = malloc(sizeof(*sig));
-	if (!sig)
-		return -ENOMEM;
-	memset(sig, 0, sizeof(*sig));
-	sig->signum = signum;
-
-	ret = kmscon_hook_new(&sig->hook);
-	if (ret)
-		goto err_free;
-
-	sigemptyset(&mask);
-	sigaddset(&mask, signum);
-
-	fd = signalfd(-1, &mask, SFD_CLOEXEC);
-	if (fd < 0) {
-		ret = -errno;
-		goto err_hook;
-	}
-
-	ret = ev_eloop_new_fd(loop, &sig->fd, fd, EV_READABLE,
-				shared_signal_cb, sig);
-	if (ret)
-		goto err_sig;
-
-	pthread_sigmask(SIG_BLOCK, &mask, NULL);
-	kmscon_dlist_link(&loop->sig_list, &sig->list);
-
-	*out = sig;
-	return 0;
-
-err_sig:
-	close(fd);
-err_hook:
-	kmscon_hook_free(sig->hook);
-err_free:
-	free(sig);
-	return ret;
-}
-
-static void signal_free(struct ev_signal_shared *sig)
-{
-	int fd;
-
-	if (!sig)
-		return;
-
-	kmscon_dlist_unlink(&sig->list);
-	fd = sig->fd->fd;
-	ev_eloop_rm_fd(sig->fd);
-	close(fd);
-	kmscon_hook_free(sig->hook);
-	free(sig);
-	/* We do not unblock the signal here as there may be other subsystems
-	 * which blocked this signal so we do not want to interfere. If you need
-	 * a clean sigmask then do it yourself.
-	 */
-}
-
-int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
-				ev_signal_shared_cb cb, void *data)
-{
-	struct ev_signal_shared *sig;
-	int ret;
-	struct kmscon_dlist *iter;
-
-	if (!loop || signum < 0 || !cb)
-		return -EINVAL;
-
-	kmscon_dlist_for_each(iter, &loop->sig_list) {
-		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
-		if (sig->signum == signum)
-			break;
-	}
-
-	if (iter == &loop->sig_list) {
-		ret = signal_new(&sig, loop, signum);
-		if (ret)
-			return ret;
-	}
-
-	return kmscon_hook_add_cast(sig->hook, cb, data);
-}
-
-void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
-					ev_signal_shared_cb cb, void *data)
-{
-	struct ev_signal_shared *sig;
-	struct kmscon_dlist *iter;
-
-	if (!loop)
-		return;
-
-	kmscon_dlist_for_each(iter, &loop->sig_list) {
-		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
-		if (sig->signum == signum) {
-			kmscon_hook_rm_cast(sig->hook, cb, data);
-			if (!kmscon_hook_num(sig->hook))
-				signal_free(sig);
-			return;
-		}
-	}
 }
 
 /*
@@ -974,193 +1017,166 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
 	ev_counter_unref(cnt);
 }
 
-int ev_eloop_new(struct ev_eloop **out)
+/*
+ * Idle sources
+ */
+
+int ev_idle_new(struct ev_idle **out)
 {
-	struct ev_eloop *loop;
-	int ret;
+	struct ev_idle *idle;
 
 	if (!out)
 		return -EINVAL;
 
-	loop = malloc(sizeof(*loop));
-	if (!loop)
+	idle = malloc(sizeof(*idle));
+	if (!idle)
 		return -ENOMEM;
 
-	memset(loop, 0, sizeof(*loop));
-	loop->ref = 1;
-	kmscon_dlist_init(&loop->sig_list);
+	memset(idle, 0, sizeof(*idle));
+	idle->ref = 1;
 
-	loop->efd = epoll_create1(EPOLL_CLOEXEC);
-	if (loop->efd < 0) {
-		ret = -errno;
-		goto err_free;
-	}
-
-	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop);
-	if (ret)
-		goto err_close;
-
-	log_debug("new eloop object %p", loop);
-	*out = loop;
+	*out = idle;
 	return 0;
-
-err_close:
-	close(loop->efd);
-err_free:
-	free(loop);
-	return ret;
 }
 
-void ev_eloop_ref(struct ev_eloop *loop)
+void ev_idle_ref(struct ev_idle *idle)
 {
-	if (!loop)
+	if (!idle)
 		return;
 
-	++loop->ref;
+	++idle->ref;
 }
 
-void ev_eloop_unref(struct ev_eloop *loop)
+void ev_idle_unref(struct ev_idle *idle)
+{
+	if (!idle || !idle->ref || --idle->ref)
+		return;
+
+	free(idle);
+}
+
+int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
+			ev_idle_cb cb, void *data)
+{
+	struct ev_idle *idle;
+	int ret;
+
+	if (!out || !loop || !cb)
+		return -EINVAL;
+
+	ret = ev_idle_new(&idle);
+	if (ret)
+		return ret;
+
+	ret = ev_eloop_add_idle(loop, idle, cb, data);
+	if (ret) {
+		ev_idle_unref(idle);
+		return ret;
+	}
+
+	ev_idle_unref(idle);
+	*out = idle;
+	return 0;
+}
+
+int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
+			ev_idle_cb cb, void *data)
+{
+	if (!loop || !idle || !cb)
+		return -EINVAL;
+
+	if (idle->next || idle->prev || idle->loop)
+		return -EALREADY;
+
+	idle->next = loop->idle_list;
+	if (idle->next)
+		idle->next->prev = idle;
+	loop->idle_list = idle;
+
+	idle->loop = loop;
+	idle->cb = cb;
+	idle->data = data;
+
+	ev_idle_ref(idle);
+	ev_eloop_ref(loop);
+
+	return 0;
+}
+
+void ev_eloop_rm_idle(struct ev_idle *idle)
+{
+	struct ev_eloop *loop;
+
+	if (!idle || !idle->loop)
+		return;
+
+	loop = idle->loop;
+
+	/*
+	 * If the loop is currently dispatching, we need to check whether we are
+	 * the current element and correctly set it to the next element.
+	 */
+	if (loop->cur_idle == idle)
+		loop->cur_idle = idle->next;
+
+	if (idle->prev)
+		idle->prev->next = idle->next;
+	if (idle->next)
+		idle->next->prev = idle->prev;
+	if (loop->idle_list == idle)
+		loop->idle_list = idle->next;
+
+	idle->next = NULL;
+	idle->prev = NULL;
+	idle->loop = NULL;
+	idle->cb = NULL;
+	idle->data = NULL;
+
+	ev_idle_unref(idle);
+	ev_eloop_unref(loop);
+}
+
+int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
+				ev_signal_shared_cb cb, void *data)
 {
 	struct ev_signal_shared *sig;
-
-	if (!loop || !loop->ref || --loop->ref)
-		return;
-
-	log_debug("free eloop object %p", loop);
-
-	while (loop->sig_list.next != &loop->sig_list) {
-		sig = kmscon_dlist_entry(loop->sig_list.next,
-					struct ev_signal_shared,
-					list);
-		signal_free(sig);
-	}
-
-	ev_fd_unref(loop->fd);
-	close(loop->efd);
-	free(loop);
-}
-
-void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
-{
-	int i;
-
-	if (!loop || !fd)
-		return;
-
-	for (i = 0; i < loop->cur_fds_cnt; ++i) {
-		if (loop->cur_fds[i].data.ptr == fd)
-			loop->cur_fds[i].data.ptr = NULL;
-	}
-}
-
-int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
-{
-	struct epoll_event ep[32];
-	struct ev_fd *fd;
-	int i, count, mask;
-
-	if (!loop || loop->exit)
-		return -EINVAL;
-
-	/* dispatch idle events */
-	loop->cur_idle = loop->idle_list;
-	while (loop->cur_idle) {
-		loop->cur_idle->cb(loop->cur_idle, loop->cur_idle->data);
-		if (loop->cur_idle)
-			loop->cur_idle = loop->cur_idle->next;
-	}
-
-	/* dispatch fd events */
-	count = epoll_wait(loop->efd, ep, 32, timeout);
-	if (count < 0) {
-		if (errno == EINTR) {
-			count = 0;
-		} else {
-			log_warn("epoll_wait dispatching failed: %m");
-			return -errno;
-		}
-	}
-
-	loop->cur_fds = ep;
-	loop->cur_fds_cnt = count;
-
-	for (i = 0; i < count; ++i) {
-		fd = ep[i].data.ptr;
-		if (!fd || !fd->cb)
-			continue;
-
-		mask = 0;
-		if (ep[i].events & EPOLLIN)
-			mask |= EV_READABLE;
-		if (ep[i].events & EPOLLOUT)
-			mask |= EV_WRITEABLE;
-		if (ep[i].events & EPOLLERR)
-			mask |= EV_ERR;
-		if (ep[i].events & EPOLLHUP) {
-			mask |= EV_HUP;
-			epoll_ctl(loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
-		}
-
-		fd->cb(fd, mask, fd->data);
-	}
-
-	loop->cur_fds = NULL;
-	loop->cur_fds_cnt = 0;
-
-	return 0;
-}
-
-/* ev_eloop_dispatch() performs one idle-roundtrip. This function performs as
- * many idle-roundtrips as needed to run \timeout milliseconds.
- * If \timeout is 0, this is equal to ev_eloop_dispath(), if \timeout is <0,
- * this runs until \loop->exit becomes true.
- */
-int ev_eloop_run(struct ev_eloop *loop, int timeout)
-{
 	int ret;
-	struct timeval tv, start;
-	int64_t off, msec;
+	struct kmscon_dlist *iter;
 
-	if (!loop)
+	if (!loop || signum < 0 || !cb)
 		return -EINVAL;
-	loop->exit = false;
 
-	log_debug("run for %d msecs", timeout);
-	gettimeofday(&start, NULL);
+	kmscon_dlist_for_each(iter, &loop->sig_list) {
+		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
+		if (sig->signum == signum)
+			break;
+	}
 
-	while (!loop->exit) {
-		ret = ev_eloop_dispatch(loop, timeout);
+	if (iter == &loop->sig_list) {
+		ret = signal_new(&sig, loop, signum);
 		if (ret)
 			return ret;
-
-		if (!timeout) {
-			break;
-		} else if (timeout > 0) {
-			gettimeofday(&tv, NULL);
-			off = tv.tv_sec - start.tv_sec;
-			msec = (int64_t)tv.tv_usec - (int64_t)start.tv_usec;
-			if (msec < 0) {
-				off -= 1;
-				msec = 1000000 + msec;
-			}
-			off *= 1000;
-			off += msec / 1000;
-			if (off >= timeout)
-				break;
-		}
 	}
 
-	return 0;
+	return kmscon_hook_add_cast(sig->hook, cb, data);
 }
 
-void ev_eloop_exit(struct ev_eloop *loop)
+void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
+					ev_signal_shared_cb cb, void *data)
 {
+	struct ev_signal_shared *sig;
+	struct kmscon_dlist *iter;
+
 	if (!loop)
 		return;
 
-	log_debug("exiting %p", loop);
-
-	loop->exit = true;
-	if (loop->fd->loop)
-		ev_eloop_exit(loop->fd->loop);
+	kmscon_dlist_for_each(iter, &loop->sig_list) {
+		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
+		if (sig->signum == signum) {
+			kmscon_hook_rm_cast(sig->hook, cb, data);
+			if (!kmscon_hook_num(sig->hook))
+				signal_free(sig);
+			return;
+		}
+	}
 }

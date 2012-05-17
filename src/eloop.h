@@ -77,18 +77,6 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out);
 int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add);
 void ev_eloop_rm_eloop(struct ev_eloop *rm);
 
-/* idle sources */
-
-int ev_idle_new(struct ev_idle **out);
-void ev_idle_ref(struct ev_idle *idle);
-void ev_idle_unref(struct ev_idle *idle);
-
-int ev_eloop_new_idle(struct ev_eloop *loop, struct ev_idle **out,
-			ev_idle_cb cb, void *data);
-int ev_eloop_add_idle(struct ev_eloop *loop, struct ev_idle *idle,
-			ev_idle_cb cb, void *data);
-void ev_eloop_rm_idle(struct ev_idle *idle);
-
 /* fd sources */
 
 int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data);
@@ -103,13 +91,6 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data);
 int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd);
 void ev_eloop_rm_fd(struct ev_fd *fd);
-
-/* signal sources */
-
-int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
-				ev_signal_shared_cb cb, void *data);
-void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
-					ev_signal_shared_cb cb, void *data);
 
 /* timer sources */
 
@@ -143,5 +124,19 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 			 ev_counter_cb cb, void *data);
 int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt);
 void ev_eloop_rm_counter(struct ev_counter *cnt);
+
+/* signal sources */
+
+int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
+				ev_signal_shared_cb cb, void *data);
+void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
+					ev_signal_shared_cb cb, void *data);
+
+/* idle sources */
+
+int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+			      void *data);
+void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+				 void *data);
 
 #endif /* EV_ELOOP_H */
