@@ -408,7 +408,7 @@ static int face_measure(struct font_face *face)
 
 	face->width = width / num;
 	face->height = asc + desc;
-	log_debug("width/height is %ux%u\n", face->width, face->height);
+	log_debug("width/height is %ux%u", face->width, face->height);
 
 	return 0;
 }
