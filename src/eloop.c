@@ -321,6 +321,11 @@ void ev_fd_unref(struct ev_fd *fd)
 	free(fd);
 }
 
+bool ev_fd_is_bound(struct ev_fd *fd)
+{
+	return fd && fd->loop;
+}
+
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data)
 {

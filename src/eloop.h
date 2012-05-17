@@ -35,6 +35,7 @@
 #define EV_ELOOP_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <sys/signalfd.h>
 #include <time.h>
@@ -90,6 +91,7 @@ void ev_eloop_rm_idle(struct ev_idle *idle);
 int ev_fd_new(struct ev_fd **out);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
+bool ev_fd_is_bound(struct ev_fd *fd);
 
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data);
