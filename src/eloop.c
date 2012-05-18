@@ -71,6 +71,7 @@ struct ev_fd {
 	ev_fd_cb cb;
 	void *data;
 
+	bool enabled;
 	struct ev_eloop *loop;
 };
 
@@ -346,7 +347,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	for (i = 0; i < count; ++i) {
 		fd = ep[i].data.ptr;
-		if (!fd || !fd->cb)
+		if (!fd || !fd->cb || !fd->enabled)
 			continue;
 
 		mask = 0;
@@ -358,7 +359,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 			mask |= EV_ERR;
 		if (ep[i].events & EPOLLHUP) {
 			mask |= EV_HUP;
-			epoll_ctl(loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
+			ev_fd_disable(fd);
 		}
 
 		fd->cb(fd, mask, fd->data);
@@ -506,6 +507,7 @@ int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
 	fd->mask = mask;
 	fd->cb = cb;
 	fd->data = data;
+	fd->enabled = true;
 
 	*out = fd;
 	return 0;
@@ -527,6 +529,84 @@ void ev_fd_unref(struct ev_fd *fd)
 	free(fd);
 }
 
+static void fd_epoll_add(struct ev_fd *fd)
+{
+	struct epoll_event ep;
+	int ret;
+
+	if (!fd->loop)
+		return;
+
+	memset(&ep, 0, sizeof(ep));
+	if (fd->mask & EV_READABLE)
+		ep.events |= EPOLLIN;
+	if (fd->mask & EV_WRITEABLE)
+		ep.events |= EPOLLOUT;
+	ep.data.ptr = fd;
+
+	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_ADD, fd->fd, &ep);
+	if (ret)
+		log_warning("cannot add fd %d to epoll set (%d): %m",
+			    fd->fd, errno);
+}
+
+static void fd_epoll_remove(struct ev_fd *fd)
+{
+	int ret;
+
+	if (!fd->loop)
+		return;
+
+	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
+	if (ret)
+		log_warning("cannto remote fd %d from epoll set (%d): %m",
+			    fd->fd, errno);
+}
+
+static void fd_epoll_update(struct ev_fd *fd)
+{
+	struct epoll_event ep;
+	int ret;
+
+	if (!fd->loop)
+		return;
+
+	memset(&ep, 0, sizeof(ep));
+	if (fd->mask & EV_READABLE)
+		ep.events |= EPOLLIN;
+	if (fd->mask & EV_WRITEABLE)
+		ep.events |= EPOLLOUT;
+	ep.data.ptr = fd;
+
+	ret = epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep);
+	if (ret)
+		log_warning("cannot update epoll fd %d (%d): %m",
+			    fd->fd, errno);
+}
+
+void ev_fd_enable(struct ev_fd *fd)
+{
+	if (!fd || fd->enabled)
+		return;
+
+	fd->enabled = true;
+	fd_epoll_add(fd);
+}
+
+void ev_fd_disable(struct ev_fd *fd)
+{
+	if (!fd || !fd->enabled)
+		return;
+
+	fd->enabled = false;
+	fd_epoll_remove(fd);
+}
+
+bool ev_fd_is_enabled(struct ev_fd *fd)
+{
+	return fd && fd->enabled;
+}
+
 bool ev_fd_is_bound(struct ev_fd *fd)
 {
 	return fd && fd->loop;
@@ -543,25 +623,13 @@ void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
 
 void ev_fd_update(struct ev_fd *fd, int mask)
 {
-	struct epoll_event ep;
-
 	if (!fd)
 		return;
 
 	fd->mask = mask;
-
-	if (!fd->loop)
+	if (!fd->enabled)
 		return;
-
-	memset(&ep, 0, sizeof(ep));
-	if (fd->mask & EV_READABLE)
-		ep.events |= EPOLLIN;
-	if (fd->mask & EV_WRITEABLE)
-		ep.events |= EPOLLOUT;
-	ep.data.ptr = fd;
-
-	if (epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep))
-		log_warning("cannot update epoll fd (%d): %m", errno);
+	fd_epoll_update(fd);
 }
 
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
@@ -577,41 +645,24 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_add_fd(loop, fd);
-	if (ret) {
-		ev_fd_unref(fd);
-		return ret;
-	}
-
+	ev_eloop_add_fd(loop, fd);
 	ev_fd_unref(fd);
+
 	*out = fd;
 	return 0;
 }
 
 int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
-	struct epoll_event ep;
-
-	if (!loop || !fd)
+	if (!loop || !fd || fd->loop)
 		return -EINVAL;
 
-	if (fd->loop)
-		return -EALREADY;
-
-	memset(&ep, 0, sizeof(ep));
-	if (fd->mask & EV_READABLE)
-		ep.events |= EPOLLIN;
-	if (fd->mask & EV_WRITEABLE)
-		ep.events |= EPOLLOUT;
-	ep.data.ptr = fd;
-
-	if (epoll_ctl(loop->efd, EPOLL_CTL_ADD, fd->fd, &ep) < 0)
-		return -errno;
-
 	fd->loop = loop;
-
 	ev_fd_ref(fd);
 	ev_eloop_ref(loop);
+
+	if (fd->enabled)
+		fd_epoll_add(fd);
 
 	return 0;
 }
@@ -625,8 +676,8 @@ void ev_eloop_rm_fd(struct ev_fd *fd)
 		return;
 
 	loop = fd->loop;
-
-	epoll_ctl(loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
+	if (fd->enabled)
+		fd_epoll_remove(fd);
 
 	/*
 	 * If we are currently dispatching events, we need to remove ourself

@@ -82,6 +82,9 @@ int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
 
+void ev_fd_enable(struct ev_fd *fd);
+void ev_fd_disable(struct ev_fd *fd);
+bool ev_fd_is_enabled(struct ev_fd *fd);
 bool ev_fd_is_bound(struct ev_fd *fd);
 void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data);
 void ev_fd_update(struct ev_fd *fd, int mask);
