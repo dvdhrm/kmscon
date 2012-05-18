@@ -25,26 +25,20 @@
 
 /*
  * FBDEV Video backend
- * This is an example how to write a backend for uterm_video that is based on
- * classic linux-fbdev. It is unfinished and should not be used, yet. However,
- * if we ever need this it should be easy to finish it.
  */
-
-#warning "uterm_video fbdev backend is unfinished"
 
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <libudev.h>
 #include <linux/fb.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include "log.h"
+#include "misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
 
@@ -442,6 +436,11 @@ static void video_destroy(struct uterm_video *video)
 	}
 }
 
+static int video_use(struct uterm_video *video)
+{
+	return 0;
+}
+
 static int hotplug(struct uterm_video *video)
 {
 	struct udev_device *dev;
@@ -583,6 +582,7 @@ const struct video_ops fbdev_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO */
+	.use = video_use,
 	.poll = video_poll,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
