@@ -752,21 +752,34 @@ static void timer_cb(struct ev_fd *fd, int mask, void *data)
 
 	if (mask & (EV_HUP | EV_ERR)) {
 		log_warn("HUP/ERR on timer source");
+		if (timer->cb)
+			timer->cb(timer, 0, timer->data);
 		return;
 	}
 
 	if (mask & EV_READABLE) {
 		len = read(timer->fd, &expirations, sizeof(expirations));
 		if (len < 0) {
-			if (errno != EAGAIN)
+			if (errno != EAGAIN) {
 				log_warning("cannot read timerfd (%d): %m",
 					    errno);
+				ev_timer_disable(timer);
+				if (timer->cb)
+					timer->cb(timer, 0, timer->data);
+			}
 		} else if (len == 0) {
 			log_warning("EOF on timer source");
+			ev_timer_disable(timer);
+			if (timer->cb)
+				timer->cb(timer, 0, timer->data);
 		} else if (len != sizeof(expirations)) {
 			log_warn("invalid size %d read on timerfd", len);
-		} else if (timer->cb) {
-			timer->cb(timer, expirations, timer->data);
+			ev_timer_disable(timer);
+			if (timer->cb)
+				timer->cb(timer, 0, timer->data);
+		} else if (expirations > 0) {
+			if (timer->cb)
+				timer->cb(timer, expirations, timer->data);
 		}
 	}
 }
