@@ -1,7 +1,7 @@
 /*
  * Event Loop
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -529,13 +529,13 @@ void ev_fd_unref(struct ev_fd *fd)
 	free(fd);
 }
 
-static void fd_epoll_add(struct ev_fd *fd)
+static int fd_epoll_add(struct ev_fd *fd)
 {
 	struct epoll_event ep;
 	int ret;
 
 	if (!fd->loop)
-		return;
+		return 0;
 
 	memset(&ep, 0, sizeof(ep));
 	if (fd->mask & EV_READABLE)
@@ -545,9 +545,13 @@ static void fd_epoll_add(struct ev_fd *fd)
 	ep.data.ptr = fd;
 
 	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_ADD, fd->fd, &ep);
-	if (ret)
+	if (ret) {
 		log_warning("cannot add fd %d to epoll set (%d): %m",
 			    fd->fd, errno);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 static void fd_epoll_remove(struct ev_fd *fd)
@@ -563,13 +567,13 @@ static void fd_epoll_remove(struct ev_fd *fd)
 			    fd->fd, errno);
 }
 
-static void fd_epoll_update(struct ev_fd *fd)
+static int fd_epoll_update(struct ev_fd *fd)
 {
 	struct epoll_event ep;
 	int ret;
 
 	if (!fd->loop)
-		return;
+		return 0;
 
 	memset(&ep, 0, sizeof(ep));
 	if (fd->mask & EV_READABLE)
@@ -579,18 +583,30 @@ static void fd_epoll_update(struct ev_fd *fd)
 	ep.data.ptr = fd;
 
 	ret = epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep);
-	if (ret)
+	if (ret) {
 		log_warning("cannot update epoll fd %d (%d): %m",
 			    fd->fd, errno);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
-void ev_fd_enable(struct ev_fd *fd)
+int ev_fd_enable(struct ev_fd *fd)
 {
-	if (!fd || fd->enabled)
-		return;
+	int ret;
+
+	if (!fd)
+		return -EINVAL;
+	if (fd->enabled)
+		return 0;
+
+	ret = fd_epoll_add(fd);
+	if (ret)
+		return ret;
 
 	fd->enabled = true;
-	fd_epoll_add(fd);
+	return 0;
 }
 
 void ev_fd_disable(struct ev_fd *fd)
@@ -621,15 +637,27 @@ void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
 	fd->data = data;
 }
 
-void ev_fd_update(struct ev_fd *fd, int mask)
+int ev_fd_update(struct ev_fd *fd, int mask)
 {
-	if (!fd)
-		return;
+	int ret;
+	int omask;
 
+	if (!fd)
+		return -EINVAL;
+
+	omask = fd->mask;
 	fd->mask = mask;
+
 	if (!fd->enabled)
-		return;
-	fd_epoll_update(fd);
+		return 0;
+
+	ret = fd_epoll_update(fd);
+	if (ret) {
+		fd->mask = omask;
+		return ret;
+	}
+
+	return 0;
 }
 
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
@@ -645,25 +673,36 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 	if (ret)
 		return ret;
 
-	ev_eloop_add_fd(loop, fd);
-	ev_fd_unref(fd);
+	ret = ev_eloop_add_fd(loop, fd);
+	if (ret) {
+		ev_fd_unref(fd);
+		return ret;
+	}
 
+	ev_fd_unref(fd);
 	*out = fd;
 	return 0;
 }
 
 int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
+	int ret;
+
 	if (!loop || !fd || fd->loop)
 		return -EINVAL;
 
 	fd->loop = loop;
+
+	if (fd->enabled) {
+		ret = fd_epoll_add(fd);
+		if (ret) {
+			fd->loop = NULL;
+			return ret;
+		}
+	}
+
 	ev_fd_ref(fd);
 	ev_eloop_ref(loop);
-
-	if (fd->enabled)
-		fd_epoll_add(fd);
-
 	return 0;
 }
 
@@ -810,16 +849,20 @@ void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
 	timer->data = data;
 }
 
-void ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
+int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 {
 	int ret;
 
 	if (!timer || !spec)
-		return;
+		return -EINVAL;
 
 	ret = timerfd_settime(timer->fd, 0, spec, NULL);
-	if (ret)
+	if (ret) {
 		log_warn("cannot set timerfd (%d): %m", errno);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
@@ -985,16 +1028,16 @@ void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 	cnt->data = data;
 }
 
-void ev_counter_inc(struct ev_counter *cnt, uint64_t val)
+int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 {
 	int ret;
 
 	if (!cnt || !val)
-		return;
+		return -EINVAL;
 
 	if (val == 0xffffffffffffffffULL) {
 		log_warning("increasing counter with invalid value %llu", val);
-		return;
+		return -EINVAL;;
 	}
 
 	ret = write(cnt->fd, &val, sizeof(val));
@@ -1003,9 +1046,13 @@ void ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 			log_warning("eventfd overflow while writing %llu", val);
 		else
 			log_warning("eventfd write error (%d): %m", errno);
+		return -EFAULT;
 	} else if (ret != sizeof(val)) {
 		log_warning("wrote %d bytes instead of 8 to eventdfd", ret);
+		return -EFAULT;
 	}
+
+	return 0;
 }
 
 int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,

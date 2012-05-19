@@ -82,12 +82,12 @@ int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
 
-void ev_fd_enable(struct ev_fd *fd);
+int ev_fd_enable(struct ev_fd *fd);
 void ev_fd_disable(struct ev_fd *fd);
 bool ev_fd_is_enabled(struct ev_fd *fd);
 bool ev_fd_is_bound(struct ev_fd *fd);
 void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data);
-void ev_fd_update(struct ev_fd *fd, int mask);
+int ev_fd_update(struct ev_fd *fd, int mask);
 
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data);
@@ -103,7 +103,7 @@ void ev_timer_unref(struct ev_timer *timer);
 
 bool ev_timer_is_bound(struct ev_timer *timer);
 void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data);
-void ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec);
+int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec);
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 			const struct itimerspec *spec, ev_timer_cb cb,
@@ -120,7 +120,7 @@ void ev_counter_unref(struct ev_counter *cnt);
 bool ev_counter_is_bound(struct ev_counter *cnt);
 void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 			    void *data);
-void ev_counter_inc(struct ev_counter *cnt, uint64_t val);
+int ev_counter_inc(struct ev_counter *cnt, uint64_t val);
 
 int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 			 ev_counter_cb cb, void *data);
