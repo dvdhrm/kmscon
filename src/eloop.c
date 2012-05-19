@@ -1034,6 +1034,27 @@ void ev_counter_unref(struct ev_counter *cnt)
 	free(cnt);
 }
 
+int ev_counter_enable(struct ev_counter *cnt)
+{
+	if (!cnt)
+		return -EINVAL;
+
+	return ev_fd_enable(cnt->efd);
+}
+
+void ev_counter_disable(struct ev_counter *cnt)
+{
+	if (!cnt)
+		return;
+
+	ev_fd_disable(cnt->efd);
+}
+
+bool ev_counter_is_enabled(struct ev_counter *cnt)
+{
+	return cnt && ev_fd_is_enabled(cnt->efd);
+}
+
 bool ev_counter_is_bound(struct ev_counter *cnt)
 {
 	return cnt && ev_fd_is_bound(cnt->efd);

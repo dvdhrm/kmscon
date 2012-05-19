@@ -120,6 +120,9 @@ int ev_counter_new(struct ev_counter **out, ev_counter_cb, void *data);
 void ev_counter_ref(struct ev_counter *cnt);
 void ev_counter_unref(struct ev_counter *cnt);
 
+int ev_counter_enable(struct ev_counter *cnt);
+void ev_counter_disable(struct ev_counter *cnt);
+bool ev_counter_is_enabled(struct ev_counter *cnt);
 bool ev_counter_is_bound(struct ev_counter *cnt);
 void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 			    void *data);
