@@ -960,6 +960,8 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
 
 	if (mask & (EV_HUP | EV_ERR)) {
 		log_warning("HUP/ERR on eventfd");
+		if (cnt->cb)
+			cnt->cb(cnt, 0, cnt->data);
 		return;
 	}
 
@@ -968,14 +970,25 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
 
 	ret = read(cnt->fd, &val, sizeof(val));
 	if (ret < 0) {
-		if (errno != EAGAIN)
+		if (errno != EAGAIN) {
 			log_warning("reading eventfd failed (%d): %m", errno);
+			ev_counter_disable(cnt);
+			if (cnt->cb)
+				cnt->cb(cnt, 0, cnt->data);
+		}
 	} else if (ret == 0) {
 		log_warning("EOF on eventfd");
+		ev_counter_disable(cnt);
+		if (cnt->cb)
+			cnt->cb(cnt, 0, cnt->data);
 	} else if (ret != sizeof(val)) {
 		log_warning("read %d bytes instead of 8 on eventfd", ret);
-	} else if (cnt->cb) {
-		cnt->cb(cnt, val, cnt->data);
+		ev_counter_disable(cnt);
+		if (cnt->cb)
+			cnt->cb(cnt, 0, cnt->data);
+	} else if (val > 0) {
+		if (cnt->cb)
+			cnt->cb(cnt, val, cnt->data);
 	}
 }
 
