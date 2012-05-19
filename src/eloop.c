@@ -75,6 +75,7 @@ struct ev_eloop {
 	struct kmscon_dlist sig_list;
 	struct kmscon_hook *idlers;
 
+	bool dispatching;
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
 	bool exit;
@@ -362,9 +363,17 @@ int ev_eloop_new(struct ev_eloop **out)
 	loop->ref = 1;
 	kmscon_dlist_init(&loop->sig_list);
 
+	loop->cur_fds_cnt = 32;
+	loop->cur_fds = malloc(sizeof(struct epoll_event) *
+			       loop->cur_fds_cnt);
+	if (!loop->cur_fds) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
 	ret = kmscon_hook_new(&loop->idlers);
 	if (ret)
-		goto err_free;
+		goto err_fds;
 
 	loop->efd = epoll_create1(EPOLL_CLOEXEC);
 	if (loop->efd < 0) {
@@ -390,6 +399,8 @@ err_close:
 	close(loop->efd);
 err_idlers:
 	kmscon_hook_free(loop->idlers);
+err_fds:
+	free(loop->cur_fds);
 err_free:
 	free(loop);
 	return ret;
@@ -423,6 +434,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	kmscon_hook_free(loop->idlers);
+	free(loop->cur_fds);
 	free(loop);
 }
 
@@ -433,33 +445,40 @@ void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
 	if (!loop || !fd)
 		return;
 
-	for (i = 0; i < loop->cur_fds_cnt; ++i) {
-		if (loop->cur_fds[i].data.ptr == fd)
-			loop->cur_fds[i].data.ptr = NULL;
+	if (loop->dispatching) {
+		for (i = 0; i < loop->cur_fds_cnt; ++i) {
+			if (loop->cur_fds[i].data.ptr == fd)
+				loop->cur_fds[i].data.ptr = NULL;
+		}
 	}
 }
 
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
-	struct epoll_event ep[32];
+	struct epoll_event *ep;
 	struct ev_fd *fd;
 	int i, count, mask;
 
 	if (!loop || loop->exit)
 		return -EINVAL;
 
-	count = epoll_wait(loop->efd, ep, 32, timeout);
+	count = epoll_wait(loop->efd,
+			   loop->cur_fds,
+			   loop->cur_fds_cnt,
+			   timeout);
 	if (count < 0) {
 		if (errno == EINTR) {
-			count = 0;
+			return 0;
 		} else {
 			log_warn("epoll_wait dispatching failed: %m");
 			return -errno;
 		}
+	} else if (count > loop->cur_fds_cnt) {
+		count = loop->cur_fds_cnt;
 	}
 
-	loop->cur_fds = ep;
-	loop->cur_fds_cnt = count;
+	ep = loop->cur_fds;
+	loop->dispatching = true;
 
 	for (i = 0; i < count; ++i) {
 		fd = ep[i].data.ptr;
@@ -481,8 +500,19 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		fd->cb(fd, mask, fd->data);
 	}
 
-	loop->cur_fds = NULL;
-	loop->cur_fds_cnt = 0;
+	loop->dispatching = false;
+
+	if (count == loop->cur_fds_cnt) {
+		ep = realloc(loop->cur_fds, sizeof(struct epoll_event) *
+			     loop->cur_fds_cnt * 2);
+		if (!ep) {
+			log_warning("cannot reallocate dispatch cache to size %u",
+				    loop->cur_fds_cnt * 2);
+		} else {
+			loop->cur_fds = ep;
+			loop->cur_fds_cnt *= 2;
+		}
+	}
 
 	return 0;
 }
@@ -844,9 +874,11 @@ void ev_eloop_rm_fd(struct ev_fd *fd)
 	 * If we are currently dispatching events, we need to remove ourself
 	 * from the temporary event list.
 	 */
-	for (i = 0; i < loop->cur_fds_cnt; ++i) {
-		if (fd == loop->cur_fds[i].data.ptr)
-			loop->cur_fds[i].data.ptr = NULL;
+	if (loop->dispatching) {
+		for (i = 0; i < loop->cur_fds_cnt; ++i) {
+			if (fd == loop->cur_fds[i].data.ptr)
+				loop->cur_fds[i].data.ptr = NULL;
+		}
 	}
 
 	fd->loop = NULL;
