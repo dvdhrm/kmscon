@@ -51,6 +51,21 @@
 
 #define LOG_SUBSYSTEM "eloop"
 
+/*
+ * Event Loop
+ * An event loop is an object where you can register event sources. If you then
+ * sleep on the event loop, you will be woken up if a single event source is
+ * firing up. An event loop itself is an event source so you can nest them.
+ * \efd: The epoll file descriptor.
+ * \ref: refcnt of this object
+ * \fd: Event source around \efd so you can nest event loops
+ * \cnt: Counter source used for idle events
+ * \sig_list: Shared signal sources
+ * \idlers: List of idle sources
+ * \cur_fds: Current dispatch array of fds
+ * \cur_fds_cnt: size of \cur_fds
+ * \exit: true if we should exit the main loop
+ */
 struct ev_eloop {
 	int efd;
 	unsigned long ref;
@@ -65,6 +80,17 @@ struct ev_eloop {
 	bool exit;
 };
 
+/*
+ * FD sources
+ * File descriptors are used internally for all kinds of sources.
+ * \ref: refcnt for object
+ * \fd: the actual file desciptor
+ * \mask: the event mask for this fd (EV_READABLE, EV_WRITABLE, ...)
+ * \cb: the user callback
+ * \data: the user data
+ * \enabled: true if the object is currently enabled
+ * \loop: NULL or pointer to eloop if bound
+ */
 struct ev_fd {
 	unsigned long ref;
 	int fd;
@@ -76,6 +102,15 @@ struct ev_fd {
 	struct ev_eloop *loop;
 };
 
+/*
+ * Timer sources
+ * Based on timerfd this allows firing events based on relative timeouts.
+ * \ref: refcnt of this object
+ * \cb: user callback
+ * \data: user data
+ * \fd: the timerfd file desciptor
+ * \efd: fd-source for \fd
+ */
 struct ev_timer {
 	unsigned long ref;
 	ev_timer_cb cb;
@@ -85,6 +120,16 @@ struct ev_timer {
 	struct ev_fd *efd;
 };
 
+/*
+ * Counter Sources
+ * Counter sources fire if they are non-zero. They are based on the eventfd
+ * syscall in linux.
+ * \ref: refcnt of counter object
+ * \cb: user callback
+ * \data: user data
+ * \fd: eventfd file desciptor
+ * \efd: fd-source for \fd
+ */
 struct ev_counter {
 	unsigned long ref;
 	ev_counter_cb cb;
@@ -94,6 +139,15 @@ struct ev_counter {
 	struct ev_fd *efd;
 };
 
+/*
+ * Shared Signal Sources
+ * A shared signal allows multiple listeners for the same signal. All listeners
+ * are called if the signal is catched.
+ * \list: list integration into ev_eloop object
+ * \fd: the signalfd file desciptor for this signal
+ * \signum: the actual signal number
+ * \hook: list of registered user callbacks for this signal
+ */
 struct ev_signal_shared {
 	struct kmscon_dlist list;
 
@@ -104,6 +158,22 @@ struct ev_signal_shared {
 
 /*
  * Shared signals
+ * signalfd allows us to conveniently listen for incoming signals. However, if
+ * multiple signalfds are registered for the same signal, then only one of them
+ * will get signaled. To avoid this restriction, we provide shared signals.
+ * That means, the user can register for a signal and if no other user is
+ * registered for this signal, yet, we create a new shared signal. Otherwise,
+ * we add the user to the existing shared signals.
+ * If the signal is catched, we simply call all users that are registered for
+ * this signal.
+ * To avoid side-effects, we automatically block all signals for the current
+ * thread when a signalfd is created. We never unblock the signal. However,
+ * most modern linux user-space programs avoid signal handlers, anyway, so you
+ * can use signalfd only.
+ *
+ * As special note, we automatically handle SIGCHLD signals here and wait for
+ * all pending child exits. This, however, is only activated when at least one
+ * user has registered for SIGCHLD callbacks.
  */
 
 static void sig_child()
@@ -141,7 +211,7 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 	if (mask & EV_READABLE) {
 		len = read(fd->fd, &info, sizeof(info));
 		if (len != sizeof(info))
-			log_warn("cannot read signalfd");
+			log_warn("cannot read signalfd (%d): %m", errno);
 		else
 			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
 
@@ -175,7 +245,7 @@ static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 	sigemptyset(&mask);
 	sigaddset(&mask, signum);
 
-	fd = signalfd(-1, &mask, SFD_CLOEXEC);
+	fd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
 	if (fd < 0) {
 		ret = -errno;
 		goto err_hook;
@@ -214,14 +284,38 @@ static void signal_free(struct ev_signal_shared *sig)
 	close(fd);
 	kmscon_hook_free(sig->hook);
 	free(sig);
-	/* We do not unblock the signal here as there may be other subsystems
-	 * which blocked this signal so we do not want to interfere. If you need
-	 * a clean sigmask then do it yourself.
+	/*
+	 * We do not unblock the signal here as there may be other subsystems
+	 * which blocked this signal so we do not want to interfere. If you
+	 * need a clean sigmask then do it yourself.
 	 */
 }
 
 /*
  * Eloop mainloop
+ * The main eloop object is responsible for correctly dispatching all events.
+ * You can register fd, idle or signal sources with it. All other kinds of
+ * sources are based on these. In fact, event idle and signal sources are based
+ * on fd sources.
+ * As special feature, you can retrieve an fd of an eloop object, too, and pass
+ * it to your own event loop. If this fd is readable, then call
+ * ev_eloop_dispatch() to make this loop dispatch all pending events.
+ *
+ * There is one restriction when nesting eloops, though. You cannot share
+ * signals across eloop boundaries. That is, if you have registered for shared
+ * signals in two eloops for the _same_ signal, then only one eloop will
+ * receive the signal (and this is pretty random).
+ * However, such a setup is most often broken in design and hence should never
+ * occur. Even shared signals are quite rare.
+ * Anyway, you must take this into account when nesting eloops.
+ *
+ * For the curious reader: We implement idle sources with counter sources. That
+ * is, whenever there is an idle source we increase the counter source. Hence,
+ * the next dispatch call will call the counter source and this will call all
+ * registered idle source. If the idle sources do not unregister them, then we
+ * directly increase the counter again and the next dispatch round will call
+ * all idle sources again. This, however, has the side-effect that idle sources
+ * are _not_ called before other fd events but are rather mixed in between.
  */
 
 static void eloop_event(struct ev_fd *fd, int mask, void *data)
@@ -354,7 +448,6 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	if (!loop || loop->exit)
 		return -EINVAL;
 
-	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
 	if (count < 0) {
 		if (errno == EINTR) {
@@ -511,6 +604,12 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
 
 /*
  * FD sources
+ * This allows adding file descriptors to an eloop. A file descriptor is the
+ * most basic kind of source and used for all other source types.
+ * By default a source is always enabled but you can easily disable the source
+ * by calling ev_fd_disable(). This will have the effect, that the source is
+ * still registered with the eloop but will not wake up the thread or get
+ * called until you enable it again.
  */
 
 int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
@@ -1199,6 +1298,10 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
 
 /*
  * Shared signals
+ * This allows registering for shared signal events. See description of the
+ * shared signal object above for more information how this works. Also see the
+ * eloop description to see some drawbacks when nesting eloop objects with the
+ * same shared signal sources.
  */
 
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
@@ -1248,6 +1351,10 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 
 /*
  * Idle sources
+ * Idle sources are called everytime when a next dispatch round is started.
+ * That means, unless there is no idle source registered, the thread will
+ * _never_ go to sleep. So please unregister your idle source if no longer
+ * needed.
  */
 
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
