@@ -1143,6 +1143,7 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 	}
 
 	ev_counter_unref(cnt);
+	*out = cnt;
 	return 0;
 }
 
