@@ -55,6 +55,7 @@ struct ev_eloop {
 	int efd;
 	unsigned long ref;
 	struct ev_fd *fd;
+	struct ev_counter *cnt;
 
 	struct kmscon_dlist sig_list;
 	struct kmscon_hook *idlers;
@@ -233,6 +234,24 @@ static void eloop_event(struct ev_fd *fd, int mask, void *data)
 		log_warn("HUP/ERR on eloop source");
 }
 
+static void eloop_cnt_event(struct ev_counter *cnt, uint64_t num, void *data)
+{
+	struct ev_eloop *eloop = data;
+	int ret;
+
+	if (!num) {
+		log_warning("HUP/ERR on eloop idle-counter");
+		return;
+	}
+
+	kmscon_hook_call(eloop->idlers, eloop, NULL);
+	if (kmscon_hook_num(eloop->idlers) > 0) {
+		ret = ev_counter_inc(eloop->cnt, 1);
+		if (ret)
+			log_warning("cannot increase eloop idle-counter");
+	}
+}
+
 int ev_eloop_new(struct ev_eloop **out)
 {
 	struct ev_eloop *loop;
@@ -263,10 +282,16 @@ int ev_eloop_new(struct ev_eloop **out)
 	if (ret)
 		goto err_close;
 
+	ret = ev_eloop_new_counter(loop, &loop->cnt, eloop_cnt_event, loop);
+	if (ret)
+		goto err_fd;
+
 	log_debug("new eloop object %p", loop);
 	*out = loop;
 	return 0;
 
+err_fd:
+	ev_fd_unref(loop->fd);
 err_close:
 	close(loop->efd);
 err_idlers:
@@ -300,6 +325,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 		signal_free(sig);
 	}
 
+	ev_eloop_rm_counter(loop->cnt);
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	kmscon_hook_free(loop->idlers);
@@ -327,9 +353,6 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	if (!loop || loop->exit)
 		return -EINVAL;
-
-	/* dispatch idle events */
-	kmscon_hook_call(loop->idlers, loop, NULL);
 
 	/* dispatch fd events */
 	count = epoll_wait(loop->efd, ep, 32, timeout);
@@ -1230,10 +1253,20 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data)
 {
+	int ret;
+
 	if (!eloop)
 		return -EINVAL;
 
-	return kmscon_hook_add_cast(eloop->idlers, cb, data);
+	ret = kmscon_hook_add_cast(eloop->idlers, cb, data);
+	if (ret)
+		return ret;
+
+	ret = ev_counter_inc(eloop->cnt, 1);
+	if (ret)
+		log_warning("cannot increase eloop idle-counter");
+
+	return 0;
 }
 
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
