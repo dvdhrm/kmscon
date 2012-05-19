@@ -24,11 +24,27 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * Event Loop
- * This provides a basic event loop similar to those provided by glib etc.
- * It uses linux specific features like signalfd so it may not be easy to port
- * it to other platforms.
+/**
+ * SECTION:eloop
+ * @short_description: Event loop
+ * @include: eloop.h
+ *
+ * The event loop allows to register event sources and poll them for events.
+ * When an event occurs, the user-supplied callback is called.
+ *
+ * The event-loop allows the callbacks to modify _any_ data they want. They can
+ * remove themself or other sources from the event loop even in a callback.
+ *
+ * Sources can be one of:
+ *  - File descriptors: An fd that is watched for readable/writeable events
+ *  - Timers: An event that occurs after a relative timeout
+ *  - Counters: An event that occurs when the counter is non-zero
+ *  - Signals: An event that occurs when a signal is caught
+ *  - Idle: An event that occurs when nothing else is done
+ *  - Eloop: An event loop itself can be a source of another event loop
+ *
+ * A source can be registered for a single event-loop only! You cannot add it to
+ * multiple event loops simultaneously.
  */
 
 #include <errno.h>
@@ -51,20 +67,21 @@
 
 #define LOG_SUBSYSTEM "eloop"
 
-/*
- * Event Loop
+/**
+ * ev_eloop:
+ * @efd: The epoll file descriptor.
+ * @ref: refcnt of this object
+ * @fd: Event source around \efd so you can nest event loops
+ * @cnt: Counter source used for idle events
+ * @sig_list: Shared signal sources
+ * @idlers: List of idle sources
+ * @cur_fds: Current dispatch array of fds
+ * @cur_fds_cnt: size of \cur_fds
+ * @exit: true if we should exit the main loop
+ *
  * An event loop is an object where you can register event sources. If you then
  * sleep on the event loop, you will be woken up if a single event source is
  * firing up. An event loop itself is an event source so you can nest them.
- * \efd: The epoll file descriptor.
- * \ref: refcnt of this object
- * \fd: Event source around \efd so you can nest event loops
- * \cnt: Counter source used for idle events
- * \sig_list: Shared signal sources
- * \idlers: List of idle sources
- * \cur_fds: Current dispatch array of fds
- * \cur_fds_cnt: size of \cur_fds
- * \exit: true if we should exit the main loop
  */
 struct ev_eloop {
 	int efd;
@@ -81,16 +98,18 @@ struct ev_eloop {
 	bool exit;
 };
 
-/*
- * FD sources
- * File descriptors are used internally for all kinds of sources.
- * \ref: refcnt for object
- * \fd: the actual file desciptor
- * \mask: the event mask for this fd (EV_READABLE, EV_WRITABLE, ...)
- * \cb: the user callback
- * \data: the user data
- * \enabled: true if the object is currently enabled
- * \loop: NULL or pointer to eloop if bound
+/**
+ * ev_fd:
+ * @ref: refcnt for object
+ * @fd: the actual file desciptor
+ * @mask: the event mask for this fd (EV_READABLE, EV_WRITABLE, ...)
+ * @cb: the user callback
+ * @data: the user data
+ * @enabled: true if the object is currently enabled
+ * @loop: NULL or pointer to eloop if bound
+ *
+ * File descriptors are the most mosic event source. Internally, they are used
+ * to implement all other kinds of event sources.
  */
 struct ev_fd {
 	unsigned long ref;
@@ -103,14 +122,15 @@ struct ev_fd {
 	struct ev_eloop *loop;
 };
 
-/*
- * Timer sources
+/**
+ * ev_timer:
+ * @ref: refcnt of this object
+ * @cb: user callback
+ * @data: user data
+ * @fd: the timerfd file desciptor
+ * @efd: fd-source for @fd
+ *
  * Based on timerfd this allows firing events based on relative timeouts.
- * \ref: refcnt of this object
- * \cb: user callback
- * \data: user data
- * \fd: the timerfd file desciptor
- * \efd: fd-source for \fd
  */
 struct ev_timer {
 	unsigned long ref;
@@ -121,15 +141,16 @@ struct ev_timer {
 	struct ev_fd *efd;
 };
 
-/*
- * Counter Sources
+/**
+ * ev_counter:
+ * @ref: refcnt of counter object
+ * @cb: user callback
+ * @data: user data
+ * @fd: eventfd file desciptor
+ * @efd: fd-source for @fd
+ *
  * Counter sources fire if they are non-zero. They are based on the eventfd
  * syscall in linux.
- * \ref: refcnt of counter object
- * \cb: user callback
- * \data: user data
- * \fd: eventfd file desciptor
- * \efd: fd-source for \fd
  */
 struct ev_counter {
 	unsigned long ref;
@@ -140,14 +161,15 @@ struct ev_counter {
 	struct ev_fd *efd;
 };
 
-/*
- * Shared Signal Sources
+/**
+ * ev_signal_shared:
+ * @list: list integration into ev_eloop object
+ * @fd: the signalfd file desciptor for this signal
+ * @signum: the actual signal number
+ * @hook: list of registered user callbacks for this signal
+ *
  * A shared signal allows multiple listeners for the same signal. All listeners
  * are called if the signal is catched.
- * \list: list integration into ev_eloop object
- * \fd: the signalfd file desciptor for this signal
- * \signum: the actual signal number
- * \hook: list of registered user callbacks for this signal
  */
 struct ev_signal_shared {
 	struct kmscon_dlist list;
@@ -157,7 +179,7 @@ struct ev_signal_shared {
 	struct kmscon_hook *hook;
 };
 
-/*
+/**
  * Shared signals
  * signalfd allows us to conveniently listen for incoming signals. However, if
  * multiple signalfds are registered for the same signal, then only one of them
@@ -223,6 +245,18 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 	}
 }
 
+/**
+ * signal_new:
+ * @out: Shared signal storage where the new object is stored
+ * @loop: The event loop where this shared signal is registered
+ * @signum: Signal number that this shared signal is for
+ *
+ * This creates a new shared signal and links it into the list of shared signals
+ * in @loop. It automatically adds @signum to the signal mask of the current
+ * thread so the signal is blocked.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 			int signum)
 {
@@ -272,6 +306,15 @@ err_free:
 	return ret;
 }
 
+/**
+ * signal_free:
+ * @sig: The shared signal to be freed
+ *
+ * This unlinks the given shared signal from the event-loop where it was
+ * registered and destroys it. This does _not_ unblock the signal number that it
+ * was associated to. If you want this, you need to do this manually with
+ * pthread_sigmask().
+ */
 static void signal_free(struct ev_signal_shared *sig)
 {
 	int fd;
@@ -347,6 +390,15 @@ static void eloop_cnt_event(struct ev_counter *cnt, uint64_t num, void *data)
 	}
 }
 
+/**
+ * ev_eloop_new:
+ * @out: Storage for the result
+ *
+ * This creates a new event-loop with ref-count 1. The new event loop is stored
+ * in @out and has no registered events.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_new(struct ev_eloop **out)
 {
 	struct ev_eloop *loop;
@@ -406,6 +458,12 @@ err_free:
 	return ret;
 }
 
+/**
+ * ev_eloop_ref:
+ * @loop: Event loop to be modified
+ *
+ * This increases the ref-count of @loop by 1.
+ */
 void ev_eloop_ref(struct ev_eloop *loop)
 {
 	if (!loop)
@@ -414,6 +472,15 @@ void ev_eloop_ref(struct ev_eloop *loop)
 	++loop->ref;
 }
 
+/**
+ * ev_eloop_unref:
+ * @loop: Event loop to be modified
+ *
+ * This decreases the ref-count of @loop by 1. If it drops to zero, the event
+ * loop is destroyed. Note that every registered event source takes a ref-count
+ * of the event loop so this ref-count will never drop to zero while there is an
+ * registered event source.
+ */
 void ev_eloop_unref(struct ev_eloop *loop)
 {
 	struct ev_signal_shared *sig;
@@ -438,6 +505,14 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	free(loop);
 }
 
+/**
+ * ev_eloop_flush_fd:
+ * @loop: The event loop where @fd is registered
+ * @fd: The fd to be flushed
+ *
+ * If @loop is currently dispatching events, this will remove all pending events
+ * of @fd from the current event-list.
+ */
 void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
 	int i;
@@ -453,6 +528,24 @@ void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
 	}
 }
 
+/**
+ * ev_eloop_dispatch:
+ * @loop: Event loop to be dispatched
+ * @timeout: Timeout in milliseconds
+ *
+ * This listens on @loop for incoming events and handles all events that
+ * occured. This waits at most @timeout milliseconds until returning. If
+ * @timeout is -1, this waits until the first event arrives. If @timeout is 0,
+ * then this returns directly if no event is currently pending.
+ *
+ * This performs only a single dispatch round. That is, if all sources where
+ * checked for events and there are no more pending events, this will return. If
+ * it handled events and the timeout has not elapsed, this will still return.
+ *
+ * If ev_eloop_exit() was called on @loop, then this will return immediately.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
 	struct epoll_event *ep;
@@ -517,10 +610,21 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	return 0;
 }
 
-/* ev_eloop_dispatch() performs one idle-roundtrip. This function performs as
- * many idle-roundtrips as needed to run \timeout milliseconds.
- * If \timeout is 0, this is equal to ev_eloop_dispath(), if \timeout is <0,
- * this runs until \loop->exit becomes true.
+/**
+ * ev_eloop_run:
+ * @loop: The event loop to be run
+ * @timeout: Timeout for this operation
+ *
+ * This is similar to ev_eloop_dispatch() but runs _exactly_ for @timeout
+ * milliseconds. It calls ev_eloop_dispatch() as often as it can until the
+ * timeout has elapsed. If @timeout is -1 this will run until you call
+ * ev_eloop_exit(). If @timeout is 0 this is equal to calling
+ * ev_eloop_dispatch() with a timeout of 0.
+ *
+ * Calling ev_eloop_exit() will always interrupt this function and make it
+ * return.
+ *
+ * Returns: 0 on success, otherwise a negative error code
  */
 int ev_eloop_run(struct ev_eloop *loop, int timeout)
 {
@@ -560,6 +664,12 @@ int ev_eloop_run(struct ev_eloop *loop, int timeout)
 	return 0;
 }
 
+/**
+ * ev_eloop_exit:
+ * @loop: Event loop that should exit
+ *
+ * This makes a call to ev_eloop_run() stop.
+ */
 void ev_eloop_exit(struct ev_eloop *loop)
 {
 	if (!loop)
@@ -572,6 +682,16 @@ void ev_eloop_exit(struct ev_eloop *loop)
 		ev_eloop_exit(loop->fd->loop);
 }
 
+/**
+ * ev_eloop_new_eloop:
+ * @loop: The parent event-loop where the new event loop is registered
+ * @out: Storage for new event loop
+ *
+ * This creates a new event loop and directly registeres it as event source on
+ * the parent event loop \loop.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 {
 	struct ev_eloop *el;
@@ -595,6 +715,16 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 	return 0;
 }
 
+/**
+ * ev_eloop_add_eloop:
+ * @loop: Parent event loop
+ * @add: The event loop that is registered as event source on @loop
+ *
+ * This registers the existing event loop @add as event source on the parent
+ * event loop @loop.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
 {
 	int ret;
@@ -623,6 +753,14 @@ int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
 	return 0;
 }
 
+/**
+ * ev_eloop_rm_eloop:
+ * @rm: Event loop to be unregistered from its parent
+ *
+ * This unregisters the event loop @rm as event source from its parent. If this
+ * event loop was not registered on any other event loop, then this call does
+ * nothing.
+ */
 void ev_eloop_rm_eloop(struct ev_eloop *rm)
 {
 	if (!rm || !rm->fd->loop)
@@ -642,6 +780,22 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
  * called until you enable it again.
  */
 
+/**
+ * ev_fd_new:
+ * @out: Storage for result
+ * @rfd: The actual file desciptor
+ * @mask: Bitmask of %EV_READABLE and %EV_WRITeABLE flags
+ * @cb: User callback
+ * @data: User data
+ *
+ * This creates a new file desciptor source that is watched for the events set
+ * in @mask. @rfd is the system filedescriptor. The resulting object is stored
+ * in @out. @cb and @data are the user callback and the user-supplied data that
+ * is passed to the callback on events.
+ * The FD is automatically watched for EV_HUP and EV_ERR events, too.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
 {
 	struct ev_fd *fd;
@@ -665,6 +819,12 @@ int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data)
 	return 0;
 }
 
+/**
+ * ev_fd_ref:
+ * @fd: FD object
+ *
+ * Increases the ref-count of @fd by 1.
+ */
 void ev_fd_ref(struct ev_fd *fd)
 {
 	if (!fd)
@@ -673,6 +833,13 @@ void ev_fd_ref(struct ev_fd *fd)
 	++fd->ref;
 }
 
+/**
+ * ev_fd_unref:
+ * @fd: FD object
+ *
+ * Decreases the ref-count of @fd by 1. Destroys the object if the ref-count
+ * drops to zero.
+ */
 void ev_fd_unref(struct ev_fd *fd)
 {
 	if (!fd || !fd->ref || --fd->ref)
@@ -744,6 +911,15 @@ static int fd_epoll_update(struct ev_fd *fd)
 	return 0;
 }
 
+/**
+ * ev_fd_enable:
+ * @fd: FD object
+ *
+ * This enables @fd. By default every fd object is enabled. If you disabled it
+ * you can re-enable it with this call.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_fd_enable(struct ev_fd *fd)
 {
 	int ret;
@@ -761,6 +937,13 @@ int ev_fd_enable(struct ev_fd *fd)
 	return 0;
 }
 
+/**
+ * ev_fd_disable:
+ * @fd: FD object
+ *
+ * Disables @fd. That means, no more events are handled for @fd until you
+ * re-enable it with ev_fd_enable().
+ */
 void ev_fd_disable(struct ev_fd *fd)
 {
 	if (!fd || !fd->enabled)
@@ -770,16 +953,42 @@ void ev_fd_disable(struct ev_fd *fd)
 	fd_epoll_remove(fd);
 }
 
+/**
+ * ev_fd_is_enabled:
+ * @fd: FD object
+ *
+ * Returns whether the fd object is enabled or disabled.
+ *
+ * Returns: true if @fd is enabled, otherwise false.
+ */
 bool ev_fd_is_enabled(struct ev_fd *fd)
 {
 	return fd && fd->enabled;
 }
 
+/**
+ * ev_fd_is_bound:
+ * @fd: FD object
+ *
+ * Returns true if the fd object is bound to an event loop.
+ *
+ * Returns: true if @fd is bound, otherwise false
+ */
 bool ev_fd_is_bound(struct ev_fd *fd)
 {
 	return fd && fd->loop;
 }
 
+/**
+ * ev_fd_set_cb_data:
+ * @fd: FD object
+ * @cb: New user callback
+ * @data: New user data
+ *
+ * This changes the user callback and user data that were set in ev_fd_new().
+ * Both can be set to NULL. If @cb is NULL, then the callback will not be called
+ * anymore.
+ */
 void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
 {
 	if (!fd)
@@ -789,6 +998,15 @@ void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
 	fd->data = data;
 }
 
+/**
+ * ev_fd_update:
+ * @fd: FD object
+ * @mask: Bitmask of %EV_READABLE and %EV_WRITEABLE
+ *
+ * This resets the event mask of @fd to @mask.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_fd_update(struct ev_fd *fd, int mask)
 {
 	int ret;
@@ -812,6 +1030,23 @@ int ev_fd_update(struct ev_fd *fd, int mask)
 	return 0;
 }
 
+/**
+ * ev_eloop_new_fd:
+ * @loop: Event loop
+ * @out: Storage for result
+ * @rfd: File descriptor
+ * @mask: Bitmask of %EV_READABLE and %EV_WRITEABLE
+ * @cb: User callback
+ * @data: User data
+ *
+ * This creates a new fd object like ev_fd_new() and directly registers it in
+ * the event loop @loop. See ev_fd_new() and ev_eloop_add_fd() for more
+ * information.
+ * The ref-count of @out is 1 so you must call ev_eloop_rm_fd() to destroy the
+ * fd. You must not call ev_fd_unref() unless you called ev_fd_ref() before.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data)
 {
@@ -836,6 +1071,17 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 	return 0;
 }
 
+/**
+ * ev_eloop_add_fd:
+ * @loop: Event loop
+ * @fd: FD Object
+ *
+ * Registers @fd in the event loop @loop. This increases the ref-count of both
+ * @loop and @fd. From now on the user callback of @fd may get called during
+ * dispatching.
+ *
+ * Returns: 0 on success, otherwise negative error code
+ */
 int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
 	int ret;
@@ -858,6 +1104,16 @@ int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 	return 0;
 }
 
+/**
+ * ev_eloop_rm_fd:
+ * @fd: FD object
+ *
+ * Removes the fd object @fd from its event loop. If you did not call
+ * ev_eloop_add_fd() before, this will do nothing.
+ * This decreases the refcount of @fd and the event loop by 1.
+ * It is safe to call this in any callback. This makes sure that the current
+ * dispatcher will not get confused or read invalid memory.
+ */
 void ev_eloop_rm_fd(struct ev_fd *fd)
 {
 	struct ev_eloop *loop;
