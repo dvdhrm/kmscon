@@ -101,6 +101,9 @@ int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 void ev_timer_ref(struct ev_timer *timer);
 void ev_timer_unref(struct ev_timer *timer);
 
+int ev_timer_enable(struct ev_timer *timer);
+void ev_timer_disable(struct ev_timer *timer);
+bool ev_timer_is_enabled(struct ev_timer *timer);
 bool ev_timer_is_bound(struct ev_timer *timer);
 void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data);
 int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec);

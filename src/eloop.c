@@ -835,6 +835,27 @@ void ev_timer_unref(struct ev_timer *timer)
 	free(timer);
 }
 
+int ev_timer_enable(struct ev_timer *timer)
+{
+	if (!timer)
+		return -EINVAL;
+
+	return ev_fd_enable(timer->efd);
+}
+
+void ev_timer_disable(struct ev_timer *timer)
+{
+	if (!timer)
+		return;
+
+	ev_fd_disable(timer->efd);
+}
+
+bool ev_timer_is_enabled(struct ev_timer *timer)
+{
+	return timer && ev_fd_is_enabled(timer->efd);
+}
+
 bool ev_timer_is_bound(struct ev_timer *timer)
 {
 	return timer && ev_fd_is_bound(timer->efd);
