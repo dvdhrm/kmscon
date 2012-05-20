@@ -40,6 +40,7 @@
 
 struct kbd_desc {
 	unsigned long ref;
+	struct xkb_context *ctx;
 	struct xkb_keymap *keymap;
 };
 
@@ -61,6 +62,12 @@ int kbd_dev_new(struct kbd_dev **out, struct kbd_desc *desc)
 	kbd->ref = 1;
 	kbd->desc = desc;
 
+	kbd->state = xkb_state_new(desc->keymap);
+	if (!kbd->state) {
+		free(kbd);
+		return -ENOMEM;
+	}
+
 	kbd_desc_ref(desc);
 	*out = kbd;
 	return 0;
@@ -79,6 +86,7 @@ void kbd_dev_unref(struct kbd_dev *kbd)
 	if (!kbd || !kbd->ref || --kbd->ref)
 		return;
 
+	xkb_state_unref(kbd->state);
 	kbd_desc_unref(kbd->desc);
 	free(kbd);
 }
@@ -141,8 +149,9 @@ int kbd_desc_new(struct kbd_desc **out,
 			const char *variant,
 			const char *options)
 {
+	int ret;
 	struct kbd_desc *desc;
-	const struct xkb_rule_names rmlvo = {
+	struct xkb_rule_names rmlvo = {
 		.rules = "evdev",
 		.model = "evdev",
 		.layout = layout,
@@ -160,13 +169,40 @@ int kbd_desc_new(struct kbd_desc **out,
 	memset(desc, 0, sizeof(*desc));
 	desc->ref = 1;
 
-	(void)rmlvo;
-	desc->keymap = NULL;
+	desc->ctx = xkb_context_new(0);
+	if (!desc->ctx) {
+		ret = -ENOMEM;
+		goto err_desc;
+	}
+
+	desc->keymap = xkb_map_new_from_names(desc->ctx, &rmlvo, 0);
+	if (!desc->keymap) {
+		log_warn("failed to create keymap (%s, %s, %s), "
+			 "reverting to default US keymap",
+			 layout, variant, options);
+
+		rmlvo.layout = "us";
+		rmlvo.variant = "";
+		rmlvo.options = "";
+
+		desc->keymap = xkb_map_new_from_names(desc->ctx, &rmlvo, 0);
+		if (!desc->keymap) {
+			log_warn("failed to create keymap");
+			ret = -EFAULT;
+			goto err_ctx;
+		}
+	}
 
 	log_debug("new keyboard description (%s, %s, %s)",
 			layout, variant, options);
 	*out = desc;
 	return 0;
+
+err_ctx:
+	xkb_context_unref(desc->ctx);
+err_desc:
+	free(desc);
+	return ret;
 }
 
 void kbd_desc_ref(struct kbd_desc *desc)
@@ -183,6 +219,8 @@ void kbd_desc_unref(struct kbd_desc *desc)
 		return;
 
 	log_debug("destroying keyboard description");
+	xkb_map_unref(desc->keymap);
+	xkb_context_unref(desc->ctx);
 	free(desc);
 }
 
