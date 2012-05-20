@@ -40,7 +40,7 @@
 #include "uterm.h"
 #include "test_include.h"
 
-extern void kbd_dev_keysym_to_string(uint32_t keysym, char *str, size_t size);
+extern void kbd_keysym_to_string(uint32_t keysym, char *str, size_t size);
 
 static struct ev_eloop *eloop;
 static struct uterm_input *input;
@@ -90,7 +90,7 @@ static void input_arrived(struct uterm_input *input,
 	char s[16];
 
 	if (ev->unicode == UTERM_INPUT_INVALID) {
-		kbd_dev_keysym_to_string(ev->keysym, s, sizeof(s));
+		kbd_keysym_to_string(ev->keysym, s, sizeof(s));
 		printf("sym %s ", s);
 	} else {
 		/*

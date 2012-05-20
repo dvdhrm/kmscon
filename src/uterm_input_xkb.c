@@ -1015,7 +1015,7 @@ void kbd_desc_unref(struct kbd_desc *desc)
 	free(desc);
 }
 
-void kbd_dev_keysym_to_string(uint32_t keysym, char *str, size_t size)
+void kbd_keysym_to_string(uint32_t keysym, char *str, size_t size)
 {
 	xkb_keysym_to_string(keysym, str, size);
 }
