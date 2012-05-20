@@ -177,12 +177,11 @@ void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	struct xkb_state *state;
 	static const struct {
 		int led;
-		const char *indicator_name;
+		const char *name;
 	} led_names[] = {
-		{ LED_NUML, "Num Lock" },
-		{ LED_CAPSL, "Caps Lock" },
-		{ LED_SCROLLL, "Scroll Lock" },
-		{ LED_COMPOSE, "Compose" },
+		{ LED_NUML, XKB_LED_NAME_NUM },
+		{ LED_CAPSL, XKB_LED_NAME_CAPS },
+		{ LED_SCROLLL, XKB_LED_NAME_SCROLL },
 	};
 
 	if (!kbd)
@@ -193,6 +192,13 @@ void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
 		if (!input_bit_is_set(ledbits, led_names[i].led))
 			continue;
+
+		/*
+		 * TODO: Add support in xkbcommon for setting the led state,
+		 * and updating the modifier state accordingly. E.g., something
+		 * like this:
+		 *	xkb_state_led_name_set_active(state, led_names[i].led);
+		 */
 	}
 
 	(void)state;
