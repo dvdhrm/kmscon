@@ -256,6 +256,7 @@ static void monitor_refresh_seats(struct uterm_monitor *mon)
 	for (i = 0; i < num; ++i) {
 		if (seats[i])
 			monitor_new_seat(mon, seats[i]);
+		free(seats[i]);
 	}
 
 	free(seats);
