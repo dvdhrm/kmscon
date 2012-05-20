@@ -437,9 +437,22 @@ int ev_eloop_new(struct ev_eloop **out)
 	if (ret)
 		goto err_close;
 
-	ret = ev_eloop_new_counter(loop, &loop->cnt, eloop_cnt_event, loop);
+	ret = ev_counter_new(&loop->cnt, eloop_cnt_event, loop);
 	if (ret)
 		goto err_fd;
+
+	/*
+	 * We must never call ev_eloop_add_*() here! We cannot directly add the
+	 * loop->cnt object to our own event loop. Otherwise,
+	 * ev_eloop_add_counter() will take a reference to ourself and hence we
+	 * will own a reference to ourself. Therefore, this eloop object will
+	 * never get freed.
+	 * See ev_eloop_register_*_cb() functions. They add/remove the event
+	 * sources when the first listener is added or when the last listener is
+	 * removed. This also has the side effect that listeners indirectly have
+	 * a reference to the event loop where they are registered which is
+	 * basically what we want anyway.
+	 */
 
 	log_debug("new eloop object %p", loop);
 	*out = loop;
@@ -497,7 +510,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 		signal_free(sig);
 	}
 
-	ev_eloop_rm_counter(loop->cnt);
+	ev_counter_unref(loop->cnt);
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	kmscon_hook_free(loop->idlers);
@@ -1649,17 +1662,32 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data)
 {
 	int ret;
+	bool empty;
 
 	if (!eloop)
 		return -EINVAL;
+
+	empty = !kmscon_hook_num(eloop->idlers);
 
 	ret = kmscon_hook_add_cast(eloop->idlers, cb, data);
 	if (ret)
 		return ret;
 
-	ret = ev_counter_inc(eloop->cnt, 1);
-	if (ret)
-		log_warning("cannot increase eloop idle-counter");
+	if (empty) {
+		ret = ev_eloop_add_counter(eloop, eloop->cnt);
+		if (ret) {
+			kmscon_hook_rm_cast(eloop->idlers, cb, data);
+			return ret;
+		}
+
+		ret = ev_counter_inc(eloop->cnt, 1);
+		if (ret) {
+			log_warning("cannot increase eloop idle-counter");
+			ev_eloop_rm_counter(eloop->cnt);
+			kmscon_hook_rm_cast(eloop->idlers, cb, data);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -1671,4 +1699,6 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 		return;
 
 	kmscon_hook_rm_cast(eloop->idlers, cb, data);
+	if (!kmscon_hook_num(eloop->idlers))
+		ev_eloop_rm_counter(eloop->cnt);
 }
