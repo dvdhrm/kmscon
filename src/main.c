@@ -31,7 +31,6 @@
 #include <sys/signalfd.h>
 #include "conf.h"
 #include "eloop.h"
-#include "input.h"
 #include "log.h"
 #include "ui.h"
 #include "uterm.h"
@@ -43,7 +42,7 @@ struct kmscon_app {
 	struct kmscon_vt *vt;
 	bool exit;
 	struct uterm_video *video;
-	struct kmscon_input *input;
+	struct uterm_input *input;
 	struct kmscon_ui *ui;
 };
 
@@ -68,10 +67,10 @@ static bool vt_switch(struct kmscon_vt *vt,
 		if (ret) {
 			log_err("cannot wake-up video system");
 		} else {
-			kmscon_input_wake_up(app->input);
+			uterm_input_wake_up(app->input);
 		}
 	} else if (action == KMSCON_VT_LEAVE) {
-		kmscon_input_sleep(app->input);
+		uterm_input_sleep(app->input);
 		uterm_video_sleep(app->video);
 		if (app->exit)
 			ev_eloop_exit(app->vt_eloop);
@@ -83,7 +82,7 @@ static bool vt_switch(struct kmscon_vt *vt,
 static void destroy_app(struct kmscon_app *app)
 {
 	kmscon_ui_free(app->ui);
-	kmscon_input_unref(app->input);
+	uterm_input_unref(app->input);
 	uterm_video_unref(app->video);
 	kmscon_vt_unref(app->vt);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
@@ -129,11 +128,7 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
-	ret = kmscon_input_new(&app->input);
-	if (ret)
-		goto err_app;
-
-	ret = kmscon_input_connect_eloop(app->input, app->eloop);
+	ret = uterm_input_new(&app->input, app->eloop);
 	if (ret)
 		goto err_app;
 

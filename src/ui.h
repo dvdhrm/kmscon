@@ -35,7 +35,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "eloop.h"
-#include "input.h"
 #include "uterm.h"
 
 struct kmscon_ui;
@@ -43,7 +42,7 @@ struct kmscon_ui;
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
 			struct uterm_video *video,
-			struct kmscon_input *input);
+			struct uterm_input *input);
 void kmscon_ui_free(struct kmscon_ui *ui);
 
 #endif /* KMSCON_UI_H */

@@ -54,7 +54,6 @@
 #include <X11/keysym.h>
 
 #include "console.h"
-#include "input.h"
 #include "log.h"
 #include "unicode.h"
 #include "vte.h"
@@ -873,7 +872,7 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 }
 
 int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
-	const struct kmscon_input_event *ev, const char **u8, size_t *len)
+	const struct uterm_input_event *ev, const char **u8, size_t *len)
 {
 	kmscon_symbol_t sym;
 
@@ -920,7 +919,7 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			return KMSCON_VTE_SEND;
 	}
 
-	if (ev->unicode != KMSCON_INPUT_INVALID) {
+	if (ev->unicode != UTERM_INPUT_INVALID) {
 		kmscon_symbol_free_u8(vte->kbd_sym);
 		sym = kmscon_symbol_make(ev->unicode);
 		vte->kbd_sym = kmscon_symbol_get_u8(sym, len);

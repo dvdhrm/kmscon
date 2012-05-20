@@ -41,7 +41,6 @@
 #include "eloop.h"
 #include "font.h"
 #include "gl.h"
-#include "input.h"
 #include "log.h"
 #include "pty.h"
 #include "terminal.h"
@@ -64,7 +63,7 @@ struct kmscon_terminal {
 	unsigned long ref;
 	struct ev_eloop *eloop;
 	struct uterm_video *video;
-	struct kmscon_input *input;
+	struct uterm_input *input;
 	struct gl_shader *shader;
 	bool opened;
 
@@ -237,8 +236,8 @@ static void video_event(struct uterm_video *video,
 		rm_display(term, ev->display);
 }
 
-static void input_event(struct kmscon_input *input,
-			struct kmscon_input_event *ev,
+static void input_event(struct uterm_input *input,
+			struct uterm_input_event *ev,
 			void *data)
 {
 	struct kmscon_terminal *term = data;
@@ -263,7 +262,7 @@ static void input_event(struct kmscon_input *input,
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
 			struct uterm_video *video,
-			struct kmscon_input *input)
+			struct uterm_input *input)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -302,13 +301,13 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_shader;
 
-	ret = kmscon_input_register_cb(term->input, input_event, term);
+	ret = uterm_input_register_cb(term->input, input_event, term);
 	if (ret)
 		goto err_video;
 
 	ev_eloop_ref(term->eloop);
 	uterm_video_ref(term->video);
-	kmscon_input_ref(term->input);
+	uterm_input_ref(term->input);
 	*out = term;
 
 	log_debug("new terminal object %p", term);
@@ -348,7 +347,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	log_debug("free terminal object %p", term);
 	kmscon_terminal_close(term);
 	rm_all_screens(term);
-	kmscon_input_unregister_cb(term->input, input_event, term);
+	uterm_input_unregister_cb(term->input, input_event, term);
 	uterm_video_unregister_cb(term->video, video_event, term);
 	gl_shader_unref(term->shader);
 	kmscon_pty_unref(term->pty);
@@ -356,7 +355,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_console_unref(term->console);
 	if (term->redraw)
 		ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
-	kmscon_input_unref(term->input);
+	uterm_input_unref(term->input);
 	uterm_video_unref(term->video);
 	ev_eloop_unref(term->eloop);
 	free(term);
