@@ -33,7 +33,6 @@
 #include <string.h>
 #include "conf.h"
 #include "eloop.h"
-#include "input.h"
 #include "log.h"
 #include "terminal.h"
 #include "ui.h"
@@ -44,7 +43,7 @@
 struct kmscon_ui {
 	struct ev_eloop *eloop;
 	struct uterm_video *video;
-	struct kmscon_input *input;
+	struct uterm_input *input;
 	struct kmscon_terminal *term;
 };
 
@@ -68,8 +67,8 @@ static void video_event(struct uterm_video *video,
 	}
 }
 
-static void input_event(struct kmscon_input *input,
-			struct kmscon_input_event *ev,
+static void input_event(struct uterm_input *input,
+			struct uterm_input_event *ev,
 			void *data)
 {
 }
@@ -77,7 +76,7 @@ static void input_event(struct kmscon_input *input,
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
 			struct uterm_video *video,
-			struct kmscon_input *input)
+			struct uterm_input *input)
 {
 	struct kmscon_ui *ui;
 	int ret;
@@ -101,7 +100,7 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	if (ret)
 		goto err_term;
 
-	ret = kmscon_input_register_cb(ui->input, input_event, ui);
+	ret = uterm_input_register_cb(ui->input, input_event, ui);
 	if (ret)
 		goto err_video;
 
@@ -111,12 +110,12 @@ int kmscon_ui_new(struct kmscon_ui **out,
 
 	ev_eloop_ref(ui->eloop);
 	uterm_video_ref(ui->video);
-	kmscon_input_ref(ui->input);
+	uterm_input_ref(ui->input);
 	*out = ui;
 	return 0;
 
 err_input:
-	kmscon_input_unregister_cb(ui->input, input_event, ui);
+	uterm_input_unregister_cb(ui->input, input_event, ui);
 err_video:
 	uterm_video_unregister_cb(ui->video, video_event, ui);
 err_term:
@@ -131,10 +130,10 @@ void kmscon_ui_free(struct kmscon_ui *ui)
 	if (!ui)
 		return;
 
-	kmscon_input_unregister_cb(ui->input, input_event, ui);
+	uterm_input_unregister_cb(ui->input, input_event, ui);
 	uterm_video_unregister_cb(ui->video, video_event, ui);
 	kmscon_terminal_unref(ui->term);
-	kmscon_input_unref(ui->input);
+	uterm_input_unref(ui->input);
 	uterm_video_unref(ui->video);
 	ev_eloop_unref(ui->eloop);
 	free(ui);

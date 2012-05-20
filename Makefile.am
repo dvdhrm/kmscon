@@ -48,7 +48,6 @@ libkmscon_core_la_SOURCES = \
 	src/log.c src/log.h \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
-	src/input.c src/input.h \
 	src/vte.c src/vte.h \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
@@ -64,12 +63,10 @@ libkmscon_core_la_SOURCES = \
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
-	src/kbd_xkb.c src/kbd.h \
 	external/imKStoUCS.c external/imKStoUCS.h \
 	src/uterm_input_xkb.c
 else
 libkmscon_core_la_SOURCES += \
-	src/kbd_dumb.c src/kbd.h \
 	external/imKStoUCS.c external/imKStoUCS.h \
 	src/uterm_input_dumb.c
 endif
