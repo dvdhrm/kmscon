@@ -92,6 +92,34 @@ void kbd_dev_unref(struct kbd_dev *kbd)
 }
 
 #define EVDEV_KEYCODE_OFFSET 8
+enum {
+	KEY_RELEASED = 0,
+	KEY_PRESSED = 1,
+	KEY_REPEATED = 2,
+};
+
+static unsigned int get_effective_modmask(struct xkb_state *state)
+{
+	unsigned int mods = 0;
+
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
+						XKB_STATE_EFFECTIVE))
+	    mods |= UTERM_SHIFT_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
+						XKB_STATE_EFFECTIVE))
+	    mods |= UTERM_LOCK_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
+						XKB_STATE_EFFECTIVE))
+	    mods |= UTERM_CONTROL_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
+						XKB_STATE_EFFECTIVE))
+	    mods |= UTERM_MOD1_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
+						XKB_STATE_EFFECTIVE))
+	    mods |= UTERM_MOD4_MASK;
+
+	return mods;
+}
 
 int kbd_dev_process_key(struct kbd_dev *kbd,
 			uint16_t key_state,
@@ -100,6 +128,8 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 {
 	struct xkb_state *state;
 	xkb_keycode_t keycode;
+	const xkb_keysym_t *keysyms;
+	int num_keysyms;
 
 	if (!kbd)
 		return -EINVAL;
@@ -107,9 +137,33 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	state = kbd->state;
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
-	(void)keycode; (void)state;
+	if (key_state == KEY_PRESSED)
+		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
+	else if (key_state == KEY_RELEASED)
+		xkb_state_update_key(state, keycode, XKB_KEY_UP);
 
-	return -ENOKEY;
+	/*
+	 * TODO: Add support in xkbcommon to query whether the key
+	 * should repeat or not.
+	 */
+	if (key_state == KEY_RELEASED)
+		return -ENOKEY;
+
+	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
+	if (num_keysyms < 0)
+		return -ENOKEY;
+
+	/*
+	 * TODO: xkbcommon actually supports multiple keysyms
+	 * per key press. Here we're just using the first one,
+	 * but we might want to support this feature.
+	 */
+	out->keycode = code;
+	out->keysym = keysyms[0];
+	out->mods = get_effective_modmask(state);;
+	out->unicode = KeysymToUcs4(out->keysym) ?: UTERM_INPUT_INVALID;
+
+	return 0;
 }
 
 /*
