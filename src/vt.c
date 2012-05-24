@@ -89,6 +89,14 @@ struct kmscon_vt {
 	struct ev_fd *efd;
 };
 
+bool kmscon_vt_supported(void)
+{
+	if (access("/dev/tty", F_OK))
+		return false;
+	else
+		return true;
+}
+
 int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data)
 {
 	struct kmscon_vt *vt;
