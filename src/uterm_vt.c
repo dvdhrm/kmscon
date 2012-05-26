@@ -152,7 +152,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		}
 	} else {
 		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event,
-						vt->data);
+						vt);
 		if (ret)
 			goto err_free;
 	}
@@ -176,7 +176,7 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 		kmscon_vt_unref(vt->vt);
 	} else {
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, vt_idle_event,
-					    vt->data);
+					    vt);
 		vt_call(vt, UTERM_VT_DEACTIVATE);
 	}
 	kmscon_dlist_unlink(&vt->list);
