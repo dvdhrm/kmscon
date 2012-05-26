@@ -33,6 +33,7 @@
 #include "eloop.h"
 #include "input.h"
 #include "log.h"
+#include "misc.h"
 #include "ui.h"
 #include "uterm.h"
 #include "vt.h"
@@ -47,6 +48,15 @@ struct kmscon_app {
 	struct kmscon_ui *ui;
 
 	struct uterm_monitor *mon;
+	struct kmscon_dlist seats;
+};
+
+struct kmscon_seat {
+	struct kmscon_dlist list;
+	struct kmscon_app *app;
+
+	struct uterm_monitor_seat *useat;
+	char *sname;
 };
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -82,6 +92,45 @@ static bool vt_switch(struct kmscon_vt *vt,
 	return true;
 }
 
+static void seat_new(struct kmscon_app *app,
+		     struct uterm_monitor_seat *useat,
+		     const char *sname)
+{
+	struct kmscon_seat *seat;
+
+	seat = malloc(sizeof(*seat));
+	if (!seat)
+		return;
+	memset(seat, 0, sizeof(*seat));
+	seat->app = app;
+	seat->useat = useat;
+
+	seat->sname = strdup(sname);
+	if (!seat->sname) {
+		log_err("cannot allocate memory for seat name");
+		goto err_free;
+	}
+
+	uterm_monitor_set_seat_data(seat->useat, seat);
+	kmscon_dlist_link(&app->seats, &seat->list);
+
+	log_info("new seat %s", seat->sname);
+	return;
+
+err_free:
+	free(seat);
+}
+
+static void seat_free(struct kmscon_seat *seat)
+{
+	log_info("free seat %s", seat->sname);
+
+	kmscon_dlist_unlink(&seat->list);
+	uterm_monitor_set_seat_data(seat->useat, NULL);
+	free(seat->sname);
+	free(seat);
+}
+
 static void monitor_event(struct uterm_monitor *mon,
 			  struct uterm_monitor_event *ev,
 			  void *data)
@@ -90,8 +139,11 @@ static void monitor_event(struct uterm_monitor *mon,
 
 	switch (ev->type) {
 	case UTERM_MONITOR_NEW_SEAT:
+		seat_new(app, ev->seat, ev->seat_name);
 		break;
 	case UTERM_MONITOR_FREE_SEAT:
+		if (ev->seat_data)
+			seat_free(ev->seat_data);
 		break;
 	case UTERM_MONITOR_NEW_DEV:
 		break;
@@ -136,6 +188,8 @@ static int setup_app(struct kmscon_app *app)
 	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
 	if (ret)
 		goto err_app;
+
+	kmscon_dlist_init(&app->seats);
 
 	ret = uterm_monitor_new(&app->mon, app->eloop, monitor_event, app);
 	if (ret)
