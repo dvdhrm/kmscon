@@ -219,6 +219,10 @@ static void monitor_event(struct uterm_monitor *mon,
 			uterm_input_remove_dev(seat->input, ev->dev_node);
 		break;
 	case UTERM_MONITOR_HOTPLUG_DEV:
+		seat = ev->seat_data;
+		if (!seat || seat->vdev != ev->dev)
+			break;
+		uterm_video_poll(seat->video);
 		break;
 	}
 }
