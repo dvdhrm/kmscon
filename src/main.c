@@ -58,6 +58,18 @@ struct kmscon_seat {
 
 	struct uterm_monitor_seat *useat;
 	char *sname;
+
+	/*
+	 * Session Data
+	 * We currently allow only a single session on each seat. That is, only
+	 * one kmscon instance can run in a single process on each seat. If you
+	 * want multiple instances, then start kmscon twice.
+	 * We also allow only a single graphics card per seat.
+	 * TODO: support multiple sessions per seat in a single kmscon process
+	 */
+
+	struct uterm_monitor_dev *vdev;
+	struct uterm_video *video;
 };
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -132,6 +144,38 @@ static void seat_free(struct kmscon_seat *seat)
 	free(seat);
 }
 
+static void seat_add_video(struct kmscon_seat *seat,
+			   struct uterm_monitor_dev *dev,
+			   const char *node)
+{
+	int ret;
+
+	if (seat->video)
+		return;
+
+	ret = uterm_video_new(&seat->video, seat->app->eloop, UTERM_VIDEO_DRM,
+			      node);
+	if (ret)
+		return;
+
+	seat->vdev = dev;
+
+	log_debug("new graphics device on seat %s", seat->sname);
+}
+
+static void seat_rm_video(struct kmscon_seat *seat,
+			  struct uterm_monitor_dev *dev)
+{
+	if (!seat->video || seat->vdev != dev)
+		return;
+
+	log_debug("free graphics device on seat %s", seat->sname);
+
+	seat->vdev = NULL;
+	uterm_video_unref(seat->video);
+	seat->video = NULL;
+}
+
 static void monitor_event(struct uterm_monitor *mon,
 			  struct uterm_monitor_event *ev,
 			  void *data)
@@ -147,8 +191,16 @@ static void monitor_event(struct uterm_monitor *mon,
 			seat_free(ev->seat_data);
 		break;
 	case UTERM_MONITOR_NEW_DEV:
+		if (!ev->seat_data)
+			break;
+		if (ev->dev_type == UTERM_MONITOR_DRM)
+			seat_add_video(ev->seat_data, ev->dev, ev->dev_node);
 		break;
 	case UTERM_MONITOR_FREE_DEV:
+		if (!ev->seat_data)
+			break;
+		if (ev->dev_type == UTERM_MONITOR_DRM)
+			seat_rm_video(ev->seat_data, ev->dev);
 		break;
 	case UTERM_MONITOR_HOTPLUG_DEV:
 		break;
