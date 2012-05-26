@@ -68,6 +68,7 @@ struct kmscon_seat {
 	 * TODO: support multiple sessions per seat in a single kmscon process
 	 */
 
+	struct uterm_input *input;
 	struct uterm_monitor_dev *vdev;
 	struct uterm_video *video;
 };
@@ -110,6 +111,7 @@ static void seat_new(struct kmscon_app *app,
 		     const char *sname)
 {
 	struct kmscon_seat *seat;
+	int ret;
 
 	seat = malloc(sizeof(*seat));
 	if (!seat)
@@ -124,12 +126,18 @@ static void seat_new(struct kmscon_app *app,
 		goto err_free;
 	}
 
+	ret = uterm_input_new(&seat->input, app->eloop);
+	if (ret)
+		goto err_name;
+
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	kmscon_dlist_link(&app->seats, &seat->list);
 
 	log_info("new seat %s", seat->sname);
 	return;
 
+err_name:
+	free(seat->sname);
 err_free:
 	free(seat);
 }
@@ -140,6 +148,7 @@ static void seat_free(struct kmscon_seat *seat)
 
 	kmscon_dlist_unlink(&seat->list);
 	uterm_monitor_set_seat_data(seat->useat, NULL);
+	uterm_input_unref(seat->input);
 	free(seat->sname);
 	free(seat);
 }
@@ -181,6 +190,7 @@ static void monitor_event(struct uterm_monitor *mon,
 			  void *data)
 {
 	struct kmscon_app *app = data;
+	struct kmscon_seat *seat;
 
 	switch (ev->type) {
 	case UTERM_MONITOR_NEW_SEAT:
@@ -191,16 +201,22 @@ static void monitor_event(struct uterm_monitor *mon,
 			seat_free(ev->seat_data);
 		break;
 	case UTERM_MONITOR_NEW_DEV:
-		if (!ev->seat_data)
+		seat = ev->seat_data;
+		if (!seat)
 			break;
 		if (ev->dev_type == UTERM_MONITOR_DRM)
-			seat_add_video(ev->seat_data, ev->dev, ev->dev_node);
+			seat_add_video(seat, ev->dev, ev->dev_node);
+		else if (ev->dev_type == UTERM_MONITOR_INPUT)
+			uterm_input_add_dev(seat->input, ev->dev_node);
 		break;
 	case UTERM_MONITOR_FREE_DEV:
-		if (!ev->seat_data)
+		seat = ev->seat_data;
+		if (!seat)
 			break;
 		if (ev->dev_type == UTERM_MONITOR_DRM)
-			seat_rm_video(ev->seat_data, ev->dev);
+			seat_rm_video(seat, ev->dev);
+		else if (ev->dev_type == UTERM_MONITOR_INPUT)
+			uterm_input_remove_dev(seat->input, ev->dev_node);
 		break;
 	case UTERM_MONITOR_HOTPLUG_DEV:
 		break;
