@@ -41,11 +41,6 @@
 struct kmscon_app {
 	struct ev_eloop *eloop;
 	struct ev_eloop *vt_eloop;
-	struct kmscon_vt *vt;
-	bool exit;
-	struct uterm_video *video;
-	struct kmscon_input *input;
-	struct kmscon_ui *ui;
 
 	struct uterm_vt_master *vtm;
 	struct uterm_monitor *mon;
@@ -81,30 +76,6 @@ static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 	ev_eloop_exit(app->eloop);
 	log_info("terminating due to caught signal %d", info->ssi_signo);
-}
-
-static bool vt_switch(struct kmscon_vt *vt,
-			enum kmscon_vt_action action,
-			void *data)
-{
-	struct kmscon_app *app = data;
-	int ret;
-
-	if (action == KMSCON_VT_ENTER) {
-		ret = uterm_video_wake_up(app->video);
-		if (ret) {
-			log_err("cannot wake-up video system");
-		} else {
-			kmscon_input_wake_up(app->input);
-		}
-	} else if (action == KMSCON_VT_LEAVE) {
-		kmscon_input_sleep(app->input);
-		uterm_video_sleep(app->video);
-		if (app->exit)
-			ev_eloop_exit(app->vt_eloop);
-	}
-
-	return true;
 }
 
 static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
@@ -253,10 +224,6 @@ static void monitor_event(struct uterm_monitor *mon,
 
 static void destroy_app(struct kmscon_app *app)
 {
-	kmscon_ui_free(app->ui);
-	kmscon_input_unref(app->input);
-	uterm_video_unref(app->video);
-	kmscon_vt_unref(app->vt);
 	uterm_monitor_unref(app->mon);
 	uterm_vt_master_unref(app->vtm);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
@@ -297,37 +264,6 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
-	ret = kmscon_vt_new(&app->vt, vt_switch, app);
-	if (ret)
-		goto err_app;
-
-	ret = uterm_video_new(&app->video,
-				app->eloop,
-				UTERM_VIDEO_DRM,
-				"/dev/dri/card0");
-	if (ret)
-		goto err_app;
-
-	ret = uterm_video_use(app->video);
-	if (ret)
-		goto err_app;
-
-	ret = kmscon_input_new(&app->input);
-	if (ret)
-		goto err_app;
-
-	ret = kmscon_input_connect_eloop(app->input, app->eloop);
-	if (ret)
-		goto err_app;
-
-	ret = kmscon_vt_open(app->vt, KMSCON_VT_NEW, app->vt_eloop);
-	if (ret)
-		goto err_app;
-
-	ret = kmscon_ui_new(&app->ui, app->eloop, app->video, app->input);
-	if (ret)
-		goto err_app;
-
 	uterm_monitor_scan(app->mon);
 
 	return 0;
@@ -363,9 +299,7 @@ int main(int argc, char **argv)
 		goto err_out;
 
 	if (conf_global.switchvt) {
-		ret = kmscon_vt_enter(app.vt);
-		if (ret)
-			log_warn("cannot enter VT");
+		/* TODO: implement automatic VT switching */
 	}
 
 	ev_eloop_run(app.eloop, -1);
@@ -382,8 +316,6 @@ int main(int argc, char **argv)
 		 * subsystems to continue receiving events and this is not what
 		 * we want.
 		 */
-		app.exit = true;
-		ret = kmscon_vt_leave(app.vt);
 		if (ret == -EINPROGRESS)
 			ev_eloop_run(app.vt_eloop, 50);
 	}
