@@ -143,11 +143,17 @@ static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 			void *data)
 {
 	struct kmscon_vt *vt = data;
+	struct vt_stat vts;
+	int ret;
 
 	if (!vt || vt->fd < 0)
 		return;
 
-	log_debug("enter VT %p", vt);
+	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	if (ret || vts.v_active != vt->num)
+		return;
+
+	log_debug("enter VT %d %p", vt->num, vt);
 
 	ioctl(vt->fd, VT_RELDISP, VT_ACKACQ);
 
@@ -162,15 +168,21 @@ static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 			void *data)
 {
 	struct kmscon_vt *vt = data;
+	struct vt_stat vts;
+	int ret;
 
 	if (!vt || vt->fd < 0)
 		return;
 
+	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	if (ret || vts.v_active != vt->num)
+		return;
+
 	if (vt->cb && !vt->cb(vt, KMSCON_VT_LEAVE, vt->data)) {
-		log_debug("leaving VT %p denied", vt);
+		log_debug("leaving VT %d %p denied", vt->num, vt);
 		ioctl(vt->fd, VT_RELDISP, 0);
 	} else {
-		log_debug("leaving VT %p", vt);
+		log_debug("leaving VT %d %p", vt->num, vt);
 		ioctl(vt->fd, VT_RELDISP, 1);
 		if (ioctl(vt->fd, KDSETMODE, KD_TEXT))
 			log_warn("cannot set text mode on vt %p", vt);
