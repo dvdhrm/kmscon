@@ -42,28 +42,29 @@
 
 #include "eloop.h"
 #include "log.h"
-#include "vt.h"
+#include "uterm.h"
 #include "test_include.h"
 
 int main(int argc, char **argv)
 {
 	int ret;
 	struct ev_eloop *eloop;
-	struct kmscon_vt *vt;
+	struct uterm_vt_master *vtm;
+	struct uterm_vt *vt;
 
 	ret = test_prepare(argc, argv, &eloop);
 	if (ret)
 		goto err_fail;
 
-	ret = kmscon_vt_new(&vt, NULL, NULL);
+	ret = uterm_vt_master_new(&vtm, eloop);
 	if (ret)
 		goto err_exit;
 
-	ret = kmscon_vt_open(vt, KMSCON_VT_NEW, eloop);
+	ret = uterm_vt_allocate(vtm, &vt, NULL, NULL, NULL);
 	if (ret)
-		goto err_vt;
+		goto err_vtm;
 
-	ret = kmscon_vt_enter(vt);
+	ret = uterm_vt_activate(vt);
 	if (ret)
 		log_warn("Cannot switch to VT");
 
@@ -72,12 +73,13 @@ int main(int argc, char **argv)
 	log_debug("Terminating\n");
 
 	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
-	ret = kmscon_vt_leave(vt);
+	ret = uterm_vt_deactivate(vt);
 	if (ret == -EINPROGRESS)
 		ev_eloop_run(eloop, 50);
 
-err_vt:
-	kmscon_vt_unref(vt);
+	uterm_vt_unref(vt);
+err_vtm:
+	uterm_vt_master_unref(vtm);
 err_exit:
 	test_exit(eloop);
 err_fail:
