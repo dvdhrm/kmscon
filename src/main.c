@@ -68,6 +68,7 @@ struct kmscon_seat {
 	 * TODO: support multiple sessions per seat in a single kmscon process
 	 */
 
+	struct uterm_vt *vt;
 	struct uterm_input *input;
 	struct uterm_monitor_dev *vdev;
 	struct uterm_video *video;
@@ -106,6 +107,21 @@ static bool vt_switch(struct kmscon_vt *vt,
 	return true;
 }
 
+static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
+{
+	struct kmscon_seat *seat = data;
+
+	if (action == UTERM_VT_ACTIVATE) {
+		uterm_input_wake_up(seat->input);
+		uterm_video_wake_up(seat->video);
+	} else if (action == UTERM_VT_DEACTIVATE) {
+		uterm_video_sleep(seat->video);
+		uterm_input_sleep(seat->input);
+	}
+
+	return 0;
+}
+
 static void seat_new(struct kmscon_app *app,
 		     struct uterm_monitor_seat *useat,
 		     const char *sname)
@@ -126,9 +142,14 @@ static void seat_new(struct kmscon_app *app,
 		goto err_free;
 	}
 
-	ret = uterm_input_new(&seat->input, app->eloop);
+	ret = uterm_vt_allocate(app->vtm, &seat->vt, seat->sname, vt_event,
+				seat);
 	if (ret)
 		goto err_name;
+
+	ret = uterm_input_new(&seat->input, app->eloop);
+	if (ret)
+		goto err_vt;
 
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	kmscon_dlist_link(&app->seats, &seat->list);
@@ -136,6 +157,8 @@ static void seat_new(struct kmscon_app *app,
 	log_info("new seat %s", seat->sname);
 	return;
 
+err_vt:
+	uterm_vt_deallocate(seat->vt);
 err_name:
 	free(seat->sname);
 err_free:
@@ -149,6 +172,7 @@ static void seat_free(struct kmscon_seat *seat)
 	kmscon_dlist_unlink(&seat->list);
 	uterm_monitor_set_seat_data(seat->useat, NULL);
 	uterm_input_unref(seat->input);
+	uterm_vt_deallocate(seat->vt);
 	free(seat->sname);
 	free(seat);
 }
