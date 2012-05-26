@@ -45,6 +45,8 @@ struct kmscon_app {
 	struct uterm_video *video;
 	struct kmscon_input *input;
 	struct kmscon_ui *ui;
+
+	struct uterm_monitor *mon;
 };
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -80,12 +82,33 @@ static bool vt_switch(struct kmscon_vt *vt,
 	return true;
 }
 
+static void monitor_event(struct uterm_monitor *mon,
+			  struct uterm_monitor_event *ev,
+			  void *data)
+{
+	struct kmscon_app *app = data;
+
+	switch (ev->type) {
+	case UTERM_MONITOR_NEW_SEAT:
+		break;
+	case UTERM_MONITOR_FREE_SEAT:
+		break;
+	case UTERM_MONITOR_NEW_DEV:
+		break;
+	case UTERM_MONITOR_FREE_DEV:
+		break;
+	case UTERM_MONITOR_HOTPLUG_DEV:
+		break;
+	}
+}
+
 static void destroy_app(struct kmscon_app *app)
 {
 	kmscon_ui_free(app->ui);
 	kmscon_input_unref(app->input);
 	uterm_video_unref(app->video);
 	kmscon_vt_unref(app->vt);
+	uterm_monitor_unref(app->mon);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, sig_generic, app);
 	ev_eloop_rm_eloop(app->vt_eloop);
@@ -111,6 +134,10 @@ static int setup_app(struct kmscon_app *app)
 		goto err_app;
 
 	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
+	if (ret)
+		goto err_app;
+
+	ret = uterm_monitor_new(&app->mon, app->eloop, monitor_event, app);
 	if (ret)
 		goto err_app;
 
@@ -144,6 +171,8 @@ static int setup_app(struct kmscon_app *app)
 	ret = kmscon_ui_new(&app->ui, app->eloop, app->video, app->input);
 	if (ret)
 		goto err_app;
+
+	uterm_monitor_scan(app->mon);
 
 	return 0;
 
