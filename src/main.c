@@ -31,7 +31,6 @@
 #include <sys/signalfd.h>
 #include "conf.h"
 #include "eloop.h"
-#include "input.h"
 #include "log.h"
 #include "misc.h"
 #include "ui.h"
