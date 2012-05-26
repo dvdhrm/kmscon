@@ -47,6 +47,7 @@ struct kmscon_app {
 	struct kmscon_input *input;
 	struct kmscon_ui *ui;
 
+	struct uterm_vt_master *vtm;
 	struct uterm_monitor *mon;
 	struct kmscon_dlist seats;
 };
@@ -161,6 +162,7 @@ static void destroy_app(struct kmscon_app *app)
 	uterm_video_unref(app->video);
 	kmscon_vt_unref(app->vt);
 	uterm_monitor_unref(app->mon);
+	uterm_vt_master_unref(app->vtm);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, sig_generic, app);
 	ev_eloop_rm_eloop(app->vt_eloop);
@@ -186,6 +188,10 @@ static int setup_app(struct kmscon_app *app)
 		goto err_app;
 
 	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
+	if (ret)
+		goto err_app;
+
+	ret = uterm_vt_master_new(&app->vtm, app->vt_eloop);
 	if (ret)
 		goto err_app;
 
