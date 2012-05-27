@@ -873,6 +873,96 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	const struct uterm_input_event *ev, const char **u8, size_t *len)
 {
 	kmscon_symbol_t sym;
+	const char *val;
+
+	if (UTERM_INPUT_HAS_MODS(ev, UTERM_CONTROL_MASK)) {
+		switch (ev->keysym) {
+		case XK_space:
+			val = "\x00";
+			break;
+		case XK_a:
+		case XK_A: val = "\x01"; break;
+		case XK_b:
+		case XK_B: val = "\x02"; break;
+		case XK_c:
+		case XK_C: val = "\x03"; break;
+		case XK_d:
+		case XK_D: val = "\x04"; break;
+		case XK_e:
+		case XK_E: val = "\x05"; break;
+		case XK_f:
+		case XK_F: val = "\x06"; break;
+		case XK_g:
+		case XK_G: val = "\x07"; break;
+		case XK_h:
+		case XK_H: val = "\x08"; break;
+		case XK_i:
+		case XK_I: val = "\x09"; break;
+		case XK_j:
+		case XK_J: val = "\x0a"; break;
+		case XK_k:
+		case XK_K: val = "\x0b"; break;
+		case XK_l:
+		case XK_L: val = "\x0c"; break;
+		case XK_m:
+		case XK_M: val = "\x0d"; break;
+		case XK_n:
+		case XK_N: val = "\x0e"; break;
+		case XK_o:
+		case XK_O: val = "\x0f"; break;
+		case XK_p:
+		case XK_P: val = "\x10"; break;
+		case XK_q:
+		case XK_Q: val = "\x11"; break;
+		case XK_r:
+		case XK_R: val = "\x12"; break;
+		case XK_s:
+		case XK_S: val = "\x13"; break;
+		case XK_t:
+		case XK_T: val = "\x14"; break;
+		case XK_u:
+		case XK_U: val = "\x15"; break;
+		case XK_v:
+		case XK_V: val = "\x16"; break;
+		case XK_w:
+		case XK_W: val = "\x17"; break;
+		case XK_x:
+		case XK_X: val = "\x18"; break;
+		case XK_y:
+		case XK_Y: val = "\x19"; break;
+		case XK_z:
+		case XK_Z: val = "\x1a"; break;
+		case XK_bracketleft:
+		case XK_braceleft:
+			val = "\x1b";
+			break;
+		case XK_backslash:
+		case XK_bar:
+			val = "\x1c";
+			break;
+		case XK_bracketright:
+		case XK_braceright:
+			val = "\x1d";
+			break;
+		case XK_grave:
+		case XK_asciitilde:
+			val = "\x1e";
+			break;
+		case XK_slash:
+		case XK_question:
+			val = "\x1f";
+			break;
+		default:
+			val = NULL;
+			break;
+		}
+
+		if (val) {
+			*u8 = val;
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		}
+	}
 
 	switch (ev->keysym) {
 		case XK_BackSpace:
