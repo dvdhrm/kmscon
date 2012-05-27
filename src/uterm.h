@@ -253,6 +253,8 @@ struct uterm_input_event {
 	uint32_t unicode;	/* ucs4 unicode value or UTERM_INPUT_INVALID */
 };
 
+#define UTERM_INPUT_HAS_MODS(_ev, _mods) (((_ev)->mods & (_mods)) == (_mods))
+
 typedef void (*uterm_input_cb) (struct uterm_input *input,
 				struct uterm_input_event *ev,
 				void *data);
