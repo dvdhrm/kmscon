@@ -284,10 +284,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_vte_new(&term->vte);
+	ret = kmscon_vte_new(&term->vte, term->console);
 	if (ret)
 		goto err_con;
-	kmscon_vte_bind(term->vte, term->console);
 
 	ret = kmscon_pty_new(&term->pty, term->eloop, pty_input, term);
 	if (ret)

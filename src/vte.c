@@ -115,12 +115,12 @@ struct kmscon_vte {
 	int csi_argv[CSI_ARG_MAX];
 };
 
-int kmscon_vte_new(struct kmscon_vte **out)
+int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
 {
 	struct kmscon_vte *vte;
 	int ret;
 
-	if (!out)
+	if (!out || !con)
 		return -EINVAL;
 
 	vte = malloc(sizeof(*vte));
@@ -130,12 +130,14 @@ int kmscon_vte_new(struct kmscon_vte **out)
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
 	vte->state = STATE_GROUND;
+	vte->con = con;
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
 		goto err_free;
 
 	log_debug("new vte object");
+	kmscon_console_ref(vte->con);
 	*out = vte;
 	return 0;
 
@@ -165,16 +167,6 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 	kmscon_utf8_mach_free(vte->mach);
 	kmscon_symbol_free_u8(vte->kbd_sym);
 	free(vte);
-}
-
-void kmscon_vte_bind(struct kmscon_vte *vte, struct kmscon_console *con)
-{
-	if (!vte)
-		return;
-
-	kmscon_console_unref(vte->con);
-	vte->con = con;
-	kmscon_console_ref(vte->con);
 }
 
 /* execute control character (C0 or C1) */
