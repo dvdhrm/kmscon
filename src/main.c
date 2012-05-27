@@ -66,6 +66,7 @@ struct kmscon_seat {
 	struct uterm_input *input;
 	struct uterm_monitor_dev *vdev;
 	struct uterm_video *video;
+	struct kmscon_ui *ui;
 };
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -141,6 +142,7 @@ static void seat_free(struct kmscon_seat *seat)
 
 	kmscon_dlist_unlink(&seat->list);
 	uterm_monitor_set_seat_data(seat->useat, NULL);
+	kmscon_ui_free(seat->ui);
 	uterm_input_unref(seat->input);
 	uterm_vt_deallocate(seat->vt);
 	free(seat->sname);
@@ -161,9 +163,22 @@ static void seat_add_video(struct kmscon_seat *seat,
 	if (ret)
 		return;
 
-	seat->vdev = dev;
+	ret = uterm_video_use(seat->video);
+	if (ret)
+		goto err_video;
 
+	ret = kmscon_ui_new(&seat->ui, seat->app->eloop, seat->video,
+			    seat->input);
+	if (ret)
+		goto err_video;
+
+	seat->vdev = dev;
 	log_debug("new graphics device on seat %s", seat->sname);
+	return;
+
+err_video:
+	uterm_video_unref(seat->video);
+	seat->video = NULL;
 }
 
 static void seat_rm_video(struct kmscon_seat *seat,
@@ -174,6 +189,8 @@ static void seat_rm_video(struct kmscon_seat *seat,
 
 	log_debug("free graphics device on seat %s", seat->sname);
 
+	kmscon_ui_free(seat->ui);
+	seat->ui = NULL;
 	seat->vdev = NULL;
 	uterm_video_unref(seat->video);
 	seat->video = NULL;
