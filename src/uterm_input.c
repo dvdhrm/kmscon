@@ -275,6 +275,7 @@ err_free:
 void uterm_input_ref(struct uterm_input *input)
 {
 	if (!input || !input->ref)
+		return;
 
 	++input->ref;
 }
