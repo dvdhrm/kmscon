@@ -399,6 +399,9 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				kmscon_console_erase_screen_to_cursor(vte->con);
 			else if (vte->csi_argv[0] == 2)
 				kmscon_console_erase_screen(vte->con);
+			else
+				log_debug("unknown parameter to CSI-J: %d",
+					  vte->csi_argv[0]);
 			break;
 		case 'K':
 			if (vte->csi_argv[0] <= 0)
@@ -407,6 +410,9 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				kmscon_console_erase_home_to_cursor(vte->con);
 			else if (vte->csi_argv[0] == 2)
 				kmscon_console_erase_current_line(vte->con);
+			else
+				log_debug("unknown parameter to CSI-K: %d",
+					  vte->csi_argv[0]);
 			break;
 		default:
 			log_debug("unhandled CSI sequence %c", data);
