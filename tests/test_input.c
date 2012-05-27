@@ -87,12 +87,11 @@ static void input_arrived(struct uterm_input *input,
 				struct uterm_input_event *ev,
 				void *data)
 {
-	char s[16];
+	char s[32];
 
-	if (ev->unicode == UTERM_INPUT_INVALID) {
-		kbd_keysym_to_string(ev->keysym, s, sizeof(s));
-		printf("sym %s ", s);
-	} else {
+	kbd_keysym_to_string(ev->keysym, s, sizeof(s));
+	printf("sym %s ", s);
+	if (ev->unicode != UTERM_INPUT_INVALID) {
 		/*
 		 * Just a proof-of-concept hack. This works because glibc uses
 		 * UTF-32 (= UCS-4) as the internal wchar_t encoding.
