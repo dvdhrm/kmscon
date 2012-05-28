@@ -1086,21 +1086,6 @@ void kmscon_console_newline(struct kmscon_console *con)
 	}
 }
 
-void kmscon_console_backspace(struct kmscon_console *con)
-{
-	if (!con)
-		return;
-
-	if (con->cursor_x >= con->cells->size_x) {
-		con->cursor_x = con->cells->size_x - 2;
-	} else if (con->cursor_x > 0) {
-		con->cursor_x--;
-	} else if (con->auto_wrap) {
-		con->cursor_x = con->cells->size_x - 1;
-		kmscon_console_move_up(con, 1, true);
-	}
-}
-
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 							unsigned int y)
 {

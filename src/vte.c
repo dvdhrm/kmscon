@@ -217,11 +217,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x08: /* BS */
 			/* Move cursor one position left */
-			/* TODO: Do we really have auto-wrap feature here? vt520
-			 * doc says nothing about it. We should probably use
-			 * kmscon_console_move_left() here.
-			 */
-			kmscon_console_backspace(vte->con);
+			kmscon_console_move_left(vte->con, 1);
 			break;
 		case 0x09: /* HT */
 			/* Move to next tab stop or end of line */
