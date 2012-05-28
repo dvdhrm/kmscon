@@ -1312,18 +1312,22 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 				*len = 1;
 			}
 			return KMSCON_VTE_SEND;
+		case XK_F1:
 		case XK_KP_F1:
 			*u8 = "\eOP";
 			*len = 3;
 			return KMSCON_VTE_SEND;
+		case XK_F2:
 		case XK_KP_F2:
 			*u8 = "\eOQ";
 			*len = 3;
 			return KMSCON_VTE_SEND;
+		case XK_F3:
 		case XK_KP_F3:
 			*u8 = "\eOR";
 			*len = 3;
 			return KMSCON_VTE_SEND;
+		case XK_F4:
 		case XK_KP_F4:
 			*u8 = "\eOS";
 			*len = 3;
@@ -1345,6 +1349,70 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			else
 				*u8 = "\e[F";
 			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_F5:
+			*u8 = "\e[15~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F6:
+			*u8 = "\e[17~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F7:
+			*u8 = "\e[18~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F8:
+			*u8 = "\e[19~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F9:
+			*u8 = "\e[20~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F10:
+			*u8 = "\e[21~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F11:
+			*u8 = "\e[23~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F12:
+			*u8 = "\e[24~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F13:
+			*u8 = "\e[25~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F14:
+			*u8 = "\e[26~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F15:
+			*u8 = "\e[28~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F16:
+			*u8 = "\e[29~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F17:
+			*u8 = "\e[31~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F18:
+			*u8 = "\e[32~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F19:
+			*u8 = "\e[33~";
+			*len = 5;
+			return KMSCON_VTE_SEND;
+		case XK_F20:
+			*u8 = "\e[34~";
+			*len = 5;
 			return KMSCON_VTE_SEND;
 	}
 
