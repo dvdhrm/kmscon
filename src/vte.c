@@ -269,7 +269,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x84: /* IND */
 			/* Move down one row, perform scroll-up if needed */
-			/* TODO */
+			kmscon_console_move_down(vte->con, 1, true);
 			break;
 		case 0x85: /* NEL */
 			/* CR/NL with scroll-up if needed */
@@ -281,7 +281,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x8d: /* RI */
 			/* Move up one row, perform scroll-down if needed */
-			/* TODO */
+			kmscon_console_move_up(vte->con, 1, true);
 			break;
 		case 0x8e: /* SS2 */
 			/* Temporarily map G2 into GL for next char only */
@@ -349,7 +349,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	switch (data) {
 		case 'D': /* IND */
 			/* Move down one row, perform scroll-up if needed */
-			/* TODO */
+			kmscon_console_move_down(vte->con, 1, true);
 			break;
 		case 'E': /* NEL */
 			/* CR/NL with scroll-up if needed */
@@ -361,7 +361,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 			break;
 		case 'M': /* RI */
 			/* Move up one row, perform scroll-down if needed */
-			/* TODO */
+			kmscon_console_move_up(vte->con, 1, true);
 			break;
 		case 'N': /* SS2 */
 			/* Temporarily map G2 into GL for next char only */
