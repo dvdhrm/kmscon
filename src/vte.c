@@ -1098,6 +1098,22 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			*u8 = "\x0d";
 			*len = 1;
 			return KMSCON_VTE_SEND;
+		case XK_Insert:
+			*u8 = "\e[2~";
+			*len = 4;
+			return KMSCON_VTE_SEND;
+		case XK_Delete:
+			*u8 = "\e[3~";
+			*len = 4;
+			return KMSCON_VTE_SEND;
+		case XK_Page_Up:
+			*u8 = "\e[5~";
+			*len = 4;
+			return KMSCON_VTE_SEND;
+		case XK_Page_Down:
+			*u8 = "\e[6~";
+			*len = 4;
+			return KMSCON_VTE_SEND;
 	}
 
 	if (ev->unicode != UTERM_INPUT_INVALID) {
