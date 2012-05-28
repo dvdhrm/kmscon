@@ -106,6 +106,7 @@ enum parser_action {
 
 /* terminal flags */
 #define FLAG_CURSOR_KEY_MODE			0x01
+#define FLAG_KEYPAD_APPLICATION_MODE		0x02 /* TODO: toggle on numlock? */
 #define FLAG_LINE_FEED_NEW_LINE_MODE		0x04
 
 struct kmscon_vte {
@@ -1095,11 +1096,21 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			*u8 = "\x1b";
 			*len = 1;
 			return KMSCON_VTE_SEND;
-		case XK_Return:
 		case XK_KP_Enter:
-			/* TODO: im CR/LF mode send \x0d\x0a */
-			*u8 = "\x0d";
-			*len = 1;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOM";
+				*len = 3;
+				return KMSCON_VTE_SEND;
+			}
+			/* fallthrough */
+		case XK_Return:
+			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE) {
+				*u8 = "\x0d\x0a";
+				*len = 2;
+			} else {
+				*u8 = "\x0d";
+				*len = 1;
+			}
 			return KMSCON_VTE_SEND;
 		case XK_Insert:
 			*u8 = "\e[2~";
@@ -1143,6 +1154,196 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 				*u8 = "\eOD";
 			else
 				*u8 = "\e[D";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_KP_Insert:
+		case XK_KP_0:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOp";
+				*len = 3;
+			} else {
+				*u8 = "0";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_End:
+		case XK_KP_1:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOq";
+				*len = 3;
+			} else {
+				*u8 = "1";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Down:
+		case XK_KP_2:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOr";
+				*len = 3;
+			} else {
+				*u8 = "2";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Page_Down:
+		case XK_KP_3:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOs";
+				*len = 3;
+			} else {
+				*u8 = "3";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Left:
+		case XK_KP_4:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOt";
+				*len = 3;
+			} else {
+				*u8 = "4";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Begin:
+		case XK_KP_5:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOu";
+				*len = 3;
+			} else {
+				*u8 = "5";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Right:
+		case XK_KP_6:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOv";
+				*len = 3;
+			} else {
+				*u8 = "6";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Home:
+		case XK_KP_7:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOw";
+				*len = 3;
+			} else {
+				*u8 = "7";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Up:
+		case XK_KP_8:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOx";
+				*len = 3;
+			} else {
+				*u8 = "8";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Page_Up:
+		case XK_KP_9:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOy";
+				*len = 3;
+			} else {
+				*u8 = "9";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Subtract:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOm";
+				*len = 3;
+			} else {
+				*u8 = "-";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Separator:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOl";
+				*len = 3;
+			} else {
+				*u8 = ",";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Delete:
+		case XK_KP_Decimal:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOn";
+				*len = 3;
+			} else {
+				*u8 = ".";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Equal:
+		case XK_KP_Divide:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOj";
+				*len = 3;
+			} else {
+				*u8 = "/";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Multiply:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOo";
+				*len = 3;
+			} else {
+				*u8 = "*";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_Add:
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
+				*u8 = "\eOk";
+				*len = 3;
+			} else {
+				*u8 = "+";
+				*len = 1;
+			}
+			return KMSCON_VTE_SEND;
+		case XK_KP_F1:
+			*u8 = "\eOP";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_KP_F2:
+			*u8 = "\eOQ";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_KP_F3:
+			*u8 = "\eOR";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_KP_F4:
+			*u8 = "\eOS";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_KP_Space:
+			*u8 = " ";
+			*len = 1;
+			return KMSCON_VTE_SEND;
+		case XK_Home:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOH";
+			else
+				*u8 = "\e[H";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_End:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOF";
+			else
+				*u8 = "\e[F";
 			*len = 3;
 			return KMSCON_VTE_SEND;
 	}
