@@ -48,6 +48,7 @@
 
 struct cell {
 	kmscon_symbol_t ch;
+	struct font_char_attr attr;
 };
 
 struct line {
@@ -763,7 +764,8 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
-			font_screen_draw_char(fscr, cell->ch, j, i, 1, 1);
+			font_screen_draw_char(fscr, cell->ch, &cell->attr,
+					      j, i, 1, 1);
 		}
 	}
 
@@ -772,13 +774,14 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 }
 
 static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
-				unsigned int y, kmscon_symbol_t ch)
+				unsigned int y, kmscon_symbol_t ch,
+				const struct font_char_attr *attr)
 {
 	struct line *line, **slot;
 	int ret;
 	bool scroll = false;
 
-	if (!buf)
+	if (!buf || !attr)
 		return;
 
 	if (x >= buf->size_x || y >= buf->size_y) {
@@ -822,6 +825,7 @@ static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 	}
 
 	line->cells[x].ch = ch;
+	memcpy(&line->cells[x].attr, attr, sizeof(*attr));
 }
 
 static kmscon_symbol_t kmscon_buffer_read(struct kmscon_buffer *buf,
@@ -1039,7 +1043,8 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 	kmscon_buffer_draw(con->cells, fscr);
 }
 
-void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
+void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
+			  const struct font_char_attr *attr)
 {
 	unsigned int last;
 
@@ -1061,7 +1066,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch)
 		}
 	}
 
-	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch);
+	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch, attr);
 	con->cursor_x++;
 }
 

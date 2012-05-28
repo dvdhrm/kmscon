@@ -55,7 +55,8 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 
-void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch);
+void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
+			  const struct font_char_attr *attr);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_backspace(struct kmscon_console *con);
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,

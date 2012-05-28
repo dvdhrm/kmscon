@@ -253,8 +253,6 @@ static int face__new(struct font_face **out, const struct font_attr *attr,
 
 	if (face->attr.style == FONT_ITALIC)
 		style = PANGO_STYLE_ITALIC;
-	else if (face->attr.style == FONT_OBLIQUE)
-		style = PANGO_STYLE_OBLIQUE;
 	else
 		style = PANGO_STYLE_NORMAL;
 
@@ -699,18 +697,30 @@ int font_screen_draw_start(struct font_screen *screen)
 }
 
 int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
+				const struct font_char_attr *attr,
 				unsigned int cellx, unsigned int celly,
 				unsigned int width, unsigned int height)
 {
 	struct font_glyph *glyph;
 	int ret;
 
-	if (!screen || !width || !height)
+	if (!screen || !width || !height || !attr)
 		return -EINVAL;
 
-	ret = face_lookup(screen->faces.normal, &glyph, ch);
-	if (ret)
-		return ret;
+	if (attr->bold) {
+		ret = face_lookup(screen->faces.bold, &glyph, ch);
+		if (ret)
+			return ret;
+	} else {
+		ret = face_lookup(screen->faces.normal, &glyph, ch);
+		if (ret)
+			return ret;
+	}
+
+	if (attr->inverse)
+		cairo_set_source_rgb(screen->cr, attr->br, attr->bg, attr->bb);
+	else
+		cairo_set_source_rgb(screen->cr, attr->fr, attr->fg, attr->fb);
 
 	if (glyph->type == GLYPH_STRING) {
 		cairo_move_to(screen->cr, cellx * screen->advance_x,

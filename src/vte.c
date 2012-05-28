@@ -54,6 +54,7 @@
 #include <X11/keysym.h>
 
 #include "console.h"
+#include "font.h"
 #include "log.h"
 #include "unicode.h"
 #include "vte.h"
@@ -113,6 +114,8 @@ struct kmscon_vte {
 	unsigned int state;
 	unsigned int csi_argc;
 	int csi_argv[CSI_ARG_MAX];
+
+	struct font_char_attr cattr;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
@@ -131,6 +134,16 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
 	vte->ref = 1;
 	vte->state = STATE_GROUND;
 	vte->con = con;
+
+	vte->cattr.fr = 255;
+	vte->cattr.fg = 255;
+	vte->cattr.fb = 255;
+	vte->cattr.br = 0;
+	vte->cattr.bg = 0;
+	vte->cattr.bb = 0;
+	vte->cattr.bold = 0;
+	vte->cattr.underline = 0;
+	vte->cattr.inverse = 0;
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
@@ -237,7 +250,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		case 0x1a: /* SUB */
 			/* Discard current escape sequence and show err-sym */
 			/* TODO: show reversed question mark */
-			kmscon_console_write(vte->con, '?');
+			kmscon_console_write(vte->con, '?', &vte->cattr);
 			break;
 		case 0x1b: /* ESC */
 			/* Invokes an escape sequence */
@@ -362,7 +375,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
-	int num;
+	int num, i;
 
 	if (vte->csi_argc < CSI_ARG_MAX)
 		vte->csi_argc++;
@@ -414,6 +427,86 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				log_debug("unknown parameter to CSI-K: %d",
 					  vte->csi_argv[0]);
 			break;
+		case 'm':
+			for (i = 0; i < CSI_ARG_MAX; ++i) {
+				switch (vte->csi_argv[i]) {
+				case -1:
+					break;
+				case 0:
+					vte->cattr.fr = 255;
+					vte->cattr.fg = 255;
+					vte->cattr.fb = 255;
+					vte->cattr.br = 0;
+					vte->cattr.bg = 0;
+					vte->cattr.bb = 0;
+					vte->cattr.bold = 0;
+					vte->cattr.underline = 0;
+					vte->cattr.inverse = 0;
+					break;
+				case 1:
+					vte->cattr.bold = 1;
+					break;
+				case 4:
+					vte->cattr.underline = 1;
+					break;
+				case 7:
+					vte->cattr.inverse = 1;
+					break;
+				case 22:
+					vte->cattr.bold = 0;
+					break;
+				case 24:
+					vte->cattr.underline = 0;
+					break;
+				case 27:
+					vte->cattr.inverse = 0;
+					break;
+				case 30:
+					vte->cattr.fr = 0;
+					vte->cattr.fg = 0;
+					vte->cattr.fb = 0;
+					break;
+				case 31:
+					vte->cattr.fr = 205;
+					vte->cattr.fg = 0;
+					vte->cattr.fb = 0;
+					break;
+				case 32:
+					vte->cattr.fr = 0;
+					vte->cattr.fg = 205;
+					vte->cattr.fb = 0;
+					break;
+				case 33:
+					vte->cattr.fr = 205;
+					vte->cattr.fg = 205;
+					vte->cattr.fb = 0;
+					break;
+				case 34:
+					vte->cattr.fr = 0;
+					vte->cattr.fg = 0;
+					vte->cattr.fb = 238;
+					break;
+				case 35:
+					vte->cattr.fr = 205;
+					vte->cattr.fg = 0;
+					vte->cattr.fb = 205;
+					break;
+				case 36:
+					vte->cattr.fr = 0;
+					vte->cattr.fg = 205;
+					vte->cattr.fb = 205;
+					break;
+				case 37:
+					vte->cattr.fr = 255;
+					vte->cattr.fg = 255;
+					vte->cattr.fb = 255;
+					break;
+				default:
+					log_debug("unhandled SGR attr %i",
+						  vte->csi_argv[i]);
+				}
+			}
+			break;
 		default:
 			log_debug("unhandled CSI sequence %c", data);
 	}
@@ -433,7 +526,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 			break;
 		case ACTION_PRINT:
 			sym = kmscon_symbol_make(data);
-			kmscon_console_write(vte->con, sym);
+			kmscon_console_write(vte->con, sym, &vte->cattr);
 			break;
 		case ACTION_EXECUTE:
 			do_execute(vte, data);

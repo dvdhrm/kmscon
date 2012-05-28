@@ -91,7 +91,6 @@ int kmscon_font_draw(struct kmscon_font *font, kmscon_symbol_t ch, float *m,
 enum font_style {
 	FONT_NORMAL,
 	FONT_ITALIC,
-	FONT_OBLIQUE,
 };
 
 struct font_attr {
@@ -109,6 +108,18 @@ struct font_attr {
 		.bold = false, \
 		.style = FONT_NORMAL, \
 	}
+
+struct font_char_attr {
+	uint8_t fr;			/* foreground red */
+	uint8_t fg;			/* foreground green */
+	uint8_t fb;			/* foreground blue */
+	uint8_t br;			/* background red */
+	uint8_t bg;			/* background green */
+	uint8_t bb;			/* background blue */
+	unsigned int bold : 1;		/* bold character */
+	unsigned int underline : 1;	/* underlined character */
+	unsigned int inverse : 1;	/* inverse colors */
+};
 
 /* font draw/assemble buffers */
 
@@ -144,6 +155,7 @@ unsigned int font_screen_height(struct font_screen *screen);
 
 int font_screen_draw_start(struct font_screen *screen);
 int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
+				const struct font_char_attr *attr,
 				unsigned int cellx, unsigned int celly,
 				unsigned int width, unsigned int height);
 int font_screen_draw_perform(struct font_screen *screen, float *m);
