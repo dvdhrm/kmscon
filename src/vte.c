@@ -258,8 +258,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x1a: /* SUB */
 			/* Discard current escape sequence and show err-sym */
-			/* TODO: show reversed question mark */
-			kmscon_console_write(vte->con, '?', &vte->cattr);
+			kmscon_console_write(vte->con, 0xbf, &vte->cattr);
 			break;
 		case 0x1b: /* ESC */
 			/* Invokes an escape sequence */
