@@ -273,7 +273,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x85: /* NEL */
 			/* CR/NL with scroll-up if needed */
-			/* TODO */
+			kmscon_console_newline(vte->con);
 			break;
 		case 0x88: /* HTS */
 			/* Set tab stop at current position */
@@ -353,7 +353,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 			break;
 		case 'E': /* NEL */
 			/* CR/NL with scroll-up if needed */
-			/* TODO */
+			kmscon_console_newline(vte->con);
 			break;
 		case 'H': /* HTS */
 			/* Set tab stop at current position */
