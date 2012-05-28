@@ -241,22 +241,19 @@ static void input_event(struct uterm_input *input,
 			void *data)
 {
 	struct kmscon_terminal *term = data;
-	int ret;
-	const char *u8;
-	size_t len;
 
 	if (!term->opened)
 		return;
 
-	ret = kmscon_vte_handle_keyboard(term->vte, ev, &u8, &len);
-	switch (ret) {
-		case KMSCON_VTE_SEND:
-			kmscon_pty_write(term->pty, u8, len);
-			break;
-		case KMSCON_VTE_DROP:
-		default:
-			break;
-	}
+	kmscon_vte_handle_keyboard(term->vte, ev);
+}
+
+static void write_event(struct kmscon_vte *vte, const char *u8, size_t len,
+			void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	kmscon_pty_write(term->pty, u8, len);
 }
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
@@ -284,7 +281,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_vte_new(&term->vte, term->console);
+	ret = kmscon_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)
 		goto err_con;
 

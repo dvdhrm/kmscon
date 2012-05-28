@@ -44,12 +44,18 @@ enum kmscon_vte_keyboard_action {
 	KMSCON_VTE_SEND,
 };
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con);
+typedef void (*kmscon_vte_write_cb) (struct kmscon_vte *vte,
+				     const char *u8,
+				     size_t len,
+				     void *data);
+
+int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
+		   kmscon_vte_write_cb write_cb, void *data);
 void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
-int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
-	const struct uterm_input_event *ev, const char **u8, size_t *len);
+void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
+				const struct uterm_input_event *ev);
 
 #endif /* KMSCON_VTE_H */

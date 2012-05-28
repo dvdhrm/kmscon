@@ -112,8 +112,9 @@ enum parser_action {
 struct kmscon_vte {
 	unsigned long ref;
 	struct kmscon_console *con;
+	kmscon_vte_write_cb write_cb;
+	void *data;
 
-	const char *kbd_sym;
 	struct kmscon_utf8_mach *mach;
 
 	unsigned int state;
@@ -124,12 +125,13 @@ struct kmscon_vte {
 	unsigned int flags;
 };
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
+int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
+		   kmscon_vte_write_cb write_cb, void *data)
 {
 	struct kmscon_vte *vte;
 	int ret;
 
-	if (!out || !con)
+	if (!out || !con || !write_cb)
 		return -EINVAL;
 
 	vte = malloc(sizeof(*vte));
@@ -140,6 +142,8 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
 	vte->ref = 1;
 	vte->state = STATE_GROUND;
 	vte->con = con;
+	vte->write_cb = write_cb;
+	vte->data = data;
 
 	vte->cattr.fr = 255;
 	vte->cattr.fg = 255;
@@ -184,8 +188,12 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 	log_debug("destroying vte object");
 	kmscon_console_unref(vte->con);
 	kmscon_utf8_mach_free(vte->mach);
-	kmscon_symbol_free_u8(vte->kbd_sym);
 	free(vte);
+}
+
+static void vte_write(struct kmscon_vte *vte, const char *u8, size_t len)
+{
+	vte->write_cb(vte, u8, len, vte->data);
 }
 
 /* execute control character (C0 or C1) */
@@ -966,472 +974,423 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 	}
 }
 
-int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
-	const struct uterm_input_event *ev, const char **u8, size_t *len)
+void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
+				const struct uterm_input_event *ev)
 {
 	kmscon_symbol_t sym;
-	const char *val;
+	size_t len;
+	const char *u8;
 
 	if (UTERM_INPUT_HAS_MODS(ev, UTERM_CONTROL_MASK)) {
 		switch (ev->keysym) {
 		case XK_2:
 		case XK_space:
-			val = "\x00";
-			break;
+			vte_write(vte, "\x00", 1);
+			return;
 		case XK_a:
-		case XK_A: val = "\x01"; break;
+		case XK_A:
+			vte_write(vte, "\x01", 1);
+			return;
 		case XK_b:
-		case XK_B: val = "\x02"; break;
+		case XK_B:
+			vte_write(vte, "\x02", 1);
+			return;
 		case XK_c:
-		case XK_C: val = "\x03"; break;
+		case XK_C:
+			vte_write(vte, "\x03", 1);
+			return;
 		case XK_d:
-		case XK_D: val = "\x04"; break;
+		case XK_D:
+			vte_write(vte, "\x04", 1);
+			return;
 		case XK_e:
-		case XK_E: val = "\x05"; break;
+		case XK_E:
+			vte_write(vte, "\x05", 1);
+			return;
 		case XK_f:
-		case XK_F: val = "\x06"; break;
+		case XK_F:
+			vte_write(vte, "\x06", 1);
+			return;
 		case XK_g:
-		case XK_G: val = "\x07"; break;
+		case XK_G:
+			vte_write(vte, "\x07", 1);
+			return;
 		case XK_h:
-		case XK_H: val = "\x08"; break;
+		case XK_H:
+			vte_write(vte, "\x08", 1);
+			return;
 		case XK_i:
-		case XK_I: val = "\x09"; break;
+		case XK_I:
+			vte_write(vte, "\x09", 1);
+			return;
 		case XK_j:
-		case XK_J: val = "\x0a"; break;
+		case XK_J:
+			vte_write(vte, "\x0a", 1);
+			return;
 		case XK_k:
-		case XK_K: val = "\x0b"; break;
+		case XK_K:
+			vte_write(vte, "\x0b", 1);
+			return;
 		case XK_l:
-		case XK_L: val = "\x0c"; break;
+		case XK_L:
+			vte_write(vte, "\x0c", 1);
+			return;
 		case XK_m:
-		case XK_M: val = "\x0d"; break;
+		case XK_M:
+			vte_write(vte, "\x0d", 1);
+			return;
 		case XK_n:
-		case XK_N: val = "\x0e"; break;
+		case XK_N:
+			vte_write(vte, "\x0e", 1);
+			return;
 		case XK_o:
-		case XK_O: val = "\x0f"; break;
+		case XK_O:
+			vte_write(vte, "\x0f", 1);
+			return;
 		case XK_p:
-		case XK_P: val = "\x10"; break;
+		case XK_P:
+			vte_write(vte, "\x10", 1);
+			return;
 		case XK_q:
-		case XK_Q: val = "\x11"; break;
+		case XK_Q:
+			vte_write(vte, "\x11", 1);
+			return;
 		case XK_r:
-		case XK_R: val = "\x12"; break;
+		case XK_R:
+			vte_write(vte, "\x12", 1);
+			return;
 		case XK_s:
-		case XK_S: val = "\x13"; break;
+		case XK_S:
+			vte_write(vte, "\x13", 1);
+			return;
 		case XK_t:
-		case XK_T: val = "\x14"; break;
+		case XK_T:
+			vte_write(vte, "\x14", 1);
+			return;
 		case XK_u:
-		case XK_U: val = "\x15"; break;
+		case XK_U:
+			vte_write(vte, "\x15", 1);
+			return;
 		case XK_v:
-		case XK_V: val = "\x16"; break;
+		case XK_V:
+			vte_write(vte, "\x16", 1);
+			return;
 		case XK_w:
-		case XK_W: val = "\x17"; break;
+		case XK_W:
+			vte_write(vte, "\x17", 1);
+			return;
 		case XK_x:
-		case XK_X: val = "\x18"; break;
+		case XK_X:
+			vte_write(vte, "\x18", 1);
+			return;
 		case XK_y:
-		case XK_Y: val = "\x19"; break;
+		case XK_Y:
+			vte_write(vte, "\x19", 1);
+			return;
 		case XK_z:
-		case XK_Z: val = "\x1a"; break;
+		case XK_Z:
+			vte_write(vte, "\x1a", 1);
+			return;
 		case XK_3:
 		case XK_bracketleft:
 		case XK_braceleft:
-			val = "\x1b";
-			break;
+			vte_write(vte, "\x1b", 1);
+			return;
 		case XK_4:
 		case XK_backslash:
 		case XK_bar:
-			val = "\x1c";
-			break;
+			vte_write(vte, "\x1c", 1);
+			return;
 		case XK_5:
 		case XK_bracketright:
 		case XK_braceright:
-			val = "\x1d";
-			break;
+			vte_write(vte, "\x1d", 1);
+			return;
 		case XK_6:
 		case XK_grave:
 		case XK_asciitilde:
-			val = "\x1e";
-			break;
+			vte_write(vte, "\x1e", 1);
+			return;
 		case XK_7:
 		case XK_slash:
 		case XK_question:
-			val = "\x1f";
-			break;
+			vte_write(vte, "\x1f", 1);
+			return;
 		case XK_8:
-			val ="\x7f";
-			break;
-		default:
-			val = NULL;
-			break;
-		}
-
-		if (val) {
-			*u8 = val;
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x7f", 1);
+			return;
 		}
 	}
 
 	switch (ev->keysym) {
 		case XK_BackSpace:
-			*u8 = "\x08";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x08", 1);
+			return;
 		case XK_Tab:
 		case XK_KP_Tab:
-			*u8 = "\x09";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x09", 1);
+			return;
 		case XK_Linefeed:
-			*u8 = "\x0a";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x0a", 1);
+			return;
 		case XK_Clear:
-			*u8 = "\x0b";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x0b", 1);
+			return;
 		case XK_Pause:
-			*u8 = "\x13";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x13", 1);
+			return;
 		case XK_Scroll_Lock:
 			/* TODO: do we need scroll lock impl.? */
-			*u8 = "\x14";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x14", 1);
+			return;
 		case XK_Sys_Req:
-			*u8 = "\x15";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x15", 1);
+			return;
 		case XK_Escape:
-			*u8 = "\x1b";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\x1b", 1);
+			return;
 		case XK_KP_Enter:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOM";
-				*len = 3;
-				return KMSCON_VTE_SEND;
+				vte_write(vte, "\eOM", 3);
+				return;
 			}
 			/* fallthrough */
 		case XK_Return:
-			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE) {
-				*u8 = "\x0d\x0a";
-				*len = 2;
-			} else {
-				*u8 = "\x0d";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
+				vte_write(vte, "\x0d\x0a", 2);
+			else
+				vte_write(vte, "\x0d", 1);
+			return;
 		case XK_Insert:
-			*u8 = "\e[2~";
-			*len = 4;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[2~", 4);
+			return;
 		case XK_Delete:
-			*u8 = "\e[3~";
-			*len = 4;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[3~", 4);
+			return;
 		case XK_Page_Up:
-			*u8 = "\e[5~";
-			*len = 4;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[5~", 4);
+			return;
 		case XK_Page_Down:
-			*u8 = "\e[6~";
-			*len = 4;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[6~", 4);
+			return;
 		case XK_Up:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOA";
+				vte_write(vte, "\e[A", 3);
 			else
-				*u8 = "\e[A";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[A", 3);
+			return;
 		case XK_Down:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOB";
+				vte_write(vte, "\e[B", 3);
 			else
-				*u8 = "\e[B";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[B", 3);
+			return;
 		case XK_Right:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOC";
+				vte_write(vte, "\e[C", 3);
 			else
-				*u8 = "\e[C";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[C", 3);
+			return;
 		case XK_Left:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOD";
+				vte_write(vte, "\eOD", 3);
 			else
-				*u8 = "\e[D";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[D", 3);
+			return;
 		case XK_KP_Insert:
 		case XK_KP_0:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOp";
-				*len = 3;
-			} else {
-				*u8 = "0";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOp", 3);
+			else
+				vte_write(vte, "0", 1);
+			return;
 		case XK_KP_End:
 		case XK_KP_1:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOq";
-				*len = 3;
-			} else {
-				*u8 = "1";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOq", 3);
+			else
+				vte_write(vte, "1", 1);
+			return;
 		case XK_KP_Down:
 		case XK_KP_2:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOr";
-				*len = 3;
-			} else {
-				*u8 = "2";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOr", 3);
+			else
+				vte_write(vte, "2", 1);
+			return;
 		case XK_KP_Page_Down:
 		case XK_KP_3:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOs";
-				*len = 3;
-			} else {
-				*u8 = "3";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOs", 3);
+			else
+				vte_write(vte, "3", 1);
+			return;
 		case XK_KP_Left:
 		case XK_KP_4:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOt";
-				*len = 3;
-			} else {
-				*u8 = "4";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOt", 3);
+			else
+				vte_write(vte, "4", 1);
+			return;
 		case XK_KP_Begin:
 		case XK_KP_5:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOu";
-				*len = 3;
-			} else {
-				*u8 = "5";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOu", 3);
+			else
+				vte_write(vte, "5", 1);
+			return;
 		case XK_KP_Right:
 		case XK_KP_6:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOv";
-				*len = 3;
-			} else {
-				*u8 = "6";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOv", 3);
+			else
+				vte_write(vte, "6", 1);
+			return;
 		case XK_KP_Home:
 		case XK_KP_7:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOw";
-				*len = 3;
-			} else {
-				*u8 = "7";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOw", 3);
+			else
+				vte_write(vte, "7", 1);
+			return;
 		case XK_KP_Up:
 		case XK_KP_8:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOx";
-				*len = 3;
-			} else {
-				*u8 = "8";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOx", 3);
+			else
+				vte_write(vte, "8", 1);
+			return;
 		case XK_KP_Page_Up:
 		case XK_KP_9:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOy";
-				*len = 3;
-			} else {
-				*u8 = "9";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOy", 3);
+			else
+				vte_write(vte, "9", 1);
+			return;
 		case XK_KP_Subtract:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOm";
-				*len = 3;
-			} else {
-				*u8 = "-";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOm", 3);
+			else
+				vte_write(vte, "-", 1);
+			return;
 		case XK_KP_Separator:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOl";
-				*len = 3;
-			} else {
-				*u8 = ",";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOl", 3);
+			else
+				vte_write(vte, ",", 1);
+			return;
 		case XK_KP_Delete:
 		case XK_KP_Decimal:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOn";
-				*len = 3;
-			} else {
-				*u8 = ".";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOn", 3);
+			else
+				vte_write(vte, ".", 1);
+			return;
 		case XK_KP_Equal:
 		case XK_KP_Divide:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOj";
-				*len = 3;
-			} else {
-				*u8 = "/";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOj", 3);
+			else
+				vte_write(vte, "/", 1);
+			return;
 		case XK_KP_Multiply:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOo";
-				*len = 3;
-			} else {
-				*u8 = "*";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOo", 3);
+			else
+				vte_write(vte, "*", 1);
+			return;
 		case XK_KP_Add:
-			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
-				*u8 = "\eOk";
-				*len = 3;
-			} else {
-				*u8 = "+";
-				*len = 1;
-			}
-			return KMSCON_VTE_SEND;
+			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
+				vte_write(vte, "\eOk", 3);
+			else
+				vte_write(vte, "+", 1);
+			return;
 		case XK_F1:
 		case XK_KP_F1:
-			*u8 = "\eOP";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\eOP", 3);
+			return;
 		case XK_F2:
 		case XK_KP_F2:
-			*u8 = "\eOQ";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\eOQ", 3);
+			return;
 		case XK_F3:
 		case XK_KP_F3:
-			*u8 = "\eOR";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\eOR", 3);
+			return;
 		case XK_F4:
 		case XK_KP_F4:
-			*u8 = "\eOS";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\eOS", 3);
+			return;
 		case XK_KP_Space:
-			*u8 = " ";
-			*len = 1;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, " ", 1);
+			return;
 		case XK_Home:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOH";
+				vte_write(vte, "\eOH", 3);
 			else
-				*u8 = "\e[H";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[H", 3);
+			return;
 		case XK_End:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				*u8 = "\eOF";
+				vte_write(vte, "\eOF", 3);
 			else
-				*u8 = "\e[F";
-			*len = 3;
-			return KMSCON_VTE_SEND;
+				vte_write(vte, "\e[F", 3);
+			return;
 		case XK_F5:
-			*u8 = "\e[15~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[15~", 5);
+			return;
 		case XK_F6:
-			*u8 = "\e[17~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[17~", 5);
+			return;
 		case XK_F7:
-			*u8 = "\e[18~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[18~", 5);
+			return;
 		case XK_F8:
-			*u8 = "\e[19~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[19~", 5);
+			return;
 		case XK_F9:
-			*u8 = "\e[20~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[20~", 5);
+			return;
 		case XK_F10:
-			*u8 = "\e[21~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[21~", 5);
+			return;
 		case XK_F11:
-			*u8 = "\e[23~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[23~", 5);
+			return;
 		case XK_F12:
-			*u8 = "\e[24~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[24~", 5);
+			return;
 		case XK_F13:
-			*u8 = "\e[25~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[25~", 5);
+			return;
 		case XK_F14:
-			*u8 = "\e[26~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[26~", 5);
+			return;
 		case XK_F15:
-			*u8 = "\e[28~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[28~", 5);
+			return;
 		case XK_F16:
-			*u8 = "\e[29~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[29~", 5);
+			return;
 		case XK_F17:
-			*u8 = "\e[31~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[31~", 5);
+			return;
 		case XK_F18:
-			*u8 = "\e[32~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[32~", 5);
+			return;
 		case XK_F19:
-			*u8 = "\e[33~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[33~", 5);
+			return;
 		case XK_F20:
-			*u8 = "\e[34~";
-			*len = 5;
-			return KMSCON_VTE_SEND;
+			vte_write(vte, "\e[34~", 5);
+			return;
 	}
 
 	if (ev->unicode != UTERM_INPUT_INVALID) {
-		kmscon_symbol_free_u8(vte->kbd_sym);
 		sym = kmscon_symbol_make(ev->unicode);
-		vte->kbd_sym = kmscon_symbol_get_u8(sym, len);
-		*u8 = vte->kbd_sym;
-		return KMSCON_VTE_SEND;
+		u8 = kmscon_symbol_get_u8(sym, &len);
+		vte_write(vte, u8, len);
+		kmscon_symbol_free_u8(u8);
+		return;
 	}
-
-	return KMSCON_VTE_DROP;
 }
