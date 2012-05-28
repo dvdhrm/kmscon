@@ -518,6 +518,23 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				}
 			}
 			break;
+		case 'p': /* DECSCL: Compatibility Level */
+			if (vte->csi_argv[0] == 61) {
+				/* Switching to VT100 compatibility mode. We do
+				 * not support this mode, so ignore it. In fact,
+				 * we are almost compatible to it, anyway, so
+				 * there is no need to explicitely select it. */
+			} else if (vte->csi_argv[0] == 62) {
+				/* Switching to VT220 compatibility mode. We are
+				 * always compatible with this so ignore it.
+				 * We always send 7bit controls so we also do
+				 * not care for the parameter value here that
+				 * select the control-mode. */
+			} else {
+				log_debug("unhandled DECSCL 'p' CSI %i",
+					  vte->csi_argv[0]);
+			}
+			break;
 		default:
 			log_debug("unhandled CSI sequence %c", data);
 	}
