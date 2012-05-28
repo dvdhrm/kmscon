@@ -205,7 +205,8 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			break;
 		case 0x05: /* ENQ */
 			/* Transmit answerback message */
-			/* TODO */
+			/* TODO: is there a better answer than ACK?  */
+			vte_write(vte, "\x06", 1);
 			break;
 		case 0x07: /* BEL */
 			/* Sound bell tone */
