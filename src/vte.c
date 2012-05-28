@@ -974,6 +974,7 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 
 	if (UTERM_INPUT_HAS_MODS(ev, UTERM_CONTROL_MASK)) {
 		switch (ev->keysym) {
+		case XK_2:
 		case XK_space:
 			val = "\x00";
 			break;
@@ -1029,25 +1030,33 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		case XK_Y: val = "\x19"; break;
 		case XK_z:
 		case XK_Z: val = "\x1a"; break;
+		case XK_3:
 		case XK_bracketleft:
 		case XK_braceleft:
 			val = "\x1b";
 			break;
+		case XK_4:
 		case XK_backslash:
 		case XK_bar:
 			val = "\x1c";
 			break;
+		case XK_5:
 		case XK_bracketright:
 		case XK_braceright:
 			val = "\x1d";
 			break;
+		case XK_6:
 		case XK_grave:
 		case XK_asciitilde:
 			val = "\x1e";
 			break;
+		case XK_7:
 		case XK_slash:
 		case XK_question:
 			val = "\x1f";
+			break;
+		case XK_8:
+			val ="\x7f";
 			break;
 		default:
 			val = NULL;
