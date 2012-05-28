@@ -105,7 +105,8 @@ enum parser_action {
 #define CSI_ARG_MAX 16
 
 /* terminal flags */
-#define FLAG_CURSOR_KEY_MODE 0x01
+#define FLAG_CURSOR_KEY_MODE			0x01
+#define FLAG_LINE_FEED_NEW_LINE_MODE		0x04
 
 struct kmscon_vte {
 	unsigned long ref;
@@ -217,15 +218,13 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			/* TODO */
 			break;
 		case 0x0a: /* LF */
-			/* Line feed or newline (CR/NL mode) */
-			/* TODO: implement CR/NL mode */
-			kmscon_console_newline(vte->con);
-			break;
 		case 0x0b: /* VT */
 		case 0x0c: /* FF */
-			/* Line feed */
-			/* TODO: does this depend on CR/NL, too? */
-			kmscon_console_move_down(vte->con, 1, true);
+			/* Line feed or newline (CR/NL mode) */
+			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
+				kmscon_console_newline(vte->con);
+			else
+				kmscon_console_move_down(vte->con, 1, true);
 			break;
 		case 0x0d: /* CR */
 			/* Move cursor to left margin */
