@@ -264,6 +264,9 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 			/* Invokes an escape sequence */
 			/* nothing to do here */
 			break;
+		case 0x1f: /* DEL */
+			/* Ignored */
+			break;
 		case 0x84: /* IND */
 			/* Move down one row, perform scroll-up if needed */
 			/* TODO */
