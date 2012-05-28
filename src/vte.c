@@ -104,6 +104,9 @@ enum parser_action {
 /* max CSI arguments */
 #define CSI_ARG_MAX 16
 
+/* terminal flags */
+#define FLAG_CURSOR_KEY_MODE 0x01
+
 struct kmscon_vte {
 	unsigned long ref;
 	struct kmscon_console *con;
@@ -116,6 +119,7 @@ struct kmscon_vte {
 	int csi_argv[CSI_ARG_MAX];
 
 	struct font_char_attr cattr;
+	unsigned int flags;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con)
@@ -1113,6 +1117,34 @@ int kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		case XK_Page_Down:
 			*u8 = "\e[6~";
 			*len = 4;
+			return KMSCON_VTE_SEND;
+		case XK_Up:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOA";
+			else
+				*u8 = "\e[A";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_Down:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOB";
+			else
+				*u8 = "\e[B";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_Right:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOC";
+			else
+				*u8 = "\e[C";
+			*len = 3;
+			return KMSCON_VTE_SEND;
+		case XK_Left:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				*u8 = "\eOD";
+			else
+				*u8 = "\e[D";
+			*len = 3;
 			return KMSCON_VTE_SEND;
 	}
 
