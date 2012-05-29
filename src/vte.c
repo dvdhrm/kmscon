@@ -489,6 +489,11 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
+static void csi_soft_reset(struct kmscon_vte *vte)
+{
+	kmscon_vte_reset(vte);
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num, i;
@@ -628,6 +633,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				/* xterm: select X11 visual cursor mode */
 			} else if (vte->csi_flags & CSI_BANG) {
 				/* DECSTR: Soft Reset */
+				csi_soft_reset(vte);
 			} else if (vte->csi_flags & CSI_CASH) {
 				/* DECRQM: Request DEC Private Mode */
 				/* If CSI_WHAT is set, then enable,
