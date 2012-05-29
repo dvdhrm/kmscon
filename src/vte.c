@@ -636,6 +636,14 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		/* Invoke G3 into GR */
 		vte->gr = vte->g3;
 		break;
+	case '=': /* DECKPAM */
+		/* Set application keypad mode */
+		vte->flags |= FLAG_KEYPAD_APPLICATION_MODE;
+		break;
+	case '>': /* DECKPNM */
+		/* Set numeric keypad mode */
+		vte->flags &= ~FLAG_KEYPAD_APPLICATION_MODE;
+		break;
 	default:
 		log_debug("unhandled escape seq %u", data);
 	}
