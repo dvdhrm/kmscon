@@ -771,6 +771,43 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 	}
 }
 
+static inline void set_reset_flag(struct kmscon_vte *vte, bool set,
+				  unsigned int flag)
+{
+	if (set)
+		vte->flags |= flag;
+	else
+		vte->flags &= ~flag;
+}
+
+static void csi_mode(struct kmscon_vte *vte, bool set)
+{
+	unsigned int i;
+
+	for (i = 0; i < CSI_ARG_MAX; ++i) {
+		switch (vte->csi_argv[i]) {
+		case 20: /* LNM */
+			set_reset_flag(vte, set, FLAG_LINE_FEED_NEW_LINE_MODE);
+			continue;
+		}
+
+		if (!(vte->csi_flags & CSI_WHAT)) {
+			log_debug("unknown non-DEC (Re)Set-Mode %d",
+				  vte->csi_argv[i]);
+			continue;
+		}
+
+		switch (vte->csi_argv[i]) {
+		case 1: /* DECCKM */
+			set_reset_flag(vte, set, FLAG_CURSOR_KEY_MODE);
+			continue;
+		default:
+			log_debug("unknown DEC (Re)Set-Mode %d",
+				  vte->csi_argv[i]);
+		}
+	}
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num;
@@ -845,6 +882,12 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				/* Sometimes CSI_DQUOTE is set here, too */
 				csi_compat_mode(vte);
 			}
+			break;
+		case 'h': /* SM: Set Mode */
+			csi_mode(vte, true);
+			break;
+		case 'l': /* RM: Reset Mode */
+			csi_mode(vte, false);
 			break;
 		default:
 			log_debug("unhandled CSI sequence %c", data);
