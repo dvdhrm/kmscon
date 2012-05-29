@@ -327,11 +327,11 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x0e: /* SO */
 		/* Map G1 character set into GL */
-		/* TODO */
+		vte->gl = vte->g1;
 		break;
 	case 0x0f: /* SI */
-		/* Map G0 character set into Gl */
-		/* TODO */
+		/* Map G0 character set into GL */
+		vte->gl = vte->g0;
 		break;
 	case 0x11: /* XON */
 		/* Resume transmission */
@@ -374,11 +374,11 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x8e: /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
-		/* TODO */
+		vte->glt = vte->g2;
 		break;
 	case 0x8f: /* SS3 */
 		/* Temporarily map G3 into GL for next char only */
-		/* TODO */
+		vte->glt = vte->g3;
 		break;
 	case 0x9a: /* DECID */
 		/* Send device attributes response like ANSI DA */
@@ -585,11 +585,11 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'N': /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
-		/* TODO */
+		vte->glt = vte->g2;
 		break;
 	case 'O': /* SS3 */
 		/* Temporarily map G3 into GL for next char only */
-		/* TODO */
+		vte->glt = vte->g3;
 		break;
 	case 'Z': /* DECID */
 		/* Send device attributes response like ANSI DA */
@@ -598,6 +598,26 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	case '\\': /* ST */
 		/* End control string */
 		/* nothing to do here */
+		break;
+	case '~': /* LS1R */
+		/* Invoke G1 into GR */
+		vte->gr = vte->g1;
+		break;
+	case 'n': /* LS2 */
+		/* Invoke G2 into GL */
+		vte->gl = vte->g2;
+		break;
+	case '}': /* LS2R */
+		/* Invoke G2 into GR */
+		vte->gr = vte->g2;
+		break;
+	case 'o': /* LS3 */
+		/* Invoke G3 into GL */
+		vte->gl = vte->g3;
+		break;
+	case '|': /* LS3R */
+		/* Invoke G3 into GR */
+		vte->gr = vte->g3;
 		break;
 	default:
 		log_debug("unhandled escape seq %u", data);
