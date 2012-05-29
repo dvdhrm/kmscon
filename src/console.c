@@ -775,7 +775,8 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 
 static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 				unsigned int y, kmscon_symbol_t ch,
-				const struct font_char_attr *attr)
+				const struct font_char_attr *attr,
+				unsigned int flags)
 {
 	struct line *line, **slot;
 	int ret;
@@ -816,7 +817,7 @@ static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 			buf->scroll_fill = y + 1;
 	}
 
-	if (x >= line->size) {
+	if (line->size < buf->size_x) {
 		ret = resize_line(line, buf->size_x);
 		if (ret) {
 			log_warn("cannot resize line (%d); dropping input", ret);
@@ -824,6 +825,9 @@ static void kmscon_buffer_write(struct kmscon_buffer *buf, unsigned int x,
 		}
 	}
 
+	if ((flags & KMSCON_CONSOLE_INSERT) && x < (buf->size_x - 1))
+		memmove(&line->cells[x + 1], &line->cells[x],
+			sizeof(struct cell) * (buf->size_x - 1 - x));
 	line->cells[x].ch = ch;
 	memcpy(&line->cells[x].attr, attr, sizeof(*attr));
 }
@@ -1052,7 +1056,8 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr)
+			  const struct font_char_attr *attr,
+			  unsigned int flags)
 {
 	unsigned int last;
 
@@ -1074,7 +1079,8 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
 		}
 	}
 
-	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch, attr);
+	kmscon_buffer_write(con->cells, con->cursor_x, con->cursor_y, ch, attr,
+			    flags);
 	con->cursor_x++;
 }
 

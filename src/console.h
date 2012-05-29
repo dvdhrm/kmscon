@@ -44,6 +44,8 @@ struct kmscon_console;
 
 /* console objects */
 
+#define KMSCON_CONSOLE_INSERT		0x01
+
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
@@ -57,7 +59,8 @@ void kmscon_console_reset(struct kmscon_console *con);
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr);
+			  const struct font_char_attr *attr,
+			  unsigned int flags);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 							unsigned int y);

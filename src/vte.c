@@ -261,6 +261,18 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 #define vte_write_raw(_vte, _u8, _len) \
 	vte_write_debug((_vte), (_u8), (_len), true, __FILE__, __LINE__)
 
+/* write to console */
+static void write_console(struct kmscon_vte *vte, kmscon_symbol_t sym)
+{
+	unsigned int flags;
+
+	flags = 0;
+	if (vte->flags & FLAG_INSERT_REPLACE_MODE)
+		flags |= KMSCON_CONSOLE_INSERT;
+
+	kmscon_console_write(vte->con, sym, &vte->cattr, flags);
+}
+
 /*
  * Reset VTE state
  * This performs a soft reset of the VTE. That is, everything is reset to the
@@ -361,7 +373,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x1a: /* SUB */
 		/* Discard current escape sequence and show err-sym */
-		kmscon_console_write(vte->con, 0xbf, &vte->cattr);
+		write_console(vte, 0xbf);
 		break;
 	case 0x1b: /* ESC */
 		/* Invokes an escape sequence */
@@ -1026,7 +1038,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 			break;
 		case ACTION_PRINT:
 			sym = kmscon_symbol_make(vte_map(vte, data));
-			kmscon_console_write(vte->con, sym, &vte->cattr);
+			write_console(vte, sym);
 			break;
 		case ACTION_EXECUTE:
 			do_execute(vte, data);
