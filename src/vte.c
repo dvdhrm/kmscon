@@ -802,25 +802,29 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 	unsigned int i;
 
 	for (i = 0; i < CSI_ARG_MAX; ++i) {
-		switch (vte->csi_argv[i]) {
-		case 2: /* KAM */
-			set_reset_flag(vte, set, FLAG_KEYBOARD_ACTION_MODE);
-			continue;
-		case 4: /* IRM */
-			set_reset_flag(vte, set, FLAG_INSERT_REPLACE_MODE);
-			continue;
-		case 12: /* SRM */
-			set_reset_flag(vte, set, FLAG_SEND_RECEIVE_MODE);
-			continue;
-		case 20: /* LNM */
-			set_reset_flag(vte, set, FLAG_LINE_FEED_NEW_LINE_MODE);
-			continue;
-		}
-
 		if (!(vte->csi_flags & CSI_WHAT)) {
-			log_debug("unknown non-DEC (Re)Set-Mode %d",
-				  vte->csi_argv[i]);
-			continue;
+			switch (vte->csi_argv[i]) {
+			case 2: /* KAM */
+				set_reset_flag(vte, set,
+					       FLAG_KEYBOARD_ACTION_MODE);
+				continue;
+			case 4: /* IRM */
+				set_reset_flag(vte, set,
+					       FLAG_INSERT_REPLACE_MODE);
+				continue;
+			case 12: /* SRM */
+				set_reset_flag(vte, set,
+					       FLAG_SEND_RECEIVE_MODE);
+				continue;
+			case 20: /* LNM */
+				set_reset_flag(vte, set,
+					       FLAG_LINE_FEED_NEW_LINE_MODE);
+				continue;
+			default:
+				log_debug("unknown non-DEC (Re)Set-Mode %d",
+					  vte->csi_argv[i]);
+				continue;
+			}
 		}
 
 		switch (vte->csi_argv[i]) {
@@ -887,6 +891,7 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 		default:
 			log_debug("unknown DEC (Re)Set-Mode %d",
 				  vte->csi_argv[i]);
+			continue;
 		}
 	}
 }
