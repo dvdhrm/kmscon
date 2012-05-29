@@ -904,81 +904,81 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		vte->csi_argc++;
 
 	switch (data) {
-		case 'A':
-			num = vte->csi_argv[0];
-			if (num <= 0)
-				num = 1;
-			kmscon_console_move_up(vte->con, num, false);
-			break;
-		case 'B':
-			num = vte->csi_argv[0];
-			if (num <= 0)
-				num = 1;
-			kmscon_console_move_down(vte->con, num, false);
-			break;
-		case 'C':
-			num = vte->csi_argv[0];
-			if (num <= 0)
-				num = 1;
-			kmscon_console_move_right(vte->con, num);
-			break;
-		case 'D':
-			num = vte->csi_argv[0];
-			if (num <= 0)
-				num = 1;
-			kmscon_console_move_left(vte->con, num);
-			break;
-		case 'J':
-			if (vte->csi_argv[0] <= 0)
-				kmscon_console_erase_cursor_to_screen(vte->con);
-			else if (vte->csi_argv[0] == 1)
-				kmscon_console_erase_screen_to_cursor(vte->con);
-			else if (vte->csi_argv[0] == 2)
-				kmscon_console_erase_screen(vte->con);
-			else
-				log_debug("unknown parameter to CSI-J: %d",
-					  vte->csi_argv[0]);
-			break;
-		case 'K':
-			if (vte->csi_argv[0] <= 0)
-				kmscon_console_erase_cursor_to_end(vte->con);
-			else if (vte->csi_argv[0] == 1)
-				kmscon_console_erase_home_to_cursor(vte->con);
-			else if (vte->csi_argv[0] == 2)
-				kmscon_console_erase_current_line(vte->con);
-			else
-				log_debug("unknown parameter to CSI-K: %d",
-					  vte->csi_argv[0]);
-			break;
-		case 'm':
-			csi_attribute(vte);
-			break;
-		case 'p':
-			if (vte->csi_flags & CSI_GT) {
-				/* xterm: select X11 visual cursor mode */
-				csi_soft_reset(vte);
-			} else if (vte->csi_flags & CSI_BANG) {
-				/* DECSTR: Soft Reset */
-				csi_soft_reset(vte);
-			} else if (vte->csi_flags & CSI_CASH) {
-				/* DECRQM: Request DEC Private Mode */
-				/* If CSI_WHAT is set, then enable,
-				 * otherwise disable */
-				csi_soft_reset(vte);
-			} else {
-				/* DECSCL: Compatibility Level */
-				/* Sometimes CSI_DQUOTE is set here, too */
-				csi_compat_mode(vte);
-			}
-			break;
-		case 'h': /* SM: Set Mode */
-			csi_mode(vte, true);
-			break;
-		case 'l': /* RM: Reset Mode */
-			csi_mode(vte, false);
-			break;
-		default:
-			log_debug("unhandled CSI sequence %c", data);
+	case 'A':
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_move_up(vte->con, num, false);
+		break;
+	case 'B':
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_move_down(vte->con, num, false);
+		break;
+	case 'C':
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_move_right(vte->con, num);
+		break;
+	case 'D':
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_move_left(vte->con, num);
+		break;
+	case 'J':
+		if (vte->csi_argv[0] <= 0)
+			kmscon_console_erase_cursor_to_screen(vte->con);
+		else if (vte->csi_argv[0] == 1)
+			kmscon_console_erase_screen_to_cursor(vte->con);
+		else if (vte->csi_argv[0] == 2)
+			kmscon_console_erase_screen(vte->con);
+		else
+			log_debug("unknown parameter to CSI-J: %d",
+				  vte->csi_argv[0]);
+		break;
+	case 'K':
+		if (vte->csi_argv[0] <= 0)
+			kmscon_console_erase_cursor_to_end(vte->con);
+		else if (vte->csi_argv[0] == 1)
+			kmscon_console_erase_home_to_cursor(vte->con);
+		else if (vte->csi_argv[0] == 2)
+			kmscon_console_erase_current_line(vte->con);
+		else
+			log_debug("unknown parameter to CSI-K: %d",
+				  vte->csi_argv[0]);
+		break;
+	case 'm':
+		csi_attribute(vte);
+		break;
+	case 'p':
+		if (vte->csi_flags & CSI_GT) {
+			/* xterm: select X11 visual cursor mode */
+			csi_soft_reset(vte);
+		} else if (vte->csi_flags & CSI_BANG) {
+			/* DECSTR: Soft Reset */
+			csi_soft_reset(vte);
+		} else if (vte->csi_flags & CSI_CASH) {
+			/* DECRQM: Request DEC Private Mode */
+			/* If CSI_WHAT is set, then enable,
+			 * otherwise disable */
+			csi_soft_reset(vte);
+		} else {
+			/* DECSCL: Compatibility Level */
+			/* Sometimes CSI_DQUOTE is set here, too */
+			csi_compat_mode(vte);
+		}
+		break;
+	case 'h': /* SM: Set Mode */
+		csi_mode(vte, true);
+		break;
+	case 'l': /* RM: Reset Mode */
+		csi_mode(vte, false);
+		break;
+	default:
+		log_debug("unhandled CSI sequence %c", data);
 	}
 }
 
