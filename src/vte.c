@@ -118,12 +118,21 @@ enum parser_action {
 #define CSI_ARG_MAX 16
 
 /* terminal flags */
-#define FLAG_CURSOR_KEY_MODE			0x01 /* DEC cursor key mode */
-#define FLAG_KEYPAD_APPLICATION_MODE		0x02 /* DEC keypad application mode; TODO: toggle on numlock? */
-#define FLAG_LINE_FEED_NEW_LINE_MODE		0x04 /* DEC line-feed/new-line mode */
-#define FLAG_8BIT_MODE				0x08 /* Disable UTF-8 mode and enable 8bit compatible mode */
-#define FLAG_7BIT_MODE				0x10 /* Disable 8bit mode and use 7bit compatible mode */
-#define FLAG_USE_C1				0x20 /* Explicitely use 8bit C1 codes; TODO: implement */
+#define FLAG_CURSOR_KEY_MODE			0x00000001 /* DEC cursor key mode */
+#define FLAG_KEYPAD_APPLICATION_MODE		0x00000002 /* DEC keypad application mode; TODO: toggle on numlock? */
+#define FLAG_LINE_FEED_NEW_LINE_MODE		0x00000004 /* DEC line-feed/new-line mode */
+#define FLAG_8BIT_MODE				0x00000008 /* Disable UTF-8 mode and enable 8bit compatible mode */
+#define FLAG_7BIT_MODE				0x00000010 /* Disable 8bit mode and use 7bit compatible mode */
+#define FLAG_USE_C1				0x00000020 /* Explicitely use 8bit C1 codes; TODO: implement */
+#define FLAG_KEYBOARD_ACTION_MODE		0x00000040 /* Disable keyboard; TODO: implement? */
+#define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode; TODO: implement */
+#define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo; TODO: implement */
+#define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor; TODO: implement */
+#define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors; TODO: implement */
+#define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor; TODO: implement */
+#define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode; TODO: implement */
+#define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
+#define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
 
 struct kmscon_vte {
 	unsigned long ref;
@@ -794,6 +803,15 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 
 	for (i = 0; i < CSI_ARG_MAX; ++i) {
 		switch (vte->csi_argv[i]) {
+		case 2: /* KAM */
+			set_reset_flag(vte, set, FLAG_KEYBOARD_ACTION_MODE);
+			continue;
+		case 4: /* IRM */
+			set_reset_flag(vte, set, FLAG_INSERT_REPLACE_MODE);
+			continue;
+		case 12: /* SRM */
+			set_reset_flag(vte, set, FLAG_SEND_RECEIVE_MODE);
+			continue;
 		case 20: /* LNM */
 			set_reset_flag(vte, set, FLAG_LINE_FEED_NEW_LINE_MODE);
 			continue;
@@ -808,6 +826,63 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 		switch (vte->csi_argv[i]) {
 		case 1: /* DECCKM */
 			set_reset_flag(vte, set, FLAG_CURSOR_KEY_MODE);
+			continue;
+		case 2: /* DECANM */
+			/* Select VT52 mode */
+			/* We do not support VT52 mode. Is there any reason why
+			 * we should support it? We ignore it here and do not
+			 * mark it as to-do item unless someone has strong
+			 * arguments to support it. */
+			continue;
+		case 3: /* DECCOLM */
+			/* If set, select 132 column mode, otherwise use 80
+			 * column mode. If neither is selected explicitely, we
+			 * use dynamic mode, that is, we send SIGWCH when the
+			 * size changes and we allow arbitrary buffer
+			 * dimensions. On soft-reset, we automatically fall back
+			 * to the default, that is, dynamic mode.
+			 * Dynamic-mode can be forced to a static mode in the
+			 * config. That is, everytime dynamic-mode becomes
+			 * active, the terminal will be set to the dimensions
+			 * that were selected in the config. This allows setting
+			 * a fixed size for the terminal regardless of the
+			 * display size.
+			 * TODO: Implement this */
+			continue;
+		case 4: /* DECSCLM */
+			/* Select smooth scrolling. We do not support the
+			 * classic smooth scrolling because we have a scrollback
+			 * buffer. There is no need to implement smooth
+			 * scrolling so ignore this here. */
+			continue;
+		case 5: /* DECSCNM */
+			set_reset_flag(vte, set, FLAG_INVERSE_SCREEN_MODE);
+			continue;
+		case 6: /* DECOM */
+			set_reset_flag(vte, set, FLAG_ORIGIN_MODE);
+			continue;
+		case 7: /* DECAWN */
+			set_reset_flag(vte, set, FLAG_AUTO_WRAP_MODE);
+			continue;
+		case 8: /* DECARM */
+			set_reset_flag(vte, set, FLAG_AUTO_REPEAT_MODE);
+			continue;
+		case 18: /* DECPFF */
+			/* If set, a form feed (FF) is sent to the printer after
+			 * every screen that is printed. We don't have printers
+			 * these days directly attached to terminals so we
+			 * ignore this here. */
+			continue;
+		case 19: /* DECPEX */
+			/* If set, the full screen is printed instead of
+			 * scrolling region only. We have no printer so ignore
+			 * this mode. */
+			continue;
+		case 25: /* DECTCEM */
+			set_reset_flag(vte, set, FLAG_TEXT_CURSOR_MODE);
+			continue;
+		case 42: /* DECNRCM */
+			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
 			continue;
 		default:
 			log_debug("unknown DEC (Re)Set-Mode %d",
