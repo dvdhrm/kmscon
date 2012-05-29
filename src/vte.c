@@ -623,21 +623,59 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				}
 			}
 			break;
-		case 'p': /* DECSCL: Compatibility Level */
-			if (vte->csi_argv[0] == 61) {
-				/* Switching to VT100 compatibility mode. We do
-				 * not support this mode, so ignore it. In fact,
-				 * we are almost compatible to it, anyway, so
-				 * there is no need to explicitely select it. */
-			} else if (vte->csi_argv[0] == 62) {
-				/* Switching to VT220 compatibility mode. We are
-				 * always compatible with this so ignore it.
-				 * We always send 7bit controls so we also do
-				 * not care for the parameter value here that
-				 * select the control-mode. */
+		case 'p':
+			if (vte->csi_flags & CSI_GT) {
+				/* xterm: select X11 visual cursor mode */
+			} else if (vte->csi_flags & CSI_BANG) {
+				/* DECSTR: Soft Reset */
+			} else if (vte->csi_flags & CSI_CASH) {
+				/* DECRQM: Request DEC Private Mode */
+				/* If CSI_WHAT is set, then enable,
+				 * otherwise disable */
 			} else {
-				log_debug("unhandled DECSCL 'p' CSI %i",
-					  vte->csi_argv[0]);
+				/* DECSCL: Compatibility Level */
+				/* Sometimes CSI_DQUOTE is set here, too */
+				if (vte->csi_argv[0] == 61) {
+					/* Switching to VT100 compatibility mode. We do
+					 * not support this mode, so ignore it. In fact,
+					 * we are almost compatible to it, anyway, so
+					 * there is no need to explicitely select it.
+					 * However, we enable 7bit mode to avoid
+					 * character-table problems */
+					vte->flags |= FLAG_7BIT_MODE;
+					kmscon_utf8_mach_reset(vte->mach);
+				} else if (vte->csi_argv[0] == 62 ||
+					   vte->csi_argv[0] == 63 ||
+					   vte->csi_argv[0] == 64) {
+					/* Switching to VT2/3/4 compatibility mode. We
+					 * are always compatible with this so ignore it.
+					 * We always send 7bit controls so we also do
+					 * not care for the parameter value here that
+					 * select the control-mode.
+					 * VT220 defines argument 2 as 7bit mode but
+					 * VT3xx up to VT5xx use it as 8bit mode. We
+					 * choose to conform with the latter here.
+					 * We also enable 8bit mode when VT220
+					 * compatibility is requested explicitely. */
+					if (vte->csi_argv[1] == 1 ||
+					    vte->csi_argv[1] == 2)
+						log_debug("client requests 8bit controls which we do not support as output");
+
+					vte->flags |= FLAG_8BIT_MODE;
+					vte->flags &= ~FLAG_7BIT_MODE;
+					kmscon_utf8_mach_reset(vte->mach);
+				} else {
+					/* When any other compatibility mode is
+					 * selected, we explicitely switch to UTF8 mode
+					 * again so you can use this as special kmscon
+					 * command to switch out of compatibility modes
+					 * and avoiding a soft-reset. */
+					log_debug("unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
+						  vte->csi_argv[0]);
+
+					vte->flags &= ~(FLAG_8BIT_MODE | FLAG_7BIT_MODE);
+					kmscon_utf8_mach_reset(vte->mach);
+				}
 			}
 			break;
 		default:
