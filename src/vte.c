@@ -489,14 +489,145 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
+static void csi_attribute(struct kmscon_vte *vte)
+{
+	unsigned int i;
+
+	for (i = 0; i < CSI_ARG_MAX; ++i) {
+		switch (vte->csi_argv[i]) {
+		case -1:
+			break;
+		case 0:
+			vte->cattr.fr = 255;
+			vte->cattr.fg = 255;
+			vte->cattr.fb = 255;
+			vte->cattr.br = 0;
+			vte->cattr.bg = 0;
+			vte->cattr.bb = 0;
+			vte->cattr.bold = 0;
+			vte->cattr.underline = 0;
+			vte->cattr.inverse = 0;
+			break;
+		case 1:
+			vte->cattr.bold = 1;
+			break;
+		case 4:
+			vte->cattr.underline = 1;
+			break;
+		case 7:
+			vte->cattr.inverse = 1;
+			break;
+		case 22:
+			vte->cattr.bold = 0;
+			break;
+		case 24:
+			vte->cattr.underline = 0;
+			break;
+		case 27:
+			vte->cattr.inverse = 0;
+			break;
+		case 30:
+			vte->cattr.fr = 0;
+			vte->cattr.fg = 0;
+			vte->cattr.fb = 0;
+			break;
+		case 31:
+			vte->cattr.fr = 205;
+			vte->cattr.fg = 0;
+			vte->cattr.fb = 0;
+			break;
+		case 32:
+			vte->cattr.fr = 0;
+			vte->cattr.fg = 205;
+			vte->cattr.fb = 0;
+			break;
+		case 33:
+			vte->cattr.fr = 205;
+			vte->cattr.fg = 205;
+			vte->cattr.fb = 0;
+			break;
+		case 34:
+			vte->cattr.fr = 0;
+			vte->cattr.fg = 0;
+			vte->cattr.fb = 238;
+			break;
+		case 35:
+			vte->cattr.fr = 205;
+			vte->cattr.fg = 0;
+			vte->cattr.fb = 205;
+			break;
+		case 36:
+			vte->cattr.fr = 0;
+			vte->cattr.fg = 205;
+			vte->cattr.fb = 205;
+			break;
+		case 37:
+			vte->cattr.fr = 255;
+			vte->cattr.fg = 255;
+			vte->cattr.fb = 255;
+			break;
+		default:
+			log_debug("unhandled SGR attr %i",
+				  vte->csi_argv[i]);
+		}
+	}
+}
+
 static void csi_soft_reset(struct kmscon_vte *vte)
 {
 	kmscon_vte_reset(vte);
 }
 
+static void csi_compat_mode(struct kmscon_vte *vte)
+{
+	/* DECSCL: Compatibility Level */
+	/* Sometimes CSI_DQUOTE is set here, too */
+	if (vte->csi_argv[0] == 61) {
+		/* Switching to VT100 compatibility mode. We do
+		 * not support this mode, so ignore it. In fact,
+		 * we are almost compatible to it, anyway, so
+		 * there is no need to explicitely select it.
+		 * However, we enable 7bit mode to avoid
+		 * character-table problems */
+		vte->flags |= FLAG_7BIT_MODE;
+		kmscon_utf8_mach_reset(vte->mach);
+	} else if (vte->csi_argv[0] == 62 ||
+		   vte->csi_argv[0] == 63 ||
+		   vte->csi_argv[0] == 64) {
+		/* Switching to VT2/3/4 compatibility mode. We
+		 * are always compatible with this so ignore it.
+		 * We always send 7bit controls so we also do
+		 * not care for the parameter value here that
+		 * select the control-mode.
+		 * VT220 defines argument 2 as 7bit mode but
+		 * VT3xx up to VT5xx use it as 8bit mode. We
+		 * choose to conform with the latter here.
+		 * We also enable 8bit mode when VT220
+		 * compatibility is requested explicitely. */
+		if (vte->csi_argv[1] == 1 ||
+		    vte->csi_argv[1] == 2)
+			log_debug("client requests 8bit controls which we do not support as output");
+
+		vte->flags |= FLAG_8BIT_MODE;
+		vte->flags &= ~FLAG_7BIT_MODE;
+		kmscon_utf8_mach_reset(vte->mach);
+	} else {
+		/* When any other compatibility mode is
+		 * selected, we explicitely switch to UTF8 mode
+		 * again so you can use this as special kmscon
+		 * command to switch out of compatibility modes
+		 * and avoiding a soft-reset. */
+		log_debug("unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
+			  vte->csi_argv[0]);
+
+		vte->flags &= ~(FLAG_8BIT_MODE | FLAG_7BIT_MODE);
+		kmscon_utf8_mach_reset(vte->mach);
+	}
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
-	int num, i;
+	int num;
 
 	if (vte->csi_argc < CSI_ARG_MAX)
 		vte->csi_argc++;
@@ -549,84 +680,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 					  vte->csi_argv[0]);
 			break;
 		case 'm':
-			for (i = 0; i < CSI_ARG_MAX; ++i) {
-				switch (vte->csi_argv[i]) {
-				case -1:
-					break;
-				case 0:
-					vte->cattr.fr = 255;
-					vte->cattr.fg = 255;
-					vte->cattr.fb = 255;
-					vte->cattr.br = 0;
-					vte->cattr.bg = 0;
-					vte->cattr.bb = 0;
-					vte->cattr.bold = 0;
-					vte->cattr.underline = 0;
-					vte->cattr.inverse = 0;
-					break;
-				case 1:
-					vte->cattr.bold = 1;
-					break;
-				case 4:
-					vte->cattr.underline = 1;
-					break;
-				case 7:
-					vte->cattr.inverse = 1;
-					break;
-				case 22:
-					vte->cattr.bold = 0;
-					break;
-				case 24:
-					vte->cattr.underline = 0;
-					break;
-				case 27:
-					vte->cattr.inverse = 0;
-					break;
-				case 30:
-					vte->cattr.fr = 0;
-					vte->cattr.fg = 0;
-					vte->cattr.fb = 0;
-					break;
-				case 31:
-					vte->cattr.fr = 205;
-					vte->cattr.fg = 0;
-					vte->cattr.fb = 0;
-					break;
-				case 32:
-					vte->cattr.fr = 0;
-					vte->cattr.fg = 205;
-					vte->cattr.fb = 0;
-					break;
-				case 33:
-					vte->cattr.fr = 205;
-					vte->cattr.fg = 205;
-					vte->cattr.fb = 0;
-					break;
-				case 34:
-					vte->cattr.fr = 0;
-					vte->cattr.fg = 0;
-					vte->cattr.fb = 238;
-					break;
-				case 35:
-					vte->cattr.fr = 205;
-					vte->cattr.fg = 0;
-					vte->cattr.fb = 205;
-					break;
-				case 36:
-					vte->cattr.fr = 0;
-					vte->cattr.fg = 205;
-					vte->cattr.fb = 205;
-					break;
-				case 37:
-					vte->cattr.fr = 255;
-					vte->cattr.fg = 255;
-					vte->cattr.fb = 255;
-					break;
-				default:
-					log_debug("unhandled SGR attr %i",
-						  vte->csi_argv[i]);
-				}
-			}
+			csi_attribute(vte);
 			break;
 		case 'p':
 			if (vte->csi_flags & CSI_GT) {
@@ -639,49 +693,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 				/* If CSI_WHAT is set, then enable,
 				 * otherwise disable */
 			} else {
-				/* DECSCL: Compatibility Level */
-				/* Sometimes CSI_DQUOTE is set here, too */
-				if (vte->csi_argv[0] == 61) {
-					/* Switching to VT100 compatibility mode. We do
-					 * not support this mode, so ignore it. In fact,
-					 * we are almost compatible to it, anyway, so
-					 * there is no need to explicitely select it.
-					 * However, we enable 7bit mode to avoid
-					 * character-table problems */
-					vte->flags |= FLAG_7BIT_MODE;
-					kmscon_utf8_mach_reset(vte->mach);
-				} else if (vte->csi_argv[0] == 62 ||
-					   vte->csi_argv[0] == 63 ||
-					   vte->csi_argv[0] == 64) {
-					/* Switching to VT2/3/4 compatibility mode. We
-					 * are always compatible with this so ignore it.
-					 * We always send 7bit controls so we also do
-					 * not care for the parameter value here that
-					 * select the control-mode.
-					 * VT220 defines argument 2 as 7bit mode but
-					 * VT3xx up to VT5xx use it as 8bit mode. We
-					 * choose to conform with the latter here.
-					 * We also enable 8bit mode when VT220
-					 * compatibility is requested explicitely. */
-					if (vte->csi_argv[1] == 1 ||
-					    vte->csi_argv[1] == 2)
-						log_debug("client requests 8bit controls which we do not support as output");
-
-					vte->flags |= FLAG_8BIT_MODE;
-					vte->flags &= ~FLAG_7BIT_MODE;
-					kmscon_utf8_mach_reset(vte->mach);
-				} else {
-					/* When any other compatibility mode is
-					 * selected, we explicitely switch to UTF8 mode
-					 * again so you can use this as special kmscon
-					 * command to switch out of compatibility modes
-					 * and avoiding a soft-reset. */
-					log_debug("unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
-						  vte->csi_argv[0]);
-
-					vte->flags &= ~(FLAG_8BIT_MODE | FLAG_7BIT_MODE);
-					kmscon_utf8_mach_reset(vte->mach);
-				}
+				csi_compat_mode(vte);
 			}
 			break;
 		default:
