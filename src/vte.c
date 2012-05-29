@@ -153,24 +153,15 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
-	vte->state = STATE_GROUND;
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;
 
-	vte->cattr.fr = 255;
-	vte->cattr.fg = 255;
-	vte->cattr.fb = 255;
-	vte->cattr.br = 0;
-	vte->cattr.bg = 0;
-	vte->cattr.bb = 0;
-	vte->cattr.bold = 0;
-	vte->cattr.underline = 0;
-	vte->cattr.inverse = 0;
-
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
 		goto err_free;
+
+	kmscon_vte_reset(vte);
 
 	log_debug("new vte object");
 	kmscon_console_ref(vte->con);
