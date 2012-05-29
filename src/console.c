@@ -1035,6 +1035,14 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 	return con->cells->size_y;
 }
 
+void kmscon_console_reset(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	/* TODO: reset console */
+}
+
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
 	if (!con)
