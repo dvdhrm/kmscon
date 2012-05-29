@@ -105,9 +105,11 @@ enum parser_action {
 #define CSI_ARG_MAX 16
 
 /* terminal flags */
-#define FLAG_CURSOR_KEY_MODE			0x01
-#define FLAG_KEYPAD_APPLICATION_MODE		0x02 /* TODO: toggle on numlock? */
-#define FLAG_LINE_FEED_NEW_LINE_MODE		0x04
+#define FLAG_CURSOR_KEY_MODE			0x01 /* DEC cursor key mode */
+#define FLAG_KEYPAD_APPLICATION_MODE		0x02 /* DEC keypad application mode; TODO: toggle on numlock? */
+#define FLAG_LINE_FEED_NEW_LINE_MODE		0x04 /* DEC line-feed/new-line mode */
+#define FLAG_8BIT_MODE				0x08 /* Disable UTF-8 mode and enable 8bit compatible mode */
+#define FLAG_7BIT_MODE				0x10 /* Disable 8bit mode and use 7bit compatible mode */
 
 struct kmscon_vte {
 	unsigned long ref;
@@ -191,10 +193,49 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 	free(vte);
 }
 
-static void vte_write(struct kmscon_vte *vte, const char *u8, size_t len)
+/*
+ * Write raw byte-stream to pty.
+ * When writing data to the client we must make sure that we send the correct
+ * encoding. For backwards-compatibility reasons we should always send 7bit
+ * characters exclusively. However, when FLAG_7BIT_MODE is not set, then we can
+ * also send raw 8bit characters. For instance, in FLAG_8BIT_MODE we can use the
+ * GR characters as keyboard input and send them directly or even use the C1
+ * escape characters. In unicode mode (default) we can send multi-byte utf-8
+ * characters which are also 8bit. When sending these characters, set the \raw
+ * flag to true so this function does not perform debug checks on data we send.
+ * If debugging is disabled, these checks are also disabled and won't affect
+ * performance.
+ * For better debugging, we also use the __LINE__ and __FILE__ macros. Use the
+ * vte_write() and vte_write_raw() macros below for more convenient use.
+ *
+ * As a rule of thumb do never send 8bit characters in escape sequences and also
+ * avoid all 8bit escape codes including the C1 codes. This will guarantee that
+ * all kind of clients are always compatible to us.
+ */
+static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
+			    bool raw, const char *file, int line)
 {
+#ifdef KMSCON_ENABLE_DEBUG
+	/* in debug mode we check that escape sequences are always <0x7f so they
+	 * are correctly parsed by non-unicode and non-8bit-mode clients. */
+	size_t i;
+
+	if (!raw) {
+		for (i = 0; i < len; ++i) {
+			if (u8[i] & 0x80)
+				log_warning("sending 8bit character inline to client in %s:%d",
+					    file, line);
+		}
+	}
+#endif
+
 	vte->write_cb(vte, u8, len, vte->data);
 }
+
+#define vte_write(_vte, _u8, _len) \
+	vte_write_debug((_vte), (_u8), (_len), false, __FILE__, __LINE__)
+#define vte_write_raw(_vte, _u8, _len) \
+	vte_write_debug((_vte), (_u8), (_len), true, __FILE__, __LINE__)
 
 /* execute control character (C0 or C1) */
 static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
@@ -981,11 +1022,20 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 		return;
 
 	for (i = 0; i < len; ++i) {
-		state = kmscon_utf8_mach_feed(vte->mach, u8[i]);
-		if (state == KMSCON_UTF8_ACCEPT ||
-				state == KMSCON_UTF8_REJECT) {
-			ucs4 = kmscon_utf8_mach_get(vte->mach);
-			parse_data(vte, ucs4);
+		if (vte->flags & FLAG_7BIT_MODE) {
+			if (u8[i] & 0x80)
+				log_debug("receiving 8bit character U+%d from pty while in 7bit mode",
+					  (int)u8[i]);
+			parse_data(vte, u8[i] & 0x7f);
+		} else if (vte->flags & FLAG_8BIT_MODE) {
+			parse_data(vte, u8[i]);
+		} else {
+			state = kmscon_utf8_mach_feed(vte->mach, u8[i]);
+			if (state == KMSCON_UTF8_ACCEPT ||
+			    state == KMSCON_UTF8_REJECT) {
+				ucs4 = kmscon_utf8_mach_get(vte->mach);
+				parse_data(vte, ucs4);
+			}
 		}
 	}
 }
@@ -994,6 +1044,7 @@ void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 				const struct uterm_input_event *ev)
 {
 	kmscon_symbol_t sym;
+	char val;
 	size_t len;
 	const char *u8;
 
@@ -1403,10 +1454,26 @@ void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 	}
 
 	if (ev->unicode != UTERM_INPUT_INVALID) {
-		sym = kmscon_symbol_make(ev->unicode);
-		u8 = kmscon_symbol_get_u8(sym, &len);
-		vte_write(vte, u8, len);
-		kmscon_symbol_free_u8(u8);
+		if (vte->flags & FLAG_7BIT_MODE) {
+			val = ev->unicode;
+			if (ev->unicode & 0x80) {
+				log_debug("invalid keyboard input in 7bit mode U+%x; mapping to '?'", ev->unicode);
+				val = '?';
+			}
+			vte_write(vte, &val, 1);
+		} else if (vte->flags & FLAG_8BIT_MODE) {
+			val = ev->unicode;
+			if (ev->unicode > 0xff) {
+				log_debug("invalid keyboard input in 8bit mode U+%x; mapping to '?'", ev->unicode);
+				val = '?';
+			}
+			vte_write_raw(vte, &val, 1);
+		} else {
+			sym = kmscon_symbol_make(ev->unicode);
+			u8 = kmscon_symbol_get_u8(sym, &len);
+			vte_write_raw(vte, u8, len);
+			kmscon_symbol_free_u8(u8);
+		}
 		return;
 	}
 }
