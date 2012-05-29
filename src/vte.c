@@ -123,6 +123,7 @@ enum parser_action {
 #define FLAG_LINE_FEED_NEW_LINE_MODE		0x04 /* DEC line-feed/new-line mode */
 #define FLAG_8BIT_MODE				0x08 /* Disable UTF-8 mode and enable 8bit compatible mode */
 #define FLAG_7BIT_MODE				0x10 /* Disable 8bit mode and use 7bit compatible mode */
+#define FLAG_USE_C1				0x20 /* Explicitely use 8bit C1 codes; TODO: implement */
 
 struct kmscon_vte {
 	unsigned long ref;
@@ -743,7 +744,7 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 		 * compatibility is requested explicitely. */
 		if (vte->csi_argv[1] == 1 ||
 		    vte->csi_argv[1] == 2)
-			log_debug("client requests 8bit controls which we do not support as output");
+			vte->flags |= FLAG_USE_C1;
 
 		vte->flags |= FLAG_8BIT_MODE;
 		vte->gl = &kmscon_vte_unicode_lower;
