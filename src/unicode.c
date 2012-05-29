@@ -421,3 +421,11 @@ uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach)
 
 	return mach->ch;
 }
+
+void kmscon_utf8_mach_reset(struct kmscon_utf8_mach *mach)
+{
+	if (!mach)
+		return;
+
+	mach->state = KMSCON_UTF8_START;
+}

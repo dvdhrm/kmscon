@@ -81,5 +81,6 @@ void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach);
 
 int kmscon_utf8_mach_feed(struct kmscon_utf8_mach *mach, char c);
 uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach);
+void kmscon_utf8_mach_reset(struct kmscon_utf8_mach *mach);
 
 #endif /* KMSCON_UNICODE_H */
