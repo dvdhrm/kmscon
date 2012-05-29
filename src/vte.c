@@ -125,12 +125,12 @@ enum parser_action {
 #define FLAG_7BIT_MODE				0x00000010 /* Disable 8bit mode and use 7bit compatible mode */
 #define FLAG_USE_C1				0x00000020 /* Explicitely use 8bit C1 codes; TODO: implement */
 #define FLAG_KEYBOARD_ACTION_MODE		0x00000040 /* Disable keyboard; TODO: implement? */
-#define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode; TODO: implement */
+#define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode */
 #define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo; TODO: implement */
 #define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor; TODO: implement */
 #define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors; TODO: implement */
 #define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor; TODO: implement */
-#define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode; TODO: implement */
+#define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode */
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
 
@@ -312,6 +312,8 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->cattr.bold = 0;
 	vte->cattr.underline = 0;
 	vte->cattr.inverse = 0;
+
+	/* TODO: reset margins */
 }
 
 /* execute control character (C0 or C1) */
