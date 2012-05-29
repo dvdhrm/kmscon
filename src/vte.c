@@ -1348,11 +1348,17 @@ void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			else
 				vte_write(vte, "\x0d", 1);
 			return;
+		case XK_Find:
+			vte_write(vte, "\e[1~", 4);
+			return;
 		case XK_Insert:
 			vte_write(vte, "\e[2~", 4);
 			return;
 		case XK_Delete:
 			vte_write(vte, "\e[3~", 4);
+			return;
+		case XK_Select:
+			vte_write(vte, "\e[4~", 4);
 			return;
 		case XK_Page_Up:
 			vte_write(vte, "\e[5~", 4);
