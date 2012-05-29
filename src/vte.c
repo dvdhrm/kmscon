@@ -101,6 +101,16 @@ enum parser_action {
 	ACTION_NUM
 };
 
+/* CSI flags */
+#define CSI_BANG	0x01		/* CSI: ! */
+#define CSI_CASH	0x02		/* CSI: $ */
+#define CSI_WHAT	0x04		/* CSI: ? */
+#define CSI_GT		0x08		/* CSI: > */
+#define CSI_SPACE	0x10		/* CSI:   */
+#define CSI_SQUOTE	0x20		/* CSI: ' */
+#define CSI_DQUOTE	0x40		/* CSI: " */
+#define CSI_MULT	0x80		/* CSI: * */
+
 /* max CSI arguments */
 #define CSI_ARG_MAX 16
 
@@ -122,6 +132,7 @@ struct kmscon_vte {
 	unsigned int state;
 	unsigned int csi_argc;
 	int csi_argv[CSI_ARG_MAX];
+	unsigned int csi_flags;
 
 	struct font_char_attr cattr;
 	unsigned int flags;
@@ -378,10 +389,37 @@ static void do_clear(struct kmscon_vte *vte)
 	vte->csi_argc = 0;
 	for (i = 0; i < CSI_ARG_MAX; ++i)
 		vte->csi_argv[i] = -1;
+	vte->csi_flags = 0;
 }
 
 static void do_collect(struct kmscon_vte *vte, uint32_t data)
 {
+	switch (data) {
+	case '!':
+		vte->csi_flags |= CSI_BANG;
+		break;
+	case '$':
+		vte->csi_flags |= CSI_CASH;
+		break;
+	case '?':
+		vte->csi_flags |= CSI_WHAT;
+		break;
+	case '>':
+		vte->csi_flags |= CSI_GT;
+		break;
+	case ' ':
+		vte->csi_flags |= CSI_SPACE;
+		break;
+	case '\'':
+		vte->csi_flags |= CSI_SQUOTE;
+		break;
+	case '"':
+		vte->csi_flags |= CSI_DQUOTE;
+		break;
+	case '*':
+		vte->csi_flags |= CSI_MULT;
+		break;
+	}
 }
 
 static void do_param(struct kmscon_vte *vte, uint32_t data)
