@@ -269,6 +269,8 @@ static void write_console(struct kmscon_vte *vte, kmscon_symbol_t sym)
 	flags = 0;
 	if (vte->flags & FLAG_INSERT_REPLACE_MODE)
 		flags |= KMSCON_CONSOLE_INSERT;
+	if (vte->flags & FLAG_AUTO_WRAP_MODE)
+		flags |= KMSCON_CONSOLE_WRAP;
 
 	kmscon_console_write(vte->con, sym, &vte->cattr, flags);
 }
@@ -288,6 +290,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags |= FLAG_TEXT_CURSOR_MODE;
 	vte->flags |= FLAG_AUTO_REPEAT_MODE;
 	vte->flags |= FLAG_SEND_RECEIVE_MODE;
+	vte->flags |= FLAG_AUTO_WRAP_MODE;
 
 	kmscon_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;

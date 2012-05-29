@@ -98,7 +98,6 @@ struct kmscon_console {
 	/* console cells */
 	struct kmscon_buffer *cells;
 	bool rel_addr;			/* is relative addressing used? */
-	bool auto_wrap;			/* auto wrap on end of line? */
 
 	/* cursor */
 	unsigned int cursor_x;
@@ -982,7 +981,6 @@ int kmscon_console_new(struct kmscon_console **out)
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
-	con->auto_wrap = true;
 
 	ret = kmscon_buffer_new(&con->cells, 0, 0);
 	if (ret)
@@ -1067,7 +1065,7 @@ void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
 	last = con->cells->scroll_y + con->cells->mtop_y;
 
 	if (con->cursor_x >= con->cells->size_x) {
-		if (con->auto_wrap) {
+		if (flags & KMSCON_CONSOLE_WRAP) {
 			con->cursor_x = 0;
 			con->cursor_y++;
 			if (con->cursor_y >= last) {
