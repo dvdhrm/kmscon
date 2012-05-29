@@ -559,6 +559,22 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		if (set_charset(vte, &kmscon_vte_unicode_upper))
 			return;
 		break;
+	case 'F':
+		if (vte->csi_flags & CSI_SPACE) {
+			/* S7C1T */
+			/* Disable 8bit C1 mode */
+			vte->flags &= ~FLAG_USE_C1;
+			return;
+		}
+		break;
+	case 'G':
+		if (vte->csi_flags & CSI_SPACE) {
+			/* S8C1T */
+			/* Enable 8bit C1 mode */
+			vte->flags |= FLAG_USE_C1;
+			return;
+		}
+		break;
 	}
 
 	/* everything below is only valid without CSI flags */
