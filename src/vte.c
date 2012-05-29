@@ -102,14 +102,17 @@ enum parser_action {
 };
 
 /* CSI flags */
-#define CSI_BANG	0x01		/* CSI: ! */
-#define CSI_CASH	0x02		/* CSI: $ */
-#define CSI_WHAT	0x04		/* CSI: ? */
-#define CSI_GT		0x08		/* CSI: > */
-#define CSI_SPACE	0x10		/* CSI:   */
-#define CSI_SQUOTE	0x20		/* CSI: ' */
-#define CSI_DQUOTE	0x40		/* CSI: " */
-#define CSI_MULT	0x80		/* CSI: * */
+#define CSI_BANG	0x0001		/* CSI: ! */
+#define CSI_CASH	0x0002		/* CSI: $ */
+#define CSI_WHAT	0x0004		/* CSI: ? */
+#define CSI_GT		0x0008		/* CSI: > */
+#define CSI_SPACE	0x0010		/* CSI:   */
+#define CSI_SQUOTE	0x0020		/* CSI: ' */
+#define CSI_DQUOTE	0x0040		/* CSI: " */
+#define CSI_MULT	0x0080		/* CSI: * */
+#define CSI_PLUS	0x0100		/* CSI: + */
+#define CSI_POPEN	0x0200		/* CSI: ( */
+#define CSI_PCLOSE	0x0400		/* CSI: ) */
 
 /* max CSI arguments */
 #define CSI_ARG_MAX 16
@@ -426,6 +429,15 @@ static void do_collect(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case '*':
 		vte->csi_flags |= CSI_MULT;
+		break;
+	case '+':
+		vte->csi_flags |= CSI_PLUS;
+		break;
+	case '(':
+		vte->csi_flags |= CSI_POPEN;
+		break;
+	case ')':
+		vte->csi_flags |= CSI_PCLOSE;
 		break;
 	}
 }
