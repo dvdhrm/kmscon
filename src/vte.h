@@ -37,6 +37,17 @@
 #include "console.h"
 #include "unicode.h"
 
+/* available character sets */
+
+typedef kmscon_symbol_t kmscon_vte_charset[96];
+
+extern kmscon_vte_charset kmscon_vte_unicode_lower;
+extern kmscon_vte_charset kmscon_vte_unicode_upper;
+extern kmscon_vte_charset kmscon_vte_dec_supplemental_graphics;
+extern kmscon_vte_charset kmscon_vte_dec_special_graphics;
+
+/* virtual terminal emulator */
+
 struct kmscon_vte;
 
 enum kmscon_vte_keyboard_action {

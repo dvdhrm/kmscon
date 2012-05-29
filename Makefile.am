@@ -49,6 +49,7 @@ libkmscon_core_la_SOURCES = \
 	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
 	src/vte.c src/vte.h \
+	src/vte_charsets.c \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
 	src/uterm.h src/uterm_internal.h \
