@@ -273,6 +273,10 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 		return;
 
 	vte->flags = 0;
+	vte->flags |= FLAG_TEXT_CURSOR_MODE;
+	vte->flags |= FLAG_AUTO_REPEAT_MODE;
+	vte->flags |= FLAG_SEND_RECEIVE_MODE;
+
 	kmscon_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
 	vte->gl = &kmscon_vte_unicode_lower;
