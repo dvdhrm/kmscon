@@ -469,43 +469,138 @@ static void do_param(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
+static bool set_charset(struct kmscon_vte *vte, kmscon_vte_charset *set)
+{
+	if (vte->csi_flags & CSI_POPEN)
+		vte->g0 = set;
+	else if (vte->csi_flags & CSI_PCLOSE)
+		vte->g1 = set;
+	else if (vte->csi_flags & CSI_MULT)
+		vte->g2 = set;
+	else if (vte->csi_flags & CSI_PLUS)
+		vte->g3 = set;
+	else
+		return false;
+
+	return true;
+}
+
 static void do_esc(struct kmscon_vte *vte, uint32_t data)
 {
 	switch (data) {
-		case 'D': /* IND */
-			/* Move down one row, perform scroll-up if needed */
-			kmscon_console_move_down(vte->con, 1, true);
-			break;
-		case 'E': /* NEL */
-			/* CR/NL with scroll-up if needed */
-			kmscon_console_newline(vte->con);
-			break;
-		case 'H': /* HTS */
-			/* Set tab stop at current position */
-			/* TODO */
-			break;
-		case 'M': /* RI */
-			/* Move up one row, perform scroll-down if needed */
-			kmscon_console_move_up(vte->con, 1, true);
-			break;
-		case 'N': /* SS2 */
-			/* Temporarily map G2 into GL for next char only */
-			/* TODO */
-			break;
-		case 'O': /* SS3 */
-			/* Temporarily map G3 into GL for next char only */
-			/* TODO */
-			break;
-		case 'Z': /* DECID */
-			/* Send device attributes response like ANSI DA */
-			/* TODO*/
-			break;
-		case '\\': /* ST */
-			/* End control string */
-			/* nothing to do here */
-			break;
-		default:
-			log_warn("unhandled escape seq %u", data);
+	case 'B': /* map ASCII into G0-G3 */
+		if (set_charset(vte, &kmscon_vte_unicode_lower))
+			return;
+		break;
+	case '<': /* map DEC supplemental into G0-G3 */
+		if (set_charset(vte, &kmscon_vte_dec_supplemental_graphics))
+			return;
+		break;
+	case '0': /* map DEC special into G0-G3 */
+		if (set_charset(vte, &kmscon_vte_dec_special_graphics))
+			return;
+		break;
+	case 'A': /* map British into G0-G3 */
+		/* TODO: create British charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case '4': /* map Dutch into G0-G3 */
+		/* TODO: create Dutch charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'C':
+	case '5': /* map Finnish into G0-G3 */
+		/* TODO: create Finnish charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'R': /* map French into G0-G3 */
+		/* TODO: create French charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'Q': /* map French-Canadian into G0-G3 */
+		/* TODO: create French-Canadian charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'K': /* map German into G0-G3 */
+		/* TODO: create German charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'Y': /* map Italian into G0-G3 */
+		/* TODO: create Italian charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'E':
+	case '6': /* map Norwegian/Danish into G0-G3 */
+		/* TODO: create Norwegian/Danish charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'Z': /* map Spanish into G0-G3 */
+		/* TODO: create Spanish charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case 'H':
+	case '7': /* map Swedish into G0-G3 */
+		/* TODO: create Swedish charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	case '=': /* map Swiss into G0-G3 */
+		/* TODO: create Swiss charset from DEC */
+		if (set_charset(vte, &kmscon_vte_unicode_upper))
+			return;
+		break;
+	}
+
+	/* everything below is only valid without CSI flags */
+	if (vte->csi_flags) {
+		log_debug("unhandled escape seq %u", data);
+		return;
+	}
+
+	switch (data) {
+	case 'D': /* IND */
+		/* Move down one row, perform scroll-up if needed */
+		kmscon_console_move_down(vte->con, 1, true);
+		break;
+	case 'E': /* NEL */
+		/* CR/NL with scroll-up if needed */
+		kmscon_console_newline(vte->con);
+		break;
+	case 'H': /* HTS */
+		/* Set tab stop at current position */
+		/* TODO */
+		break;
+	case 'M': /* RI */
+		/* Move up one row, perform scroll-down if needed */
+		kmscon_console_move_up(vte->con, 1, true);
+		break;
+	case 'N': /* SS2 */
+		/* Temporarily map G2 into GL for next char only */
+		/* TODO */
+		break;
+	case 'O': /* SS3 */
+		/* Temporarily map G3 into GL for next char only */
+		/* TODO */
+		break;
+	case 'Z': /* DECID */
+		/* Send device attributes response like ANSI DA */
+		/* TODO*/
+		break;
+	case '\\': /* ST */
+		/* End control string */
+		/* nothing to do here */
+		break;
+	default:
+		log_debug("unhandled escape seq %u", data);
 	}
 }
 
