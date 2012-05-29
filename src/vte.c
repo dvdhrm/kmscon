@@ -237,6 +237,32 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 #define vte_write_raw(_vte, _u8, _len) \
 	vte_write_debug((_vte), (_u8), (_len), true, __FILE__, __LINE__)
 
+/*
+ * Reset VTE state
+ * This performs a soft reset of the VTE. That is, everything is reset to the
+ * same state as when the VTE was created. This does not affect the console,
+ * though.
+ */
+void kmscon_vte_reset(struct kmscon_vte *vte)
+{
+	if (!vte)
+		return;
+
+	vte->flags = 0;
+	kmscon_utf8_mach_reset(vte->mach);
+	vte->state = STATE_GROUND;
+
+	vte->cattr.fr = 255;
+	vte->cattr.fg = 255;
+	vte->cattr.fb = 255;
+	vte->cattr.br = 0;
+	vte->cattr.bg = 0;
+	vte->cattr.bb = 0;
+	vte->cattr.bold = 0;
+	vte->cattr.underline = 0;
+	vte->cattr.inverse = 0;
+}
+
 /* execute control character (C0 or C1) */
 static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 {
