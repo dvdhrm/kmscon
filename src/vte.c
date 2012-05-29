@@ -139,6 +139,12 @@ struct kmscon_vte {
 
 	kmscon_vte_charset *gl;
 	kmscon_vte_charset *gr;
+	kmscon_vte_charset *glt;
+	kmscon_vte_charset *grt;
+	kmscon_vte_charset *g0;
+	kmscon_vte_charset *g1;
+	kmscon_vte_charset *g2;
+	kmscon_vte_charset *g3;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
@@ -258,6 +264,12 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->state = STATE_GROUND;
 	vte->gl = &kmscon_vte_unicode_lower;
 	vte->gr = &kmscon_vte_unicode_upper;
+	vte->glt = NULL;
+	vte->grt = NULL;
+	vte->g0 = &kmscon_vte_unicode_lower;
+	vte->g1 = &kmscon_vte_unicode_upper;
+	vte->g2 = &kmscon_vte_unicode_lower;
+	vte->g3 = &kmscon_vte_unicode_upper;
 
 	vte->cattr.fr = 255;
 	vte->cattr.fg = 255;
@@ -701,12 +713,24 @@ static uint32_t vte_map(struct kmscon_vte *vte, uint32_t val)
 	/* 32, 127, 160 and 255 map to identity like all values >255 */
 	switch (val) {
 	case 33 ... 126:
-		return (*vte->gl)[val - 32];
+		if (vte->glt) {
+			val = (*vte->glt)[val - 32];
+			vte->glt = NULL;
+		} else {
+			val = (*vte->gl)[val - 32];
+		}
+		break;
 	case 161 ... 254:
-		return (*vte->gr)[val - 160];
-	default:
-		return val;
+		if (vte->grt) {
+			val = (*vte->grt)[val - 160];
+			vte->grt = NULL;
+		} else {
+			val = (*vte->gr)[val - 160];
+		}
+		break;
 	}
+
+	return val;
 }
 
 /* perform parser action */
