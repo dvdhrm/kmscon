@@ -289,107 +289,107 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 {
 	switch (ctrl) {
-		case 0x00: /* NUL */
-			/* Ignore on input */
-			break;
-		case 0x05: /* ENQ */
-			/* Transmit answerback message */
-			/* TODO: is there a better answer than ACK?  */
-			vte_write(vte, "\x06", 1);
-			break;
-		case 0x07: /* BEL */
-			/* Sound bell tone */
-			/* TODO: I always considered this annying, however, we
-			 * should at least provide some way to enable it if the
-			 * user *really* wants it.
-			 */
-			break;
-		case 0x08: /* BS */
-			/* Move cursor one position left */
-			kmscon_console_move_left(vte->con, 1);
-			break;
-		case 0x09: /* HT */
-			/* Move to next tab stop or end of line */
-			/* TODO */
-			break;
-		case 0x0a: /* LF */
-		case 0x0b: /* VT */
-		case 0x0c: /* FF */
-			/* Line feed or newline (CR/NL mode) */
-			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
-				kmscon_console_newline(vte->con);
-			else
-				kmscon_console_move_down(vte->con, 1, true);
-			break;
-		case 0x0d: /* CR */
-			/* Move cursor to left margin */
-			kmscon_console_move_line_home(vte->con);
-			break;
-		case 0x0e: /* SO */
-			/* Map G1 character set into GL */
-			/* TODO */
-			break;
-		case 0x0f: /* SI */
-			/* Map G0 character set into Gl */
-			/* TODO */
-			break;
-		case 0x11: /* XON */
-			/* Resume transmission */
-			/* TODO */
-			break;
-		case 0x13: /* XOFF */
-			/* Stop transmission */
-			/* TODO */
-			break;
-		case 0x18: /* CAN */
-			/* Cancel escape sequence */
-			/* nothing to do here */
-			break;
-		case 0x1a: /* SUB */
-			/* Discard current escape sequence and show err-sym */
-			kmscon_console_write(vte->con, 0xbf, &vte->cattr);
-			break;
-		case 0x1b: /* ESC */
-			/* Invokes an escape sequence */
-			/* nothing to do here */
-			break;
-		case 0x1f: /* DEL */
-			/* Ignored */
-			break;
-		case 0x84: /* IND */
-			/* Move down one row, perform scroll-up if needed */
-			kmscon_console_move_down(vte->con, 1, true);
-			break;
-		case 0x85: /* NEL */
-			/* CR/NL with scroll-up if needed */
+	case 0x00: /* NUL */
+		/* Ignore on input */
+		break;
+	case 0x05: /* ENQ */
+		/* Transmit answerback message */
+		/* TODO: is there a better answer than ACK?  */
+		vte_write(vte, "\x06", 1);
+		break;
+	case 0x07: /* BEL */
+		/* Sound bell tone */
+		/* TODO: I always considered this annying, however, we
+		 * should at least provide some way to enable it if the
+		 * user *really* wants it.
+		 */
+		break;
+	case 0x08: /* BS */
+		/* Move cursor one position left */
+		kmscon_console_move_left(vte->con, 1);
+		break;
+	case 0x09: /* HT */
+		/* Move to next tab stop or end of line */
+		/* TODO */
+		break;
+	case 0x0a: /* LF */
+	case 0x0b: /* VT */
+	case 0x0c: /* FF */
+		/* Line feed or newline (CR/NL mode) */
+		if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
 			kmscon_console_newline(vte->con);
-			break;
-		case 0x88: /* HTS */
-			/* Set tab stop at current position */
-			/* TODO */
-			break;
-		case 0x8d: /* RI */
-			/* Move up one row, perform scroll-down if needed */
-			kmscon_console_move_up(vte->con, 1, true);
-			break;
-		case 0x8e: /* SS2 */
-			/* Temporarily map G2 into GL for next char only */
-			/* TODO */
-			break;
-		case 0x8f: /* SS3 */
-			/* Temporarily map G3 into GL for next char only */
-			/* TODO */
-			break;
-		case 0x9a: /* DECID */
-			/* Send device attributes response like ANSI DA */
-			/* TODO*/
-			break;
-		case 0x9c: /* ST */
-			/* End control string */
-			/* nothing to do here */
-			break;
-		default:
-			log_warn("unhandled control char %u", ctrl);
+		else
+			kmscon_console_move_down(vte->con, 1, true);
+		break;
+	case 0x0d: /* CR */
+		/* Move cursor to left margin */
+		kmscon_console_move_line_home(vte->con);
+		break;
+	case 0x0e: /* SO */
+		/* Map G1 character set into GL */
+		/* TODO */
+		break;
+	case 0x0f: /* SI */
+		/* Map G0 character set into Gl */
+		/* TODO */
+		break;
+	case 0x11: /* XON */
+		/* Resume transmission */
+		/* TODO */
+		break;
+	case 0x13: /* XOFF */
+		/* Stop transmission */
+		/* TODO */
+		break;
+	case 0x18: /* CAN */
+		/* Cancel escape sequence */
+		/* nothing to do here */
+		break;
+	case 0x1a: /* SUB */
+		/* Discard current escape sequence and show err-sym */
+		kmscon_console_write(vte->con, 0xbf, &vte->cattr);
+		break;
+	case 0x1b: /* ESC */
+		/* Invokes an escape sequence */
+		/* nothing to do here */
+		break;
+	case 0x1f: /* DEL */
+		/* Ignored */
+		break;
+	case 0x84: /* IND */
+		/* Move down one row, perform scroll-up if needed */
+		kmscon_console_move_down(vte->con, 1, true);
+		break;
+	case 0x85: /* NEL */
+		/* CR/NL with scroll-up if needed */
+		kmscon_console_newline(vte->con);
+		break;
+	case 0x88: /* HTS */
+		/* Set tab stop at current position */
+		/* TODO */
+		break;
+	case 0x8d: /* RI */
+		/* Move up one row, perform scroll-down if needed */
+		kmscon_console_move_up(vte->con, 1, true);
+		break;
+	case 0x8e: /* SS2 */
+		/* Temporarily map G2 into GL for next char only */
+		/* TODO */
+		break;
+	case 0x8f: /* SS3 */
+		/* Temporarily map G3 into GL for next char only */
+		/* TODO */
+		break;
+	case 0x9a: /* DECID */
+		/* Send device attributes response like ANSI DA */
+		/* TODO*/
+		break;
+	case 0x9c: /* ST */
+		/* End control string */
+		/* nothing to do here */
+		break;
+	default:
+		log_warn("unhandled control char %u", ctrl);
 	}
 }
 
