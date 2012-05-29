@@ -136,6 +136,9 @@ struct kmscon_vte {
 
 	struct font_char_attr cattr;
 	unsigned int flags;
+
+	kmscon_vte_charset *gl;
+	kmscon_vte_charset *gr;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
@@ -253,6 +256,8 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags = 0;
 	kmscon_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
+	vte->gl = &kmscon_vte_unicode_lower;
+	vte->gr = &kmscon_vte_unicode_upper;
 
 	vte->cattr.fr = 255;
 	vte->cattr.fg = 255;
@@ -582,6 +587,8 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 		 * character-table problems */
 		vte->flags |= FLAG_7BIT_MODE;
 		kmscon_utf8_mach_reset(vte->mach);
+		vte->gl = &kmscon_vte_unicode_lower;
+		vte->gr = &kmscon_vte_dec_supplemental_graphics;
 	} else if (vte->csi_argv[0] == 62 ||
 		   vte->csi_argv[0] == 63 ||
 		   vte->csi_argv[0] == 64) {
@@ -602,6 +609,8 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 		vte->flags |= FLAG_8BIT_MODE;
 		vte->flags &= ~FLAG_7BIT_MODE;
 		kmscon_utf8_mach_reset(vte->mach);
+		vte->gl = &kmscon_vte_unicode_lower;
+		vte->gr = &kmscon_vte_dec_supplemental_graphics;
 	} else {
 		/* When any other compatibility mode is
 		 * selected, we explicitely switch to UTF8 mode
@@ -613,6 +622,8 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 
 		vte->flags &= ~(FLAG_8BIT_MODE | FLAG_7BIT_MODE);
 		kmscon_utf8_mach_reset(vte->mach);
+		vte->gl = &kmscon_vte_unicode_lower;
+		vte->gr = &kmscon_vte_unicode_upper;
 	}
 }
 
@@ -692,6 +703,20 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
+/* map a character according to current GL and GR maps */
+static uint32_t vte_map(struct kmscon_vte *vte, uint32_t val)
+{
+	/* 32, 127, 160 and 255 map to identity like all values >255 */
+	switch (val) {
+	case 33 ... 126:
+		return (*vte->gl)[val - 32];
+	case 161 ... 254:
+		return (*vte->gr)[val - 160];
+	default:
+		return val;
+	}
+}
+
 /* perform parser action */
 static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 {
@@ -705,7 +730,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 			/* ignore character */
 			break;
 		case ACTION_PRINT:
-			sym = kmscon_symbol_make(data);
+			sym = kmscon_symbol_make(vte_map(vte, data));
 			kmscon_console_write(vte->con, sym, &vte->cattr);
 			break;
 		case ACTION_EXECUTE:
