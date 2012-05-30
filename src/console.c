@@ -75,6 +75,7 @@ struct kmscon_buffer {
 	 * the sb seems to scroll-up while staying on the line
 	 */
 	bool fixed_position;
+	unsigned int flags;
 
 	/* current cell/row count of the main screen */
 	unsigned int size_x;		/* cell count */
@@ -1043,6 +1044,22 @@ void kmscon_console_reset(struct kmscon_console *con)
 		return;
 
 	/* TODO: reset console */
+}
+
+void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags)
+{
+	if (!con || !flags)
+		return;
+
+	con->cells->flags |= flags;
+}
+
+void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags)
+{
+	if (!con || !flags)
+		return;
+
+	con->cells->flags &= ~flags;
 }
 
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
