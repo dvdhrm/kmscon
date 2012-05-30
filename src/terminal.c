@@ -86,9 +86,11 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 	struct screen *iter;
 	struct uterm_screen *screen;
 	int ret;
+	unsigned int cflags;
 
 	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	term->redraw = false;
+	cflags = kmscon_console_get_flags(term->console);
 
 	iter = term->screens;
 	for (; iter; iter = iter->next) {
@@ -99,7 +101,10 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 			continue;
 
 		gl_viewport(screen);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
+		if (cflags & KMSCON_CONSOLE_INVERSE)
+			glClearColor(1.0, 1.0, 1.0, 1.0);
+		else
+			glClearColor(0.0, 0.0, 0.0, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		kmscon_console_draw(term->console, iter->fscr);
 		uterm_screen_swap(screen);

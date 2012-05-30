@@ -907,6 +907,12 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			continue;
 		case 5: /* DECSCNM */
 			set_reset_flag(vte, set, FLAG_INVERSE_SCREEN_MODE);
+			if (set)
+				kmscon_console_set_flags(vte->con,
+						KMSCON_CONSOLE_INVERSE);
+			else
+				kmscon_console_reset_flags(vte->con,
+						KMSCON_CONSOLE_INVERSE);
 			continue;
 		case 6: /* DECOM */
 			set_reset_flag(vte, set, FLAG_ORIGIN_MODE);

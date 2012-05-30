@@ -763,8 +763,17 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
+
+			/* TODO: do some more sophisticated inverse here. When
+			 * INVERSE mode is set, we should instead just select
+			 * inverse colors instead of switching background and
+			 * foreground */
+			if (buf->flags & KMSCON_CONSOLE_INVERSE)
+				cell->attr.inverse = !cell->attr.inverse;
 			font_screen_draw_char(fscr, cell->ch, &cell->attr,
 					      j, i, 1, 1);
+			if (buf->flags & KMSCON_CONSOLE_INVERSE)
+				cell->attr.inverse = !cell->attr.inverse;
 		}
 	}
 
