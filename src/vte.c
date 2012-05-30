@@ -954,8 +954,8 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
 			continue;
 		default:
-			log_debug("unknown DEC (Re)Set-Mode %d",
-				  vte->csi_argv[i]);
+			log_debug("unknown DEC %set-Mode %d",
+				  set?"S":"Res", vte->csi_argv[i]);
 			continue;
 		}
 	}
