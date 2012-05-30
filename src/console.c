@@ -164,6 +164,9 @@ static int init_cell(struct cell *cell)
 		return -EINVAL;
 
 	memset(cell, 0, sizeof(*cell));
+	cell->attr.fr = 255;
+	cell->attr.fg = 255;
+	cell->attr.fb = 255;
 	return 0;
 }
 
