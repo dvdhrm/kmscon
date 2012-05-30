@@ -126,7 +126,7 @@ enum parser_action {
 #define FLAG_USE_C1				0x00000020 /* Explicitely use 8bit C1 codes; TODO: implement */
 #define FLAG_KEYBOARD_ACTION_MODE		0x00000040 /* Disable keyboard; TODO: implement? */
 #define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode */
-#define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo; TODO: implement */
+#define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo */
 #define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor; TODO: implement */
 #define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors; TODO: implement */
 #define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor; TODO: implement */
@@ -141,6 +141,7 @@ struct kmscon_vte {
 	void *data;
 
 	struct kmscon_utf8_mach *mach;
+	unsigned long parse_cnt;
 
 	unsigned int state;
 	unsigned int csi_argc;
@@ -235,6 +236,19 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
  * As a rule of thumb do never send 8bit characters in escape sequences and also
  * avoid all 8bit escape codes including the C1 codes. This will guarantee that
  * all kind of clients are always compatible to us.
+ *
+ * If SEND_RECEIVE_MODE is off (that is, local echo is on) we have to send all
+ * data directly to ourself again. However, we must avoid recursion when
+ * kmscon_vte_input() itself calls vte_write*(), therefore, we increase the
+ * PARSER counter when entering kmscon_vte_input() and reset it when leaving it
+ * so we never echo data that origins from kmscon_vte_input().
+ * But note that SEND_RECEIVE_MODE is inherently broken for escape sequences
+ * that request answers. That is, if we send a request to the client that awaits
+ * a response and parse that request via local echo ourself, then we will also
+ * send a response to the client even though he didn't request one. This
+ * recursion fix does not avoid this but only prevents us from endless loops
+ * here. Anyway, only few applications rely on local echo so we can safely
+ * ignore this.
  */
 static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 			    bool raw, const char *file, int line)
@@ -252,6 +266,10 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 		}
 	}
 #endif
+
+	/* in local echo mode, directly parse the data again */
+	if (!vte->parse_cnt && !(vte->flags & FLAG_SEND_RECEIVE_MODE))
+		kmscon_vte_input(vte, u8, len);
 
 	vte->write_cb(vte, u8, len, vte->data);
 }
@@ -1476,6 +1494,7 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 	if (!vte || !vte->con)
 		return;
 
+	++vte->parse_cnt;
 	for (i = 0; i < len; ++i) {
 		if (vte->flags & FLAG_7BIT_MODE) {
 			if (u8[i] & 0x80)
@@ -1493,6 +1512,7 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 			}
 		}
 	}
+	--vte->parse_cnt;
 }
 
 void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
