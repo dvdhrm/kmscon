@@ -674,6 +674,9 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		/* Set numeric keypad mode */
 		vte->flags &= ~FLAG_KEYPAD_APPLICATION_MODE;
 		break;
+	case 'c': /* hard reset */
+		/* TODO: implement hard reset */
+		break;
 	default:
 		log_debug("unhandled escape seq %u", data);
 	}
