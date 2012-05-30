@@ -50,6 +50,7 @@ struct kmscon_console;
 /* modes for kmscon_console_re/set() */
 #define KMSCON_CONSOLE_REL_ORIGIN	0x04
 #define KMSCON_CONSOLE_INVERSE		0x08
+#define KMSCON_CONSOLE_HIDE_CURSOR	0x10
 
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);

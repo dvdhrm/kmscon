@@ -713,13 +713,17 @@ static int kmscon_buffer_set_margins(struct kmscon_buffer *buf,
 }
 
 static void kmscon_buffer_draw(struct kmscon_buffer *buf,
-				struct font_screen *fscr)
+				struct font_screen *fscr,
+				unsigned int cur_x,
+				unsigned int cur_y)
 {
-	unsigned int i, j, k, num;
+	unsigned int i, j, k, num, o;
 	struct line *iter, *line = NULL;
 	struct cell *cell;
 	int idx;
 	float m[16];
+	bool cursor_done = false;
+	struct font_char_attr attr;
 
 	if (!buf || !fscr)
 		return;
@@ -729,6 +733,7 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 	iter = buf->position;
 	k = 0;
 	idx = 0;
+	o = 0;
 	for (i = 0; i < buf->size_y; ++i) {
 		if (iter) {
 			line = iter;
@@ -757,6 +762,7 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 					break;
 			}
 			k++;
+			o++;
 		}
 
 		if (!line)
@@ -769,17 +775,30 @@ static void kmscon_buffer_draw(struct kmscon_buffer *buf,
 
 		for (j = 0; j < num; ++j) {
 			cell = &line->cells[j];
+			memcpy(&attr, &cell->attr, sizeof(attr));
+
+			if (o == cur_y + 1 &&
+			    j == cur_x) {
+				cursor_done = true;
+				attr.inverse = !attr.inverse;
+			}
 
 			/* TODO: do some more sophisticated inverse here. When
 			 * INVERSE mode is set, we should instead just select
 			 * inverse colors instead of switching background and
 			 * foreground */
 			if (buf->flags & KMSCON_CONSOLE_INVERSE)
-				cell->attr.inverse = !cell->attr.inverse;
-			font_screen_draw_char(fscr, cell->ch, &cell->attr,
+				attr.inverse = !attr.inverse;
+			font_screen_draw_char(fscr, cell->ch, &attr,
 					      j, i, 1, 1);
-			if (buf->flags & KMSCON_CONSOLE_INVERSE)
-				cell->attr.inverse = !cell->attr.inverse;
+		}
+
+		if (o == cur_y + 1 && !cursor_done) {
+			cursor_done = true;
+			if (!(buf->flags & KMSCON_CONSOLE_INVERSE))
+				attr.inverse = !attr.inverse;
+			font_screen_draw_char(fscr, 0, &attr,
+					      cur_x, i, 1, 1);
 		}
 	}
 
@@ -1086,10 +1105,17 @@ unsigned int kmscon_console_get_flags(struct kmscon_console *con)
 
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
+	unsigned int cur_x, cur_y;
+
 	if (!con)
 		return;
 
-	kmscon_buffer_draw(con->cells, fscr);
+	cur_x = con->cursor_x;
+	if (con->cursor_x >= con->cells->size_x)
+		cur_x = con->cells->size_x - 1;
+	cur_y = con->cursor_y;
+
+	kmscon_buffer_draw(con->cells, fscr, cur_x, cur_y);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,

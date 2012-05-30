@@ -943,6 +943,12 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			continue;
 		case 25: /* DECTCEM */
 			set_reset_flag(vte, set, FLAG_TEXT_CURSOR_MODE);
+			if (set)
+				kmscon_console_reset_flags(vte->con,
+						KMSCON_CONSOLE_HIDE_CURSOR);
+			else
+				kmscon_console_set_flags(vte->con,
+						KMSCON_CONSOLE_HIDE_CURSOR);
 			continue;
 		case 42: /* DECNRCM */
 			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
