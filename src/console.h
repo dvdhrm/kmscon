@@ -46,6 +46,7 @@ struct kmscon_console;
 
 #define KMSCON_CONSOLE_INSERT		0x01
 #define KMSCON_CONSOLE_WRAP		0x02
+#define KMSCON_CONSOLE_REL_ORIGIN	0x04
 
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);

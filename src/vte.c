@@ -129,7 +129,7 @@ enum parser_action {
 #define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo */
 #define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor; TODO: implement */
 #define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors; TODO: implement */
-#define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor; TODO: implement */
+#define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor */
 #define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode */
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
@@ -910,6 +910,12 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			continue;
 		case 6: /* DECOM */
 			set_reset_flag(vte, set, FLAG_ORIGIN_MODE);
+			if (set)
+				kmscon_console_set_flags(vte->con,
+						KMSCON_CONSOLE_REL_ORIGIN);
+			else
+				kmscon_console_reset_flags(vte->con,
+						KMSCON_CONSOLE_REL_ORIGIN);
 			continue;
 		case 7: /* DECAWN */
 			set_reset_flag(vte, set, FLAG_AUTO_WRAP_MODE);

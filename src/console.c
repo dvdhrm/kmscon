@@ -98,7 +98,6 @@ struct kmscon_console {
 
 	/* console cells */
 	struct kmscon_buffer *cells;
-	bool rel_addr;			/* is relative addressing used? */
 
 	/* cursor */
 	unsigned int cursor_x;
@@ -962,7 +961,7 @@ static inline unsigned int to_abs_x(struct kmscon_console *con, unsigned int x)
 
 static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
 {
-	if (!con->rel_addr)
+	if (!(con->cells->flags & KMSCON_CONSOLE_REL_ORIGIN))
 		return y;
 
 	return con->cells->mtop_y + y;
@@ -1130,7 +1129,7 @@ void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 
 	con->cursor_y = to_abs_y(con, y);
 	if (con->cursor_y >= last) {
-		if (con->rel_addr)
+		if (con->cells->flags & KMSCON_CONSOLE_REL_ORIGIN)
 			con->cursor_y = last - 1;
 		else if (con->cursor_y >= con->cells->size_y)
 			con->cursor_y = con->cells->size_y - 1;
@@ -1148,7 +1147,7 @@ void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
 	if (num > con->cells->size_y)
 		num = con->cells->size_y;
 
-	if (con->rel_addr) {
+	if (con->cells->flags & KMSCON_CONSOLE_REL_ORIGIN) {
 		diff = con->cursor_y - con->cells->mtop_y;
 		if (num > diff) {
 			num -= diff;
@@ -1182,7 +1181,7 @@ void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
 	if (num > con->cells->size_y)
 		num = con->cells->size_y;
 
-	if (con->rel_addr) {
+	if (con->cells->flags & KMSCON_CONSOLE_REL_ORIGIN) {
 		diff = last - 1 - con->cursor_y;
 		if (num > diff) {
 			num -= diff;
