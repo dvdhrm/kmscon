@@ -1061,6 +1061,14 @@ void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags)
 	con->cells->flags &= ~flags;
 }
 
+unsigned int kmscon_console_get_flags(struct kmscon_console *con)
+{
+	if (!con)
+		return 0;
+
+	return con->cells->flags;
+}
+
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
 	if (!con)
