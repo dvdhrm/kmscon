@@ -689,6 +689,7 @@ int font_screen_draw_start(struct font_screen *screen)
 
 	cairo_set_operator(screen->cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_rgb(screen->cr, 1, 1, 1);
+	cairo_set_line_width(screen->cr, 1.0);
 
 	if (screen->absolute)
 		cairo_scale(screen->cr, screen->scale_x, screen->scale_y);
@@ -716,6 +717,19 @@ int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
 		if (ret)
 			return ret;
 	}
+
+	if (attr->inverse)
+		cairo_set_source_rgb(screen->cr, attr->fr, attr->fg, attr->fb);
+	else
+		cairo_set_source_rgb(screen->cr, attr->br, attr->bg, attr->bb);
+
+	cairo_move_to(screen->cr, cellx * screen->advance_x,
+		      celly * screen->advance_y);
+	cairo_rel_line_to(screen->cr, screen->advance_x, 0);
+	cairo_rel_line_to(screen->cr, 0, screen->advance_y);
+	cairo_rel_line_to(screen->cr, -screen->advance_x, 0);
+	cairo_close_path(screen->cr);
+	cairo_fill(screen->cr);
 
 	if (attr->inverse)
 		cairo_set_source_rgb(screen->cr, attr->br, attr->bg, attr->bb);
