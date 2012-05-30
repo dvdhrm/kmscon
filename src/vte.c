@@ -822,9 +822,11 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 {
 	unsigned int i;
 
-	for (i = 0; i < CSI_ARG_MAX; ++i) {
+	for (i = 0; i < vte->csi_argc; ++i) {
 		if (!(vte->csi_flags & CSI_WHAT)) {
 			switch (vte->csi_argv[i]) {
+			case -1:
+				continue;
 			case 2: /* KAM */
 				set_reset_flag(vte, set,
 					       FLAG_KEYBOARD_ACTION_MODE);
@@ -849,6 +851,8 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 		}
 
 		switch (vte->csi_argv[i]) {
+		case -1:
+			continue;
 		case 1: /* DECCKM */
 			set_reset_flag(vte, set, FLAG_CURSOR_KEY_MODE);
 			continue;
