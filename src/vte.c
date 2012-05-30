@@ -963,35 +963,50 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
-	int num;
+	int num, x, y;
 
 	if (vte->csi_argc < CSI_ARG_MAX)
 		vte->csi_argc++;
 
 	switch (data) {
-	case 'A':
+	case 'A': /* CUU */
+		/* move cursor up */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
 		kmscon_console_move_up(vte->con, num, false);
 		break;
-	case 'B':
+	case 'B': /* CUD */
+		/* move cursor down */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
 		kmscon_console_move_down(vte->con, num, false);
 		break;
-	case 'C':
+	case 'C': /* CUF */
+		/* move cursor forward */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
 		kmscon_console_move_right(vte->con, num);
 		break;
-	case 'D':
+	case 'D': /* CUB */
+		/* move cursor backward */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
 		kmscon_console_move_left(vte->con, num);
+		break;
+	case 'H': /* CUP */
+	case 'f': /* HVP */
+		/* position cursor */
+		x = vte->csi_argv[0];
+		if (x <= 0)
+			x = 1;
+		y = vte->csi_argv[1];
+		if (y <= 0)
+			y = 1;
+		kmscon_console_move_to(vte->con, x - 1, y - 1);
 		break;
 	case 'J':
 		if (vte->csi_argv[0] <= 0)
