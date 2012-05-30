@@ -60,6 +60,8 @@ unsigned int kmscon_console_get_width(struct kmscon_console *con);
 unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 					unsigned int y, unsigned int height);
+int kmscon_console_set_margins(struct kmscon_console *con,
+			       unsigned int top, unsigned int bottom);
 void kmscon_console_reset(struct kmscon_console *con);
 void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags);
 void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags);

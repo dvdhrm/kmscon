@@ -1071,6 +1071,31 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 	return con->cells->size_y;
 }
 
+int kmscon_console_set_margins(struct kmscon_console *con,
+			       unsigned int top, unsigned int bottom)
+{
+	unsigned int upper, lower;
+
+	if (!con)
+		return -EINVAL;
+
+	if (!top)
+		top = 1;
+
+	if (bottom <= top) {
+		upper = 0;
+		lower = 0;
+	} else if (bottom > con->cells->size_y) {
+		upper = 0;
+		lower = 0;
+	} else {
+		upper = top - 1;
+		lower = con->cells->size_y - bottom;
+	}
+
+	return kmscon_buffer_set_margins(con->cells, upper, lower);
+}
+
 void kmscon_console_reset(struct kmscon_console *con)
 {
 	if (!con)

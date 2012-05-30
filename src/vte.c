@@ -979,7 +979,7 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
-	int num, x, y;
+	int num, x, y, upper, lower;
 
 	if (vte->csi_argc < CSI_ARG_MAX)
 		vte->csi_argc++;
@@ -1072,6 +1072,16 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'l': /* RM: Reset Mode */
 		csi_mode(vte, false);
+		break;
+	case 'r': /* DECSTBM */
+		/* set margin size */
+		upper = vte->csi_argv[0];
+		if (upper < 0)
+			upper = 0;
+		lower = vte->csi_argv[1];
+		if (lower < 0)
+			lower = 0;
+		kmscon_console_set_margins(vte->con, upper, lower);
 		break;
 	case 'c': /* DA */
 		/* device attributes */
