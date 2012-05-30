@@ -172,7 +172,7 @@ done:
 		conf_global.xkb_options = "";
 
 	if (!conf_global.term)
-		conf_global.term = "linux";
+		conf_global.term = "vt220";
 
 	if (!conf_global.seat)
 		conf_global.seat = "seat0";
