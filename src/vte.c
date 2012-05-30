@@ -127,8 +127,8 @@ enum parser_action {
 #define FLAG_KEYBOARD_ACTION_MODE		0x00000040 /* Disable keyboard; TODO: implement? */
 #define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode */
 #define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo */
-#define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor; TODO: implement */
-#define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors; TODO: implement */
+#define FLAG_TEXT_CURSOR_MODE			0x00000200 /* Show cursor */
+#define FLAG_INVERSE_SCREEN_MODE		0x00000400 /* Inverse colors */
 #define FLAG_ORIGIN_MODE			0x00000800 /* Relative origin for cursor */
 #define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode */
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
