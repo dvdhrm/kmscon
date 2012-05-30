@@ -176,6 +176,9 @@ static void reset_cell(struct cell *cell)
 		return;
 
 	memset(cell, 0, sizeof(*cell));
+	cell->attr.fr = 255;
+	cell->attr.fg = 255;
+	cell->attr.fb = 255;
 }
 
 static void free_line(struct line *line)
