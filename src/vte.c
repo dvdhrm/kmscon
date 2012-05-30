@@ -961,6 +961,22 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 	}
 }
 
+static void csi_dev_attr(struct kmscon_vte *vte)
+{
+	if (vte->csi_argc <= 1 && vte->csi_argv[0] <= 0) {
+		if (vte->csi_flags == 0) {
+			vte_write(vte, "\e[?60;1;6;8;9;15c", 17);
+			return;
+		} else if (vte->csi_flags & CSI_GT) {
+			vte_write(vte, "\e[>1;1;0c", 9);
+			return;
+		}
+	}
+
+	log_debug("unhandled DA: %x %d %d %d...", vte->csi_flags,
+		  vte->csi_argv[0], vte->csi_argv[1], vte->csi_argv[2]);
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num, x, y;
@@ -1056,6 +1072,10 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'l': /* RM: Reset Mode */
 		csi_mode(vte, false);
+		break;
+	case 'c': /* DA */
+		/* device attributes */
+		csi_dev_attr(vte);
 		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
