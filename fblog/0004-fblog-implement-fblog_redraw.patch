@@ -1,0 +1,163 @@
+From 086525bfbf807d8c2792b18d35127c791289d0b8 Mon Sep 17 00:00:00 2001
+From: David Herrmann <dh.herrmann@googlemail.com>
+Date: Sat, 16 Jun 2012 23:01:41 +0200
+Subject: [PATCH 04/10] fblog: implement fblog_redraw()
+
+This mostly copies the functionality from drivers/video/console/bitblit.c
+so we can draw the console content on all available framebuffers.
+
+All speed optimizations have been removed for simplicity. The original
+code depends heavily on CONFIG_VT so we cannot share the codebase here.
+
+Signed-off-by: David Herrmann <dh.herrmann@googlemail.com>
+---
+ drivers/video/console/fblog.c |  126 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 126 insertions(+)
+
+diff --git a/drivers/video/console/fblog.c b/drivers/video/console/fblog.c
+index 8038dcc..e790971 100644
+--- a/drivers/video/console/fblog.c
++++ b/drivers/video/console/fblog.c
+@@ -197,6 +197,131 @@ static void fblog_buf_write(struct fblog_buf *buf, const char *str, size_t len)
+ 	}
+ }
+ 
++static void fblog_redraw_aligned(struct fblog_fb *fb, const char *s, u32 cnt,
++				 u32 d_pitch, u32 s_pitch, u32 cellsize,
++				 struct fb_image *image, u8 *dst)
++{
++	struct fb_info *info = fb->info;
++	const struct font_desc *font = fb->font;
++	u32 idx = font->width >> 3;
++	u8 *src;
++
++	while (cnt--) {
++		src = (void*)(font->data + (*s++ & 0xff) * cellsize);
++		fb_pad_aligned_buffer(dst, d_pitch, src, idx, image->height);
++		dst += s_pitch;
++	}
++
++	info->fbops->fb_imageblit(info, image);
++}
++
++static void fblog_redraw_unaligned(struct fblog_fb *fb, const char *s, u32 cnt,
++				   u32 d_pitch, u32 s_pitch, u32 cellsize,
++				   struct fb_image *image, u8 *dst)
++{
++	struct fb_info *info = fb->info;
++	const struct font_desc *font = fb->font;
++	u32 shift_low = 0, mod = font->width % 8;
++	u32 shift_high = 8;
++	u32 idx = font->width >> 3;
++	u8 *src;
++
++	while (cnt--) {
++		src = (void*)(font->data + (*s++ & 0xff) * cellsize);
++		fb_pad_unaligned_buffer(dst, d_pitch, src, idx,
++					image->height, shift_high,
++					shift_low, mod);
++		shift_low += mod;
++		dst += (shift_low >= 8) ? s_pitch : s_pitch - 1;
++		shift_low &= 7;
++		shift_high = 8 - shift_low;
++	}
++
++	info->fbops->fb_imageblit(info, image);
++}
++
++static void fblog_redraw_line(struct fblog_fb *fb, size_t line,
++			      const char *str, size_t len)
++{
++	struct fb_info *info = fb->info;
++	const struct font_desc *font = fb->font;
++	struct fb_image image;
++	u32 width = DIV_ROUND_UP(font->width, 8);
++	u32 cellsize = width * font->height;
++	u32 maxcnt = info->pixmap.size / cellsize;
++	u32 scan_align = info->pixmap.scan_align - 1;
++	u32 buf_align = info->pixmap.buf_align - 1;
++	u32 mod = font->width % 8;
++	u32 cnt, pitch, size;
++	u8 *dst;
++
++	image.fg_color = 7;
++	image.bg_color = 0;
++	image.dx = 0;
++	image.dy = line * font->height;
++	image.height = font->height;
++	image.depth = 1;
++
++	while (len) {
++		if (len > maxcnt)
++			cnt = maxcnt;
++		else
++			cnt = len;
++
++		image.width = font->width * cnt;
++		pitch = DIV_ROUND_UP(image.width, 8) + scan_align;
++		pitch &= ~scan_align;
++		size = pitch * image.height + buf_align;
++		size &= ~buf_align;
++		dst = fb_get_buffer_offset(info, &info->pixmap, size);
++		image.data = dst;
++
++		if (!mod)
++			fblog_redraw_aligned(fb, str, cnt, pitch, width,
++					     cellsize, &image, dst);
++		else
++			fblog_redraw_unaligned(fb, str, cnt, pitch, width,
++					       cellsize, &image, dst);
++
++		image.dx += cnt * font->width;
++		len -= cnt;
++		str += cnt;
++	}
++}
++
++static void fblog_redraw_clear(struct fblog_fb *fb)
++{
++	struct fb_fillrect region;
++	struct fb_info *info = fb->info;
++
++	region.color = 0;
++	region.dx = 0;
++	region.dy = 0;
++	region.width = info->var.xres;
++	region.height = info->var.yres;
++	region.rop = ROP_COPY;
++
++	info->fbops->fb_fillrect(info, &region);
++}
++
++static void fblog_redraw(struct fblog_fb *fb)
++{
++	size_t i, len;
++
++	if (!fb || !fb->font || test_bit(FBLOG_KILLED, &fb->flags) ||
++	    test_bit(FBLOG_SUSPENDED, &fb->flags) ||
++	    test_bit(FBLOG_BLANKED, &fb->flags))
++		return;
++
++	fblog_redraw_clear(fb);
++
++	for (i = 0; i < fb->buf.height; ++i) {
++		len = strnlen(fb->buf.lines[i], fb->buf.width);
++		if (len)
++			fblog_redraw_line(fb, i, fb->buf.lines[i], len);
++	}
++}
++
+ static struct fblog_fb *fblog_info2fb(struct fb_info *info)
+ {
+ 	if (!info || info->node < 0 || info->node >= FB_MAX ||
+@@ -244,6 +369,7 @@ static void fblog_register(struct fb_info *info)
+ 		width = info->var.xres / fb->font->width;
+ 		height = info->var.yres / fb->font->height;
+ 		fblog_buf_resize(&fb->buf, width, height);
++		fblog_redraw(fb);
+ 	}
+ 
+ 	return;
+-- 
+1.7.10.4
+

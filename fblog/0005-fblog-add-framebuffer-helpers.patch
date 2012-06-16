@@ -1,0 +1,60 @@
+From c0dbeaf1fa932dbae6027a49ddbff973b2689eea Mon Sep 17 00:00:00 2001
+From: David Herrmann <dh.herrmann@googlemail.com>
+Date: Sat, 16 Jun 2012 23:04:48 +0200
+Subject: [PATCH 05/10] fblog: add framebuffer helpers
+
+These helpers scan the system for all available framebuffers and register
+or unregister them. This is needed during startup and stopping fblog so we
+are aware of all connected displays.
+
+The third helper handles mode changes by rescanning the mode and adjusting
+the buffer size.
+
+Signed-off-by: David Herrmann <dh.herrmann@googlemail.com>
+---
+ drivers/video/console/fblog.c |   29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/drivers/video/console/fblog.c b/drivers/video/console/fblog.c
+index e790971..7d4032e 100644
+--- a/drivers/video/console/fblog.c
++++ b/drivers/video/console/fblog.c
+@@ -399,6 +399,35 @@ static void fblog_unregister(struct fblog_fb *fb)
+ 	kfree(fb);
+ }
+ 
++static void fblog_register_all(void)
++{
++	int i;
++
++	for (i = 0; i < FB_MAX; ++i)
++		fblog_register(registered_fb[i]);
++}
++
++static void fblog_unregister_all(void)
++{
++	int i;
++
++	for (i = 0; i < FB_MAX; ++i)
++		fblog_unregister(fblog_info2fb(registered_fb[i]));
++}
++
++static void fblog_refresh(struct fblog_fb *fb)
++{
++	unsigned int width, height;
++
++	if (!fb || !fb->font)
++		return;
++
++	width = fb->info->var.xres / fb->font->width;
++	height = fb->info->var.yres / fb->font->height;
++	fblog_buf_resize(&fb->buf, width, height);
++	fblog_redraw(fb);
++}
++
+ static int __init fblog_init(void)
+ {
+ 	return 0;
+-- 
+1.7.10.4
+

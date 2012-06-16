@@ -1,0 +1,51 @@
+From 942d4ff8f16fcf9d9fdf50d7241a3a8fb4fec39a Mon Sep 17 00:00:00 2001
+From: David Herrmann <dh.herrmann@googlemail.com>
+Date: Sat, 16 Jun 2012 23:20:52 +0200
+Subject: [PATCH 07/10] fblog: forward kernel log messages to all framebuffers
+
+This provides a console-driver that forwards all log messages to all
+framebuffers and redraws them.
+
+To avoid redrawing multiple times in short intervals, we could use a
+work-queue here by simply pushing the task onto the system work-queue.
+However, fblog is not performance critical and only used for debugging so
+we avoid the complexity for now. This may change in the future, though.
+
+Signed-off-by: David Herrmann <dh.herrmann@googlemail.com>
+---
+ drivers/video/console/fblog.c |   19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/drivers/video/console/fblog.c b/drivers/video/console/fblog.c
+index 9b05c56..5297eca 100644
+--- a/drivers/video/console/fblog.c
++++ b/drivers/video/console/fblog.c
+@@ -449,6 +449,25 @@ static void fblog_deactivate(void)
+ 	fblog_unregister_all();
+ }
+ 
++static void fblog_con_write(struct console *con, const char *buf,
++			    unsigned int len)
++{
++	int i;
++
++	for (i = 0; i < FB_MAX; ++i) {
++		if (fblog_fbs[i]) {
++			fblog_buf_write(&fblog_fbs[i]->buf, buf, len);
++			fblog_redraw(fblog_fbs[i]);
++		}
++	}
++}
++
++static struct console fblog_con_driver = {
++	.name = "fblog",
++	.write = fblog_con_write,
++	.flags = CON_PRINTBUFFER | CON_ENABLED,
++};
++
+ static ssize_t fblog_dev_active_show(struct device *dev,
+ 				     struct device_attribute *attr,
+ 				     char *buf)
+-- 
+1.7.10.4
+
