@@ -282,15 +282,7 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 /* write to console */
 static void write_console(struct kmscon_vte *vte, kmscon_symbol_t sym)
 {
-	unsigned int flags;
-
-	flags = 0;
-	if (vte->flags & FLAG_INSERT_REPLACE_MODE)
-		flags |= KMSCON_CONSOLE_INSERT;
-	if (vte->flags & FLAG_AUTO_WRAP_MODE)
-		flags |= KMSCON_CONSOLE_WRAP;
-
-	kmscon_console_write(vte->con, sym, &vte->cattr, flags);
+	kmscon_console_write(vte->con, sym, &vte->cattr);
 }
 
 /*
@@ -856,6 +848,12 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			case 4: /* IRM */
 				set_reset_flag(vte, set,
 					       FLAG_INSERT_REPLACE_MODE);
+				if (set)
+					kmscon_console_set_flags(vte->con,
+						KMSCON_CONSOLE_INSERT_MODE);
+				else
+					kmscon_console_reset_flags(vte->con,
+						KMSCON_CONSOLE_INSERT_MODE);
 				continue;
 			case 12: /* SRM */
 				set_reset_flag(vte, set,
@@ -926,6 +924,12 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 			continue;
 		case 7: /* DECAWN */
 			set_reset_flag(vte, set, FLAG_AUTO_WRAP_MODE);
+			if (set)
+				kmscon_console_set_flags(vte->con,
+						KMSCON_CONSOLE_AUTO_WRAP);
+			else
+				kmscon_console_reset_flags(vte->con,
+						KMSCON_CONSOLE_AUTO_WRAP);
 			continue;
 		case 8: /* DECARM */
 			set_reset_flag(vte, set, FLAG_AUTO_REPEAT_MODE);

@@ -44,13 +44,12 @@ struct kmscon_console;
 
 /* console objects */
 
-/* modes for kmscon_console_write() */
-#define KMSCON_CONSOLE_INSERT		0x01
-#define KMSCON_CONSOLE_WRAP		0x02
-/* modes for kmscon_console_re/set() */
+#define KMSCON_CONSOLE_INSERT_MODE	0x01
+#define KMSCON_CONSOLE_AUTO_WRAP	0x02
 #define KMSCON_CONSOLE_REL_ORIGIN	0x04
 #define KMSCON_CONSOLE_INVERSE		0x08
 #define KMSCON_CONSOLE_HIDE_CURSOR	0x10
+#define KMSCON_CONSOLE_FIXED_POS	0x20
 
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
@@ -59,9 +58,12 @@ void kmscon_console_unref(struct kmscon_console *con);
 unsigned int kmscon_console_get_width(struct kmscon_console *con);
 unsigned int kmscon_console_get_height(struct kmscon_console *con);
 int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
-					unsigned int y, unsigned int height);
+			  unsigned int y);
 int kmscon_console_set_margins(struct kmscon_console *con,
 			       unsigned int top, unsigned int bottom);
+void kmscon_console_set_max_sb(struct kmscon_console *con, unsigned int max);
+void kmscon_console_clear_sb(struct kmscon_console *con);
+
 void kmscon_console_reset(struct kmscon_console *con);
 void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags);
 void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags);
@@ -70,15 +72,14 @@ unsigned int kmscon_console_get_flags(struct kmscon_console *con);
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr,
-			  unsigned int flags);
+			  const struct font_char_attr *attr);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
-							unsigned int y);
+			    unsigned int y);
 void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
-								bool scroll);
+			    bool scroll);
 void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
-								bool scroll);
+			      bool scroll);
 void kmscon_console_move_left(struct kmscon_console *con, unsigned int num);
 void kmscon_console_move_right(struct kmscon_console *con, unsigned int num);
 void kmscon_console_move_line_end(struct kmscon_console *con);
