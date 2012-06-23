@@ -157,6 +157,14 @@ struct uterm_video_hotplug {
 	int action;
 };
 
+struct uterm_video_buffer {
+	uint8_t *data;
+	unsigned int width;
+	unsigned int height;
+	unsigned int stride;
+	unsigned int bpp;
+};
+
 typedef void (*uterm_video_cb) (struct uterm_video *video,
 				struct uterm_video_hotplug *arg,
 				void *data);
@@ -177,6 +185,10 @@ unsigned int uterm_screen_height(struct uterm_screen *screen);
 
 int uterm_screen_use(struct uterm_screen *screen);
 int uterm_screen_swap(struct uterm_screen *screen);
+int uterm_screen_blit(struct uterm_screen *screen,
+		      const struct uterm_video_buffer *buf,
+		      unsigned int x, unsigned int y,
+		      unsigned int width, unsigned int height);
 
 /* display modes interface */
 

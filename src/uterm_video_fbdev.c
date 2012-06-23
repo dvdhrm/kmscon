@@ -319,6 +319,51 @@ static int display_swap(struct uterm_display *disp)
 	return 0;
 }
 
+static int display_blit(struct uterm_display *disp,
+			const struct uterm_video_buffer *buf,
+			unsigned int x, unsigned int y,
+			unsigned int width, unsigned int height)
+{
+	unsigned int tmp;
+	uint8_t *dst, *src;
+
+	log_debug("blit start");
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!buf || !video_is_awake(disp->video))
+		return -EINVAL;
+	if (buf->bpp != disp->fbdev.bpp)
+		return -EINVAL;
+
+	tmp = x + width;
+	if (tmp < x || x >= buf->width)
+		return -EINVAL;
+	if (tmp > buf->width)
+		width = buf->width - x;
+	tmp = y + height;
+	if (tmp < y || y >= buf->height)
+		return -EINVAL;
+	if (tmp > buf->height)
+		height = buf->height - y;
+
+	if (disp->fbdev.bufid)
+		dst = disp->fbdev.map;
+	else
+		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
+	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
+	src = &buf->data[y * buf->stride + x * buf->bpp];
+
+	log_debug("blitting %u %u %u %u %u %u", buf->width, buf->height,
+		x, y, width, height);
+	while (--height) {
+		memcpy(dst, src, buf->bpp * width);
+		dst += disp->fbdev.stride;
+		src += buf->stride;
+	}
+
+	return 0;
+}
+
 static int video_init(struct uterm_video *video, const char *node)
 {
 	int ret;
@@ -405,6 +450,7 @@ const struct display_ops fbdev_display_ops = {
 	.set_dpms = display_set_dpms,
 	.use = NULL,
 	.swap = display_swap,
+	.blit = display_blit,
 };
 
 const struct video_ops fbdev_video_ops = {

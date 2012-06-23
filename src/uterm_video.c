@@ -134,6 +134,18 @@ int uterm_screen_swap(struct uterm_screen *screen)
 	return VIDEO_CALL(screen->disp->ops->swap, 0, screen->disp);
 }
 
+int uterm_screen_blit(struct uterm_screen *screen,
+		      const struct uterm_video_buffer *buf,
+		      unsigned int x, unsigned int y,
+		      unsigned int width, unsigned int height)
+{
+	if (!screen)
+		return -EINVAL;
+
+	return VIDEO_CALL(screen->disp->ops->blit, -EOPNOTSUPP, screen->disp,
+			  buf, x, y, width, height);
+}
+
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops)
 {
 	struct uterm_mode *mode;
