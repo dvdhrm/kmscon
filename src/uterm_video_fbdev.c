@@ -159,6 +159,12 @@ static int display_activate_force(struct uterm_display *disp,
 		return -EFAULT;
 	}
 
+	if (vinfo->bits_per_pixel % 8) {
+		log_error("device %s uses no power of 8 bpp: %u",
+			  disp->fbdev.node, vinfo->bits_per_pixel);
+		return -EFAULT;
+	}
+
 	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
 	    vinfo->bits_per_pixel < 16) {
 		log_error("device %s does not support true-color bpp >= 16",
@@ -201,6 +207,7 @@ static int display_activate_force(struct uterm_display *disp,
 	disp->fbdev.xres = vinfo->xres;
 	disp->fbdev.yres = vinfo->yres;
 	disp->fbdev.len = len;
+	disp->fbdev.bpp = vinfo->bits_per_pixel / 8;
 	disp->fbdev.bufid = 0;
 
 	disp->flags |= DISPLAY_ONLINE;

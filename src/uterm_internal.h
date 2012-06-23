@@ -161,6 +161,7 @@ struct fbdev_display {
 	size_t len;
 	void *map;
 	unsigned int stride;
+	unsigned int bpp;
 };
 
 struct fbdev_video {
