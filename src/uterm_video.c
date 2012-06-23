@@ -488,17 +488,25 @@ void uterm_video_sleep(struct uterm_video *video)
 	if (!video || !video_is_awake(video))
 		return;
 
+	VIDEO_CB(video, NULL, UTERM_SLEEP);
 	VIDEO_CALL(video->ops->sleep, 0, video);
 }
 
 int uterm_video_wake_up(struct uterm_video *video)
 {
+	int ret;
+
 	if (!video)
 		return -EINVAL;
 	if (video_is_awake(video))
 		return 0;
 
-	return VIDEO_CALL(video->ops->wake_up, 0, video);
+	ret = VIDEO_CALL(video->ops->wake_up, 0, video);
+	if (ret)
+		return ret;
+
+	VIDEO_CB(video, NULL, UTERM_WAKE_UP);
+	return 0;
 }
 
 bool uterm_video_is_awake(struct uterm_video *video)

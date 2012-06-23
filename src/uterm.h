@@ -146,6 +146,8 @@ enum uterm_video_type {
 };
 
 enum uterm_video_action {
+	UTERM_WAKE_UP,
+	UTERM_SLEEP,
 	UTERM_NEW,
 	UTERM_GONE,
 };
