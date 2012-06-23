@@ -55,6 +55,10 @@ struct display_ops {
 	int (*set_dpms) (struct uterm_display *disp, int state);
 	int (*use) (struct uterm_display *disp);
 	int (*swap) (struct uterm_display *disp);
+	int (*blit) (struct uterm_display *disp,
+		     const struct uterm_video_buffer *buf,
+		     unsigned int x, unsigned int y,
+		     unsigned int width, unsigned int height);
 };
 
 struct video_ops {
@@ -144,7 +148,8 @@ static const struct video_ops drm_video_ops;
 #include <linux/fb.h>
 
 struct fbdev_mode {
-	int unused;
+	unsigned int width;
+	unsigned int height;
 };
 
 struct fbdev_display {
@@ -159,7 +164,7 @@ struct fbdev_display {
 	size_t xres;
 	size_t yres;
 	size_t len;
-	void *map;
+	uint8_t *map;
 	unsigned int stride;
 	unsigned int bpp;
 };
@@ -222,6 +227,7 @@ int mode_new(struct uterm_mode **out, const struct mode_ops *ops);
 #define DISPLAY_VSYNC		0x02
 #define DISPLAY_AVAILABLE	0x04
 #define DISPLAY_OPEN		0x08
+#define DISPLAY_DBUF		0x10
 
 struct uterm_display {
 	unsigned long ref;
