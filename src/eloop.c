@@ -179,7 +179,7 @@ struct ev_signal_shared {
 	struct kmscon_hook *hook;
 };
 
-/**
+/*
  * Shared signals
  * signalfd allows us to conveniently listen for incoming signals. However, if
  * multiple signalfds are registered for the same signal, then only one of them
