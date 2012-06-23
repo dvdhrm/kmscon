@@ -787,6 +787,7 @@ const struct display_ops drm_display_ops = {
 	.set_dpms = display_set_dpms,
 	.use = display_use,
 	.swap = display_swap,
+	.blit = NULL,
 };
 
 const struct video_ops drm_video_ops = {
