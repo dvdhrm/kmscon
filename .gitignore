@@ -25,3 +25,10 @@ stamp-*
 genshader
 src/output_shaders.c
 src/genshader.c
+docs/reference/*.txt
+docs/reference/*.bak
+docs/reference/kmscon.????*
+docs/reference/*.stamp
+docs/reference/version.xml
+docs/reference/*/
+gtk-doc.make

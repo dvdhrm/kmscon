@@ -22,6 +22,14 @@ AM_PROG_AR
 LT_PREREQ(2.2)
 LT_INIT
 
+#
+# check for gtk-doc
+# Use weird syntax to make "gtkdocize" happy.
+#
+m4_ifdef([GTK_DOC_CHECK],[
+GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
+], [AM_CONDITIONAL([ENABLE_GTK_DOC], false)])
+
 PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login])
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)
@@ -113,5 +121,5 @@ else
         AC_DEFINE([LOG_ENABLE_DEBUG], [1], [Enable debug for log subsystem])
 fi
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile docs/reference/Makefile docs/reference/version.xml])
 AC_OUTPUT([src/genshader.c])
