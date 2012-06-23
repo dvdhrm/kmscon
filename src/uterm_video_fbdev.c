@@ -208,6 +208,7 @@ static int display_activate_force(struct uterm_display *disp,
 	disp->fbdev.yres = vinfo->yres;
 	disp->fbdev.len = len;
 	disp->fbdev.bpp = vinfo->bits_per_pixel / 8;
+	disp->fbdev.stride = finfo->line_length;
 	disp->fbdev.bufid = 0;
 
 	disp->flags |= DISPLAY_ONLINE;
