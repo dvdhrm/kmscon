@@ -55,6 +55,7 @@ libkmscon_core_la_SOURCES = \
 	src/uterm.h src/uterm_internal.h \
 	src/uterm_video.c \
 	src/uterm_video_drm.c \
+	src/uterm_video_fbdev.c \
 	src/uterm_monitor.c \
 	src/uterm_input.c \
 	src/uterm_vt.c \

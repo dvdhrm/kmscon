@@ -138,6 +138,7 @@ static const struct video_ops drm_video_ops;
 
 /* fbdev */
 
+#define UTERM_HAVE_FBDEV /* TODO: move to autoconf */
 #ifdef UTERM_HAVE_FBDEV
 
 #include <linux/fb.h>
@@ -147,17 +148,19 @@ struct fbdev_mode {
 };
 
 struct fbdev_display {
-	int id;
 	char *node;
 	int fd;
-
-	size_t len;
-	void *map;
-	unsigned int stride;
 
 	struct fb_fix_screeninfo finfo;
 	struct fb_var_screeninfo vinfo;
 	unsigned int rate;
+
+	unsigned int bufid;
+	size_t xres;
+	size_t yres;
+	size_t len;
+	void *map;
+	unsigned int stride;
 };
 
 struct fbdev_video {

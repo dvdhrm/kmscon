@@ -42,6 +42,8 @@
 #include "uterm.h"
 #include "uterm_internal.h"
 
+#define LOG_SUBSYSTEM "video_fbdev"
+
 static const char *mode_get_name(const struct uterm_mode *mode)
 {
 	return NULL;
@@ -49,104 +51,176 @@ static const char *mode_get_name(const struct uterm_mode *mode)
 
 static unsigned int mode_get_width(const struct uterm_mode *mode)
 {
-	return mode->fbdev.unused;
+	return 0;
 }
 
 static unsigned int mode_get_height(const struct uterm_mode *mode)
 {
-	return mode->fbdev.unused;
+	return 0;
 }
 
-static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
+static int refresh_info(struct uterm_display *disp)
 {
-	struct fb_var_screeninfo *info;
 	int ret;
+
+	ret = ioctl(disp->fbdev.fd, FBIOGET_FSCREENINFO, &disp->fbdev.finfo);
+	if (ret) {
+		log_err("cannot get finfo (%d): %m", errno);
+		return -EFAULT;
+	}
+
+	ret = ioctl(disp->fbdev.fd, FBIOGET_VSCREENINFO, &disp->fbdev.vinfo);
+	if (ret) {
+		log_err("cannot get vinfo (%d): %m", errno);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int display_activate_force(struct uterm_display *disp,
+				  struct uterm_mode *mode,
+				  bool force)
+{
+	static const char depths[] = { 32, 24, 16, 0 };
+	struct fb_var_screeninfo *vinfo;
+	struct fb_fix_screeninfo *finfo;
+	int ret, i;
 	uint64_t quot;
 	size_t len;
 
-	if (!disp->video || !(disp->flags & DISPLAY_OPEN))
+	if (!disp->video || !video_is_awake(disp->video))
+		return -EINVAL;
+	if (!force && (disp->flags & DISPLAY_ONLINE))
+		return 0;
+
+	/* TODO: We do not support explicit modesetting in fbdev, so we require
+	 * @mode to be NULL. You can still switch modes via "fbset" on the
+	 * console and then restart the app. It will automatically adapt to the
+	 * new mode. The only values changed here are bpp and color mode. */
+	if (mode)
 		return -EINVAL;
 
-	/* TODO: we currently use the current mode of the framebuffer and do not
-	 * allow changing this mode. However, we should rather list valid modes
-	 * when opening the device and set the framebuffer to the requested mode
-	 * here first.
-	 * For now you can use the fbset(1) program to modify
-	 * frambuffer-resolutions and timers.
-	 *
-	 * info->bits_per_pixel = 32 is almost a prerequisite here! We also need
-	 * to check for TRUECOLOR. Everything else is just old-school.
-	 */
+	ret = refresh_info(disp);
+	if (ret)
+		return ret;
 
-	info = &disp->fbdev.vinfo;
-	info->xoffset = 0;
-	info->yoffset = 0;
-	info->activate = FB_ACTIVATE_NOW;
-	info->xres_virtual = info->xres;
-	info->yres_virtual = info->yres * 2;
+	finfo = &disp->fbdev.finfo;
+	vinfo = &disp->fbdev.vinfo;
 
-	log_info("video_fbdev: activating display %p to %ux%u", disp,
-			info->xres, info->yres);
+	/* We require TRUECOLOR mode here. That is, each pixel has a color value
+	 * that is split into rgba values that we can set directly. Other visual
+	 * modes like pseudocolor or direct-color do not provide this. As I have
+	 * never seen a device that does not support TRUECOLOR, I think we can
+	 * ignore them here. */
+	if (finfo->visual != FB_VISUAL_TRUECOLOR) {
+		for (i = 0; depths[i]; ++i) {
+			vinfo->bits_per_pixel = depths[i];
+			vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 
-	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, info);
+			ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO,
+				    vinfo);
+			if (ret < 0)
+				continue;
+
+			ret = refresh_info(disp);
+			if (ret)
+				return ret;
+
+			if (finfo->visual == FB_VISUAL_TRUECOLOR)
+				break;
+		}
+	}
+
+	vinfo->xoffset = 0;
+	vinfo->yoffset = 0;
+	vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+	vinfo->xres_virtual = vinfo->xres;
+	vinfo->yres_virtual = vinfo->yres * 2;
+
+	log_info("activating display %s to %ux%u", disp->fbdev.node,
+		 vinfo->xres, vinfo->yres);
+
+	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
 	if (ret) {
 		log_err("video_fbdev: cannot set vinfo (%d): %m", errno);
 		return -EFAULT;
 	}
 
-	/* vinfo/finfo may have changed so refetch them */
+	ret = refresh_info(disp);
+	if (ret)
+		return ret;
 
-	ret = ioctl(disp->fbdev.fd, FBIOGET_VSCREENINFO, &info);
-	if (ret) {
-		log_err("video_fbdev: cannot get vinfo (%d): %m", errno);
+	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
+	    vinfo->bits_per_pixel < 16) {
+		log_error("device %s does not support true-color bpp >= 16",
+			  disp->fbdev.node);
 		return -EFAULT;
 	}
 
-	ret = ioctl(disp->fbdev.fd, FBIOGET_FSCREENINFO, &disp->fbdev.finfo);
-	if (ret) {
-		log_err("video_fbdev: cannot get finfo (%d): %m", errno);
+	if (vinfo->yres_virtual < vinfo->yres * 2 ||
+	    vinfo->xres_virtual < vinfo->xres) {
+		log_error("device %s does not double-buffering",
+			  disp->fbdev.node);
 		return -EFAULT;
 	}
 
-	quot = (info->upper_margin + info->lower_margin + info->yres);
-	quot *= (info->left_margin + info->right_margin + info->xres);
-	quot *= info->pixclock;
-	disp->fbdev.rate = quot ? (1000000000000000LLU / quot) : 0;
-	if (!disp->fbdev.rate)
-		disp->fbdev.rate = 60 * 1000; /* 60 Hz by default */
+	/* calculate monitor rate, default is 60 Hz */
+	quot = (vinfo->upper_margin + vinfo->lower_margin + vinfo->yres);
+	quot *= (vinfo->left_margin + vinfo->right_margin + vinfo->xres);
+	quot *= vinfo->pixclock;
+	if (quot)
+		disp->fbdev.rate = 1000000000000000LLU / quot;
+	else
+		disp->fbdev.rate = 60 * 1000;
 
-	len = disp->fbdev.finfo.line_length * disp->fbdev.vinfo.yres_virtual;
-	disp->fbdev.map = mmap(0, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-				disp->fbdev.fd, 0);
+	len = finfo->line_length * (vinfo->yres * 2);
+	disp->fbdev.map = mmap(0, len, PROT_WRITE, MAP_SHARED,
+			       disp->fbdev.fd, 0);
 	if (disp->fbdev.map == MAP_FAILED) {
-		log_err("video_fbdev: cannot mmap framebuffer (%d): %m", errno);
+		log_error("cannot mmap device %s (%d): %m", disp->fbdev.node,
+			  errno);
 		return -EFAULT;
 	}
-	memset(disp->fbdev.map, 0, len);
-	disp->fbdev.len = len;
 
-	disp->current_mode = mode;
+	memset(disp->fbdev.map, 0, len);
+	disp->fbdev.xres = vinfo->xres;
+	disp->fbdev.yres = vinfo->yres;
+	disp->fbdev.len = len;
+	disp->fbdev.bufid = 0;
+
 	disp->flags |= DISPLAY_ONLINE;
 
 	return 0;
 }
 
-static void display_deactivate(struct uterm_display *disp)
+static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
+{
+	return display_activate_force(disp, mode, false);
+}
+
+static void display_deactivate_force(struct uterm_display *disp, bool force)
 {
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return;
 
-	log_info("video_fbdev: deactivating display %p", disp);
-	disp->current_mode = NULL;
-	disp->flags &= ~DISPLAY_ONLINE;
+	log_info("deactivating device %s", disp->fbdev.node);
 	munmap(disp->fbdev.map, disp->fbdev.len);
+
+	if (!force)
+		disp->flags &= ~DISPLAY_ONLINE;
+}
+
+static void display_deactivate(struct uterm_display *disp)
+{
+	return display_deactivate_force(disp, false);
 }
 
 static int display_set_dpms(struct uterm_display *disp, int state)
 {
 	int set, ret;
 
-	if (!disp->video || !(disp->flags & DISPLAY_OPEN))
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 
 	switch (state) {
@@ -166,13 +240,13 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 		return -EINVAL;
 	}
 
-	log_info("video_fbdev: setting DPMS of display %p to %s", disp,
-			uterm_dpms_to_name(state));
+	log_info("setting DPMS of device %p to %s", disp->fbdev.node,
+		 uterm_dpms_to_name(state));
 
 	ret = ioctl(disp->fbdev.fd, FBIOBLANK, set);
 	if (ret) {
-		log_err("video_fbdev: cannot set DPMS on %p (%d): %m", disp,
-				errno);
+		log_error("cannot set DPMS on %s (%d): %m", disp->fbdev.node,
+			  errno);
 		return -EFAULT;
 	}
 
@@ -182,24 +256,23 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 
 void *fbdev_display_map(struct uterm_display *disp)
 {
-	if (!disp->video || !(disp->flags & DISPLAY_OPEN))
+	if (!disp->video || !video_is_awake(disp->video))
 		return NULL;
 	if (!(disp->flags & DISPLAY_ONLINE))
 		return NULL;
 
 	/* TODO: temporary function to obtain a pointer to the frambuffer from
 	 * the calling application. Stuff like bpp, size, etc. must be
-	 * published, too, otherwise, no-one will be able to use it.
-	 */
+	 * published, too, otherwise, no-one will be able to use it. */
 
 	return disp->fbdev.map;
 }
 
 static int display_use(struct uterm_display *disp)
 {
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+	if (!disp->video || !video_is_awake(disp->video))
 		return -EINVAL;
-	if (!(disp->flags & DISPLAY_OPEN))
+	if (!(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 
 	return 0;
@@ -207,353 +280,97 @@ static int display_use(struct uterm_display *disp)
 
 static int display_swap(struct uterm_display *disp)
 {
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!(disp->flags & DISPLAY_OPEN) || (disp->dpms != UTERM_DPMS_ON))
-		return -EINVAL;
-
-	/* TODO: swap */
-/*
-	vinfo.activate = FB_ACTIVATE_VBL;
-	vinfo.yoffset = 0 or vinfo.vres;
-	ioctl(fd, FBIOPUT_VSCREENINFO, &info)
-*/
-
-	return 0;
-}
-
-static int get_id(struct udev_device *dev)
-{
-	const char *name;
-	char *end;
-	int devnum;
-
-	name = udev_device_get_sysname(dev);
-	if (!name)
-		return -ENODEV;
-	if (strncmp(name, "fb", 2) || !name[2])
-		return -ENODEV;
-
-	devnum = strtol(&name[2], &end, 10);
-	if (devnum < 0 || *end)
-		return -ENODEV;
-
-	return devnum;
-}
-
-static int open_display(struct uterm_display *disp)
-{
+	struct fb_var_screeninfo *vinfo;
 	int ret;
 
-	if (!(disp->video->flags & VIDEO_AWAKE))
+	if (!disp->video || !video_is_awake(disp->video))
 		return -EINVAL;
-	if (disp->flags & DISPLAY_OPEN)
-		return 0;
+	if (!(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
 
-	disp->fbdev.fd = open(disp->fbdev.node, O_RDWR | O_CLOEXEC);
-	if (disp->fbdev.fd < 0) {
-		log_err("video_fbdev: cannot open %s (%d): %m",
-				disp->fbdev.node, errno);
+	vinfo = &disp->fbdev.vinfo;
+	vinfo->activate = FB_ACTIVATE_VBL;
+
+	if (!disp->fbdev.bufid)
+		vinfo->yoffset = disp->fbdev.yres;
+	else
+		vinfo->yoffset = 0;
+
+	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
+	if (ret) {
+		log_warning("cannot swap buffers on %s (%d): %m",
+			    disp->fbdev.node, errno);
 		return -EFAULT;
 	}
 
-	ret = ioctl(disp->fbdev.fd, FBIOGET_FSCREENINFO, &disp->fbdev.finfo);
-	if (ret) {
-		log_err("video_fbdev: cannot get finfo (%d): %m", errno);
-		ret = -EFAULT;
-		goto err_fd;
-	}
-
-	ret = ioctl(disp->fbdev.fd, FBIOGET_VSCREENINFO, &disp->fbdev.vinfo);
-	if (ret) {
-		log_err("video_fbdev: cannot get vinfo (%d): %m", errno);
-		ret = -EFAULT;
-		goto err_fd;
-	}
-
-	disp->flags |= DISPLAY_OPEN;
-
-	if (disp->flags & DISPLAY_ONLINE) {
-		ret = display_activate(disp, NULL);
-		if (ret)
-			goto err_open;
-	}
-
+	disp->fbdev.bufid ^= 1;
 	return 0;
-
-err_open:
-	disp->flags &= ~DISPLAY_OPEN;
-err_fd:
-	close(disp->fbdev.fd);
-	return ret;
 }
 
-static void close_display(struct uterm_display *disp)
+static int video_init(struct uterm_video *video, const char *node)
 {
-	if (!(disp->flags & DISPLAY_OPEN))
-		return;
-
-	close(disp->fbdev.fd);
-	disp->flags &= ~DISPLAY_OPEN;
-	if (disp->fbdev.map)
-		munmap(disp->fbdev.map, disp->fbdev.len);
-}
-
-static int init_display(struct uterm_video *video, struct udev_device *dev)
-{
+	int ret;
 	struct uterm_display *disp;
-	int ret, id;
-	const char *node;
-
-	id = get_id(dev);
-	if (id < 0)
-		return id;
 
 	ret = display_new(&disp, &fbdev_display_ops);
 	if (ret)
 		return ret;
 
-	log_info("video_fbdev: probing %s", udev_device_get_sysname(dev));
-
-	node = udev_device_get_devnode(dev);
-	if (!node) {
-		log_err("video_fbdev: cannot get device node");
-		return -ENODEV;
-	}
-	disp->fbdev.node = mem_strdup(node);
+	disp->fbdev.node = strdup(node);
 	if (!disp->fbdev.node) {
+		log_err("cannot dup node name");
 		ret = -ENOMEM;
 		goto err_free;
 	}
 
-	disp->video = video;
-	disp->fbdev.id = id;
-	disp->dpms = UTERM_DPMS_UNKNOWN;
-
-	if (video->flags & VIDEO_AWAKE) {
-		ret = open_display(disp);
-		if (ret)
-			goto err_str;
+	disp->fbdev.fd = open(node, O_RDWR | O_CLOEXEC);
+	if (disp->fbdev.fd < 0) {
+		log_err("cannot open %s (%d): %m", node, errno);
+		ret = -EFAULT;
+		goto err_node;
 	}
 
-	disp->next = video->displays;
+	disp->video = video;
+	disp->dpms = UTERM_DPMS_UNKNOWN;
 	video->displays = disp;
+
+	log_info("new device on %s", disp->fbdev.node);
 	return 0;
 
-err_str:
-	disp->video = NULL;
-	mem_free(disp->fbdev.node);
+err_node:
+	free(disp->fbdev.node);
 err_free:
 	uterm_display_unref(disp);
 	return ret;
 }
 
-static void destroy_display(struct uterm_display *disp)
-{
-	display_deactivate(disp);
-	close_display(disp);
-	mem_free(disp->fbdev.node);
-	disp->video = NULL;
-	uterm_display_unref(disp);
-}
-
-static int video_init(struct uterm_video *video)
-{
-	struct udev_enumerate *e;
-	struct udev_list_entry *name;
-	const char *path;
-	struct udev_device *dev;
-	int ret;
-
-	ret = udev_monitor_filter_add_match_subsystem_devtype(video->umon,
-							"graphics", NULL);
-	if (ret) {
-		log_err("video_fbdev: cannot add udev filter (%d): %m", ret);
-		return -EFAULT;
-	}
-
-	ret = udev_monitor_enable_receiving(video->umon);
-	if (ret) {
-		log_err("video_fbdev: cannot start udev_monitor (%d): %m", ret);
-		return -EFAULT;
-	}
-
-	e = udev_enumerate_new(video->udev);
-	if (!e) {
-		log_err("video_fbdev: cannot create udev_enumerate object");
-		return -EFAULT;
-	}
-
-	ret = udev_enumerate_add_match_subsystem(e, "graphics");
-	if (ret) {
-		log_err("video_fbdev: cannot add udev match (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-	ret = udev_enumerate_add_match_sysname(e, "fb[0-9]*");
-	if (ret) {
-		log_err("video_fbdev: cannot add udev match (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-	ret = udev_enumerate_scan_devices(e);
-	if (ret) {
-		log_err("video_fbdev: cannot scan udev devices (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_enum;
-	}
-
-	udev_list_entry_foreach(name, udev_enumerate_get_list_entry(e)) {
-		path = udev_list_entry_get_name(name);
-		if (!path || !*path)
-			continue;
-		dev = udev_device_new_from_syspath(video->udev, path);
-		if (!dev)
-			continue;
-
-		init_display(video, dev);
-		udev_device_unref(dev);
-	}
-
-	log_info("video_fbdev: new fbdev device");
-	return 0;
-
-err_enum:
-	udev_enumerate_unref(e);
-	return ret;
-}
-
 static void video_destroy(struct uterm_video *video)
 {
-	struct uterm_display *disp;
-
-	log_info("video_fbdev: free fbdev device");
-
-	while ((disp = video->displays)) {
-		video->displays = disp->next;
-		disp->next = NULL;
-		destroy_display(disp);
-	}
-}
-
-static int video_use(struct uterm_video *video)
-{
-	return 0;
-}
-
-static int hotplug(struct uterm_video *video)
-{
-	struct udev_device *dev;
-	const char *action;
-	unsigned int id;
-	struct uterm_display *disp, *tmp;
-
-	dev = udev_monitor_receive_device(video->umon);
-	if (!dev) {
-		log_warn("video_fbdev: cannot receive device from udev_monitor");
-		return 0;
-	}
-
-	action = udev_device_get_action(dev);
-	if (!action)
-		goto ignore;
-	if (!strcmp(action, "add")) {
-		init_display(video, dev);
-	} else if (!strcmp(action, "remove")) {
-		if (!video->displays)
-			goto ignore;
-		id = get_id(dev);
-		if (id < 0)
-			goto ignore;
-
-		disp = NULL;
-		if (video->displays->fbdev.id == id) {
-			disp = video->displays;
-			video->displays = disp->next;
-		} else for (tmp = video->displays; tmp->next; tmp = tmp->next) {
-			if (tmp->next->fbdev.id == id) {
-				disp = tmp->next;
-				tmp->next = tmp->next->next;
-				break;
-			}
-		}
-		if (disp) {
-			disp->next = NULL;
-			destroy_display(disp);
-		}
-	}
-
-ignore:
-	udev_device_unref(dev);
-	return 0;
-}
-
-static int video_poll(struct uterm_video *video, unsigned int num)
-{
-	unsigned int i;
-	struct epoll_event *ev;
-	int ret;
-
-	for (i = 0; i < num; ++i) {
-		ev = &video->efd_evs[i];
-		if (ev->data.fd == video->umon_fd) {
-			if (ev->events & (EPOLLERR | EPOLLHUP)) {
-				log_err("video_fbdev: udev_monitor closed unexpectedly");
-				return -EFAULT;
-			}
-			if (ev->events & (EPOLLIN)) {
-				ret = hotplug(video);
-				if (ret)
-					return ret;
-			}
-		}
-	}
-
-	return 0;
+	log_info("free device %p", video);
 }
 
 static void video_sleep(struct uterm_video *video)
 {
-	struct uterm_display *disp;
-
 	if (!(video->flags & VIDEO_AWAKE))
 		return;
 
-	for (disp = video->displays; disp; disp = disp->next)
-		close_display(disp);
-
+	display_deactivate_force(video->displays, true);
 	video->flags &= ~VIDEO_AWAKE;
 }
 
 static int video_wake_up(struct uterm_video *video)
 {
-	struct uterm_display *disp, *tmp;
 	int ret;
 
 	if (video->flags & VIDEO_AWAKE)
 		return 0;
 
 	video->flags |= VIDEO_AWAKE;
-
-	while (video->displays) {
-		tmp = video->displays;
-		ret = open_display(tmp);
-		if (!ret)
-			break;
-
-		video->displays = tmp->next;
-		tmp->next = NULL;
-		destroy_display(tmp);
-	}
-	for (disp = video->displays; disp && disp->next; ) {
-		tmp = disp->next;
-		ret = open_display(tmp);
-		if (!ret) {
-			disp = tmp;
-		} else {
-			disp->next = tmp->next;
-			tmp->next = NULL;
-			destroy_display(tmp);
+	if (video->displays->flags & DISPLAY_ONLINE) {
+		ret = display_activate_force(video->displays, NULL, true);
+		if (ret) {
+			video->flags &= ~VIDEO_AWAKE;
+			return ret;
 		}
 	}
 
@@ -582,8 +399,8 @@ const struct video_ops fbdev_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO */
-	.use = video_use,
-	.poll = video_poll,
+	.use = NULL,
+	.poll = NULL,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
 };
