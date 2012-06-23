@@ -128,6 +128,7 @@ static int display_activate_force(struct uterm_display *disp,
 				errno);
 			return -EFAULT;
 		}
+		log_debug("disabling double buffering");
 	} else {
 		disp->flags |= DISPLAY_DBUF;
 		log_debug("enabling double buffering");
@@ -355,7 +356,6 @@ static int display_blit(struct uterm_display *disp,
 	unsigned int tmp;
 	uint8_t *dst, *src;
 
-	log_debug("blit start");
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 	if (!buf || !video_is_awake(disp->video))
@@ -381,8 +381,6 @@ static int display_blit(struct uterm_display *disp,
 	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
 	src = &buf->data[y * buf->stride + x * buf->bpp];
 
-	log_debug("blitting %u %u %u %u %u %u", buf->width, buf->height,
-		x, y, width, height);
 	while (--height) {
 		memcpy(dst, src, buf->bpp * width);
 		dst += disp->fbdev.stride;
