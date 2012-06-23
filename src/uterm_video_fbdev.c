@@ -108,6 +108,33 @@ static int display_activate_force(struct uterm_display *disp,
 	finfo = &disp->fbdev.finfo;
 	vinfo = &disp->fbdev.vinfo;
 
+	vinfo->xoffset = 0;
+	vinfo->yoffset = 0;
+	vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+	vinfo->xres_virtual = vinfo->xres;
+	vinfo->yres_virtual = vinfo->yres * 2;
+	vinfo->bits_per_pixel = 32;
+
+	log_info("activating display %s to %ux%u %u bpp", disp->fbdev.node,
+		 vinfo->xres, vinfo->yres, vinfo->bits_per_pixel);
+
+	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
+	if (ret) {
+		log_err("video_fbdev: cannot set vinfo (%d): %m", errno);
+		return -EFAULT;
+	}
+
+	if (vinfo->yres_virtual < vinfo->yres * 2 ||
+	    vinfo->xres_virtual < vinfo->xres) {
+		log_error("device %s does no double-buffering",
+			  disp->fbdev.node);
+		return -EFAULT;
+	}
+
+	ret = refresh_info(disp);
+	if (ret)
+		return ret;
+
 	/* We require TRUECOLOR mode here. That is, each pixel has a color value
 	 * that is split into rgba values that we can set directly. Other visual
 	 * modes like pseudocolor or direct-color do not provide this. As I have
@@ -132,24 +159,12 @@ static int display_activate_force(struct uterm_display *disp,
 		}
 	}
 
-	vinfo->xoffset = 0;
-	vinfo->yoffset = 0;
-	vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-	vinfo->xres_virtual = vinfo->xres;
-	vinfo->yres_virtual = vinfo->yres * 2;
-
-	log_info("activating display %s to %ux%u", disp->fbdev.node,
-		 vinfo->xres, vinfo->yres);
-
-	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
-	if (ret) {
-		log_err("video_fbdev: cannot set vinfo (%d): %m", errno);
+	if (vinfo->yres_virtual < vinfo->yres * 2 ||
+	    vinfo->xres_virtual < vinfo->xres) {
+		log_error("device %s does no double-buffering",
+			  disp->fbdev.node);
 		return -EFAULT;
 	}
-
-	ret = refresh_info(disp);
-	if (ret)
-		return ret;
 
 	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
 	    vinfo->bits_per_pixel < 16) {
@@ -158,9 +173,15 @@ static int display_activate_force(struct uterm_display *disp,
 		return -EFAULT;
 	}
 
-	if (vinfo->yres_virtual < vinfo->yres * 2 ||
-	    vinfo->xres_virtual < vinfo->xres) {
-		log_error("device %s does not double-buffering",
+	/* TODO: remove this check and correctly provide conversions for the
+	 * blitting functions. In fact, the for-loop above is totally useless
+	 * while using this restriction here but lets be optimistic and say that
+	 * this will be replaced soon. */
+	if (vinfo->red.offset != 16 || vinfo->red.length != 8 ||
+	    vinfo->green.offset != 8 || vinfo->green.length != 8 ||
+	    vinfo->blue.offset != 0 || vinfo->green.length != 8 ||
+	    vinfo->bits_per_pixel != 32) {
+		log_error("device %s does not support xrgb32",
 			  disp->fbdev.node);
 		return -EFAULT;
 	}
