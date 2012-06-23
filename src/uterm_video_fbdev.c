@@ -268,16 +268,6 @@ void *fbdev_display_map(struct uterm_display *disp)
 	return disp->fbdev.map;
 }
 
-static int display_use(struct uterm_display *disp)
-{
-	if (!disp->video || !video_is_awake(disp->video))
-		return -EINVAL;
-	if (!(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-
-	return 0;
-}
-
 static int display_swap(struct uterm_display *disp)
 {
 	struct fb_var_screeninfo *vinfo;
@@ -391,7 +381,7 @@ const struct display_ops fbdev_display_ops = {
 	.activate = display_activate,
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
-	.use = display_use,
+	.use = NULL,
 	.swap = display_swap,
 };
 
