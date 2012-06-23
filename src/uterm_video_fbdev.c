@@ -124,13 +124,6 @@ static int display_activate_force(struct uterm_display *disp,
 		return -EFAULT;
 	}
 
-	if (vinfo->yres_virtual < vinfo->yres * 2 ||
-	    vinfo->xres_virtual < vinfo->xres) {
-		log_error("device %s does no double-buffering",
-			  disp->fbdev.node);
-		return -EFAULT;
-	}
-
 	ret = refresh_info(disp);
 	if (ret)
 		return ret;
