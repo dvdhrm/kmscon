@@ -123,7 +123,7 @@ int uterm_screen_use(struct uterm_screen *screen)
 	if (!screen || !display_is_online(screen->disp))
 		return -EINVAL;
 
-	return VIDEO_CALL(screen->disp->ops->use, 0, screen->disp);
+	return VIDEO_CALL(screen->disp->ops->use, -EOPNOTSUPP, screen->disp);
 }
 
 int uterm_screen_swap(struct uterm_screen *screen)
