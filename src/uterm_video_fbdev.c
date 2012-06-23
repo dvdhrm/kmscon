@@ -46,17 +46,17 @@
 
 static const char *mode_get_name(const struct uterm_mode *mode)
 {
-	return NULL;
+	return "<default>";
 }
 
 static unsigned int mode_get_width(const struct uterm_mode *mode)
 {
-	return 0;
+	return mode->fbdev.width;
 }
 
 static unsigned int mode_get_height(const struct uterm_mode *mode)
 {
-	return 0;
+	return mode->fbdev.height;
 }
 
 static int refresh_info(struct uterm_display *disp)
@@ -120,8 +120,17 @@ static int display_activate_force(struct uterm_display *disp,
 
 	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
 	if (ret) {
-		log_err("video_fbdev: cannot set vinfo (%d): %m", errno);
-		return -EFAULT;
+		disp->flags &= ~DISPLAY_DBUF;
+		vinfo->yres_virtual = vinfo->yres;
+		ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
+		if (ret) {
+			log_err("cannot set vinfo (%d): %m",
+				errno);
+			return -EFAULT;
+		}
+	} else {
+		disp->flags |= DISPLAY_DBUF;
+		log_debug("enabling double buffering");
 	}
 
 	ret = refresh_info(disp);
@@ -152,9 +161,11 @@ static int display_activate_force(struct uterm_display *disp,
 		}
 	}
 
-	if (vinfo->yres_virtual < vinfo->yres * 2 ||
-	    vinfo->xres_virtual < vinfo->xres) {
-		log_error("device %s does no double-buffering",
+	if (vinfo->xres_virtual < vinfo->xres ||
+	    (disp->flags & DISPLAY_DBUF &&
+	     vinfo->yres_virtual < vinfo->yres * 2) ||
+	    vinfo->yres_virtual < vinfo->yres) {
+		log_error("device %s does not support out buffer sizes",
 			  disp->fbdev.node);
 		return -EFAULT;
 	}
@@ -194,7 +205,10 @@ static int display_activate_force(struct uterm_display *disp,
 	else
 		disp->fbdev.rate = 60 * 1000;
 
-	len = finfo->line_length * (vinfo->yres * 2);
+	len = finfo->line_length * vinfo->yres;
+	if (disp->flags & DISPLAY_DBUF)
+		len *= 2;
+
 	disp->fbdev.map = mmap(0, len, PROT_WRITE, MAP_SHARED,
 			       disp->fbdev.fd, 0);
 	if (disp->fbdev.map == MAP_FAILED) {
@@ -211,8 +225,16 @@ static int display_activate_force(struct uterm_display *disp,
 	disp->fbdev.stride = finfo->line_length;
 	disp->fbdev.bufid = 0;
 
-	disp->flags |= DISPLAY_ONLINE;
+	ret = mode_new(&disp->modes, &fbdev_mode_ops);
+	if (ret) {
+		munmap(disp->fbdev.map, disp->fbdev.len);
+		return ret;
+	}
+	disp->modes->fbdev.width = disp->fbdev.xres;
+	disp->modes->fbdev.height = disp->fbdev.yres;
+	disp->current_mode = disp->modes;
 
+	disp->flags |= DISPLAY_ONLINE;
 	return 0;
 }
 
@@ -227,6 +249,9 @@ static void display_deactivate_force(struct uterm_display *disp, bool force)
 		return;
 
 	log_info("deactivating device %s", disp->fbdev.node);
+	uterm_mode_unref(disp->modes);
+	disp->modes = NULL;
+	disp->current_mode = NULL;
 	munmap(disp->fbdev.map, disp->fbdev.len);
 
 	if (!force)
@@ -300,6 +325,9 @@ static int display_swap(struct uterm_display *disp)
 	if (!(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 
+	if (!(disp->flags & DISPLAY_DBUF))
+		return 0;
+
 	vinfo = &disp->fbdev.vinfo;
 	vinfo->activate = FB_ACTIVATE_VBL;
 
@@ -346,7 +374,7 @@ static int display_blit(struct uterm_display *disp,
 	if (tmp > buf->height)
 		height = buf->height - y;
 
-	if (disp->fbdev.bufid)
+	if (!(disp->flags & DISPLAY_DBUF) || disp->fbdev.bufid)
 		dst = disp->fbdev.map;
 	else
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
