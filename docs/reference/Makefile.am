@@ -1,5 +1,5 @@
 #
-# Kmscon - Libeloop doc makefile
+# Kmscon - GTK-Doc Makefile
 # Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
 #
 
