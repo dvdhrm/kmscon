@@ -42,7 +42,7 @@
 #include "font.h"
 #include "gl.h"
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "unicode.h"
 #include "uterm.h"
 

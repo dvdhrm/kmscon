@@ -39,7 +39,7 @@
 #include <string.h>
 #include <systemd/sd-login.h>
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
 

@@ -33,7 +33,7 @@
 #include <string.h>
 #include "eloop.h"
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
 #include "vt.h"

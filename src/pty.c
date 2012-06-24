@@ -38,7 +38,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "pty.h"
 
 #define LOG_SUBSYSTEM "pty"

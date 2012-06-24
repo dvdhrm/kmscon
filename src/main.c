@@ -32,7 +32,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "ui.h"
 #include "uterm.h"
 #include "vt.h"

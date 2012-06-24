@@ -34,7 +34,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
-#include "misc.h"
+#include "static_misc.h"
 #include "uterm.h"
 
 /* backend-operations */

@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "log.h"
-#include "misc.h"
+#include "static_misc.h"
 
 #define LOG_SUBSYSTEM "misc"
 
