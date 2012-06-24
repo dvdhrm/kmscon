@@ -119,6 +119,7 @@ if test ! x$debug = xyes ; then
 else
         AC_DEFINE([KMSCON_ENABLE_DEBUG], [1], [Enable debug for kmscon])
         AC_DEFINE([LOG_ENABLE_DEBUG], [1], [Enable debug for log subsystem])
+        AC_DEFINE([LLOG_ENABLE_DEBUG], [1], [Enable debug for llog subsystem])
 fi
 
 AC_CONFIG_FILES([Makefile docs/reference/Makefile docs/reference/version.xml])
