@@ -9,7 +9,7 @@ check_PROGRAMS = \
 	test_vt \
 	test_input
 noinst_PROGRAMS = genshader
-noinst_LTLIBRARIES = libkmscon-core.la
+noinst_LTLIBRARIES = libkmscon-core.la libkmscon-static.la
 
 AM_CFLAGS = \
 	-Wall
@@ -42,7 +42,6 @@ nodist_libkmscon_core_la_SOURCES = \
 
 libkmscon_core_la_SOURCES = \
 	src/conf.c src/conf.h \
-	src/static_misc.c src/static_misc.h \
 	src/ui.c src/ui.h \
 	src/console.c src/console.h \
 	src/unicode.c src/unicode.h \
@@ -110,8 +109,19 @@ libkmscon_core_la_LIBADD = \
 	$(GLIB_LIBS) \
 	-lpthread
 
+libkmscon_static_la_SOURCES = \
+	src/static_llog.h \
+	src/static_misc.h \
+	src/static_misc.c
+
+libkmscon_static_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(GLIB_CFLAGS)
+libkmscon_static_la_LIBADD = \
+	$(GLIB_LIBS)
+
 kmscon_SOURCES = src/main.c
-kmscon_LDADD = libkmscon-core.la
+kmscon_LDADD = libkmscon-core.la libkmscon-static.la
 
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
