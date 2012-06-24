@@ -163,10 +163,6 @@ static void seat_add_video(struct kmscon_seat *seat,
 	if (ret)
 		return;
 
-	ret = uterm_video_use(seat->video);
-	if (ret)
-		goto err_video;
-
 	ret = kmscon_ui_new(&seat->ui, seat->app->eloop, seat->video,
 			    seat->input);
 	if (ret)
