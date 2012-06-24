@@ -129,6 +129,12 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct screen *scr;
 	int ret;
 	unsigned int width, height;
+	struct screen *iter;
+
+	for (iter = term->screens; iter; iter = iter->next) {
+		if (iter->disp == disp)
+			return 0;
+	}
 
 	scr = malloc(sizeof(*scr));
 	if (!scr)
