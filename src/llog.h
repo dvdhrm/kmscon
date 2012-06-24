@@ -97,6 +97,8 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 
 #define llog_printf(obj, sev, format, ...) \
 	llog_format((obj)->llog, LLOG_DEFAULT, (sev), (format), ##__VA_ARGS__)
+#define llog_dprintf(obj, sev, format, ...) \
+	llog_format((obj), LLOG_DEFAULT, (sev), (format), ##__VA_ARGS__)
 
 /*
  * Helpers
@@ -107,9 +109,12 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
  */
 
 #ifdef LLOG_ENABLE_DEBUG
+	#define llog_ddebug(obj, format, ...) \
+		llog_dprintf((obj), LLOG_DEBUG, (format), ##__VA_ARGS__)
 	#define llog_debug(obj, format, ...) \
-		llog_printf((obj), LLOG_DEBUG, (format), ##__VA_ARGS__)
+		llog_ddebug((obj)->llog, (format), ##__VA_ARGS__)
 #else
+	#define llog_ddebug(obj, format, ...)
 	#define llog_debug(obj, format, ...)
 #endif
 
