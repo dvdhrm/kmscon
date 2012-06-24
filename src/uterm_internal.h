@@ -297,7 +297,7 @@ static inline bool video_need_hotplug(const struct uterm_video *video)
 
 static inline int video_do_use(struct uterm_video *video)
 {
-	return VIDEO_CALL(video->ops->use, 0, video);
+	return VIDEO_CALL(video->ops->use, -EOPNOTSUPP, video);
 }
 
 static inline bool input_bit_is_set(const unsigned long *array, int bit)
