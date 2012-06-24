@@ -128,13 +128,9 @@ libkmscon_core_la_SOURCES = \
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c \
 	src/uterm_input_xkb.c
 else
 libkmscon_core_la_SOURCES += \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c \
 	src/uterm_input_dumb.c
 endif
 
@@ -182,6 +178,8 @@ libkmscon_core_la_LIBADD = \
 #
 
 libkmscon_static_la_SOURCES = \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c \
 	src/static_llog.h \
 	src/static_misc.h \
 	src/static_misc.c
