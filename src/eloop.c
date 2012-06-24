@@ -62,10 +62,12 @@
 #include <time.h>
 #include <unistd.h>
 #include "eloop.h"
+#include "llog.h"
 #include "log.h"
 #include "misc.h"
 
-#define LOG_SUBSYSTEM "eloop"
+#define LLOG_SUBSYSTEM "eloop"
+#define LOG_SUBSYSTEM LLOG_SUBSYSTEM
 
 /**
  * ev_eloop:
@@ -86,6 +88,7 @@
 struct ev_eloop {
 	int efd;
 	unsigned long ref;
+	llog_submit_t llog;
 	struct ev_fd *fd;
 	struct ev_counter *cnt;
 
@@ -386,20 +389,22 @@ static void eloop_cnt_event(struct ev_counter *cnt, uint64_t num, void *data)
 	if (kmscon_hook_num(eloop->idlers) > 0) {
 		ret = ev_counter_inc(eloop->cnt, 1);
 		if (ret)
-			log_warning("cannot increase eloop idle-counter");
+			llog_warning(eloop,
+				     "cannot increase eloop idle-counter");
 	}
 }
 
 /**
  * ev_eloop_new:
  * @out: Storage for the result
+ * @log: logging function or NULL
  *
  * This creates a new event-loop with ref-count 1. The new event loop is stored
  * in @out and has no registered events.
  *
  * Returns: 0 on success, otherwise negative error code
  */
-int ev_eloop_new(struct ev_eloop **out)
+int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 {
 	struct ev_eloop *loop;
 	int ret;
@@ -413,6 +418,7 @@ int ev_eloop_new(struct ev_eloop **out)
 
 	memset(loop, 0, sizeof(*loop));
 	loop->ref = 1;
+	loop->llog = log;
 	kmscon_dlist_init(&loop->sig_list);
 
 	loop->cur_fds_cnt = 32;
@@ -713,7 +719,7 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 	if (!out || !loop)
 		return -EINVAL;
 
-	ret = ev_eloop_new(&el);
+	ret = ev_eloop_new(&el, loop->llog);
 	if (ret)
 		return ret;
 

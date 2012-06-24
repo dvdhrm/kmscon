@@ -35,6 +35,7 @@
 #define EV_ELOOP_H
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/signalfd.h>
@@ -44,6 +45,14 @@ struct ev_eloop;
 struct ev_fd;
 struct ev_timer;
 struct ev_counter;
+
+typedef void (*ev_log_t) (const char *file,
+			  int line,
+			  const char *func,
+			  const char *subs,
+			  unsigned int sev,
+			  const char *format,
+			  va_list args);
 
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
 typedef void (*ev_timer_cb)
@@ -61,7 +70,7 @@ enum ev_eloop_flags {
 	EV_ERR = 0x08,
 };
 
-int ev_eloop_new(struct ev_eloop **out);
+int ev_eloop_new(struct ev_eloop **out, ev_log_t log);
 void ev_eloop_ref(struct ev_eloop *loop);
 void ev_eloop_unref(struct ev_eloop *loop);
 
