@@ -295,9 +295,12 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_vte;
 
-	ret = gl_shader_new(&term->shader);
-	if (ret)
-		goto err_pty;
+	ret = uterm_video_use(term->video);
+	if (!ret) {
+		ret = gl_shader_new(&term->shader);
+		if (ret)
+			goto err_pty;
+	}
 
 	ret = uterm_video_register_cb(term->video, video_event, term);
 	if (ret)
