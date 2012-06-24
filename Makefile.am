@@ -1,15 +1,53 @@
+#
+# Kmscon - Global Makefile
+# Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+#
+
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = . docs/reference
-EXTRA_DIST = README TODO COPYING
+SUBDIRS = \
+	. \
+	docs/reference
+EXTRA_DIST = \
+	README \
+	TODO \
+	COPYING
 CLEANFILES =
 
-bin_PROGRAMS = kmscon
+#
+# Build targets
+#
+# kmscon: Main kmscon program
+# test_output: Test program for the display graphics subsystem
+# test_vt: Test program for the VT subsystem
+# test_input: Test program for the input subsystem
+# libkmscon-core: Static core library for kmscon and test programs
+# libkmscon-static: Static library for all subsystems
+# genshader: Program used to convert shaders into C-source files
+#
+
+bin_PROGRAMS = \
+	kmscon
 check_PROGRAMS = \
 	test_output \
 	test_vt \
 	test_input
-noinst_PROGRAMS = genshader
-noinst_LTLIBRARIES = libkmscon-core.la libkmscon-static.la
+noinst_PROGRAMS = \
+	genshader
+noinst_LTLIBRARIES = \
+	libkmscon-core.la \
+	libkmscon-static.la
+
+#
+# Default CFlags
+# Make all files include "config.h" by default. This shouldn't cause any
+# problems and we cannot forget to include it anymore.
+#
+# Also make the linker discard all unused symbols as we are not building a
+# shared library.
+#
+# When compiling in debug mode, we disable optimization and enable debug symbols
+# so debugging with gdb is easier.
+#
 
 AM_CFLAGS = \
 	-Wall
@@ -26,16 +64,40 @@ else
 AM_CFLAGS += -O2
 endif
 
-EXTRA_DIST += src/output_shader_def.vert src/output_shader_def.frag \
-	src/output_shader_tex.vert src/output_shader_tex.frag
-CLEANFILES += src/output_shaders.c
+#
+# Shaders
+# As there is no need to modify shaders at run-time, we statically compile them
+# into object files. As autotools would ignore them, we need to add them to
+# EXTRA_DIST.
+# The program that converts the shaders into C-source files is "genshader". It's
+# pretty simple and just creates a string with the shader source as content.
+#
+
+EXTRA_DIST += \
+	src/output_shader_def.vert \
+	src/output_shader_def.frag \
+	src/output_shader_tex.vert \
+	src/output_shader_tex.frag
+CLEANFILES += \
+	src/output_shaders.c
 
 nodist_genshader_SOURCES = \
 	src/genshader.c
 
-src/output_shaders.c: src/output_shader_def.vert src/output_shader_def.frag \
-	src/output_shader_tex.vert src/output_shader_tex.frag genshader$(EXEEXT)
+src/output_shaders.c: \
+		src/output_shader_def.vert \
+		src/output_shader_def.frag \
+		src/output_shader_tex.vert \
+		src/output_shader_tex.frag \
+		genshader$(EXEEXT)
 	./genshader$(EXEEXT)
+
+#
+# libkmscon-core
+# This static library contains all the source files used in kmscon. We build
+# them as separate library to allow linking them to the test programs.
+# Only "main.c" is not included here as it contains the main() function.
+#
 
 nodist_libkmscon_core_la_SOURCES = \
 	src/output_shaders.c
@@ -66,11 +128,13 @@ libkmscon_core_la_SOURCES = \
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
-	external/imKStoUCS.c external/imKStoUCS.h \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c \
 	src/uterm_input_xkb.c
 else
 libkmscon_core_la_SOURCES += \
-	external/imKStoUCS.c external/imKStoUCS.h \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c \
 	src/uterm_input_dumb.c
 endif
 
@@ -109,6 +173,14 @@ libkmscon_core_la_LIBADD = \
 	$(GLIB_LIBS) \
 	-lpthread
 
+#
+# libkmscon-static
+# This static library contains all small helpers that are used in several other
+# libraries and programs that are part of kmscon. To avoid putting these small
+# pieces into a library and thus having to keep backwards compatibility, we
+# simply link them statically into all other libraries/programs.
+#
+
 libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
 	src/static_misc.h \
@@ -119,6 +191,13 @@ libkmscon_static_la_CPPFLAGS = \
 	$(GLIB_CFLAGS)
 libkmscon_static_la_LIBADD = \
 	$(GLIB_LIBS)
+
+#
+# Binaries
+# These are the sources for the main binaries and test programs. They mostly
+# consists of a single source file only and include all the libraries that are
+# built as part of kmscon.
+#
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = libkmscon-core.la libkmscon-static.la
