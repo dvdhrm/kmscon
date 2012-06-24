@@ -495,6 +495,17 @@ void log_format(const char *file,
 	errno = saved_errno;
 }
 
+void log_llog(const char *file,
+	      int line,
+	      const char *func,
+	      const char *subs,
+	      unsigned int sev,
+	      const char *format,
+	      va_list args)
+{
+	log_submit(file, line, func, NULL, subs, sev, format, args);
+}
+
 void log_print_init(const char *appname)
 {
 	if (!appname)

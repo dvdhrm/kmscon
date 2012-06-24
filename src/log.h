@@ -156,6 +156,10 @@ void log_clean_filter();
  * log_format:
  * Same as log_submit but first converts the arguments into a va_list object.
  *
+ * log_llog:
+ * Same as log_submit but used as connection to llog. It uses the default config
+ * for every message.
+ *
  * log_set_file(file):
  * This opens the file specified by \file and redirects all new messages to this
  * file. If \file is NULL, then the default is used which is stderr.
@@ -189,6 +193,14 @@ void log_format(const char *file,
 		unsigned int sev,
 		const char *format,
 		...);
+
+void log_llog(const char *file,
+	      int line,
+	      const char *func,
+	      const char *subs,
+	      unsigned int sev,
+	      const char *format,
+	      va_list args);
 
 int log_set_file(const char *file);
 void log_print_init(const char *appname);
