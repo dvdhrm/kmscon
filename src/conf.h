@@ -53,6 +53,8 @@ struct conf_obj {
 	int silent;
 	/* enter new VT directly */
 	int switchvt;
+	/* use framebuffers instead of DRM */
+	int use_fbdev;
 
 	/* input KBD layout */
 	const char *xkb_layout;

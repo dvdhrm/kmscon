@@ -151,15 +151,23 @@ static void seat_free(struct kmscon_seat *seat)
 
 static void seat_add_video(struct kmscon_seat *seat,
 			   struct uterm_monitor_dev *dev,
+			   unsigned int type,
 			   const char *node)
 {
 	int ret;
+	unsigned int mode;
 
 	if (seat->video)
 		return;
+	if ((type == UTERM_MONITOR_FBDEV) != !!conf_global.use_fbdev)
+		return;
 
-	ret = uterm_video_new(&seat->video, seat->app->eloop, UTERM_VIDEO_DRM,
-			      node);
+	if (conf_global.use_fbdev)
+		mode = UTERM_VIDEO_FBDEV;
+	else
+		mode = UTERM_VIDEO_DRM;
+
+	ret = uterm_video_new(&seat->video, seat->app->eloop, mode, node);
 	if (ret)
 		return;
 
@@ -211,8 +219,10 @@ static void monitor_event(struct uterm_monitor *mon,
 		seat = ev->seat_data;
 		if (!seat)
 			break;
-		if (ev->dev_type == UTERM_MONITOR_DRM)
-			seat_add_video(seat, ev->dev, ev->dev_node);
+		if (ev->dev_type == UTERM_MONITOR_DRM ||
+		    ev->dev_type == UTERM_MONITOR_FBDEV)
+			seat_add_video(seat, ev->dev, ev->dev_type,
+				       ev->dev_node);
 		else if (ev->dev_type == UTERM_MONITOR_INPUT)
 			uterm_input_add_dev(seat->input, ev->dev_node);
 		break;
@@ -220,7 +230,8 @@ static void monitor_event(struct uterm_monitor *mon,
 		seat = ev->seat_data;
 		if (!seat)
 			break;
-		if (ev->dev_type == UTERM_MONITOR_DRM)
+		if (ev->dev_type == UTERM_MONITOR_DRM ||
+		    ev->dev_type == UTERM_MONITOR_FBDEV)
 			seat_rm_video(seat, ev->dev);
 		else if (ev->dev_type == UTERM_MONITOR_INPUT)
 			uterm_input_remove_dev(seat->input, ev->dev_node);

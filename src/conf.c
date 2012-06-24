@@ -67,6 +67,9 @@ static void print_help()
 		"\t-t, --term <TERM>             Value of the TERM environment variable\n"
 		"\t                              for the child process\n"
 		"\n"
+		"Video Options:\n"
+		"\t    --fbdev                   Use fbdev instead of DRM\n"
+		"\n"
 		"Input Device Options:\n"
 		"\t    --xkb-layout <layout>     Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant>   Set XkbVariant for input devices\n"
@@ -84,6 +87,7 @@ int conf_parse_argv(int argc, char **argv)
 		{ "debug", no_argument, &conf_global.debug, 1 },
 		{ "silent", no_argument, &conf_global.silent, 1 },
 		{ "switchvt", no_argument, NULL, 's' },
+		{ "fbdev", no_argument, &conf_global.use_fbdev, 1 },
 		{ "xkb-layout", required_argument, NULL, 1001 },
 		{ "xkb-variant", required_argument, NULL, 1002 },
 		{ "xkb-options", required_argument, NULL, 1003 },
