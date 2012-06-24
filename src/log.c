@@ -375,14 +375,14 @@ int log_set_file(const char *file)
  */
 
 static const char *log__sev2str[] = {
-	"DEBUG",		/* LOG_DEBUG */
-	"INFO",			/* LOG_INFO */
-	"NOTICE",		/* LOG_NOTICE */
-	"WARNING",		/* LOG_WARNING */
-	"ERROR", 		/* LOG_ERROR */
-	"CRITICAL", 		/* LOG_CRITICAL */
-	"ALERT",		/* LOG_ALERT */
-	"FATAL", 		/* LOG_FATAL */
+	[LOG_DEBUG] = "DEBUG",
+	[LOG_INFO] = "INFO",
+	[LOG_NOTICE] = "NOTICE",
+	[LOG_WARNING] = "WARNING",
+	[LOG_ERROR] = "ERROR",
+	[LOG_CRITICAL] = "CRITICAL",
+	[LOG_ALERT] = "ALERT",
+	[LOG_FATAL] = "FATAL",
 };
 
 static void log__submit(const char *file,

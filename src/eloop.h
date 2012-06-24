@@ -87,7 +87,8 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm);
 
 /* fd sources */
 
-int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data);
+int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data,
+	      ev_log_t log);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
 
@@ -106,7 +107,7 @@ void ev_eloop_rm_fd(struct ev_fd *fd);
 /* timer sources */
 
 int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
-		 ev_timer_cb cb, void *data);
+		 ev_timer_cb cb, void *data, ev_log_t log);
 void ev_timer_ref(struct ev_timer *timer);
 void ev_timer_unref(struct ev_timer *timer);
 
@@ -125,7 +126,8 @@ void ev_eloop_rm_timer(struct ev_timer *timer);
 
 /* counter sources */
 
-int ev_counter_new(struct ev_counter **out, ev_counter_cb, void *data);
+int ev_counter_new(struct ev_counter **out, ev_counter_cb, void *data,
+		   ev_log_t log);
 void ev_counter_ref(struct ev_counter *cnt);
 void ev_counter_unref(struct ev_counter *cnt);
 

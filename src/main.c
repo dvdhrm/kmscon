@@ -259,7 +259,7 @@ static int setup_app(struct kmscon_app *app)
 {
 	int ret;
 
-	ret = ev_eloop_new(&app->eloop);
+	ret = ev_eloop_new(&app->eloop, log_llog);
 	if (ret)
 		goto err_app;
 
