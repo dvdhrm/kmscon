@@ -44,6 +44,7 @@
 #include "log.h"
 #include "misc.h"
 #include "unicode.h"
+#include "uterm.h"
 
 #define LOG_SUBSYSTEM "font_pango"
 
@@ -502,6 +503,7 @@ void font_buffer_free(struct font_buffer *buf)
 struct font_screen {
 	struct font_buffer *buf;
 	struct gl_shader *shader;
+	struct uterm_screen *scr;
 	unsigned int tex;
 
 	unsigned int cols;
@@ -525,17 +527,22 @@ struct font_screen {
 static int screen_new(struct font_screen **out, struct font_buffer *buf,
 			const struct font_attr *attr, bool absolute,
 			unsigned int cols, unsigned int rows,
-			struct gl_shader *shader)
+			struct uterm_screen *scr, struct gl_shader *shader)
 {
 	struct font_screen *screen;
 	int ret;
 	struct font_attr att;
 
-	if (!out || !buf || !attr)
+	if (!out || !buf || !attr || !scr)
 		return -EINVAL;
 	if (absolute && (!cols || !rows))
 		return -EINVAL;
 	if (!buf->width || !buf->height || !buf->stride || !buf->data)
+		return -EINVAL;
+
+	if (uterm_screen_use(scr) == -EOPNOTSUPP)
+		shader = NULL;
+	else if (!shader)
 		return -EINVAL;
 
 	log_debug("new screen with size %ux%u for table %ux%u",
@@ -546,6 +553,7 @@ static int screen_new(struct font_screen **out, struct font_buffer *buf,
 		return -ENOMEM;
 	memset(screen, 0, sizeof(*screen));
 	screen->buf = buf;
+	screen->scr = scr;
 	screen->shader = shader;
 	screen->absolute = absolute;
 	attr_cpy(&att, attr, false);
@@ -607,6 +615,7 @@ static int screen_new(struct font_screen **out, struct font_buffer *buf,
 	screen->advance_y = screen->faces.normal->height;
 
 	screen->tex = gl_tex_new();
+	uterm_screen_ref(screen->scr);
 	gl_shader_ref(screen->shader);
 	*out = screen;
 	return 0;
@@ -623,17 +632,17 @@ err_surface:
 
 int font_screen_new(struct font_screen **out, struct font_buffer *buf,
 			const struct font_attr *attr,
-			struct gl_shader *shader)
+			struct uterm_screen *scr, struct gl_shader *shader)
 {
-	return screen_new(out, buf, attr, false, 0, 0, shader);
+	return screen_new(out, buf, attr, false, 0, 0, scr, shader);
 }
 
 int font_screen_new_fixed(struct font_screen **out, struct font_buffer *buf,
 			const struct font_attr *attr,
 			unsigned int cols, unsigned int rows,
-			struct gl_shader *shader)
+			struct uterm_screen *scr, struct gl_shader *shader)
 {
-	return screen_new(out, buf, attr, true, cols, rows, shader);
+	return screen_new(out, buf, attr, true, cols, rows, scr, shader);
 }
 
 void font_screen_free(struct font_screen *screen)
@@ -648,6 +657,7 @@ void font_screen_free(struct font_screen *screen)
 	cairo_surface_destroy(screen->surface);
 	gl_tex_free(screen->tex);
 	gl_shader_unref(screen->shader);
+	uterm_screen_unref(screen->scr);
 	free(screen);
 }
 
@@ -755,13 +765,27 @@ int font_screen_draw_perform(struct font_screen *screen, float *m)
 {
 	static const float ver[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
 	static const float tex[] = { 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1 };
+	const struct uterm_video_buffer buf = {
+		.data = (void*)screen->buf->data,
+		.width = screen->buf->width,
+		.height = screen->buf->height,
+		.stride = screen->buf->stride,
+		.bpp = 4,
+	};
 
 	if (!screen)
 		return -EINVAL;
 
-	gl_tex_load(screen->tex, screen->buf->width, screen->buf->stride,
-			screen->buf->height, screen->buf->data);
-	gl_shader_draw_tex(screen->shader, ver, tex, 6, screen->tex, m);
+	if (screen->shader) {
+		gl_tex_load(screen->tex, screen->buf->width,
+			    screen->buf->stride, screen->buf->height,
+			    screen->buf->data);
+		gl_shader_draw_tex(screen->shader, ver, tex, 6, screen->tex, m);
+	} else {
+		uterm_screen_blit(screen->scr, &buf, 0, 0,
+				  buf.width, buf.height);
+	}
+
 	cairo_restore(screen->cr);
 
 	return 0;

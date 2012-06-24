@@ -97,15 +97,14 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 		screen = iter->screen;
 
 		ret = uterm_screen_use(screen);
-		if (ret)
-			continue;
-
-		gl_viewport(screen);
-		if (cflags & KMSCON_CONSOLE_INVERSE)
-			glClearColor(1.0, 1.0, 1.0, 1.0);
-		else
-			glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		if (!ret) {
+			gl_viewport(screen);
+			if (cflags & KMSCON_CONSOLE_INVERSE)
+				glClearColor(1.0, 1.0, 1.0, 1.0);
+			else
+				glClearColor(0.0, 0.0, 0.0, 1.0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
 		kmscon_console_draw(term->console, iter->fscr);
 		uterm_screen_swap(screen);
 	}
@@ -149,8 +148,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_screen;
 
 	ret = font_screen_new_fixed(&scr->fscr, scr->buf, FONT_ATTR(NULL, 12, 0),
-				80, 24,
-				term->shader);
+				80, 24, scr->screen, term->shader);
 	if (ret)
 		goto err_buf;
 

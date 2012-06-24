@@ -67,6 +67,7 @@
 #include <stdlib.h>
 #include "gl.h"
 #include "unicode.h"
+#include "uterm.h"
 
 struct kmscon_font_factory;
 struct kmscon_font;
@@ -140,11 +141,11 @@ struct font_screen;
 
 int font_screen_new(struct font_screen **out, struct font_buffer *buf,
 			const struct font_attr *attr,
-			struct gl_shader *shader);
+			struct uterm_screen *scr, struct gl_shader *shader);
 int font_screen_new_fixed(struct font_screen **out, struct font_buffer *buf,
 			const struct font_attr *attr,
 			unsigned int cols, unsigned int rows,
-			struct gl_shader *shader);
+			struct uterm_screen *scr, struct gl_shader *shader);
 void font_screen_free(struct font_screen *screen);
 
 unsigned int font_screen_columns(struct font_screen *screen);
