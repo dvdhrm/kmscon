@@ -138,4 +138,43 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 #define llog_err llog_error
 #define llog_crit llog_critical
 
+/*
+ * Default log messages
+ * These macros can be used to produce default log messages. You can use them
+ * directly in an "return" statement. The "v" variants automatically cast the
+ * result to void so it can be used in return statements inside of void
+ * functions. The "d" variants use the logging object directly as the parent
+ * might not exist, yet.
+ *
+ * Most of the messages work only if debugging is enabled. This is, because they
+ * are used in debug paths and would slow down normal applications.
+ */
+
+#define llog_dEINVAL(obj) \
+	(llog_ddebug((obj), "invalid arguments"), -EINVAL)
+#define llog_EINVAL(obj) \
+	(llog_dEINVAL((obj)->llog))
+#define llog_vEINVAL(obj) \
+	((void)llog_EINVAL(obj))
+#define llog_vdEINVAL(obj) \
+	((void)llog_dEINVAL(obj))
+
+#define llog_dEFAULT(obj) \
+	(llog_ddebug((obj), "operation failed"), -EFAULT)
+#define llog_EFAULT(obj) \
+	(llog_dEFAULT((obj)->llog))
+#define llog_vEFAULT(obj) \
+	((void)llog_EFAULT(obj))
+#define llog_vdEFAULT(obj) \
+	((void)llog_dEFAULT(obj))
+
+#define llog_dENOMEM(obj) \
+	(llog_ddebug((obj), "memory allocation failed"), -ENOMEM)
+#define llog_ENOMEM(obj) \
+	(llog_dENOMEM((obj)->llog))
+#define llog_vENOMEM(obj) \
+	((void)llog_ENOMEM(obj))
+#define llog_vdENOMEM(obj) \
+	((void)llog_dENOMEM(obj))
+
 #endif /* LLOG_H_INCLUDED */
