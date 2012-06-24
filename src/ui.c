@@ -53,6 +53,7 @@ static void video_event(struct uterm_video *video,
 {
 	struct kmscon_ui *ui = data;
 	int ret;
+	struct uterm_display *disp;
 
 	if (ev->action == UTERM_NEW) {
 		if (uterm_display_get_state(ev->display) == UTERM_DISPLAY_INACTIVE) {
@@ -64,6 +65,14 @@ static void video_event(struct uterm_video *video,
 				return;
 		}
 		kmscon_terminal_add_display(ui->term, ev->display);
+	} else if (ev->action == UTERM_WAKE_UP) {
+		disp = uterm_video_get_displays(video);
+		while (disp) {
+			ev->display = disp;
+			ev->action = UTERM_NEW;
+			video_event(video, ev, data);
+			disp = uterm_display_next(disp);
+		}
 	}
 }
 
