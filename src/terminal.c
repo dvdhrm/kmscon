@@ -175,6 +175,7 @@ err_free:
 
 static void free_screen(struct screen *scr)
 {
+	log_debug("destroying terminal screen %p", scr);
 	font_screen_free(scr->fscr);
 	font_buffer_free(scr->buf);
 	uterm_screen_unref(scr->screen);
