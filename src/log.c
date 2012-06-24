@@ -95,6 +95,7 @@ const struct log_config LOG_CONFIG = {
 		[LOG_WARNING] = 2,
 		[LOG_ERROR] = 2,
 		[LOG_CRITICAL] = 2,
+		[LOG_ALERT] = 2,
 		[LOG_FATAL] = 2,
 	}
 };
@@ -134,6 +135,7 @@ static struct log_config log__gconfig = {
 		[LOG_WARNING] = 1,
 		[LOG_ERROR] = 1,
 		[LOG_CRITICAL] = 1,
+		[LOG_ALERT] = 1,
 		[LOG_FATAL] = 1,
 	}
 };
@@ -295,7 +297,7 @@ static void log__submit(const char *file,
 			const char *func,
 			const struct log_config *config,
 			const char *subs,
-			enum log_severity sev,
+			unsigned int sev,
 			const char *format,
 			va_list args);
 
@@ -304,7 +306,7 @@ static void log__format(const char *file,
 			const char *func,
 			const struct log_config *config,
 			const char *subs,
-			enum log_severity sev,
+			unsigned int sev,
 			const char *format,
 			...);
 
@@ -379,6 +381,7 @@ static const char *log__sev2str[] = {
 	"WARNING",		/* LOG_WARNING */
 	"ERROR", 		/* LOG_ERROR */
 	"CRITICAL", 		/* LOG_CRITICAL */
+	"ALERT",		/* LOG_ALERT */
 	"FATAL", 		/* LOG_FATAL */
 };
 
@@ -387,7 +390,7 @@ static void log__submit(const char *file,
 			const char *func,
 			const struct log_config *config,
 			const char *subs,
-			enum log_severity sev,
+			unsigned int sev,
 			const char *format,
 			va_list args)
 {
@@ -442,7 +445,7 @@ static void log__format(const char *file,
 			const char *func,
 			const struct log_config *config,
 			const char *subs,
-			enum log_severity sev,
+			unsigned int sev,
 			const char *format,
 			...)
 {
@@ -458,7 +461,7 @@ void log_submit(const char *file,
 		const char *func,
 		const struct log_config *config,
 		const char *subs,
-		enum log_severity sev,
+		unsigned int sev,
 		const char *format,
 		va_list args)
 {
@@ -476,7 +479,7 @@ void log_format(const char *file,
 		const char *func,
 		const struct log_config *config,
 		const char *subs,
-		enum log_severity sev,
+		unsigned int sev,
 		const char *format,
 		...)
 {

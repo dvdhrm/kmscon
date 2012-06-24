@@ -95,13 +95,14 @@
  */
 
 enum log_severity {
-	LOG_DEBUG,
-	LOG_INFO,
-	LOG_NOTICE,
-	LOG_WARNING,
-	LOG_ERROR,
-	LOG_CRITICAL,
-	LOG_FATAL,
+	LOG_FATAL = 0,
+	LOG_ALERT = 1,
+	LOG_CRITICAL = 2,
+	LOG_ERROR = 3,
+	LOG_WARNING = 4,
+	LOG_NOTICE = 5,
+	LOG_INFO = 6,
+	LOG_DEBUG = 7,
 	LOG_SEV_NUM,
 };
 
@@ -118,7 +119,7 @@ struct log_config {
 	int sev[LOG_SEV_NUM];
 };
 
-#define LOG_CONFIG_ALL(debug, info, notice, warning, error, critical, fatal) \
+#define LOG_CONFIG_ALL(debug, info, notice, warning, error, critical, alert, fatal) \
 	(struct log_config){ .sev = { \
 		[LOG_DEBUG] = (debug), \
 		[LOG_INFO] = (info), \
@@ -126,15 +127,16 @@ struct log_config {
 		[LOG_WARNING] = (warning), \
 		[LOG_ERROR] = (error), \
 		[LOG_CRITICAL] = (critical), \
+		[LOG_ALERT] = (alert), \
 		[LOG_FATAL] = (fatal), \
 	} }
 
 #define LOG_CONFIG_DEBUG(debug) \
-	LOG_CONFIG_ALL((debug), 2, 2, 2, 2, 2, 2)
+	LOG_CONFIG_ALL((debug), 2, 2, 2, 2, 2, 2, 2)
 #define LOG_CONFIG_INFO(debug, info) \
-	LOG_CONFIG_ALL((debug), (info), 2, 2, 2, 2, 2)
+	LOG_CONFIG_ALL((debug), (info), 2, 2, 2, 2, 2, 2)
 #define LOG_CONFIG_WARNING(debug, info, notice, warning) \
-	LOG_CONFIG_ALL((debug), (info), (notice), (warning), 2, 2, 2)
+	LOG_CONFIG_ALL((debug), (info), (notice), (warning), 2, 2, 2, 2)
 
 void log_set_config(const struct log_config *config);
 int log_add_filter(const struct log_filter *filter,
@@ -175,7 +177,7 @@ void log_submit(const char *file,
 		const char *func,
 		const struct log_config *config,
 		const char *subs,
-		enum log_severity sev,
+		unsigned int sev,
 		const char *format,
 		va_list args);
 
@@ -184,7 +186,7 @@ void log_format(const char *file,
 		const char *func,
 		const struct log_config *config,
 		const char *subs,
-		enum log_severity sev,
+		unsigned int sev,
 		const char *format,
 		...);
 
@@ -261,6 +263,8 @@ extern const char *LOG_SUBSYSTEM;
 	log_printf(LOG_ERROR, (format), ##__VA_ARGS__)
 #define log_critical(format, ...) \
 	log_printf(LOG_CRITICAL, (format), ##__VA_ARGS__)
+#define log_alert(format, ...) \
+	log_printf(LOG_ALERT, (format), ##__VA_ARGS__)
 #define log_fatal(format, ...) \
 	log_printf(LOG_FATAL, (format), ##__VA_ARGS__)
 
