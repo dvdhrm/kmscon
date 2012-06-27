@@ -138,6 +138,8 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
+	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
+
 	if (key_state == KEY_PRESSED)
 		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 	else if (key_state == KEY_RELEASED)
@@ -149,7 +151,6 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	if (key_state == KEY_REPEATED && !xkb_key_repeats(keymap, keycode))
 		return -ENOKEY;
 
-	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
 	if (num_keysyms < 0)
 		return -ENOKEY;
 
