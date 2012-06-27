@@ -126,6 +126,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 			struct uterm_input_event *out)
 {
 	struct xkb_state *state;
+	struct xkb_keymap *keymap;
 	xkb_keycode_t keycode;
 	const xkb_keysym_t *keysyms;
 	int num_keysyms;
@@ -134,6 +135,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 		return -EINVAL;
 
 	state = kbd->state;
+	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
 	if (key_state == KEY_PRESSED)
@@ -141,11 +143,10 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	else if (key_state == KEY_RELEASED)
 		xkb_state_update_key(state, keycode, XKB_KEY_UP);
 
-	/*
-	 * TODO: Add support in xkbcommon to query whether the key
-	 * should repeat or not.
-	 */
 	if (key_state == KEY_RELEASED)
+		return -ENOKEY;
+
+	if (key_state == KEY_REPEATED && !xkb_key_repeats(keymap, keycode))
 		return -ENOKEY;
 
 	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
