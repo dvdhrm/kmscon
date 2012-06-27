@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xkbcommon/xkbcommon.h>
-#include "imKStoUCS.h"
 #include "log.h"
 #include "uterm.h"
 #include "uterm_internal.h"
@@ -161,7 +160,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	out->keycode = code;
 	out->keysym = keysyms[0];
 	out->mods = get_effective_modmask(state);;
-	out->unicode = KeysymToUcs4(out->keysym) ?: UTERM_INPUT_INVALID;
+	out->unicode = xkb_keysym_to_utf32(out->keysym) ?: UTERM_INPUT_INVALID;
 
 	return 0;
 }
