@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xkbcommon/xkbcommon.h>
-#include "imKStoUCS.h"
 #include "log.h"
 #include "uterm.h"
 #include "uterm_internal.h"
@@ -127,6 +126,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 			struct uterm_input_event *out)
 {
 	struct xkb_state *state;
+	struct xkb_keymap *keymap;
 	xkb_keycode_t keycode;
 	const xkb_keysym_t *keysyms;
 	int num_keysyms;
@@ -135,21 +135,22 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 		return -EINVAL;
 
 	state = kbd->state;
+	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
+
+	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
 
 	if (key_state == KEY_PRESSED)
 		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 	else if (key_state == KEY_RELEASED)
 		xkb_state_update_key(state, keycode, XKB_KEY_UP);
 
-	/*
-	 * TODO: Add support in xkbcommon to query whether the key
-	 * should repeat or not.
-	 */
 	if (key_state == KEY_RELEASED)
 		return -ENOKEY;
 
-	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
+	if (key_state == KEY_REPEATED && !xkb_key_repeats(keymap, keycode))
+		return -ENOKEY;
+
 	if (num_keysyms < 0)
 		return -ENOKEY;
 
@@ -161,7 +162,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	out->keycode = code;
 	out->keysym = keysyms[0];
 	out->mods = get_effective_modmask(state);;
-	out->unicode = KeysymToUcs4(out->keysym) ?: UTERM_INPUT_INVALID;
+	out->unicode = xkb_keysym_to_utf32(out->keysym) ?: UTERM_INPUT_INVALID;
 
 	return 0;
 }

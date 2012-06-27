@@ -67,7 +67,6 @@ libkmscon_core_la_SOURCES = \
 
 if USE_XKBCOMMON
 libkmscon_core_la_SOURCES += \
-	external/imKStoUCS.c external/imKStoUCS.h \
 	src/uterm_input_xkb.c
 else
 libkmscon_core_la_SOURCES += \
