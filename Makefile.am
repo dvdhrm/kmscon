@@ -131,13 +131,11 @@ endif
 
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(SYSTEMD_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(PANGO_CFLAGS) \
 	$(FREETYPE2_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
-	$(SYSTEMD_LIBS) \
 	$(OPENGL_LIBS) \
 	$(PANGO_LIBS) \
 	$(FREETYPE2_LIBS) \
@@ -167,12 +165,14 @@ libuterm_la_SOURCES = \
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	$(SYSTEMD_CFLAGS) \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(UDEV_CFLAGS)
 libuterm_la_LIBADD = \
+	$(SYSTEMD_LIBS) \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
