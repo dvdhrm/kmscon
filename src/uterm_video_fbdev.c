@@ -29,7 +29,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <libudev.h>
 #include <linux/fb.h>
 #include <stdbool.h>
 #include <stdlib.h>

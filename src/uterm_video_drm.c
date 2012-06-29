@@ -38,7 +38,6 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <inttypes.h>
-#include <libudev.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
