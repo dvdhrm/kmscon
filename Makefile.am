@@ -112,7 +112,6 @@ libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
 	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \
-	src/vt.c src/vt.h \
 	src/vte.c src/vte.h \
 	src/vte_charsets.c \
 	src/terminal.c src/terminal.h \
@@ -163,7 +162,8 @@ libuterm_la_SOURCES = \
 	src/uterm_video_fbdev.c \
 	src/uterm_monitor.c \
 	src/uterm_input.c \
-	src/uterm_vt.c
+	src/uterm_vt.c \
+	src/vt.c src/vt.h
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
