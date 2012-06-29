@@ -12,6 +12,7 @@ EXTRA_DIST = \
 	TODO \
 	COPYING
 CLEANFILES =
+include_HEADERS = 
 
 #
 # Build targets
@@ -36,6 +37,8 @@ noinst_PROGRAMS = \
 noinst_LTLIBRARIES = \
 	libkmscon-core.la \
 	libkmscon-static.la
+lib_LTLIBRARIES = \
+	libeloop.la
 
 #
 # Default CFlags
@@ -108,7 +111,6 @@ libkmscon_core_la_SOURCES = \
 	src/console.c src/console.h \
 	src/unicode.c src/unicode.h \
 	src/log.c src/log.h \
-	src/eloop.c src/eloop.h \
 	src/vt.c src/vt.h \
 	src/vte.c src/vte.h \
 	src/vte_charsets.c \
@@ -167,7 +169,28 @@ libkmscon_core_la_LIBADD = \
 	$(XPROTO_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	$(GLIB_LIBS) \
-	-lpthread
+	-lpthread \
+	libeloop.la
+
+#
+# libeloop
+# This library contains the whole event-loop implementation of kmscon. It is
+# compiled into a separate object to allow using it in several other programs.
+#
+
+libeloop_la_SOURCES = \
+	src/eloop.h \
+	src/eloop.c
+
+libeloop_la_CPPFLAGS = \
+	$(AM_CPPFLAGS)
+libeloop_la_LIBADD = \
+	libkmscon-static.la
+libeloop_la_LDFLAGS = \
+	-version-info 1:0:0
+
+include_HEADERS += \
+	src/eloop.h
 
 #
 # libkmscon-static
@@ -198,7 +221,10 @@ libkmscon_static_la_LIBADD = \
 #
 
 kmscon_SOURCES = src/main.c
-kmscon_LDADD = libkmscon-core.la libkmscon-static.la
+kmscon_LDADD = \
+	libeloop.la \
+	libkmscon-core.la \
+	libkmscon-static.la
 
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
