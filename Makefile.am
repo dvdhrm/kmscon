@@ -38,7 +38,8 @@ noinst_LTLIBRARIES = \
 	libkmscon-core.la \
 	libkmscon-static.la
 lib_LTLIBRARIES = \
-	libeloop.la
+	libeloop.la \
+	libuterm.la
 
 #
 # Default CFlags
@@ -116,25 +117,10 @@ libkmscon_core_la_SOURCES = \
 	src/vte_charsets.c \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
-	src/uterm.h src/uterm_internal.h \
-	src/uterm_video.c \
-	src/uterm_video_drm.c \
-	src/uterm_video_fbdev.c \
-	src/uterm_monitor.c \
-	src/uterm_input.c \
-	src/uterm_vt.c \
 	src/gl.h \
 	src/gl_math.c \
 	src/gl_shader.c \
 	src/font_pango.c
-
-if USE_XKBCOMMON
-libkmscon_core_la_SOURCES += \
-	src/uterm_input_xkb.c
-else
-libkmscon_core_la_SOURCES += \
-	src/uterm_input_dumb.c
-endif
 
 if USE_PANGO
 libkmscon_core_la_SOURCES += \
@@ -147,30 +133,72 @@ endif
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(SYSTEMD_CFLAGS) \
+	$(OPENGL_CFLAGS) \
+	$(PANGO_CFLAGS) \
+	$(FREETYPE2_CFLAGS) \
+	$(GLIB_CFLAGS)
+libkmscon_core_la_LIBADD = \
+	$(SYSTEMD_LIBS) \
+	$(OPENGL_LIBS) \
+	$(PANGO_LIBS) \
+	$(FREETYPE2_LIBS) \
+	$(GLIB_LIBS) \
+	-lpthread \
+	libeloop.la \
+	libuterm.la
+
+#
+# libuterm
+# The uterm library provides helpers to creater terminals in user-space. They
+# are not limited to text-based terminals but rather provide graphics contexts
+# so arbitrary output can be displayed. Additionally, they provide VT
+# abstractions and an input layer
+#
+
+libuterm_la_SOURCES = \
+	src/uterm.h \
+	src/uterm_internal.h \
+	src/uterm_video.c \
+	src/uterm_video_drm.c \
+	src/uterm_video_fbdev.c \
+	src/uterm_monitor.c \
+	src/uterm_input.c \
+	src/uterm_vt.c
+
+libuterm_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
-	$(PANGO_CFLAGS) \
-	$(UDEV_CFLAGS) \
-	$(FREETYPE2_CFLAGS) \
-	$(XPROTO_CFLAGS) \
-	$(XKBCOMMON_CFLAGS) \
-	$(GLIB_CFLAGS)
-libkmscon_core_la_LIBADD = \
-	$(SYSTEMD_LIBS) \
+	$(UDEV_CFLAGS)
+libuterm_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
 	$(OPENGL_LIBS) \
-	$(PANGO_LIBS) \
 	$(UDEV_LIBS) \
-	$(FREETYPE2_LIBS) \
-	$(XPROTO_LIBS) \
-	$(XKBCOMMON_LIBS) \
-	$(GLIB_LIBS) \
-	-lpthread \
+	libkmscon-static.la \
 	libeloop.la
+libuterm_la_LDFLAGS = \
+	-version-info 1:0:0
+
+if USE_XKBCOMMON
+libuterm_la_SOURCES += \
+	src/uterm_input_xkb.c
+libuterm_la_CPPFLAGS += \
+	$(XKBCOMMON_CFLAGS) \
+	$(XPROTO_CFLAGS)
+libuterm_la_LIBADD += \
+	$(XPROTO_LIBS) \
+	$(XKBCOMMON_LIBS)
+else
+libuterm_la_SOURCES += \
+	src/uterm_input_dumb.c
+endif
+
+include_HEADERS += \
+	src/uterm.h
 
 #
 # libeloop
@@ -222,6 +250,7 @@ libkmscon_static_la_LIBADD = \
 
 kmscon_SOURCES = src/main.c
 kmscon_LDADD = \
+	libuterm.la \
 	libeloop.la \
 	libkmscon-core.la \
 	libkmscon-static.la
