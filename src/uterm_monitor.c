@@ -77,6 +77,104 @@ struct uterm_monitor {
 	struct kmscon_dlist seats;
 };
 
+static void monitor_new_seat(struct uterm_monitor *mon, const char *name);
+static void monitor_free_seat(struct uterm_monitor_seat *seat);
+
+static void monitor_refresh_seats(struct uterm_monitor *mon)
+{
+	char **seats;
+	int num, i;
+	struct kmscon_dlist *iter, *tmp;
+	struct uterm_monitor_seat *seat;
+
+	num = sd_get_seats(&seats);
+	if (num < 0) {
+		log_warn("cannot read seat information from systemd: %d", num);
+		return;
+	}
+
+	/* Remove all seats that are no longer present */
+	kmscon_dlist_for_each_safe(iter, tmp, &mon->seats) {
+		seat = kmscon_dlist_entry(iter, struct uterm_monitor_seat,
+						list);
+		for (i = 0; i < num; ++i) {
+			if (!strcmp(seats[i], seat->name))
+				break;
+		}
+
+		if (i < num)
+			seats[i] = NULL;
+		else
+			monitor_free_seat(seat);
+	}
+
+	/* Add all new seats */
+	for (i = 0; i < num; ++i) {
+		if (seats[i])
+			monitor_new_seat(mon, seats[i]);
+		free(seats[i]);
+	}
+
+	free(seats);
+}
+
+static void monitor_sd_event(struct ev_fd *fd,
+				int mask,
+				void *data)
+{
+	struct uterm_monitor *mon = data;
+
+	if (mask & (EV_HUP | EV_ERR)) {
+		log_warn("systemd login monitor closed unexpectedly");
+		return;
+	}
+
+	sd_login_monitor_flush(mon->sd_mon);
+	ev_eloop_flush_fd(mon->eloop, mon->sd_mon_fd);
+	monitor_refresh_seats(mon);
+}
+
+static void monitor_sd_poll(struct uterm_monitor *mon)
+{
+	monitor_sd_event(mon->sd_mon_fd, EV_READABLE, mon);
+}
+
+static int monitor_sd_init(struct uterm_monitor *mon)
+{
+	int ret, sfd;
+
+	ret = sd_login_monitor_new("seat", &mon->sd_mon);
+	if (ret) {
+		errno = -ret;
+		log_err("cannot create systemd login monitor (%d): %m", ret);
+		return -EFAULT;
+	}
+
+	sfd = sd_login_monitor_get_fd(mon->sd_mon);
+	if (sfd < 0) {
+		log_err("cannot get systemd login monitor fd");
+		ret = -EFAULT;
+		goto err_sd;
+	}
+
+	ret = ev_eloop_new_fd(mon->eloop, &mon->sd_mon_fd, sfd, EV_READABLE,
+				monitor_sd_event, mon);
+	if (ret)
+		goto err_sd;
+
+	return 0;
+
+err_sd:
+	sd_login_monitor_unref(mon->sd_mon);
+	return ret;
+}
+
+static void monitor_sd_deinit(struct uterm_monitor *mon)
+{
+	ev_eloop_rm_fd(mon->sd_mon_fd);
+	sd_login_monitor_unref(mon->sd_mon);
+}
+
 static void seat_new_dev(struct uterm_monitor_seat *seat,
 				unsigned int type,
 				const char *node)
@@ -222,60 +320,6 @@ static void monitor_free_seat(struct uterm_monitor_seat *seat)
 
 	free(seat->name);
 	free(seat);
-}
-
-static void monitor_refresh_seats(struct uterm_monitor *mon)
-{
-	char **seats;
-	int num, i;
-	struct kmscon_dlist *iter, *tmp;
-	struct uterm_monitor_seat *seat;
-
-	num = sd_get_seats(&seats);
-	if (num < 0) {
-		log_warn("cannot read seat information from systemd: %d", num);
-		return;
-	}
-
-	/* Remove all seats that are no longer present */
-	kmscon_dlist_for_each_safe(iter, tmp, &mon->seats) {
-		seat = kmscon_dlist_entry(iter, struct uterm_monitor_seat,
-						list);
-		for (i = 0; i < num; ++i) {
-			if (!strcmp(seats[i], seat->name))
-				break;
-		}
-
-		if (i < num)
-			seats[i] = NULL;
-		else
-			monitor_free_seat(seat);
-	}
-
-	/* Add all new seats */
-	for (i = 0; i < num; ++i) {
-		if (seats[i])
-			monitor_new_seat(mon, seats[i]);
-		free(seats[i]);
-	}
-
-	free(seats);
-}
-
-static void monitor_sd_event(struct ev_fd *fd,
-				int mask,
-				void *data)
-{
-	struct uterm_monitor *mon = data;
-
-	if (mask & (EV_HUP | EV_ERR)) {
-		log_warn("systemd login monitor closed unexpectedly");
-		return;
-	}
-
-	sd_login_monitor_flush(mon->sd_mon);
-	ev_eloop_flush_fd(mon->eloop, mon->sd_mon_fd);
-	monitor_refresh_seats(mon);
 }
 
 static int get_card_id(struct udev_device *dev)
@@ -491,7 +535,7 @@ static void monitor_udev_event(struct ev_fd *fd,
 	 * monitor_sd_event() flushes the sd-fd so we will never refresh seat
 	 * values twice in a single epoll-loop.
 	 */
-	monitor_sd_event(mon->sd_mon_fd, EV_READABLE, mon);
+	monitor_sd_poll(mon);
 
 	while (true) {
 		/* we use non-blocking udev monitor so ignore errors */
@@ -519,7 +563,7 @@ int uterm_monitor_new(struct uterm_monitor **out,
 			void *data)
 {
 	struct uterm_monitor *mon;
-	int ret, sfd, ufd, set;
+	int ret, ufd, set;
 
 	if (!out || !eloop || !cb)
 		return -EINVAL;
@@ -534,31 +578,15 @@ int uterm_monitor_new(struct uterm_monitor **out,
 	mon->data = data;
 	kmscon_dlist_init(&mon->seats);
 
-	ret = sd_login_monitor_new("seat", &mon->sd_mon);
-	if (ret) {
-		errno = -ret;
-		log_err("cannot create systemd login monitor (%d): %m", ret);
-		ret = -EFAULT;
-		goto err_free;
-	}
-
-	sfd = sd_login_monitor_get_fd(mon->sd_mon);
-	if (sfd < 0) {
-		log_err("cannot get systemd login monitor fd");
-		ret = -EFAULT;
-		goto err_sd;
-	}
-
-	ret = ev_eloop_new_fd(mon->eloop, &mon->sd_mon_fd, sfd, EV_READABLE,
-				monitor_sd_event, mon);
+	ret = monitor_sd_init(mon);
 	if (ret)
-		goto err_sd;
+		goto err_free;
 
 	mon->udev = udev_new();
 	if (!mon->udev) {
 		log_err("cannot create udev object");
 		ret = -EFAULT;
-		goto err_sd_fd;
+		goto err_sd;
 	}
 
 	mon->umon = udev_monitor_new_from_netlink(mon->udev, "udev");
@@ -638,10 +666,8 @@ err_umon:
 	udev_monitor_unref(mon->umon);
 err_udev:
 	udev_unref(mon->udev);
-err_sd_fd:
-	ev_eloop_rm_fd(mon->sd_mon_fd);
 err_sd:
-	sd_login_monitor_unref(mon->sd_mon);
+	monitor_sd_deinit(mon);
 err_free:
 	free(mon);
 	return ret;
@@ -672,8 +698,7 @@ void uterm_monitor_unref(struct uterm_monitor *mon)
 	ev_eloop_rm_fd(mon->umon_fd);
 	udev_monitor_unref(mon->umon);
 	udev_unref(mon->udev);
-	ev_eloop_rm_fd(mon->sd_mon_fd);
-	sd_login_monitor_unref(mon->sd_mon);
+	monitor_sd_deinit(mon);
 	ev_eloop_unref(mon->eloop);
 	free(mon);
 }
