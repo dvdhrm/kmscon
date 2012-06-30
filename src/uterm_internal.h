@@ -142,7 +142,6 @@ static const struct video_ops drm_video_ops;
 
 /* fbdev */
 
-#define UTERM_HAVE_FBDEV /* TODO: move to autoconf */
 #ifdef UTERM_HAVE_FBDEV
 
 #include <linux/fb.h>

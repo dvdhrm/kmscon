@@ -121,22 +121,14 @@ libkmscon_core_la_SOURCES = \
 	src/gl_shader.c \
 	src/font_pango.c
 
-if USE_PANGO
-libkmscon_core_la_SOURCES += \
-	src/font_pango.c src/font.h
-else
-libkmscon_core_la_SOURCES += \
-	src/font_freetype.c src/font.h
-endif
-
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(OPENGL_CFLAGS) \
+	$(OPENGLES2_CFLAGS) \
 	$(PANGO_CFLAGS) \
 	$(FREETYPE2_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
-	$(OPENGL_LIBS) \
+	$(OPENGLES2_LIBS) \
 	$(PANGO_LIBS) \
 	$(FREETYPE2_LIBS) \
 	$(GLIB_LIBS) \
@@ -156,12 +148,11 @@ libuterm_la_SOURCES = \
 	src/uterm.h \
 	src/uterm_internal.h \
 	src/uterm_video.c \
-	src/uterm_video_drm.c \
-	src/uterm_video_fbdev.c \
 	src/uterm_monitor.c \
 	src/uterm_input.c \
 	src/uterm_vt.c \
-	src/vt.c src/vt.h
+	src/vt.h \
+	src/vt.c
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
@@ -170,31 +161,41 @@ libuterm_la_CPPFLAGS = \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
 	$(OPENGL_CFLAGS) \
-	$(UDEV_CFLAGS)
+	$(OPENGLES2_CFLAGS) \
+	$(UDEV_CFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 libuterm_la_LIBADD = \
 	$(SYSTEMD_LIBS) \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
 	$(OPENGL_LIBS) \
+	$(OPENGLES2_LIBS) \
 	$(UDEV_LIBS) \
+	$(XKBCOMMON_LIBS) \
 	libkmscon-static.la \
 	libeloop.la
 libuterm_la_LDFLAGS = \
 	-version-info 1:0:0
 
-if USE_XKBCOMMON
+if UTERM_HAVE_FBDEV
+libuterm_la_SOURCES += \
+	src/uterm_video_fbdev.c
+endif
+
+if UTERM_HAVE_DRM
+libuterm_la_SOURCES += \
+	src/uterm_video_drm.c
+endif
+
+if UTERM_HAVE_XKBCOMMON
 libuterm_la_SOURCES += \
 	src/uterm_input_xkb.c
-libuterm_la_CPPFLAGS += \
-	$(XKBCOMMON_CFLAGS) \
-	$(XPROTO_CFLAGS)
-libuterm_la_LIBADD += \
-	$(XPROTO_LIBS) \
-	$(XKBCOMMON_LIBS)
 else
 libuterm_la_SOURCES += \
-	src/uterm_input_dumb.c
+	src/uterm_input_dumb.c \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c
 endif
 
 include_HEADERS += \
@@ -229,8 +230,6 @@ include_HEADERS += \
 #
 
 libkmscon_static_la_SOURCES = \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c \
 	src/static_llog.h \
 	src/static_misc.h \
 	src/static_misc.c
