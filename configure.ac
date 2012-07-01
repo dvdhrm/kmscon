@@ -115,6 +115,12 @@ AC_ARG_ENABLE([drm],
                               [enable uterm drm video backend])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to provide OpenGL support])
+AC_ARG_ENABLE([opengl],
+              [AS_HELP_STRING([--enable-opengl],
+                              [provide uterm opengl support])])
+AC_MSG_RESULT([ok])
+
 AC_MSG_CHECKING([whether to use xkbcommon keyboard backend])
 AC_ARG_ENABLE([xkbcommon],
               [AS_HELP_STRING([--disable-xkbcommon],
@@ -235,39 +241,57 @@ AM_CONDITIONAL([UTERM_HAVE_FBDEV], [test x$fbdev_enabled = xyes])
 # built.
 #
 
+dumb_enabled=no
 drm_enabled=no
 gl_enabled=no
 gles2_enabled=no
 if test ! x$enable_drm = xno ; then
-        if test x$have_drm = xyes -a x$have_gbm = xyes -a x$have_egl = xyes ; then
-                if test x$have_gl = xyes -o x$have_gles2 = xyes ; then
-                        drm_enabled=yes
-                        if test x$have_gl = xyes ; then
-                                gl_enabled=yes
-                        fi
-                        if test x$have_gles2 = xyes ; then
-                                gles2_enabled=yes
+        if test x$have_drm = xyes ; then
+                dumb_enabled=yes
+        fi
+
+        if test ! x$enable_opengl = xno ; then
+                if test x$have_drm = xyes -a x$have_gbm = xyes -a x$have_egl = xyes ; then
+                        if test x$have_gl = xyes -o x$have_gles2 = xyes ; then
+                                drm_enabled=yes
+                                if test x$have_gl = xyes ; then
+                                        gl_enabled=yes
+                                fi
+                                if test x$have_gles2 = xyes ; then
+                                        gles2_enabled=yes
+                                fi
                         fi
                 fi
         fi
 
-        if test x$enable_drm = xyes -a x$drm_enabled = xno ; then
+        if test x$enable_drm = xyes -a x$dumb_enabled = xno ; then
+                AC_ERROR([drm library not found for uterm dumb drm backend])
+        fi
+
+        if test x$enable_opengl = xyes -a x$drm_enabled = xno ; then
                 AC_ERROR([drm, gbm, egl, gl or gles2 libraries not found for uterm drm backend])
         fi
 fi
 
-if test x$drm_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_DRM], [1],
-                  [Use uterm DRM video backend])
+if test x$dumb_enabled = xyes ; then
+        AC_DEFINE([UTERM_HAVE_DUMB], [1],
+                  [Use uterm dubm drm video backend])
+
+        if test x$drm_enabled = xyes ; then
+                AC_DEFINE([UTERM_HAVE_DRM], [1],
+                          [Use uterm DRM video backend])
+        else
+                GBM_CFLAGS=""
+                GBM_LIBS=""
+                EGL_CFLAGS=""
+                EGL_LIBS=""
+        fi
 else
         DRM_CFLAGS=""
         DRM_LIBS=""
-        GBM_CFLAGS=""
-        GBM_LIBS=""
-        EGL_CFLAGS=""
-        EGL_LIBS=""
 fi
 
+AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
 AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
 
 if test x$gl_enabled = xyes ; then
@@ -350,13 +374,17 @@ AC_OUTPUT([src/genshader.c])
 
 AC_MSG_NOTICE([Build configuration:
 
+	        debug: $debug_enabled
+
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
+	    xkbcommon: $xkbcommon_enabled
+
+	libuterm video backends:
 	        fbdev: $fbdev_enabled
+	     dumb drm: $dumb_enabled
 	          drm: $drm_enabled
 	       opengl: $gl_enabled
 	    opengles2: $gles2_enabled
-	    xkbcommon: $xkbcommon_enabled
-	        debug: $debug_enabled
 
 	Run "make" to start compilation process])

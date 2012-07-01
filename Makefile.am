@@ -188,6 +188,11 @@ libuterm_la_SOURCES += \
 	src/uterm_video_drm.c
 endif
 
+if UTERM_HAVE_DUMB
+libuterm_la_SOURCES += \
+	src/uterm_video_dumb.c
+endif
+
 if UTERM_HAVE_XKBCOMMON
 libuterm_la_SOURCES += \
 	src/uterm_input_xkb.c

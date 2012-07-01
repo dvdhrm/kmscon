@@ -142,6 +142,7 @@ enum uterm_display_dpms {
 
 enum uterm_video_type {
 	UTERM_VIDEO_DRM,
+	UTERM_VIDEO_DUMB,
 	UTERM_VIDEO_FBDEV,
 };
 

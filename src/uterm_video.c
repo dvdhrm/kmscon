@@ -382,6 +382,13 @@ int uterm_video_new(struct uterm_video **out,
 		}
 		ops = &drm_video_ops;
 		break;
+	case UTERM_VIDEO_DUMB:
+		if (!dumb_available) {
+			log_err("Dumb DRM backend is not available");
+			return -EOPNOTSUPP;
+		}
+		ops = &dumb_video_ops;
+		break;
 	case UTERM_VIDEO_FBDEV:
 		if (!fbdev_available) {
 			log_err("FBDEV backend is not available");

@@ -140,6 +140,66 @@ static const struct video_ops drm_video_ops;
 
 #endif /* UTERM_HAVE_DRM */
 
+/* dumb drm */
+
+#ifdef UTERM_HAVE_DUMB
+
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
+struct dumb_mode {
+	drmModeModeInfo info;
+};
+
+struct dumb_rb {
+	uint32_t fb;
+	uint32_t handle;
+	uint32_t stride;
+	uint64_t size;
+
+	void *map;
+};
+
+struct dumb_display {
+	uint32_t conn_id;
+	int crtc_id;
+	drmModeCrtc *saved_crtc;
+
+	int current_rb;
+	struct dumb_rb rb[2];
+};
+
+struct dumb_video {
+	int fd;
+	struct ev_fd *efd;
+};
+
+static const bool dumb_available = true;
+extern const struct mode_ops dumb_mode_ops;
+extern const struct display_ops dumb_display_ops;
+extern const struct video_ops dumb_video_ops;
+
+#else /* !UTERM_HAVE_DUMB */
+
+struct dumb_mode {
+	int unused;
+};
+
+struct dumb_display {
+	int unused;
+};
+
+struct dumb_video {
+	int unused;
+};
+
+static const bool dumb_available = false;
+static const struct mode_ops dumb_mode_ops;
+static const struct display_ops dumb_display_ops;
+static const struct video_ops dumb_video_ops;
+
+#endif /* UTERM_HAVE_DUMB */
+
 /* fbdev */
 
 #ifdef UTERM_HAVE_FBDEV
@@ -214,6 +274,7 @@ struct uterm_mode {
 	const struct mode_ops *ops;
 	union {
 		struct drm_mode drm;
+		struct dumb_mode dumb;
 		struct fbdev_mode fbdev;
 	};
 };
@@ -242,6 +303,7 @@ struct uterm_display {
 	const struct display_ops *ops;
 	union {
 		struct drm_display drm;
+		struct dumb_display dumb;
 		struct fbdev_display fbdev;
 	};
 };
@@ -274,6 +336,7 @@ struct uterm_video {
 	const struct video_ops *ops;
 	union {
 		struct drm_video drm;
+		struct dumb_video dumb;
 		struct fbdev_video fbdev;
 	};
 };
