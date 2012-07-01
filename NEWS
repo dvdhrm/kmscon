@@ -1,0 +1,42 @@
+= KMSCON Release News =
+
+CHANGES WITH 2:
+	* Build scripts were improved and simplified. They also allow much more
+	  control about the build process now. The source was split into several
+	  different libraries.
+
+	* Added llog.h helper for logging in libraries.
+
+	* Eloop was moved into separate library and supports more more
+	  use-cases now. It can be used as a standalone project.
+
+	* Terminal emulator (vte.c) was improved a lot and can run vim now.
+
+	* Console layer was rewritten and is now much faster and much more
+	  standards compliant.
+
+	* Uterm monitor was added. The monitor uses udev and systemd-logind to
+	  watch the system for new seats and devices. This allows us to run on
+	  multiple seats simultaneously and being hotplug-capable.
+
+	* Uterm vt layer was added. This simply wraps the older VT layer so we
+	  can switch to different VT systems on-the-fly.
+
+	* New uterm video backends: The fbdev backend is now fully functional
+	  kmscon can run on any fbdev device now. Furthermore, the dumb backend
+	  was added which is simply an unaccelerated DRM backend that should
+	  work even without EGL, GL, gbm, etc.
+
+	* New 2D rendering API. In case OpenGL is not available, we now allow
+	  blitting images into the framebuffer. This is used for fbdev and dumb
+	  video devices.
+
+	* Font renderer now depends on pango. This is is needed only until I get
+	  the time to rewrite the freetype backend. But for now we depend on
+	  pango so have full font support.
+
+	* lots of small fixes
+
+CHANGES WITH 1:
+	* First kmscon release. For testing purposes only. Includes a rendering
+	  pipeline and a very rundimentary terminal emulator.

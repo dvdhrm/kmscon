@@ -7,11 +7,12 @@ ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = \
 	. \
 	docs/reference
+include_HEADERS =
 EXTRA_DIST = \
 	README \
-	COPYING
+	COPYING \
+	NEWS
 CLEANFILES =
-include_HEADERS = 
 
 #
 # Build targets
