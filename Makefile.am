@@ -9,7 +9,6 @@ SUBDIRS = \
 	docs/reference
 EXTRA_DIST = \
 	README \
-	TODO \
 	COPYING
 CLEANFILES =
 include_HEADERS = 
