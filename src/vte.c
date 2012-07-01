@@ -1099,6 +1099,13 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			num = 1;
 		kmscon_console_insert_lines(vte->con, num);
 		break;
+	case 'M': /* DL */
+		/* delete lines */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_delete_lines(vte->con, num);
+		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
 	}
