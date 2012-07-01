@@ -1,57 +1,87 @@
 = KMSCON =
+
 Kmscon is a simple terminal emulator based on linux kernel mode setting (KMS).
 It is an attempt to replace the in-kernel VT implementation with a userspace
 console.
 
 == Requirements ==
+
   Kmscon requires the following software:
-    - libdrm: accessing the kernel graphics layer
-    - mesa: providing an OpenGL implementation (must be compiled with EGL, gbm
-            and GL libraries)
-    - udev: providing input, video, etc. hotplug support
-    - xproto (build time dependency): definition of keysymbols (TODO: remove it)
-    - libxkbcommon: keyboard handling (optional but strongly recommended)
-                    Without libxkbcommon, basic US-ASCII input is provided.
-    - glib: only for Unicode handling (TODO: remove it)
-    - One of:
-      - freetype2: drawing generic text
-      - pango: drawing text with pango (use --enable-pango)
+    - libudev: providing input, video, etc. device hotplug support
+
+  Everything else is optional:
+
+    For video output at least one of the following is required:
+      - fbdev: For framebuffer video output the kernel headers must be installed
+               and located in the default include path.
+      - DRM: For unaccelerated drm output the "libdrm" library must be installed
+             and accessible via pkg-config.
+      - OpenGLES2: For accelerated video output via OpenGLESv2 the following must
+                   be installed: libdrm, libgbm, egl, glesv2 (i.e., mesa)
+
+    By default a very limited built-in keyboard handling is used. To get other
+    keyboard layouts working, the following is required:
+      - libxkbcommon: keyboard handling (optional but strongly recommended)
+                      Without libxkbcommon, basic US-ASCII input is provided.
+    libxkbcommon has no public release, yet, but is available on freedesktop.org.
+    Use "--disable-xkbcommon" if you have problems due to compile-errors.
+
+    For font handling the following is required:
+      - glib: only for Unicode handling
+      - pango: drawing text with pango
                Pango requires: glib, cairo, pangocairo, pango and freetype2
+    Both (glib and pango) dependencies will be removed soon and made optional with
+    plain freetype2+font-config being the fall-back.
+
+    For multi-seat support you need the following packages:
+      - systemd: Actually only the systemd-logind daemon and library is required.
 
 == Install ==
+
   To compile the kmscon binary, run the standard autotools commands:
-    $ ./configure [--enable-debug] [--enable-pango]
+    $ ./autogen.sh (you need this only when building from git directly)
+    $ ./configure [--enable-debug] (debug-mode is strongly recommended)
     $ make
     $ make install (TODO: this is currently not supported)
   To compile the test applications, run:
     $ make check
 
+  If you want only a very basic kmscon program without that much dependencies,
+  use:
+    $ ./configure --disable-debug --disable-drm --disable-xkbcommon --disable-systemd
+
 == Running ==
+
   To get usage information, run:
     $ ./kmscon --help
   You can then run kmscon with:
     $ ./kmscon [options] --switchvt
   The --switchvt option will make your machine switch the active VT directly to
-  kmscon after starting it.
+  kmscon after starting it. (this is currently not implemented, though)
+
+  For debug output use "--debug". For verbose output use "--verbose". If you
+  didn't compile DRM support then you can use "--fbdev" to make kmscon select
+  available framebuffer devices.
+
+  With "--xkb-layout=<lang>" you can switch the keyboard layout.
 
 == License ==
+
   This software is licensed under the terms of the MIT license. Please see
   ./COPYING for further information.
 
 == FAQ ==
-  === Why didn't you use libvte or similar terminal emulators? ===
-  All existing terminal emulators I found highly depend on X. Also, their code
-  base often is a horrible mess. I haven't had the time to convert them to use
-  other drawing functions than Xlib, yet.
-  If you feel like doing this work, please notify me. I would be glad to adjust
-  my code to work with other terminal emulators.
+
+  Please see http://github.com/dvdhrm/kmscon/wiki
 
 == Contact ==
+
   This software is maintained by:
     David Herrmann <dh.herrmann@googlemail.com>
   If you have any questions, do not hesitate to contact one of the maintainers.
 
 == Code Base ==
+
   The kmscon code is split into several independent subsystems:
     - uterm:
       This code manages the KMS/DRI output and provides OpenGL framebuffers.
