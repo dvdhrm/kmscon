@@ -1690,6 +1690,7 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
 		if (sig->signum == signum)
 			break;
+		sig = NULL;
 	}
 
 	if (!sig) {
