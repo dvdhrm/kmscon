@@ -1,6 +1,6 @@
 = KMSCON Release News =
 
-CHANGES WITH 2:
+CHANGES WITH 2: (development release)
 	* Build scripts were improved and simplified. They also allow much more
 	  control about the build process now. The source was split into several
 	  different libraries.
@@ -37,6 +37,6 @@ CHANGES WITH 2:
 
 	* lots of small fixes
 
-CHANGES WITH 1:
+CHANGES WITH 1: (development release)
 	* First kmscon release. For testing purposes only. Includes a rendering
 	  pipeline and a very rundimentary terminal emulator.
