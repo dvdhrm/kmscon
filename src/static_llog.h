@@ -114,8 +114,8 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 	#define llog_debug(obj, format, ...) \
 		llog_ddebug((obj)->llog, (format), ##__VA_ARGS__)
 #else
-	#define llog_ddebug(obj, format, ...)
-	#define llog_debug(obj, format, ...)
+	#define llog_ddebug(obj, format, ...) ((void)0)
+	#define llog_debug(obj, format, ...) ((void)0)
 #endif
 
 #define llog_info(obj, format, ...) \
