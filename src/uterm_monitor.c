@@ -37,11 +37,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <systemd/sd-login.h>
 #include "log.h"
 #include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
+
+#ifdef UTERM_HAVE_SYSTEMD
+	#include <systemd/sd-login.h>
+#endif
 
 #define LOG_SUBSYSTEM "monitor"
 
@@ -67,8 +70,10 @@ struct uterm_monitor {
 	uterm_monitor_cb cb;
 	void *data;
 
+#ifdef UTERM_HAVE_SYSTEMD
 	sd_login_monitor *sd_mon;
 	struct ev_fd *sd_mon_fd;
+#endif
 
 	struct udev *udev;
 	struct udev_monitor *umon;
@@ -79,6 +84,8 @@ struct uterm_monitor {
 
 static void monitor_new_seat(struct uterm_monitor *mon, const char *name);
 static void monitor_free_seat(struct uterm_monitor_seat *seat);
+
+#ifdef UTERM_HAVE_SYSTEMD
 
 static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
@@ -174,6 +181,29 @@ static void monitor_sd_deinit(struct uterm_monitor *mon)
 	ev_eloop_rm_fd(mon->sd_mon_fd);
 	sd_login_monitor_unref(mon->sd_mon);
 }
+
+#else /* !UTERM_HAVE_SYSTEMD */
+
+static void monitor_refresh_seats(struct uterm_monitor *mon)
+{
+	if (kmscon_dlist_empty(&mon->seats))
+		monitor_new_seat(mon, "seat0");
+}
+
+static void monitor_sd_poll(struct uterm_monitor *mon)
+{
+}
+
+static int monitor_sd_init(struct uterm_monitor *mon)
+{
+	return 0;
+}
+
+static void monitor_sd_deinit(struct uterm_monitor *mon)
+{
+}
+
+#endif /* UTERM_HAVE_SYSTEMD */
 
 static void seat_new_dev(struct uterm_monitor_seat *seat,
 				unsigned int type,
@@ -392,10 +422,12 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 	}
 
 	if (!strcmp(subs, "drm")) {
+#ifdef UTERM_HAVE_SYSTEMD
 		if (udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
+#endif
 		id = get_card_id(dev);
 		if (id < 0) {
 			log_debug("adding drm sub-device %s", name);
@@ -404,10 +436,12 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
 	} else if (!strcmp(subs, "graphics")) {
+#ifdef UTERM_HAVE_SYSTEMD
 		if (udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
+#endif
 		id = get_fb_id(dev);
 		if (id < 0) {
 			log_debug("adding fbdev sub-device %s", name);
@@ -427,10 +461,12 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			log_debug("adding device without parent %s", name);
 			return;
 		}
+#ifdef UTERM_HAVE_SYSTEMD
 		if (udev_device_has_tag(p, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
+#endif
 		sname = udev_device_get_property_value(p, "ID_SEAT");
 		type = UTERM_MONITOR_INPUT;
 	} else {
