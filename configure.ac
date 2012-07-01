@@ -280,6 +280,10 @@ if test x$dumb_enabled = xyes ; then
 else
         DRM_CFLAGS=""
         DRM_LIBS=""
+        GBM_CFLAGS=""
+        GBM_LIBS=""
+        EGL_CFLAGS=""
+        EGL_LIBS=""
 fi
 
 if test x$gles2_enabled = xyes ; then
