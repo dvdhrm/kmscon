@@ -70,10 +70,7 @@ PKG_CHECK_MODULES([GBM], [gbm],
 PKG_CHECK_MODULES([EGL], [egl],
                   [have_egl=yes], [have_egl=no])
 
-PKG_CHECK_MODULES([OPENGL], [gl],
-                  [have_gl=yes], [have_gl=no])
-
-PKG_CHECK_MODULES([OPENGLES2], [glesv2],
+PKG_CHECK_MODULES([GLES2], [glesv2],
                   [have_gles2=yes], [have_gles2=no])
 
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
@@ -115,10 +112,10 @@ AC_ARG_ENABLE([drm],
                               [enable uterm drm video backend])])
 AC_MSG_RESULT([ok])
 
-AC_MSG_CHECKING([whether to provide OpenGL support])
-AC_ARG_ENABLE([opengl],
-              [AS_HELP_STRING([--enable-opengl],
-                              [provide uterm opengl support])])
+AC_MSG_CHECKING([whether to provide OpenGLES2 support])
+AC_ARG_ENABLE([gles2],
+              [AS_HELP_STRING([--enable-gles2],
+                              [provide uterm OpenGLES2 support])])
 AC_MSG_RESULT([ok])
 
 AC_MSG_CHECKING([whether to use xkbcommon keyboard backend])
@@ -243,23 +240,17 @@ AM_CONDITIONAL([UTERM_HAVE_FBDEV], [test x$fbdev_enabled = xyes])
 
 dumb_enabled=no
 drm_enabled=no
-gl_enabled=no
 gles2_enabled=no
 if test ! x$enable_drm = xno ; then
         if test x$have_drm = xyes ; then
                 dumb_enabled=yes
         fi
 
-        if test ! x$enable_opengl = xno ; then
+        if test ! x$enable_gles2 = xno ; then
                 if test x$have_drm = xyes -a x$have_gbm = xyes -a x$have_egl = xyes ; then
-                        if test x$have_gl = xyes -o x$have_gles2 = xyes ; then
+                        if test x$have_gles2 = xyes ; then
                                 drm_enabled=yes
-                                if test x$have_gl = xyes ; then
-                                        gl_enabled=yes
-                                fi
-                                if test x$have_gles2 = xyes ; then
-                                        gles2_enabled=yes
-                                fi
+                                gles2_enabled=yes
                         fi
                 fi
         fi
@@ -268,14 +259,14 @@ if test ! x$enable_drm = xno ; then
                 AC_ERROR([drm library not found for uterm dumb drm backend])
         fi
 
-        if test x$enable_opengl = xyes -a x$drm_enabled = xno ; then
+        if test x$enable_gles2 = xyes -a x$drm_enabled = xno ; then
                 AC_ERROR([drm, gbm, egl, gl or gles2 libraries not found for uterm drm backend])
         fi
 fi
 
 if test x$dumb_enabled = xyes ; then
         AC_DEFINE([UTERM_HAVE_DUMB], [1],
-                  [Use uterm dubm drm video backend])
+                  [Use uterm dumb drm video backend])
 
         if test x$drm_enabled = xyes ; then
                 AC_DEFINE([UTERM_HAVE_DRM], [1],
@@ -291,24 +282,17 @@ else
         DRM_LIBS=""
 fi
 
-AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
-AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
-
-if test x$gl_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_GL], [1],
-                  [Use OpenGL as drawing backend])
-else
-        OPENGL_CFLAGS=""
-        OPENGL_LIBS=""
-fi
-
 if test x$gles2_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_GLES2], [1],
+        AC_DEFINE([KMSCON_HAVE_GLES2], [1],
                   [Use OpenGLESv2 as drawing backend])
 else
-        OPENGLES2_CFLAGS=""
-        OPENGLES2_LIBS=""
+        GLES2_CFLAGS=""
+        GLES2_LIBS=""
 fi
+
+AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
+AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
+AM_CONDITIONAL([KMSCON_HAVE_GLES2], [test x$gles2_enabled = xyes])
 
 #
 # xkbcommon keyboard backend
@@ -348,10 +332,8 @@ AC_SUBST(EGL_CFLAGS)
 AC_SUBST(EGL_LIBS)
 AC_SUBST(GBM_CFLAGS)
 AC_SUBST(GBM_LIBS)
-AC_SUBST(OPENGLES2_CFLAGS)
-AC_SUBST(OPENGLES2_LIBS)
-AC_SUBST(OPENGL_CFLAGS)
-AC_SUBST(OPENGL_LIBS)
+AC_SUBST(GLES2_CFLAGS)
+AC_SUBST(GLES2_LIBS)
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
 AC_SUBST(XKBCOMMON_CFLAGS)
@@ -384,7 +366,6 @@ AC_MSG_NOTICE([Build configuration:
 	        fbdev: $fbdev_enabled
 	     dumb drm: $dumb_enabled
 	          drm: $drm_enabled
-	       opengl: $gl_enabled
-	    opengles2: $gles2_enabled
+	    OpenGLES2: $gles2_enabled
 
 	Run "make" to start compilation process])

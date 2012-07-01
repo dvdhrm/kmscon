@@ -37,13 +37,6 @@
 #include <stdlib.h>
 #include "uterm.h"
 
-/* miscellaneous */
-void gl_clear_error();
-bool gl_has_error();
-void gl_viewport(struct uterm_screen *screen);
-void gl_clear_color(float r, float g, float b, float a);
-void gl_clear(void);
-
 /*
  * Math Helpers
  * The gl_m4 type is a 4x4 matrix of floats. The gl_m4_stack is a stack of m4
@@ -66,6 +59,15 @@ void gl_m4_stack_free(struct gl_m4_stack *stack);
 float *gl_m4_stack_push(struct gl_m4_stack *stack);
 float *gl_m4_stack_pop(struct gl_m4_stack *stack);
 float *gl_m4_stack_tip(struct gl_m4_stack *stack);
+
+#ifdef KMSCON_HAVE_GLES2
+
+/* miscellaneous */
+void gl_clear_error();
+bool gl_has_error();
+void gl_viewport(struct uterm_screen *screen);
+void gl_clear_color(float r, float g, float b, float a);
+void gl_clear(void);
 
 /*
  * Texture API
@@ -93,5 +95,88 @@ void gl_shader_draw_def(struct gl_shader *shader, float *vertices,
 void gl_shader_draw_tex(struct gl_shader *shader, const float *vertices,
 			const float *texcoords, size_t num,
 			unsigned int tex, const float *m);
+
+#else /* !KMSCON_HAVE_GLES2 */
+
+/* dummy helpers for the case that OpenGL is not available */
+
+static inline void gl_clear_error()
+{
+}
+
+static inline bool gl_has_error()
+{
+	return false;
+}
+
+static inline void gl_viewport(struct uterm_screen *screen)
+{
+}
+
+static inline void gl_clear_color(float r, float g, float b, float a)
+{
+}
+
+static inline void gl_clear(void)
+{
+}
+
+/*
+ * Texture API
+ * This allows to create new textures which can then be used to draw images with
+ * the shader API.
+ */
+
+static inline unsigned int gl_tex_new()
+{
+	return 1;
+}
+
+static inline void gl_tex_free(unsigned int tex)
+{
+}
+
+static inline void gl_tex_load(unsigned int tex, unsigned int width,
+			       unsigned int stride,
+			       unsigned int height, void *buf)
+{
+}
+
+/*
+ * Shader API
+ */
+
+struct gl_shader {
+	int unused;
+};
+
+static inline int gl_shader_new(struct gl_shader **out)
+{
+	*out = NULL;
+	return 0;
+}
+
+static inline void gl_shader_ref(struct gl_shader *shader)
+{
+}
+
+static inline void gl_shader_unref(struct gl_shader *shader)
+{
+}
+
+static inline void gl_shader_draw_def(struct gl_shader *shader,
+				      float *vertices,
+				      float *colors, size_t num)
+{
+}
+
+static inline void gl_shader_draw_tex(struct gl_shader *shader,
+				      const float *vertices,
+				      const float *texcoords, size_t num,
+				      unsigned int tex, const float *m)
+{
+}
+
+#endif /* KMSCON_HAVE_GLES2 */
 
 #endif /* GL_GL_H */

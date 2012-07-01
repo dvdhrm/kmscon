@@ -118,17 +118,21 @@ libkmscon_core_la_SOURCES = \
 	src/pty.c src/pty.h \
 	src/gl.h \
 	src/gl_math.c \
-	src/gl_shader.c \
 	src/font_pango.c
+
+if KMSCON_HAVE_GLES2
+libkmscon_core_la_SOURCES += \
+	src/gl_shader.c
+endif
 
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(OPENGLES2_CFLAGS) \
+	$(GLES2_CFLAGS) \
 	$(PANGO_CFLAGS) \
 	$(FREETYPE2_CFLAGS) \
 	$(GLIB_CFLAGS)
 libkmscon_core_la_LIBADD = \
-	$(OPENGLES2_LIBS) \
+	$(GLES2_LIBS) \
 	$(PANGO_LIBS) \
 	$(FREETYPE2_LIBS) \
 	$(GLIB_LIBS) \
@@ -160,8 +164,7 @@ libuterm_la_CPPFLAGS = \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
 	$(GBM_CFLAGS) \
-	$(OPENGL_CFLAGS) \
-	$(OPENGLES2_CFLAGS) \
+	$(GLES2_CFLAGS) \
 	$(UDEV_CFLAGS) \
 	$(XKBCOMMON_CFLAGS)
 libuterm_la_LIBADD = \
@@ -169,8 +172,7 @@ libuterm_la_LIBADD = \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
-	$(OPENGL_LIBS) \
-	$(OPENGLES2_LIBS) \
+	$(GLES2_LIBS) \
 	$(UDEV_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	libkmscon-static.la \
