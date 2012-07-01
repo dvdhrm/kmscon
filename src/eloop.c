@@ -1677,7 +1677,7 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data)
 {
-	struct ev_signal_shared *sig;
+	struct ev_signal_shared *sig = NULL;
 	int ret;
 	struct kmscon_dlist *iter;
 
@@ -1692,7 +1692,7 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 			break;
 	}
 
-	if (iter == &loop->sig_list) {
+	if (!sig) {
 		ret = signal_new(&sig, loop, signum);
 		if (ret)
 			return ret;
