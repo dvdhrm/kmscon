@@ -168,8 +168,17 @@ static void seat_add_video(struct kmscon_seat *seat,
 		mode = UTERM_VIDEO_DRM;
 
 	ret = uterm_video_new(&seat->video, seat->app->eloop, mode, node);
-	if (ret)
-		return;
+	if (ret) {
+		if (mode == UTERM_VIDEO_DRM) {
+			log_info("cannot create drm device; trying dumb drm mode");
+			ret = uterm_video_new(&seat->video, seat->app->eloop,
+					      UTERM_VIDEO_DUMB, node);
+			if (ret)
+				return;
+		} else {
+			return;
+		}
+	}
 
 	ret = kmscon_ui_new(&seat->ui, seat->app->eloop, seat->video,
 			    seat->input);
