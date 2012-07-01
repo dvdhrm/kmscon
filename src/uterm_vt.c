@@ -93,7 +93,7 @@ static bool vt_event(struct kmscon_vt *ovt, enum kmscon_vt_action action,
 		     void *data)
 {
 	struct uterm_vt *vt = data;
-	int ret;
+	int ret = true;
 
 	switch (action) {
 	case KMSCON_VT_ENTER:
