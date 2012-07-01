@@ -105,7 +105,7 @@ static guint hash_ucs4(gconstpointer key)
 	return val;
 }
 
-static gboolean cmp_ucs4(gconstpointer a, gconstpointer b)
+static bool cmp_ucs4(gconstpointer a, gconstpointer b)
 {
 	size_t i;
 	const uint32_t *v1, *v2;

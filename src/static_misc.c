@@ -300,7 +300,7 @@ unsigned int kmscon_direct_hash(const void *data)
 	return (unsigned int)(unsigned long)data;
 }
 
-int kmscon_direct_equal(const void *data1, const void *data2)
+bool kmscon_direct_equal(const void *data1, const void *data2)
 {
 	return data1 == data2;
 }

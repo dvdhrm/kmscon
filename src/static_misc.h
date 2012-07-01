@@ -76,11 +76,11 @@ void kmscon_hook_call(struct kmscon_hook *hook, void *parent, void *arg);
 struct kmscon_hashtable;
 
 typedef unsigned int (*kmscon_hash_cb) (const void *data);
-typedef int (*kmscon_equal_cb) (const void *data1, const void *data2);
+typedef bool (*kmscon_equal_cb) (const void *data1, const void *data2);
 typedef void (*kmscon_free_cb) (void *data);
 
 unsigned int kmscon_direct_hash(const void *data);
-int kmscon_direct_equal(const void *data1, const void *data2);
+bool kmscon_direct_equal(const void *data1, const void *data2);
 
 int kmscon_hashtable_new(struct kmscon_hashtable **out,
 				kmscon_hash_cb hash_cb,
