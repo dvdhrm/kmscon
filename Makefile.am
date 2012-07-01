@@ -239,13 +239,9 @@ include_HEADERS += \
 libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
 	src/static_misc.h \
-	src/static_misc.c
-
-libkmscon_static_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(GLIB_CFLAGS)
-libkmscon_static_la_LIBADD = \
-	$(GLIB_LIBS)
+	src/static_misc.c \
+	external/htable.h \
+	external/htable.c
 
 #
 # Binaries

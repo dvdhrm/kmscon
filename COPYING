@@ -35,6 +35,11 @@ apply:
 
 == Third-Party Source ==
 
+The hash-table implementation in external/htable.* is copied from ccan and
+licensed under the conditions of the LGPL-2.1 or later as published by the FSF:
+
+	Author: Rusty Russel <rusty@rustcorp.com.au>
+
 The vt.c source file is based on the VT handling of the wayland demo
 compositor:
 
