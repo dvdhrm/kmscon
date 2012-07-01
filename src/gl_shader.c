@@ -79,6 +79,16 @@ void gl_viewport(struct uterm_screen *screen)
 			uterm_screen_height(screen));
 }
 
+void gl_clear_color(float r, float g, float b, float a)
+{
+	glClearColor(r, g, b, a);
+}
+
+void gl_clear(void)
+{
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
 unsigned int gl_tex_new()
 {
 	GLuint tex = 0;

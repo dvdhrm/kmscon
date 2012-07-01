@@ -30,11 +30,7 @@
  * runs a fully functional terminal emulation on it.
  */
 
-#define GL_GLEXT_PROTOTYPES
-
 #include <errno.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 #include <stdlib.h>
 #include <string.h>
 #include "console.h"
@@ -100,10 +96,10 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 		if (!ret) {
 			gl_viewport(screen);
 			if (cflags & KMSCON_CONSOLE_INVERSE)
-				glClearColor(1.0, 1.0, 1.0, 1.0);
+				gl_clear_color(1.0, 1.0, 1.0, 1.0);
 			else
-				glClearColor(0.0, 0.0, 0.0, 1.0);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				gl_clear_color(0.0, 0.0, 0.0, 1.0);
+			gl_clear();
 		}
 		kmscon_console_draw(term->console, iter->fscr);
 		uterm_screen_swap(screen);

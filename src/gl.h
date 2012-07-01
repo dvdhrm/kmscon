@@ -41,6 +41,8 @@
 void gl_clear_error();
 bool gl_has_error();
 void gl_viewport(struct uterm_screen *screen);
+void gl_clear_color(float r, float g, float b, float a);
+void gl_clear(void);
 
 /*
  * Math Helpers
