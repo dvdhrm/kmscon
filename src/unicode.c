@@ -90,9 +90,9 @@ static uint32_t table_next_id;
 static GArray *table_index;
 static struct kmscon_hashtable *table_symbols;
 
-static guint hash_ucs4(gconstpointer key)
+static unsigned int hash_ucs4(const void *key)
 {
-	guint val = 5381;
+	unsigned int val = 5381;
 	size_t i;
 	const uint32_t *ucs4 = key;
 
@@ -105,7 +105,7 @@ static guint hash_ucs4(gconstpointer key)
 	return val;
 }
 
-static bool cmp_ucs4(gconstpointer a, gconstpointer b)
+static bool cmp_ucs4(const void *a, const void *b)
 {
 	size_t i;
 	const uint32_t *v1, *v2;
@@ -116,13 +116,13 @@ static bool cmp_ucs4(gconstpointer a, gconstpointer b)
 
 	while (1) {
 		if (v1[i] > KMSCON_UCS4_MAX && v2[i] > KMSCON_UCS4_MAX)
-			return TRUE;
+			return true;
 		if (v1[i] > KMSCON_UCS4_MAX && v2[i] <= KMSCON_UCS4_MAX)
-			return FALSE;
+			return false;
 		if (v1[i] <= KMSCON_UCS4_MAX && v2[i] > KMSCON_UCS4_MAX)
-			return FALSE;
+			return false;
 		if (v1[i] != v2[i])
-			return FALSE;
+			return false;
 
 		++i;
 	}
