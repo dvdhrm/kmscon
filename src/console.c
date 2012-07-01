@@ -856,6 +856,41 @@ void kmscon_console_move_line_home(struct kmscon_console *con)
 	con->cursor_x = 0;
 }
 
+void kmscon_console_insert_lines(struct kmscon_console *con, unsigned int num)
+{
+	unsigned int i, j, max;
+
+	if (!con || !num)
+		return;
+
+	if (con->cursor_y < con->margin_top ||
+	    con->cursor_y > con->margin_bottom)
+		return;
+
+	max = con->margin_bottom - con->cursor_y + 1;
+	if (num > max)
+		num = max;
+
+	struct line *cache[num];
+
+	for (i = 0; i < num; ++i) {
+		cache[i] = con->lines[con->margin_bottom - i];
+		for (j = 0; j < con->size_x; ++j)
+			cell_init(con, &cache[i]->cells[j]);
+	}
+
+	if (num < max) {
+		memmove(&con->lines[con->cursor_y + num],
+			&con->lines[con->cursor_y],
+			(max - num) * sizeof(struct line*));
+
+		memcpy(&con->lines[con->cursor_y],
+		       cache, num * sizeof(struct line*));
+	}
+
+	con->cursor_x = 0;
+}
+
 void kmscon_console_erase_cursor(struct kmscon_console *con)
 {
 	unsigned int x;
