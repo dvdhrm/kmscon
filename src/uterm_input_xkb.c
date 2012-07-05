@@ -151,7 +151,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	if (key_state == KEY_REPEATED && !xkb_key_repeats(keymap, keycode))
 		return -ENOKEY;
 
-	if (num_keysyms < 0)
+	if (num_keysyms <= 0)
 		return -ENOKEY;
 
 	/*
