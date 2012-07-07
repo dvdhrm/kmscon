@@ -62,7 +62,7 @@ static int test_prepare(int argc, char **argv, struct ev_eloop **out)
 
 	log_print_init(argv[0]);
 
-	ret = ev_eloop_new(&eloop);
+	ret = ev_eloop_new(&eloop, log_llog);
 	if (ret)
 		return ret;
 
