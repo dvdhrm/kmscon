@@ -1302,6 +1302,13 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			log_debug("unknown parameter to CSI-K: %d",
 				  vte->csi_argv[0]);
 		break;
+	case 'X': /* ECH */
+		/* erase characters */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_erase_chars(vte->con, num);
+		break;
 	case 'm':
 		csi_attribute(vte);
 		break;
