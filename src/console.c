@@ -620,10 +620,21 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 
 void kmscon_console_reset(struct kmscon_console *con)
 {
+	unsigned int i;
+
 	if (!con)
 		return;
 
-	/* TODO: reset console */
+	con->flags = 0;
+	con->margin_top = 0;
+	con->margin_bottom = con->size_y - 1;
+
+	for (i = 0; i < con->size_y; ++i) {
+		if (i % 8 == 0)
+			con->tab_ruler[i] = true;
+		else
+			con->tab_ruler[i] = false;
+	}
 }
 
 void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags)

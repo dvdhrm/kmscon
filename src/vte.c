@@ -373,9 +373,8 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags |= FLAG_AUTO_REPEAT_MODE;
 	vte->flags |= FLAG_SEND_RECEIVE_MODE;
 	vte->flags |= FLAG_AUTO_WRAP_MODE;
-	kmscon_console_reset_flags(vte->con, ~0);
+	kmscon_console_reset(vte->con);
 	kmscon_console_set_flags(vte->con, KMSCON_CONSOLE_AUTO_WRAP);
-	kmscon_console_set_margins(vte->con, 0, 0);
 
 	kmscon_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
