@@ -1003,6 +1003,64 @@ void kmscon_console_delete_lines(struct kmscon_console *con, unsigned int num)
 	con->cursor_x = 0;
 }
 
+void kmscon_console_insert_chars(struct kmscon_console *con, unsigned int num)
+{
+	struct cell *cells;
+	unsigned int max, mv, i;
+
+	if (!con || !num || !con->size_y || !con->size_x)
+		return;
+
+	if (con->cursor_x >= con->size_x)
+		con->cursor_x = con->size_x - 1;
+	if (con->cursor_y >= con->size_y)
+		con->cursor_y = con->size_y - 1;
+
+	max = con->size_x - con->cursor_x;
+	if (num > max)
+		num = max;
+	mv = max - num;
+
+	cells = con->lines[con->cursor_y]->cells;
+	if (mv)
+		memmove(&cells[con->cursor_x + num],
+			&cells[con->cursor_x],
+			mv * sizeof(*cells));
+
+	for (i = 0; i < num; ++i) {
+		cell_init(con, &cells[con->cursor_x + i]);
+	}
+}
+
+void kmscon_console_delete_chars(struct kmscon_console *con, unsigned int num)
+{
+	struct cell *cells;
+	unsigned int max, mv, i;
+
+	if (!con || !num || !con->size_y || !con->size_x)
+		return;
+
+	if (con->cursor_x >= con->size_x)
+		con->cursor_x = con->size_x - 1;
+	if (con->cursor_y >= con->size_y)
+		con->cursor_y = con->size_y - 1;
+
+	max = con->size_x - con->cursor_x;
+	if (num > max)
+		num = max;
+	mv = max - num;
+
+	cells = con->lines[con->cursor_y]->cells;
+	if (mv)
+		memmove(&cells[con->cursor_x],
+			&cells[con->cursor_x + num],
+			mv * sizeof(*cells));
+
+	for (i = 0; i < num; ++i) {
+		cell_init(con, &cells[con->cursor_x + mv + i]);
+	}
+}
+
 void kmscon_console_erase_cursor(struct kmscon_console *con)
 {
 	unsigned int x;

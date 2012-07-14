@@ -1197,6 +1197,20 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		else
 			log_debug("invalid parameter %d to TBC CSI", num);
 		break;
+	case '@': /* ICH */
+		/* insert characters */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_insert_chars(vte->con, num);
+		break;
+	case 'P': /* DCH */
+		/* delete characters */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_delete_chars(vte->con, num);
+		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
 	}

@@ -93,6 +93,8 @@ void kmscon_console_move_line_end(struct kmscon_console *con);
 void kmscon_console_move_line_home(struct kmscon_console *con);
 void kmscon_console_insert_lines(struct kmscon_console *con, unsigned int num);
 void kmscon_console_delete_lines(struct kmscon_console *con, unsigned int num);
+void kmscon_console_insert_chars(struct kmscon_console *con, unsigned int num);
+void kmscon_console_delete_chars(struct kmscon_console *con, unsigned int num);
 void kmscon_console_erase_cursor(struct kmscon_console *con);
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con);
 void kmscon_console_erase_home_to_cursor(struct kmscon_console *con);
