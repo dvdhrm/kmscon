@@ -1911,19 +1911,19 @@ void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			return;
 		case XK_Up:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				vte_write(vte, "\e[A", 3);
+				vte_write(vte, "\eOA", 3);
 			else
 				vte_write(vte, "\e[A", 3);
 			return;
 		case XK_Down:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				vte_write(vte, "\e[B", 3);
+				vte_write(vte, "\eOB", 3);
 			else
 				vte_write(vte, "\e[B", 3);
 			return;
 		case XK_Right:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				vte_write(vte, "\e[C", 3);
+				vte_write(vte, "\eOC", 3);
 			else
 				vte_write(vte, "\e[C", 3);
 			return;
