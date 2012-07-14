@@ -632,6 +632,22 @@ unsigned int kmscon_console_get_flags(struct kmscon_console *con)
 	return con->flags;
 }
 
+unsigned int kmscon_console_get_cursor_x(struct kmscon_console *con)
+{
+	if (!con)
+		return 0;
+
+	return con->cursor_x;
+}
+
+unsigned int kmscon_console_get_cursor_y(struct kmscon_console *con)
+{
+	if (!con)
+		return 0;
+
+	return con->cursor_y;
+}
+
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
 	unsigned int cur_x, cur_y;
