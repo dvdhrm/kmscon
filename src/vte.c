@@ -134,6 +134,16 @@ enum parser_action {
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
 
+struct vte_saved_state {
+	unsigned int cursor_x;
+	unsigned int cursor_y;
+	struct font_char_attr cattr;
+	kmscon_vte_charset *gl;
+	kmscon_vte_charset *gr;
+	bool wrap_mode;
+	bool origin_mode;
+};
+
 struct kmscon_vte {
 	unsigned long ref;
 	struct kmscon_console *con;
@@ -159,6 +169,8 @@ struct kmscon_vte {
 	kmscon_vte_charset *g1;
 	kmscon_vte_charset *g2;
 	kmscon_vte_charset *g3;
+
+	struct vte_saved_state saved_state;
 };
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
@@ -285,6 +297,66 @@ static void write_console(struct kmscon_vte *vte, kmscon_symbol_t sym)
 	kmscon_console_write(vte->con, sym, &vte->cattr);
 }
 
+static void reset_state(struct kmscon_vte *vte)
+{
+	vte->saved_state.cursor_x = 0;
+	vte->saved_state.cursor_y = 0;
+	vte->saved_state.origin_mode = false;
+	vte->saved_state.wrap_mode = true;
+	vte->gl = &kmscon_vte_unicode_lower;
+	vte->gr = &kmscon_vte_unicode_upper;
+
+	vte->cattr.fr = 255;
+	vte->cattr.fg = 255;
+	vte->cattr.fb = 255;
+	vte->cattr.br = 0;
+	vte->cattr.bg = 0;
+	vte->cattr.bb = 0;
+	vte->cattr.bold = 0;
+	vte->cattr.underline = 0;
+	vte->cattr.inverse = 0;
+}
+
+static void save_state(struct kmscon_vte *vte)
+{
+	vte->saved_state.cursor_x = kmscon_console_get_cursor_x(vte->con);
+	vte->saved_state.cursor_y = kmscon_console_get_cursor_y(vte->con);
+	vte->saved_state.cattr = vte->cattr;
+	vte->saved_state.gl = vte->gl;
+	vte->saved_state.gr = vte->gr;
+	vte->saved_state.wrap_mode = vte->flags & FLAG_AUTO_WRAP_MODE;
+	vte->saved_state.origin_mode = vte->flags & FLAG_ORIGIN_MODE;
+}
+
+static void restore_state(struct kmscon_vte *vte)
+{
+	kmscon_console_move_to(vte->con, vte->saved_state.cursor_x,
+			       vte->saved_state.cursor_y);
+	vte->cattr = vte->saved_state.cattr;
+	vte->gl = vte->saved_state.gl;
+	vte->gr = vte->saved_state.gr;
+
+	if (vte->saved_state.wrap_mode) {
+		vte->flags |= FLAG_AUTO_WRAP_MODE;
+		kmscon_console_set_flags(vte->con,
+					 KMSCON_CONSOLE_AUTO_WRAP);
+	} else {
+		vte->flags &= ~FLAG_AUTO_WRAP_MODE;
+		kmscon_console_reset_flags(vte->con,
+					   KMSCON_CONSOLE_AUTO_WRAP);
+	}
+
+	if (vte->saved_state.origin_mode) {
+		vte->flags |= FLAG_ORIGIN_MODE;
+		kmscon_console_set_flags(vte->con,
+					 KMSCON_CONSOLE_REL_ORIGIN);
+	} else {
+		vte->flags &= ~FLAG_ORIGIN_MODE;
+		kmscon_console_reset_flags(vte->con,
+					   KMSCON_CONSOLE_REL_ORIGIN);
+	}
+}
+
 /*
  * Reset VTE state
  * This performs a soft reset of the VTE. That is, everything is reset to the
@@ -324,6 +396,8 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->cattr.bold = 0;
 	vte->cattr.underline = 0;
 	vte->cattr.inverse = 0;
+
+	reset_state(vte);
 
 	/* TODO: reset margins */
 }
@@ -688,6 +762,14 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'c': /* hard reset */
 		/* TODO: implement hard reset */
+		break;
+	case '7': /* DECSC */
+		/* save console state */
+		save_state(vte);
+		break;
+	case '8': /* DECRC */
+		/* restore console state */
+		restore_state(vte);
 		break;
 	default:
 		log_debug("unhandled escape seq %u", data);
