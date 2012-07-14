@@ -377,6 +377,7 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 	if (!term)
 		return -EINVAL;
 
+	kmscon_pty_close(term->pty);
 	width = kmscon_console_get_width(term->console);
 	height = kmscon_console_get_height(term->console);
 	ret = kmscon_pty_open(term->pty, width, height);
