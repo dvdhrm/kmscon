@@ -375,6 +375,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags |= FLAG_AUTO_WRAP_MODE;
 	kmscon_console_reset_flags(vte->con, ~0);
 	kmscon_console_set_flags(vte->con, KMSCON_CONSOLE_AUTO_WRAP);
+	kmscon_console_set_margins(vte->con, 0, 0);
 
 	kmscon_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
@@ -398,8 +399,6 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->cattr.inverse = 0;
 
 	reset_state(vte);
-
-	/* TODO: reset margins */
 }
 
 /* execute control character (C0 or C1) */
