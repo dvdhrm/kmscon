@@ -61,6 +61,9 @@ PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login],
 PKG_CHECK_MODULES([UDEV], [libudev],
                   [have_udev=yes], [have_udev=no])
 
+PKG_CHECK_MODULES([DBUS], [dbus-1],
+                  [have_dbus=yes], [have_dbus=no])
+
 PKG_CHECK_MODULES([DRM], [libdrm],
                   [have_drm=yes], [have_drm=no])
 
@@ -213,6 +216,31 @@ else
 fi
 
 #
+# DBus dependency
+# For IPC mechanisms we use DBus. Especially multi-seat enabled multi-session
+# capable applications need DBus to manage application and terminal switching.
+#
+
+dbus_enabled=no
+if test ! x$enable_dbus = xno ; then
+        if test x$have_dbus = xyes ; then
+                dbus_enabled=yes
+        elif test x$enable_dbus = xyes; then
+                AC_ERROR([dbus libraries not found])
+        fi
+fi
+
+if test x$dbus_enabled = xyes; then
+        AC_DEFINE([EV_HAVE_DBUS], [1],
+                  [Use dbus for IPC])
+else
+        DBUS_CFLAGS=""
+        DBUS_LIBS=""
+fi
+
+AM_CONDITIONAL([EV_HAVE_DBUS], [test x$dbus_enabled = xyes])
+
+#
 # Uterm fbdev backend
 # This checks whether the fbdev backend was requested and enables it then. There
 # are no special dependencies for it except the kernel headers.
@@ -330,6 +358,8 @@ AM_CONDITIONAL([UTERM_HAVE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
 
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)
+AC_SUBST(DBUS_CFLAGS)
+AC_SUBST(DBUS_LIBS)
 AC_SUBST(DRM_CFLAGS)
 AC_SUBST(DRM_LIBS)
 AC_SUBST(EGL_CFLAGS)
@@ -364,6 +394,7 @@ AC_MSG_NOTICE([Build configuration:
 
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
+	         dbus: $dbus_enabled
 	    xkbcommon: $xkbcommon_enabled
 
 	libuterm video backends:

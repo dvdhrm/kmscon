@@ -218,10 +218,18 @@ libeloop_la_SOURCES = \
 	src/eloop.h \
 	src/eloop.c
 
+if EV_HAVE_DBUS
+libeloop_la_SOURCES += \
+	external/dbus-loop.h \
+	external/dbus-loop.c
+endif
+
 libeloop_la_CPPFLAGS = \
-	$(AM_CPPFLAGS)
+	$(AM_CPPFLAGS) \
+	$(DBUS_CFLAGS)
 libeloop_la_LIBADD = \
-	libkmscon-static.la
+	libkmscon-static.la \
+	$(DBUS_LIBS)
 libeloop_la_LDFLAGS = \
 	-version-info 1:0:0
 

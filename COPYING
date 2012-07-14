@@ -40,6 +40,12 @@ licensed under the conditions of the LGPL-2.1 or later as published by the FSF:
 
 	Author: Rusty Russel <rusty@rustcorp.com.au>
 
+The dbus-loop code that allows using dbus in epoll loops easily is copied from
+the systemd-distribution and licensed under the conditions of the LGPL-2.1 or
+later as published by the FSF. It applies to external/dbus-loop.*
+
+	Copyright 2011 Lennart Poettering
+
 The vt.c source file is based on the VT handling of the wayland demo
 compositor:
 
