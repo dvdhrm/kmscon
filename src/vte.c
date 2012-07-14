@@ -1236,6 +1236,7 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num, x, y, upper, lower;
+	bool protect;
 
 	if (vte->csi_argc < CSI_ARG_MAX)
 		vte->csi_argc++;
@@ -1281,23 +1282,35 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		kmscon_console_move_to(vte->con, y - 1, x - 1);
 		break;
 	case 'J':
+		if (vte->csi_flags & CSI_WHAT)
+			protect = true;
+		else
+			protect = false;
+
 		if (vte->csi_argv[0] <= 0)
-			kmscon_console_erase_cursor_to_screen(vte->con);
+			kmscon_console_erase_cursor_to_screen(vte->con,
+							      protect);
 		else if (vte->csi_argv[0] == 1)
-			kmscon_console_erase_screen_to_cursor(vte->con);
+			kmscon_console_erase_screen_to_cursor(vte->con,
+							      protect);
 		else if (vte->csi_argv[0] == 2)
-			kmscon_console_erase_screen(vte->con);
+			kmscon_console_erase_screen(vte->con, protect);
 		else
 			log_debug("unknown parameter to CSI-J: %d",
 				  vte->csi_argv[0]);
 		break;
 	case 'K':
+		if (vte->csi_flags & CSI_WHAT)
+			protect = true;
+		else
+			protect = false;
+
 		if (vte->csi_argv[0] <= 0)
-			kmscon_console_erase_cursor_to_end(vte->con);
+			kmscon_console_erase_cursor_to_end(vte->con, protect);
 		else if (vte->csi_argv[0] == 1)
-			kmscon_console_erase_home_to_cursor(vte->con);
+			kmscon_console_erase_home_to_cursor(vte->con, protect);
 		else if (vte->csi_argv[0] == 2)
-			kmscon_console_erase_current_line(vte->con);
+			kmscon_console_erase_current_line(vte->con, protect);
 		else
 			log_debug("unknown parameter to CSI-K: %d",
 				  vte->csi_argv[0]);

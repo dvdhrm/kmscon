@@ -1100,7 +1100,8 @@ void kmscon_console_erase_chars(struct kmscon_console *con, unsigned int num)
 			     false);
 }
 
-void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
+void kmscon_console_erase_cursor_to_end(struct kmscon_console *con,
+				        bool protect)
 {
 	unsigned int x;
 
@@ -1113,36 +1114,40 @@ void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 		x = con->cursor_x;
 
 	console_erase_region(con, x, con->cursor_y, con->size_x - 1,
-			     con->cursor_y, false);
+			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_home_to_cursor(struct kmscon_console *con)
+void kmscon_console_erase_home_to_cursor(struct kmscon_console *con,
+					 bool protect)
 {
 	if (!con)
 		return;
 
 	console_erase_region(con, 0, con->cursor_y, con->cursor_x,
-			     con->cursor_y, false);
+			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_current_line(struct kmscon_console *con)
+void kmscon_console_erase_current_line(struct kmscon_console *con,
+				       bool protect)
 {
 	if (!con)
 		return;
 
 	console_erase_region(con, 0, con->cursor_y, con->size_x - 1,
-			     con->cursor_y, false);
+			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con)
+void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con,
+					   bool protect)
 {
 	if (!con)
 		return;
 
-	console_erase_region(con, 0, 0, con->cursor_x, con->cursor_y, false);
+	console_erase_region(con, 0, 0, con->cursor_x, con->cursor_y, protect);
 }
 
-void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con)
+void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con,
+					   bool protect)
 {
 	unsigned int x;
 
@@ -1155,14 +1160,14 @@ void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con)
 		x = con->cursor_x;
 
 	console_erase_region(con, x, con->cursor_y, con->size_x - 1,
-			     con->size_y - 1, false);
+			     con->size_y - 1, protect);
 }
 
-void kmscon_console_erase_screen(struct kmscon_console *con)
+void kmscon_console_erase_screen(struct kmscon_console *con, bool protect)
 {
 	if (!con)
 		return;
 
 	console_erase_region(con, 0, 0, con->size_x - 1, con->size_y - 1,
-			     false);
+			     protect);
 }
