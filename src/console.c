@@ -81,6 +81,9 @@ struct kmscon_console {
 	/* cursor */
 	unsigned int cursor_x;
 	unsigned int cursor_y;
+
+	/* tab ruler */
+	bool *tab_ruler;
 };
 
 static void cell_init(struct kmscon_console *con, struct cell *cell)
@@ -432,6 +435,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
 	free(con->lines);
+	free(con->tab_ruler);
 	free(con);
 }
 
@@ -457,6 +461,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	struct line **cache;
 	unsigned int i, j, width;
 	int ret;
+	bool *tab_ruler;
 
 	if (!con || !x || !y)
 		return -EINVAL;
@@ -472,6 +477,11 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	 * lines. Otherwise, if this function fails in later turns, we will have
 	 * invalid lines in the buffer. */
 	if (y > con->line_num) {
+		tab_ruler = realloc(con->tab_ruler, sizeof(bool) * y);
+		if (!tab_ruler)
+			return -ENOMEM;
+		con->tab_ruler = tab_ruler;
+
 		cache = realloc(con->lines, sizeof(struct line*) * y);
 		if (!cache)
 			return -ENOMEM;
@@ -515,6 +525,14 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	/* scroll buffer if console height shrinks */
 	if (con->size_y != 0 && y < con->size_y)
 		console_scroll_up(con, con->size_y - y);
+
+	/* reset tabs */
+	for (i = 0; i < y; ++i) {
+		if (i % 8 == 0)
+			con->tab_ruler[i] = true;
+		else
+			con->tab_ruler[i] = false;
+	}
 
 	con->size_x = x;
 	con->size_y = y;
