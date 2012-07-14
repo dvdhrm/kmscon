@@ -120,6 +120,7 @@ struct font_char_attr {
 	unsigned int bold : 1;		/* bold character */
 	unsigned int underline : 1;	/* underlined character */
 	unsigned int inverse : 1;	/* inverse colors */
+	unsigned int protect : 1;	/* cannot be erased */
 };
 
 /* font draw/assemble buffers */

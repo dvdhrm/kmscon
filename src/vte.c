@@ -315,6 +315,7 @@ static void reset_state(struct kmscon_vte *vte)
 	vte->cattr.bold = 0;
 	vte->cattr.underline = 0;
 	vte->cattr.inverse = 0;
+	vte->cattr.protect = 0;
 }
 
 static void save_state(struct kmscon_vte *vte)
