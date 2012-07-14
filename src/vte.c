@@ -481,7 +481,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x88: /* HTS */
 		/* Set tab stop at current position */
-		/* TODO */
+		kmscon_console_set_tabstop(vte->con);
 		break;
 	case 0x8d: /* RI */
 		/* Move up one row, perform scroll-down if needed */
@@ -708,7 +708,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'H': /* HTS */
 		/* Set tab stop at current position */
-		/* TODO */
+		kmscon_console_set_tabstop(vte->con);
 		break;
 	case 'M': /* RI */
 		/* Move up one row, perform scroll-down if needed */
