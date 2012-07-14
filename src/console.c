@@ -477,11 +477,6 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	 * lines. Otherwise, if this function fails in later turns, we will have
 	 * invalid lines in the buffer. */
 	if (y > con->line_num) {
-		tab_ruler = realloc(con->tab_ruler, sizeof(bool) * y);
-		if (!tab_ruler)
-			return -ENOMEM;
-		con->tab_ruler = tab_ruler;
-
 		cache = realloc(con->lines, sizeof(struct line*) * y);
 		if (!cache)
 			return -ENOMEM;
@@ -504,6 +499,11 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	 * will guarantee that all lines are big enough so we can resize the
 	 * buffer without reallocating them later. */
 	if (x > con->size_x) {
+		tab_ruler = realloc(con->tab_ruler, sizeof(bool) * x);
+		if (!tab_ruler)
+			return -ENOMEM;
+		con->tab_ruler = tab_ruler;
+
 		for (i = 0; i < con->line_num; ++i) {
 			ret = line_resize(con, con->lines[i], x);
 			if (ret)
@@ -527,7 +527,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 		console_scroll_up(con, con->size_y - y);
 
 	/* reset tabs */
-	for (i = 0; i < y; ++i) {
+	for (i = 0; i < x; ++i) {
 		if (i % 8 == 0)
 			con->tab_ruler[i] = true;
 		else
@@ -629,7 +629,7 @@ void kmscon_console_reset(struct kmscon_console *con)
 	con->margin_top = 0;
 	con->margin_bottom = con->size_y - 1;
 
-	for (i = 0; i < con->size_y; ++i) {
+	for (i = 0; i < con->size_x; ++i) {
 		if (i % 8 == 0)
 			con->tab_ruler[i] = true;
 		else
