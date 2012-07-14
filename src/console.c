@@ -677,6 +677,33 @@ unsigned int kmscon_console_get_cursor_y(struct kmscon_console *con)
 	return con->cursor_y;
 }
 
+void kmscon_console_set_tabstop(struct kmscon_console *con)
+{
+	if (!con || con->cursor_x >= con->size_x)
+		return;
+
+	con->tab_ruler[con->cursor_x] = true;
+}
+
+void kmscon_console_reset_tabstop(struct kmscon_console *con)
+{
+	if (!con || con->cursor_x >= con->size_x)
+		return;
+
+	con->tab_ruler[con->cursor_x] = false;
+}
+
+void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
+{
+	unsigned int i;
+
+	if (!con)
+		return;
+
+	for (i = 0; i < con->size_x; ++i)
+		con->tab_ruler[i] = false;
+}
+
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 {
 	unsigned int cur_x, cur_y;

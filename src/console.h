@@ -72,6 +72,10 @@ unsigned int kmscon_console_get_flags(struct kmscon_console *con);
 unsigned int kmscon_console_get_cursor_x(struct kmscon_console *con);
 unsigned int kmscon_console_get_cursor_y(struct kmscon_console *con);
 
+void kmscon_console_set_tabstop(struct kmscon_console *con);
+void kmscon_console_reset_tabstop(struct kmscon_console *con);
+void kmscon_console_reset_all_tabstops(struct kmscon_console *con);
+
 void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
