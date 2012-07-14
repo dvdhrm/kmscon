@@ -749,7 +749,8 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 			if (k == cur_y + 1 &&
 			    j == cur_x) {
 				cursor_done = true;
-				attr.inverse = !attr.inverse;
+				if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR))
+					attr.inverse = !attr.inverse;
 			}
 
 			/* TODO: do some more sophisticated inverse here. When
@@ -764,10 +765,12 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 
 		if (k == cur_y + 1 && !cursor_done) {
 			cursor_done = true;
-			if (!(con->flags & KMSCON_CONSOLE_INVERSE))
-				attr.inverse = !attr.inverse;
-			font_screen_draw_char(fscr, 0, &attr,
-					      cur_x, i, 1, 1);
+			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
+				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
+					attr.inverse = !attr.inverse;
+				font_screen_draw_char(fscr, 0, &attr,
+						      cur_x, i, 1, 1);
+			}
 		}
 	}
 
