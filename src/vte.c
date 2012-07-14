@@ -1186,6 +1186,16 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			num = 1;
 		kmscon_console_delete_lines(vte->con, num);
 		break;
+	case 'g': /* TBC */
+		/* tabulation clear */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			kmscon_console_reset_tabstop(vte->con);
+		else if (num == 3)
+			kmscon_console_reset_all_tabstops(vte->con);
+		else
+			log_debug("invalid parameter %d to TBC CSI", num);
+		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
 	}
