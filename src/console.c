@@ -544,6 +544,11 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	con->margin_top = 0;
 	con->margin_bottom = con->size_y - 1;
 
+	if (con->cursor_x >= con->size_x)
+		con->cursor_x = con->size_x - 1;
+	if (con->cursor_y >= con->size_y)
+		con->cursor_y = con->size_y - 1;
+
 	return 0;
 }
 
