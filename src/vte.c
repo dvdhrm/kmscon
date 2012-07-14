@@ -779,7 +779,7 @@ static void csi_attribute(struct kmscon_vte *vte)
 {
 	unsigned int i;
 
-	for (i = 0; i < CSI_ARG_MAX; ++i) {
+	for (i = 0; i < vte->csi_argc; ++i) {
 		switch (vte->csi_argv[i]) {
 		case -1:
 			break;
