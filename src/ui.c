@@ -83,6 +83,14 @@ static void input_event(struct uterm_input *input,
 {
 }
 
+static void terminal_event(struct kmscon_terminal *term,
+			   enum kmscon_terminal_etype type,
+			   void *data)
+{
+	if (type == KMSCON_TERMINAL_HUP)
+		kmscon_terminal_open(term, terminal_event, data);
+}
+
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
 			struct uterm_video *video,
@@ -114,7 +122,7 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	if (ret)
 		goto err_video;
 
-	ret = kmscon_terminal_open(ui->term, NULL, NULL);
+	ret = kmscon_terminal_open(ui->term, terminal_event, NULL);
 	if (ret)
 		goto err_input;
 
