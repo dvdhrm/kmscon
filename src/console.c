@@ -1079,6 +1079,22 @@ void kmscon_console_erase_cursor(struct kmscon_console *con)
 	console_erase_region(con, x, con->cursor_y, x, con->cursor_y, false);
 }
 
+void kmscon_console_erase_chars(struct kmscon_console *con, unsigned int num)
+{
+	unsigned int x;
+
+	if (!con || !num)
+		return;
+
+	if (con->cursor_x >= con->size_x)
+		x = con->size_x - 1;
+	else
+		x = con->cursor_x;
+
+	console_erase_region(con, x, con->cursor_y, x + num - 1, con->cursor_y,
+			     false);
+}
+
 void kmscon_console_erase_cursor_to_end(struct kmscon_console *con)
 {
 	unsigned int x;
