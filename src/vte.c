@@ -1221,7 +1221,7 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 {
 	if (vte->csi_argc <= 1 && vte->csi_argv[0] <= 0) {
 		if (vte->csi_flags == 0) {
-			vte_write(vte, "\e[?60;1;6;8;9;15c", 17);
+			vte_write(vte, "\e[?60;1;6;9;15c", 17);
 			return;
 		} else if (vte->csi_flags & CSI_GT) {
 			vte_write(vte, "\e[>1;1;0c", 9);
