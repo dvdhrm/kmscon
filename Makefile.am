@@ -129,13 +129,11 @@ libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(GLES2_CFLAGS) \
 	$(PANGO_CFLAGS) \
-	$(FREETYPE2_CFLAGS) \
-	$(GLIB_CFLAGS)
+	$(FREETYPE2_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(GLES2_LIBS) \
 	$(PANGO_LIBS) \
 	$(FREETYPE2_LIBS) \
-	$(GLIB_LIBS) \
 	-lpthread \
 	libeloop.la \
 	libuterm.la

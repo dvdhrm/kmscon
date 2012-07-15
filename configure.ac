@@ -52,9 +52,6 @@ GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
 # ourself.
 #
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0],
-                  [have_glib=yes], [have_glib=no])
-
 PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login],
                   [have_systemd=yes], [have_systemd=no])
 
@@ -160,12 +157,9 @@ AM_CONDITIONAL([DEBUG], [test x$debug_enabled = xyes])
 #
 # Main dependencies
 # This checks for all dependencies that are not optional.
-# TODO: remove glib dependency
 #
 
-if test ! x$have_glib = xyes ; then
-        AC_ERROR([glib-2.0 no found but is required by kmscon])
-fi
+# We currently have no mandatory dependencies!
 
 #
 # Systemd dependency
@@ -372,8 +366,6 @@ AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
 AC_SUBST(XKBCOMMON_CFLAGS)
 AC_SUBST(XKBCOMMON_LIBS)
-AC_SUBST(GLIB_CFLAGS)
-AC_SUBST(GLIB_LIBS)
 AC_SUBST(FREETYPE2_CFLAGS)
 AC_SUBST(FREETYPE2_LIBS)
 AC_SUBST(PANGO_CFLAGS)
