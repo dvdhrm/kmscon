@@ -941,6 +941,51 @@ void kmscon_console_move_line_home(struct kmscon_console *con)
 	con->cursor_x = 0;
 }
 
+void kmscon_console_tab_right(struct kmscon_console *con, unsigned int num)
+{
+	unsigned int i, j;
+
+	if (!con || !num)
+		return;
+
+	for (i = 0; i < num; ++i) {
+		for (j = con->cursor_x + 1; j < con->size_x; ++j) {
+			if (con->tab_ruler[j])
+				break;
+		}
+
+		con->cursor_x = j;
+		if (con->cursor_x + 1 >= con->size_x)
+			break;
+	}
+
+	/* tabs never cause pending new-lines */
+	if (con->cursor_x >= con->size_x)
+		con->cursor_x = con->size_x - 1;
+}
+
+void kmscon_console_tab_left(struct kmscon_console *con, unsigned int num)
+{
+	unsigned int i;
+	int j;
+
+	if (!con || !num)
+		return;
+
+	for (i = 0; i < num; ++i) {
+		for (j = con->cursor_x - 1; j > 0; --j) {
+			if (con->tab_ruler[j])
+				break;
+		}
+
+		if (j <= 0) {
+			con->cursor_x = 0;
+			break;
+		}
+		con->cursor_x = j;
+	}
+}
+
 void kmscon_console_insert_lines(struct kmscon_console *con, unsigned int num)
 {
 	unsigned int i, j, max;
