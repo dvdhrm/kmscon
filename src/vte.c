@@ -461,6 +461,11 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	reset_state(vte);
 }
 
+static void send_primary_da(struct kmscon_vte *vte)
+{
+	vte_write(vte, "\e[?60;1;6;9;15c", 17);
+}
+
 /* execute control character (C0 or C1) */
 static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 {
@@ -785,7 +790,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		break;
 	case 'Z': /* DECID */
 		/* Send device attributes response like ANSI DA */
-		/* TODO*/
+		send_primary_da(vte);
 		break;
 	case '\\': /* ST */
 		/* End control string */
@@ -1222,7 +1227,7 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 {
 	if (vte->csi_argc <= 1 && vte->csi_argv[0] <= 0) {
 		if (vte->csi_flags == 0) {
-			vte_write(vte, "\e[?60;1;6;9;15c", 17);
+			send_primary_da(vte);
 			return;
 		} else if (vte->csi_flags & CSI_GT) {
 			vte_write(vte, "\e[>1;1;0c", 9);
