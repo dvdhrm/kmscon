@@ -1,7 +1,7 @@
 /*
  * kmscon - Miscellaneous Helpers
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -407,4 +407,114 @@ bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key)
 	}
 
 	return false;
+}
+
+struct kmscon_array {
+	size_t element_size;
+	size_t length;
+	size_t size;
+	void *data;
+};
+
+int kmscon_array_new(struct kmscon_array **out, size_t element_size,
+		     size_t initial_size)
+{
+	struct kmscon_array *arr;
+
+	if (!out || !element_size)
+		return -EINVAL;
+
+	if (!initial_size)
+		initial_size = 4;
+
+	arr = malloc(sizeof(*arr));
+	if (!arr)
+		return -ENOMEM;
+	memset(arr, 0, sizeof(*arr));
+	arr->element_size = element_size;
+	arr->length = 0;
+	arr->size = initial_size;
+
+	arr->data = malloc(arr->element_size * arr->size);
+	if (!arr->data) {
+		free(arr);
+		return -ENOMEM;
+	}
+
+	*out = arr;
+	return 0;
+}
+
+void kmscon_array_free(struct kmscon_array *arr)
+{
+	if (!arr)
+		return;
+
+	free(arr->data);
+	free(arr);
+}
+
+int kmscon_array_push(struct kmscon_array *arr, void *data)
+{
+	void *tmp;
+	size_t newsize;
+
+	if (!arr || !data)
+		return -EINVAL;
+
+	if (arr->length >= arr->size) {
+		newsize = arr->size * 2;
+		tmp = realloc(arr->data, arr->element_size * newsize);
+		if (!tmp)
+			return -ENOMEM;
+
+		arr->data = tmp;
+		arr->size = newsize;
+	}
+
+	memcpy(((uint8_t*)arr->data) + arr->element_size * arr->length,
+	       data, arr->element_size);
+	++arr->length;
+
+	return 0;
+}
+
+void kmscon_array_pop(struct kmscon_array *arr)
+{
+	if (!arr || !arr->length)
+		return;
+
+	--arr->length;
+}
+
+void *kmscon_array_get_array(struct kmscon_array *arr)
+{
+	if (!arr)
+		return NULL;
+
+	return arr->data;
+}
+
+size_t kmscon_array_get_length(struct kmscon_array *arr)
+{
+	if (!arr)
+		return 0;
+
+	return arr->length;
+}
+
+size_t kmscon_array_get_bsize(struct kmscon_array *arr)
+{
+	if (!arr)
+		return 0;
+
+	return arr->length * arr->element_size;
+}
+
+size_t kmscon_array_get_element_size(struct kmscon_array *arr)
+{
+	if (!arr)
+		return 0;
+
+	return arr->element_size;
 }

@@ -1,7 +1,7 @@
 /*
  * kmscon - Miscellaneous Helpers
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -91,6 +91,24 @@ void kmscon_hashtable_free(struct kmscon_hashtable *tbl);
 int kmscon_hashtable_insert(struct kmscon_hashtable *tbl, void *key,
 				void *data);
 bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key);
+
+/* dynamic arrays */
+
+struct kmscon_array;
+
+int kmscon_array_new(struct kmscon_array **out, size_t element_size,
+		     size_t initial_size);
+void kmscon_array_free(struct kmscon_array *arr);
+
+int kmscon_array_push(struct kmscon_array *arr, void *data);
+void kmscon_array_pop(struct kmscon_array *arr);
+void *kmscon_array_get_array(struct kmscon_array *arr);
+size_t kmscon_array_get_length(struct kmscon_array *arr);
+size_t kmscon_array_get_bsize(struct kmscon_array *arr);
+size_t kmscon_array_get_element_size(struct kmscon_array *arr);
+
+#define KMSCON_ARRAY_AT(_arr, _type, _pos) \
+	(&((_type*)kmscon_array_get_array(_arr))[(_pos)])
 
 /* double linked list */
 
