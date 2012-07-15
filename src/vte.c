@@ -367,15 +367,15 @@ static void reset_state(struct kmscon_vte *vte)
 	vte->saved_state.cursor_y = 0;
 	vte->saved_state.origin_mode = false;
 	vte->saved_state.wrap_mode = true;
-	vte->gl = &kmscon_vte_unicode_lower;
-	vte->gr = &kmscon_vte_unicode_upper;
+	vte->saved_state.gl = &kmscon_vte_unicode_lower;
+	vte->saved_state.gr = &kmscon_vte_unicode_upper;
 
-	set_fcolor(&vte->cattr, vte->def_fcol);
-	set_bcolor(&vte->cattr, vte->def_bcol);
-	vte->cattr.bold = 0;
-	vte->cattr.underline = 0;
-	vte->cattr.inverse = 0;
-	vte->cattr.protect = 0;
+	set_fcolor(&vte->saved_state.cattr, vte->def_fcol);
+	set_bcolor(&vte->saved_state.cattr, vte->def_bcol);
+	vte->saved_state.cattr.bold = 0;
+	vte->saved_state.cattr.underline = 0;
+	vte->saved_state.cattr.inverse = 0;
+	vte->saved_state.cattr.protect = 0;
 }
 
 static void save_state(struct kmscon_vte *vte)
