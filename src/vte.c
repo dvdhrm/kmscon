@@ -461,6 +461,14 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	reset_state(vte);
 }
 
+static void hard_reset(struct kmscon_vte *vte)
+{
+	kmscon_console_erase_screen(vte->con, false);
+	kmscon_console_clear_sb(vte->con);
+	kmscon_console_move_to(vte->con, 0, 0);
+	kmscon_vte_reset(vte);
+}
+
 static void send_primary_da(struct kmscon_vte *vte)
 {
 	vte_write(vte, "\e[?60;1;6;9;15c", 17);
@@ -824,8 +832,9 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 		/* Set numeric keypad mode */
 		vte->flags &= ~FLAG_KEYPAD_APPLICATION_MODE;
 		break;
-	case 'c': /* hard reset */
-		/* TODO: implement hard reset */
+	case 'c': /* RIS */
+		/* hard reset */
+		hard_reset(vte);
 		break;
 	case '7': /* DECSC */
 		/* save console state */
