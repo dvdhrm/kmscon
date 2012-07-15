@@ -49,6 +49,7 @@
  */
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <X11/keysym.h>
@@ -1233,6 +1234,24 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 		  vte->csi_argv[0], vte->csi_argv[1], vte->csi_argv[2]);
 }
 
+static void csi_dsr(struct kmscon_vte *vte)
+{
+	char buf[64];
+	unsigned int x, y, len;
+
+	if (vte->csi_argv[0] == 5) {
+		vte_write(vte, "\e[0n", 4);
+	} else if (vte->csi_argv[0] == 6) {
+		x = kmscon_console_get_cursor_x(vte->con);
+		y = kmscon_console_get_cursor_y(vte->con);
+		len = snprintf(buf, sizeof(buf), "\e[%u;%uR", x, y);
+		if (len >= sizeof(buf))
+			vte_write(vte, "\e[0;0R", 6);
+		else
+			vte_write(vte, buf, len);
+	}
+}
+
 static void do_csi(struct kmscon_vte *vte, uint32_t data)
 {
 	int num, x, y, upper, lower;
@@ -1414,6 +1433,10 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		if (num <= 0)
 			num = 1;
 		kmscon_console_tab_right(vte->con, num);
+		break;
+	case 'n': /* DSR */
+		/* device status reports */
+		csi_dsr(vte);
 		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
