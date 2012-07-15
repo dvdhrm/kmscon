@@ -67,7 +67,6 @@
 /* TODO: Remove the glib dependencies */
 
 #include <errno.h>
-#include <glib.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -289,29 +288,72 @@ unlock:
 	return rsym;
 }
 
+/*
+ * Convert UCS4 character to UTF-8. This creates one of:
+ *   0xxxxxxx
+ *   110xxxxx 10xxxxxx
+ *   1110xxxx 10xxxxxx 10xxxxxx
+ *   11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+ * This is based on the same function from "terminology" from the Enlightenment
+ * project. See COPYING for more information.
+ */
+static size_t ucs4_to_utf8(uint32_t g, char *txt)
+{
+	if (g < (1 << 7)) {
+		txt[0] = g & 0x7f;
+		return 1;
+	} else if (g < (1 << (5 + 6))) {
+		txt[0] = 0xc0 | ((g >> 6) & 0x1f);
+		txt[1] = 0x80 | ((g     ) & 0x3f);
+		return 2;
+	} else if (g < (1 << (4 + 6 + 6))) {
+		txt[0] = 0xe0 | ((g >> 12) & 0x0f);
+		txt[1] = 0x80 | ((g >>  6) & 0x3f);
+		txt[2] = 0x80 | ((g      ) & 0x3f);
+		return 3;
+	} else if (g < (1 << (3 + 6 + 6 + 6))) {
+		txt[0] = 0xf0 | ((g >> 18) & 0x07);
+		txt[1] = 0x80 | ((g >> 12) & 0x3f);
+		txt[2] = 0x80 | ((g >>  6) & 0x3f);
+		txt[3] = 0x80 | ((g      ) & 0x3f);
+		return 4;
+	} else {
+		return 0;
+	}
+}
+
 const char *kmscon_symbol_get_u8(kmscon_symbol_t sym, size_t *size)
 {
 	const uint32_t *ucs4;
-	gchar *val;
-	glong len;
+	char *val;
+	size_t i, pos, len;
 
-	ucs4 = kmscon_symbol_get(&sym, size);
-	val = g_ucs4_to_utf8(ucs4, *size, NULL, &len, NULL);
-	if (!val || len < 0) {
-		if (size)
-			*size = 1;
-		return default_u8;
-	}
+	ucs4 = kmscon_symbol_get(&sym, &len);
+	val = malloc(4 * len);
+	if (!val)
+		goto err_out;
+
+	pos = 0;
+	for (i = 0; i < len; ++i)
+		pos += ucs4_to_utf8(ucs4[i], &val[pos]);
+
+	if (!pos)
+		goto err_out;
 
 	if (size)
-		*size = len;
+		*size = pos;
 	return val;
+
+err_out:
+	if (size)
+		*size = sizeof(default_u8);
+	return default_u8;
 }
 
 void kmscon_symbol_free_u8(const char *s)
 {
 	if (s != default_u8)
-		g_free((char*)s);
+		free((void*)s);
 }
 
 struct kmscon_utf8_mach {
