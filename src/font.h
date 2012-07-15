@@ -159,7 +159,8 @@ int font_screen_draw_start(struct font_screen *screen);
 int font_screen_draw_char(struct font_screen *screen, kmscon_symbol_t ch,
 				const struct font_char_attr *attr,
 				unsigned int cellx, unsigned int celly,
-				unsigned int width, unsigned int height);
+				unsigned int width, unsigned int height,
+				bool draw_bg);
 int font_screen_draw_perform(struct font_screen *screen, float *m);
 
 #endif /* FONT_FONT_H */

@@ -62,6 +62,9 @@ struct kmscon_console {
 
 	/* default attributes for new cells */
 	struct font_char_attr def_attr;
+	uint8_t bg_r;
+	uint8_t bg_g;
+	uint8_t bg_b;
 
 	/* current buffer */
 	unsigned int size_x;
@@ -628,6 +631,18 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 	con->sb_pos = NULL;
 }
 
+/* set background color */
+void kmscon_console_set_bg(struct kmscon_console *con, uint8_t r, uint8_t g,
+			   uint8_t b)
+{
+	if (!con)
+		return;
+
+	con->bg_r = r;
+	con->bg_g = g;
+	con->bg_b = b;
+}
+
 void kmscon_console_reset(struct kmscon_console *con)
 {
 	unsigned int i;
@@ -721,7 +736,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 	struct line *iter, *line = NULL;
 	struct cell *cell;
 	float m[16];
-	bool cursor_done = false;
+	bool cursor_done = false, draw_bg;
 	struct font_char_attr attr;
 
 	if (!con || !fscr)
@@ -764,8 +779,23 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 			 * foreground */
 			if (con->flags & KMSCON_CONSOLE_INVERSE)
 				attr.inverse = !attr.inverse;
+
+			/* draw bg only if it differs from real bg */
+			if (attr.inverse &&
+			    attr.fr == con->bg_r &&
+			    attr.fg == con->bg_g &&
+			    attr.fb == con->bg_b)
+				draw_bg = false;
+			else if (!attr.inverse &&
+				 attr.br == con->bg_r &&
+				 attr.bg == con->bg_g &&
+				 attr.bb == con->bg_b)
+				draw_bg = false;
+			else
+				draw_bg = true;
+
 			font_screen_draw_char(fscr, cell->ch, &attr,
-					      j, i, 1, 1);
+					      j, i, 1, 1, draw_bg);
 		}
 
 		if (k == cur_y + 1 && !cursor_done) {
@@ -774,7 +804,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
 					attr.inverse = !attr.inverse;
 				font_screen_draw_char(fscr, 0, &attr,
-						      cur_x, i, 1, 1);
+						      cur_x, i, 1, 1, true);
 			}
 		}
 	}
