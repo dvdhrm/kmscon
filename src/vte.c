@@ -563,7 +563,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x9a: /* DECID */
 		/* Send device attributes response like ANSI DA */
-		/* TODO*/
+		send_primary_da(vte);
 		break;
 	case 0x9c: /* ST */
 		/* End control string */
