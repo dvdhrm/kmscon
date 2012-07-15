@@ -485,7 +485,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x09: /* HT */
 		/* Move to next tab stop or end of line */
-		/* TODO */
+		kmscon_console_tab_right(vte->con, 1);
 		break;
 	case 0x0a: /* LF */
 	case 0x0b: /* VT */
@@ -1400,6 +1400,20 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		if (num <= 0)
 			num = 1;
 		kmscon_console_delete_chars(vte->con, num);
+		break;
+	case 'Z': /* CBT */
+		/* cursor horizontal backwards tab */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_tab_left(vte->con, num);
+		break;
+	case 'I': /* CHT */
+		/* cursor horizontal forward tab */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_tab_right(vte->con, num);
 		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
