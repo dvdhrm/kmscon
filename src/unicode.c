@@ -87,7 +87,7 @@ static const char default_u8[] = { 0 };
 
 static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t table_next_id;
-static GArray *table_index;
+static struct kmscon_array *table_index;
 static struct kmscon_hashtable *table_symbols;
 
 static unsigned int hash_ucs4(const void *key)
@@ -140,7 +140,7 @@ static void table_unlock()
 
 static int table__init()
 {
-	static const uint32_t *val = NULL; /* we need an lvalue for glib */
+	static const uint32_t *val = NULL; /* we need a valid lvalue */
 	int ret;
 
 	if (table_symbols)
@@ -148,19 +148,19 @@ static int table__init()
 
 	table_next_id = KMSCON_UCS4_MAX + 2;
 
-	table_index = g_array_new(FALSE, TRUE, sizeof(uint32_t*));
-	if (!table_index) {
+	ret = kmscon_array_new(&table_index, sizeof(uint32_t*), 4);
+	if (ret) {
 		log_err("cannot allocate table-index");
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* first entry is not used so add dummy */
-	g_array_append_val(table_index, val);
+	kmscon_array_push(table_index, &val);
 
 	ret = kmscon_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
 					free, NULL);
 	if (ret) {
-		g_array_unref(table_index);
+		kmscon_array_free(table_index);
 		return -ENOMEM;
 	}
 
@@ -204,7 +204,7 @@ static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
 		return &kmscon_symbol_default;
 	}
 
-	ucs4 = g_array_index(table_index, uint32_t*,
+	ucs4 = *KMSCON_ARRAY_AT(table_index, uint32_t*,
 				*sym - (KMSCON_UCS4_MAX + 1));
 	if (!ucs4) {
 		if (size)
@@ -281,7 +281,7 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 	memcpy(nval, buf, s * sizeof(uint32_t));
 	nsym = table_next_id++;
 	kmscon_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
-	g_array_append_val(table_index, nval);
+	kmscon_array_push(table_index, &nval);
 	rsym = nsym;
 
 unlock:
