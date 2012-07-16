@@ -43,6 +43,8 @@
 #include <unistd.h>
 
 struct conf_obj {
+	/* show help/usage information */
+	int help;
 	/* exit application after parsing options */
 	int exit;
 	/* enable debug messages */

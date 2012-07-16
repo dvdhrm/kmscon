@@ -77,84 +77,179 @@ static void print_help()
 		"kmscon");
 }
 
+static bool parse_help(const char *arg)
+{
+	conf_global.help = 1;
+	return false;
+}
+
+static bool parse_verbose(const char *arg)
+{
+	conf_global.verbose = 1;
+	return false;
+}
+
+static bool parse_debug(const char *arg)
+{
+	conf_global.debug = 1;
+	return false;
+}
+
+static bool parse_silent(const char *arg)
+{
+	conf_global.silent = 1;
+	return false;
+}
+
+static bool parse_fbdev(const char *arg)
+{
+	conf_global.use_fbdev = 1;
+	return false;
+}
+
+static bool parse_switchvt(const char *arg)
+{
+	conf_global.switchvt = 1;
+	return false;
+}
+
+static bool parse_login(const char *arg)
+{
+	conf_global.login = (char*)arg;
+	return true;
+}
+
+static bool parse_term(const char *arg)
+{
+	conf_global.term = arg;
+	return false;
+}
+
+static bool parse_xkb_layout(const char *arg)
+{
+	conf_global.xkb_layout = arg;
+	return false;
+}
+
+static bool parse_xkb_variant(const char *arg)
+{
+	conf_global.xkb_variant = arg;
+	return false;
+}
+
+static bool parse_xkb_options(const char *arg)
+{
+	conf_global.xkb_options = arg;
+	return false;
+}
+
+static bool parse_seat(const char *arg)
+{
+	conf_global.seat = arg;
+	return false;
+}
+
+struct conf_option {
+	char short_name;
+	const char *long_name;
+	int needs_arg; // no_argument, required_argument or optional_argument
+	bool (*parse) (const char *arg);
+} options[] = {
+	{ 'h', "help", no_argument, parse_help },
+	{ 'v', "verbose", no_argument, parse_verbose },
+	{ 0, "debug", no_argument, parse_debug },
+	{ 0, "silent", no_argument, parse_silent },
+	{ 0, "fbdev", no_argument, parse_fbdev },
+	{ 's', "switchvt", no_argument, parse_switchvt },
+	{ 'l', "login", required_argument, parse_login },
+	{ 't', "term", required_argument, parse_term },
+	{ 0, "xkb-layout", required_argument, parse_xkb_layout },
+	{ 0, "xkb-variant", required_argument, parse_xkb_variant },
+	{ 0, "xkb-options", required_argument, parse_xkb_options },
+	{ 0, "seat", required_argument, parse_seat },
+};
+
 int conf_parse_argv(int argc, char **argv)
 {
-	int show_help = 0;
-	char short_options[] = ":hvsl:t:";
-	struct option long_options[] = {
-		{ "help", no_argument, NULL, 'h' },
-		{ "verbose", no_argument, NULL, 'v' },
-		{ "debug", no_argument, &conf_global.debug, 1 },
-		{ "silent", no_argument, &conf_global.silent, 1 },
-		{ "switchvt", no_argument, NULL, 's' },
-		{ "fbdev", no_argument, &conf_global.use_fbdev, 1 },
-		{ "xkb-layout", required_argument, NULL, 1001 },
-		{ "xkb-variant", required_argument, NULL, 1002 },
-		{ "xkb-options", required_argument, NULL, 1003 },
-		{ "login", required_argument, NULL, 'l' },
-		{ "term", required_argument, NULL, 't' },
-		{ "seat", required_argument, NULL, 1004 },
-		{ NULL, 0, NULL, 0 },
-	};
-	int idx;
+	char *short_options;
+	struct option *long_options;
+	struct option *opt;
+	size_t len, i, pos;
 	int c;
 
 	if (!argv || argc < 1)
 		return -EINVAL;
 
+	len = sizeof(options) / sizeof(struct conf_option);
+
+	short_options = malloc(sizeof(char) * (len + 1) * 2);
+	if (!short_options) {
+		log_error("cannot allocate enough memory to parse command line arguments (%d): %m");
+		return -ENOMEM;
+	}
+
+	long_options = malloc(sizeof(struct option) * len);
+	if (!long_options) {
+		log_error("cannot allocate enough memory to parse command line arguments (%d): %m");
+		free(short_options);
+		return -ENOMEM;
+	}
+
+	pos = 0;
+	short_options[pos++] = ':';
+	opt = long_options;
+	for (i = 0; i < len; ++i) {
+		if (options[i].short_name) {
+			short_options[pos++] = options[i].short_name;
+			if (options[i].needs_arg)
+				short_options[pos++] = ':';
+		}
+
+		if (options[i].long_name) {
+			opt->name = options[i].long_name;
+			opt->has_arg = options[i].needs_arg;
+			opt->flag = NULL;
+			opt->val = 1000 + i;
+			++opt;
+		}
+	}
+	short_options[pos++] = 0;
+
 	opterr = 0;
 	while (1) {
 		c = getopt_long(argc, argv, short_options,
-				long_options, &idx);
-		if (c < 0)
+				long_options, NULL);
+		if (c <= 0)
 			break;
-		switch (c) {
-		case 0:
-			break;
-		case 'h':
-			show_help = 1;
-			break;
-		case 'v':
-			conf_global.verbose = 1;
-			break;
-		case 's':
-			conf_global.switchvt = 1;
-			break;
-		case 1001:
-			conf_global.xkb_layout = optarg;
-			break;
-		case 1002:
-			conf_global.xkb_variant = optarg;
-			break;
-		case 1003:
-			conf_global.xkb_options = optarg;
-			break;
-		case 1004:
-			conf_global.seat = optarg;
-			break;
-		case 'l':
-			conf_global.login = optarg;
-			--optind;
-			goto done;
-		case 't':
-			conf_global.term = optarg;
-			break;
-		case ':':
+
+		if (c == ':') {
 			fprintf(stderr, "Missing argument for option -%c\n",
 				optopt);
-			break;
-		case '?':
+		} else if (c == '?') {
 			if (optopt)
 				fprintf(stderr, "Unknown argument -%c\n",
 					optopt);
 			else
 				fprintf(stderr, "Unknown argument %s\n",
 					argv[optind - 1]);
-			break;
+		} else if (c < 1000) {
+			for (i = 0; i < len; ++i) {
+				if (options[i].short_name == c) {
+					if (options[i].parse(optarg))
+						goto done;
+					break;
+				}
+			}
+		} else {
+			if (options[c - 1000].parse(optarg))
+				goto done;
 		}
 	}
 
 done:
+	free(long_options);
+	free(short_options);
+
 	if (conf_global.login) {
 		conf_global.argv = &argv[optind];
 	} else {
@@ -181,7 +276,7 @@ done:
 	if (!conf_global.seat)
 		conf_global.seat = "seat0";
 
-	if (show_help) {
+	if (conf_global.help) {
 		print_help();
 		conf_global.exit = 1;
 	}
