@@ -29,8 +29,10 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,144 +45,167 @@
 struct conf_obj conf_global;
 static char *def_argv[] = { NULL, "-i", NULL };
 
+#define CONF_DONE		0x0001
+#define CONF_LOCKED		0x0002
+#define CONF_HAS_ARG		0x0004
+#define CONF_STRING		0x0100
+#define CONF_BOOL		0x0200
+
+struct conf_option {
+	unsigned int flags;
+	char short_name;
+	const char *long_name;
+	int (*parse) (struct conf_option *opt, bool on, const char *arg);
+	void *mem;
+	void *def;
+};
+
 static void print_help()
 {
+	/*
+	 * Usage/Help information
+	 * This should be scaled to a maximum of 80 characters per line:
+	 *
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
 	fprintf(stderr,
 		"Usage:\n"
 		"\t%1$s [options]\n"
-		"\t%1$s [options] -h\n"
-		"\t%1$s [options] -l /bin/sh [sh-arguments]\n"
+		"\t%1$s -h [options]\n"
+		"\t%1$s -l [options] -- /bin/sh [sh-arguments]\n"
+		"\n"
+		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"given multiple times, only the last argument matters if not otherwise stated.\n"
 		"\n"
 		"General Options:\n"
-		"\t-h, --help                    Print this help and exit\n"
-		"\t-v, --verbose                 Print verbose messages\n"
-		"\t    --debug                   Enable debug mode\n"
-		"\t    --silent                  Suppress notices and warnings\n"
-		"\t-s, --switchvt                Automatically switch to VT\n"
-		"\t    --seat <seat-name>        Select seat; default: seat0\n"
+		"\t-h, --help                  [off]   Print this help and exit\n"
+		"\t-v, --verbose               [off]   Print verbose messages\n"
+		"\t    --debug                 [off]   Enable debug mode\n"
+		"\t    --silent                [off]   Suppress notices and warnings\n"
+		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
+		"\t    --seat <seat-name>      [seat0] Select seat; default: seat0\n"
 		"\n"
 		"Terminal Options:\n"
-		"\t-l, --login <login-process>   Start the given login process instead\n"
-		"\t                              of the default process; all following\n"
-		"\t                              arguments are passed as argv to this\n"
-		"\t                              process\n"
-		"\t-t, --term <TERM>             Value of the TERM environment variable\n"
+		"\t-l, --login                 [/bin/sh]\n"
+		"\t                              Start the given login process instead\n"
+		"\t                              of the default process; all arguments\n"
+		"\t                              following '--' will be be parsed as\n"
+		"\t                              argv to this process. No more options\n"
+		"\t                              after '--' will be parsed so use it at\n"
+		"\t                              the end of the argument string\n"
+		"\t-t, --term <TERM>           [vt220]\n"
+		"\t                              Value of the TERM environment variable\n"
 		"\t                              for the child process\n"
 		"\n"
 		"Video Options:\n"
-		"\t    --fbdev                   Use fbdev instead of DRM\n"
+		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
 		"\n"
 		"Input Device Options:\n"
-		"\t    --xkb-layout <layout>     Set XkbLayout for input devices\n"
-		"\t    --xkb-variant <variant>   Set XkbVariant for input devices\n"
-		"\t    --xkb-options <options>   Set XkbOptions for input devices\n",
+		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
+		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
+		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
 		"kmscon");
+	/*
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
 }
 
-static bool parse_help(const char *arg)
+static void free_value(struct conf_option *opt)
 {
-	conf_global.help = 1;
-	return false;
+	if (opt->flags & CONF_STRING &&
+	    *(void**)opt->mem != opt->def)
+		free(*(void**)opt->mem);
 }
 
-static bool parse_verbose(const char *arg)
+static int parse_bool(struct conf_option *opt, bool on, const char *arg)
 {
-	conf_global.verbose = 1;
-	return false;
+	*(bool*)opt->mem = on;
+	return 0;
 }
 
-static bool parse_debug(const char *arg)
+static int parse_string(struct conf_option *opt, bool on, const char *arg)
 {
-	conf_global.debug = 1;
-	return false;
+	char *val = strdup(arg);
+	if (!val)
+		return -ENOMEM;
+
+	free_value(opt);
+	*(void**)opt->mem = val;
+	return 0;
 }
 
-static bool parse_silent(const char *arg)
-{
-	conf_global.silent = 1;
-	return false;
-}
+#define OPTION(_flags, _short, _long, _parse, _mem, _def) \
+	{ _flags, _short, "no-" _long, _parse, _mem, _def }
+#define OPTION_BOOL(_short, _long, _mem, _def) \
+	OPTION(CONF_BOOL, \
+	       _short, \
+	       _long, \
+	       parse_bool, \
+	       _mem, \
+	       _def)
+#define OPTION_STRING(_short, _long, _mem, _def) \
+	OPTION(CONF_HAS_ARG | CONF_STRING, \
+	       _short, \
+	       _long, \
+	       parse_string, \
+	       _mem, \
+	       _def)
 
-static bool parse_fbdev(const char *arg)
-{
-	conf_global.use_fbdev = 1;
-	return false;
-}
-
-static bool parse_switchvt(const char *arg)
-{
-	conf_global.switchvt = 1;
-	return false;
-}
-
-static bool parse_login(const char *arg)
-{
-	conf_global.login = (char*)arg;
-	return true;
-}
-
-static bool parse_term(const char *arg)
-{
-	conf_global.term = arg;
-	return false;
-}
-
-static bool parse_xkb_layout(const char *arg)
-{
-	conf_global.xkb_layout = arg;
-	return false;
-}
-
-static bool parse_xkb_variant(const char *arg)
-{
-	conf_global.xkb_variant = arg;
-	return false;
-}
-
-static bool parse_xkb_options(const char *arg)
-{
-	conf_global.xkb_options = arg;
-	return false;
-}
-
-static bool parse_seat(const char *arg)
-{
-	conf_global.seat = arg;
-	return false;
-}
-
-struct conf_option {
-	char short_name;
-	const char *long_name;
-	int needs_arg; // no_argument, required_argument or optional_argument
-	bool (*parse) (const char *arg);
-} options[] = {
-	{ 'h', "help", no_argument, parse_help },
-	{ 'v', "verbose", no_argument, parse_verbose },
-	{ 0, "debug", no_argument, parse_debug },
-	{ 0, "silent", no_argument, parse_silent },
-	{ 0, "fbdev", no_argument, parse_fbdev },
-	{ 's', "switchvt", no_argument, parse_switchvt },
-	{ 'l', "login", required_argument, parse_login },
-	{ 't', "term", required_argument, parse_term },
-	{ 0, "xkb-layout", required_argument, parse_xkb_layout },
-	{ 0, "xkb-variant", required_argument, parse_xkb_variant },
-	{ 0, "xkb-options", required_argument, parse_xkb_options },
-	{ 0, "seat", required_argument, parse_seat },
+struct conf_option options[] = {
+	OPTION_BOOL('h', "help", &conf_global.help, false),
+	OPTION_BOOL('v', "verbose", &conf_global.verbose, false),
+	OPTION_BOOL(0, "debug", &conf_global.debug, false),
+	OPTION_BOOL(0, "silent", &conf_global.silent, false),
+	OPTION_BOOL(0, "fbdev", &conf_global.use_fbdev, false),
+	OPTION_BOOL('s', "switchvt", &conf_global.switchvt, false),
+	OPTION_BOOL('l', "login", &conf_global.login, false),
+	OPTION_STRING('t', "term", &conf_global.term, "vt220"),
+	OPTION_STRING(0, "xkb-layout", &conf_global.xkb_layout, "us"),
+	OPTION_STRING(0, "xkb-variant", &conf_global.xkb_variant, ""),
+	OPTION_STRING(0, "xkb-options", &conf_global.xkb_options, ""),
+	OPTION_STRING(0, "seat", &conf_global.seat, "seat0")
 };
 
+/* free all memory that we allocated and reset to initial state */
+void conf_free(void)
+{
+	unsigned int i, num;
+
+	num = sizeof(options) / sizeof(*options);
+	for (i = 0; i < num; ++i)
+		free_value(&options[i]);
+
+	memset(&conf_global, 0, sizeof(conf_global));
+}
+
+/*
+ * Parse command line arguments
+ * This temporarily allocates the short_options and long_options arrays so we
+ * can use the getopt_long() library call. It locks all arguments after they
+ * have been set so command-line options will always overwrite config-options.
+ */
 int conf_parse_argv(int argc, char **argv)
 {
 	char *short_options;
 	struct option *long_options;
 	struct option *opt;
 	size_t len, i, pos;
-	int c;
+	int c, ret;
 
 	if (!argv || argc < 1)
 		return -EINVAL;
 
-	len = sizeof(options) / sizeof(struct conf_option);
+	len = sizeof(options) / sizeof(*options);
 
 	short_options = malloc(sizeof(char) * (len + 1) * 2);
 	if (!short_options) {
@@ -188,7 +213,7 @@ int conf_parse_argv(int argc, char **argv)
 		return -ENOMEM;
 	}
 
-	long_options = malloc(sizeof(struct option) * len);
+	long_options = malloc(sizeof(struct option) * len * 2);
 	if (!long_options) {
 		log_error("cannot allocate enough memory to parse command line arguments (%d): %m");
 		free(short_options);
@@ -201,16 +226,26 @@ int conf_parse_argv(int argc, char **argv)
 	for (i = 0; i < len; ++i) {
 		if (options[i].short_name) {
 			short_options[pos++] = options[i].short_name;
-			if (options[i].needs_arg)
+			if (options[i].flags & CONF_HAS_ARG)
 				short_options[pos++] = ':';
 		}
 
 		if (options[i].long_name) {
-			opt->name = options[i].long_name;
-			opt->has_arg = options[i].needs_arg;
+			/* skip the "no-" prefix */
+			opt->name = &options[i].long_name[3];
+			opt->has_arg = !!(options[i].flags & CONF_HAS_ARG);
 			opt->flag = NULL;
-			opt->val = 1000 + i;
+			opt->val = 100000 + i;
 			++opt;
+
+			/* boolean args are also added with "no-" prefix */
+			if (!(options[i].flags & CONF_HAS_ARG)) {
+				opt->name = options[i].long_name;
+				opt->has_arg = 0;
+				opt->flag = NULL;
+				opt->val = 200000 + i;
+				++opt;
+			}
 		}
 	}
 	short_options[pos++] = 0;
@@ -219,12 +254,11 @@ int conf_parse_argv(int argc, char **argv)
 	while (1) {
 		c = getopt_long(argc, argv, short_options,
 				long_options, NULL);
-		if (c <= 0)
+		if (c <= 0) {
 			break;
-
-		if (c == ':') {
-			fprintf(stderr, "Missing argument for option -%c\n",
-				optopt);
+		} else if (c == ':') {
+			fprintf(stderr, "Missing argument for option %s\n",
+				argv[optind - 1]);
 		} else if (c == '?') {
 			if (optopt)
 				fprintf(stderr, "Unknown argument -%c\n",
@@ -232,54 +266,338 @@ int conf_parse_argv(int argc, char **argv)
 			else
 				fprintf(stderr, "Unknown argument %s\n",
 					argv[optind - 1]);
-		} else if (c < 1000) {
+		} else if (c < 100000) {
 			for (i = 0; i < len; ++i) {
 				if (options[i].short_name == c) {
-					if (options[i].parse(optarg))
-						goto done;
+					options[i].flags |= CONF_LOCKED;
+					ret = options[i].parse(&options[i],
+							       true,
+							       optarg);
+					if (ret)
+						return ret;
+					options[i].flags |= CONF_DONE;
 					break;
 				}
 			}
+		} else if (c < 200000) {
+			i = c - 100000;
+			options[i].flags |= CONF_LOCKED;
+			ret = options[i].parse(&options[i], true, optarg);
+			if (ret)
+				return ret;
+			options[i].flags |= CONF_DONE;
 		} else {
-			if (options[c - 1000].parse(optarg))
-				goto done;
+			i = c - 200000;
+			options[i].flags |= CONF_LOCKED;
+			ret = options[i].parse(&options[i], false, NULL);
+			if (ret)
+				return ret;
+			options[i].flags |= CONF_DONE;
 		}
 	}
 
-done:
 	free(long_options);
 	free(short_options);
 
+	/* set default values if not configured */
+	for (i = 0; i < len; ++i) {
+		if (!(options[i].flags & CONF_DONE) &&
+		    options[i].mem) {
+			if (options[i].flags & CONF_STRING)
+				*(void**)options[i].mem = options[i].def;
+			else if (options[i].flags & CONF_BOOL)
+				*(bool*)options[i].mem = (bool)options[i].def;
+			options[i].flags |= CONF_DONE;
+		}
+	}
+
+	/* parse "--login [...] -- args" arguments */
 	if (conf_global.login) {
 		conf_global.argv = &argv[optind];
 	} else {
-		conf_global.login = getenv("SHELL") ? : _PATH_BSHELL;
-		def_argv[0] = conf_global.login;
+		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
 		conf_global.argv = def_argv;
 		if (optind != argc)
 			fprintf(stderr, "Unparsed remaining arguments\n");
 	}
 
+	/* --debug implies --verbose */
 	if (conf_global.debug)
 		conf_global.verbose = 1;
 
-	if (!conf_global.xkb_layout)
-		conf_global.xkb_layout = "us";
-	if (!conf_global.xkb_variant)
-		conf_global.xkb_variant = "";
-	if (!conf_global.xkb_options)
-		conf_global.xkb_options = "";
-
-	if (!conf_global.term)
-		conf_global.term = "vt220";
-
-	if (!conf_global.seat)
-		conf_global.seat = "seat0";
-
+	/* exit after printing --help information */
 	if (conf_global.help) {
 		print_help();
 		conf_global.exit = 1;
 	}
 
 	return 0;
+}
+
+static int parse_kv_pair(const char *key, const char *value)
+{
+	unsigned int i, num;
+	int ret;
+	bool set;
+	struct conf_option *opt;
+
+	num = sizeof(options) / sizeof(*options);
+	for (i = 0; i < num; ++i) {
+		opt = &options[i];
+		if (!opt->long_name)
+			continue;
+
+		if (!strcmp(key, opt->long_name))
+			set = false;
+		else if (!strcmp(key, &opt->long_name[3]))
+			set = true;
+		else
+			continue;
+
+		if (opt->flags & CONF_HAS_ARG && !value) {
+			log_error("config option '%s' requires an argument", key);
+			return -EFAULT;
+		} else if (!(opt->flags & CONF_HAS_ARG) && value) {
+			log_error("config option '%s' does not take arguments", key);
+			return -EFAULT;
+		}
+
+		/* ignore if already set by command-line arguments */
+		if (opt->flags & CONF_LOCKED)
+			return 0;
+
+		ret = opt->parse(opt, set, value);
+		if (ret)
+			return ret;
+
+		opt->flags |= CONF_DONE;
+		return 0;
+	}
+
+	log_error("unknown config option '%s'", key);
+	return -EFAULT;
+}
+
+static void strip_spaces(char **buf)
+{
+	char *tail;
+
+	while (**buf == ' ' || **buf == '\r' || **buf == '\t')
+		++*buf;
+
+	tail = *buf;
+	while (*tail)
+		++tail;
+
+	--tail;
+
+	while (*tail == ' ' || *tail == '\r' || *tail == '\t')
+		*tail-- = 0;
+}
+
+static int parse_line(char **buf, size_t *size)
+{
+	char *key;
+	char *value = NULL;
+	char *line;
+	char c;
+	size_t len, klen;
+	int ret;
+
+	line = *buf;
+	len = *size;
+
+	/* parse key */
+	key = line;
+	while (len) {
+		c = *line;
+		if (c == '\n' ||
+		    c == '#' ||
+		    c == '=')
+			break;
+		++line;
+		--len;
+	}
+
+	if (!len) {
+		*line = 0;
+		goto done;
+	} else if (*line == '\n') {
+		*line = 0;
+		goto done;
+	} else if (*line == '#') {
+		*line = 0;
+		goto skip_comment;
+	} else if (*line != '=') {
+		return -EFAULT;
+	}
+
+	*line++ = 0;
+	--len;
+
+	/* parse value */
+	value = line;
+	while (len) {
+		c = *line;
+		if (c == '\n' ||
+		    c == '#')
+			break;
+		++line;
+		--len;
+	}
+
+	if (!len) {
+		*line = 0;
+		goto done;
+	} else if (*line == '\n') {
+		*line = 0;
+		goto done;
+	} else if (*line == '#') {
+		*line = 0;
+		goto skip_comment;
+	} else {
+		return -EFAULT;
+	}
+
+skip_comment:
+	while (len) {
+		c = *line;
+		if (c == '\n')
+			break;
+		++line;
+		--len;
+	}
+
+done:
+	strip_spaces(&key);
+	
+	klen = strlen(key);
+	if (klen > 0) {
+		if (value)
+			strip_spaces(&value);
+
+		ret = parse_kv_pair(key, value);
+		if (ret)
+			return ret;
+	}
+
+	if (!len) {
+		*buf = NULL;
+		*size = 0;
+	} else {
+		*buf = ++line;
+		*size = --len;
+	}
+
+	return 0;
+}
+
+static int parse_buffer(char *buf, size_t size)
+{
+	int ret = 0;
+
+	while (!ret && size > 0)
+		ret = parse_line(&buf, &size);
+
+	return ret;
+}
+
+/* chunk size when reading config files */
+#define CONF_BUFSIZE 4096
+
+/* This reads the file at \path in memory and parses it as if it was given as
+ * command line options. */
+int conf_parse_file(const char *path)
+{
+	int fd, ret;
+	size_t size, pos;
+	char *buf, *tmp;
+
+	if (!path)
+		return -EINVAL;
+
+	log_info("reading config file %s", path);
+	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOCTTY);
+	if (fd < 0) {
+		log_error("cannot open %s (%d): %m", path, errno);
+		return -EFAULT;
+	}
+
+	buf = NULL;
+	size = 0;
+	pos = 0;
+
+	do {
+		if (size - pos < CONF_BUFSIZE) {
+			tmp = realloc(buf, size + CONF_BUFSIZE + 1);
+			if (!tmp) {
+				log_error("cannot allocate enough memory to parse config file %s (%d): %m",
+					  path, errno);
+				ret = -ENOMEM;
+				goto out_free;
+			}
+			buf = tmp;
+			size += CONF_BUFSIZE;
+		}
+
+		ret = read(fd, &buf[pos], CONF_BUFSIZE);
+		if (ret < 0) {
+			log_error("cannot read from config file %s (%d): %m",
+				  path, errno);
+			ret = -EFAULT;
+			goto out_free;
+		}
+		pos += ret;
+	} while (ret > 0);
+
+	buf[pos] = 0;
+	ret = parse_buffer(buf, pos);
+
+out_free:
+	free(buf);
+	close(fd);
+	return ret;
+}
+
+int conf_parse_all_files(void)
+{
+	int ret;
+	const char *file, *home;
+	char *path;
+
+	ret = 0;
+
+	file = "/etc/kmscon.conf";
+	if (!access(file, F_OK)) {
+		if (access(file, R_OK))
+			log_warning("config file %s exists but read access was denied",
+				    file);
+		else
+			ret = conf_parse_file(file);
+	}
+
+	if (ret)
+		goto err_out;
+
+	home = getenv("HOME");
+	if (home) {
+		ret = asprintf(&path, "%s/.kmscon.conf", home);
+		if (ret < 0) {
+			log_warning("cannot allocate enough resources to build a config-path");
+			ret = -ENOMEM;
+		} else {
+			ret = 0;
+			if (!access(path, F_OK)) {
+				if (access(path, R_OK))
+					log_warning("config file %s exists but read access was denied",
+						    path);
+				else
+					ret = conf_parse_file(path);
+			}
+			free(path);
+		}
+	}
+
+err_out:
+	return ret;
 }

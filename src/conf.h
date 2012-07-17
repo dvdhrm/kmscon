@@ -39,43 +39,47 @@
 #ifndef CONFIG_CONFIG_H
 #define CONFIG_CONFIG_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 struct conf_obj {
 	/* show help/usage information */
-	int help;
+	bool help;
 	/* exit application after parsing options */
-	int exit;
+	bool exit;
 	/* enable debug messages */
-	int debug;
+	bool debug;
 	/* enable verbose info messages */
-	int verbose;
+	bool verbose;
 	/* disable notices and warnings */
-	int silent;
+	bool silent;
 	/* enter new VT directly */
-	int switchvt;
+	bool switchvt;
 	/* use framebuffers instead of DRM */
-	int use_fbdev;
+	bool use_fbdev;
 
 	/* input KBD layout */
-	const char *xkb_layout;
-	const char *xkb_variant;
-	const char *xkb_options;
+	char *xkb_layout;
+	char *xkb_variant;
+	char *xkb_options;
 
 	/* TERM value */
-	const char *term;
-	/* login process */
-	char *login;
+	char *term;
+	/* custom login process */
+	bool login;
 	/* argv for login process */
 	char **argv;
 
 	/* seat name */
-	const char *seat;
+	char *seat;
 };
 
 extern struct conf_obj conf_global;
 
+void conf_free(void);
 int conf_parse_argv(int argc, char **argv);
+int conf_parse_file(const char *path);
+int conf_parse_all_files(void);
 
 #endif /* CONFIG_CONFIG_H */

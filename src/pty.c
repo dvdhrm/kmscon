@@ -151,9 +151,9 @@ static void __attribute__((noreturn))
 exec_child(int pty_master)
 {
 	setenv("TERM", conf_global.term, 1);
-	execvp(conf_global.login, conf_global.argv);
+	execvp(conf_global.argv[0], conf_global.argv);
 
-	log_err("failed to exec child: %m");
+	log_err("failed to exec child %s: %m", conf_global.argv[0]);
 
 	exit(EXIT_FAILURE);
 }

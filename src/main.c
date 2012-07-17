@@ -314,8 +314,10 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_out;
 
-	if (conf_global.exit)
+	if (conf_global.exit) {
+		conf_free();
 		return EXIT_SUCCESS;
+	}
 
 	if (!conf_global.debug && !conf_global.verbose && conf_global.silent)
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
@@ -324,6 +326,10 @@ int main(int argc, char **argv)
 						conf_global.verbose));
 
 	log_print_init("kmscon");
+
+	ret = conf_parse_all_files();
+	if (ret)
+		goto err_out;
 
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
@@ -353,11 +359,13 @@ int main(int argc, char **argv)
 	}
 
 	destroy_app(&app);
+	conf_free();
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
 err_out:
+	conf_free();
 	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));
 	return -ret;
 }
