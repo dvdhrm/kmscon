@@ -93,6 +93,7 @@ static void video_event(struct uterm_video *video,
 		while (disp) {
 			video_activate(vid, disp);
 			kmscon_terminal_add_display(ui->term, disp);
+			kmscon_terminal_redraw(ui->term);
 			disp = uterm_display_next(disp);
 		}
 	}

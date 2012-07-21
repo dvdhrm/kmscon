@@ -240,16 +240,6 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	}
 }
 
-static void video_event(struct uterm_video *video,
-			struct uterm_video_hotplug *ev,
-			void *data)
-{
-	struct kmscon_terminal *term = data;
-
-	if (ev->action == UTERM_WAKE_UP)
-		schedule_redraw(term);
-}
-
 static void input_event(struct uterm_input *input,
 			struct uterm_input_event *ev,
 			void *data)
@@ -310,13 +300,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 			goto err_pty;
 	}
 
-	ret = uterm_video_register_cb(term->video, video_event, term);
-	if (ret)
-		goto err_shader;
-
 	ret = uterm_input_register_cb(term->input, input_event, term);
 	if (ret)
-		goto err_video;
+		goto err_shader;
 
 	ev_eloop_ref(term->eloop);
 	uterm_video_ref(term->video);
@@ -326,8 +312,6 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	log_debug("new terminal object %p", term);
 	return 0;
 
-err_video:
-	uterm_video_unregister_cb(term->video, video_event, term);
 err_shader:
 	gl_shader_unref(term->shader);
 err_pty:
@@ -361,7 +345,6 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_terminal_close(term);
 	rm_all_screens(term);
 	uterm_input_unregister_cb(term->input, input_event, term);
-	uterm_video_unregister_cb(term->video, video_event, term);
 	gl_shader_unref(term->shader);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
