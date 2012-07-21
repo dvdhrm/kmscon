@@ -77,7 +77,8 @@
  * @sig_list: Shared signal sources
  * @idlers: List of idle sources
  * @cur_fds: Current dispatch array of fds
- * @cur_fds_cnt: size of \cur_fds
+ * @cur_fds_cnt: current length of \cur_fds
+ * @cur_fds_size: absolute size of \cur_fds
  * @exit: true if we should exit the main loop
  *
  * An event loop is an object where you can register event sources. If you then
@@ -97,6 +98,7 @@ struct ev_eloop {
 	bool dispatching;
 	struct epoll_event *cur_fds;
 	size_t cur_fds_cnt;
+	size_t cur_fds_size;
 	bool exit;
 };
 
@@ -428,9 +430,9 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	loop->llog = log;
 	kmscon_dlist_init(&loop->sig_list);
 
-	loop->cur_fds_cnt = 32;
+	loop->cur_fds_size = 32;
 	loop->cur_fds = malloc(sizeof(struct epoll_event) *
-			       loop->cur_fds_cnt);
+			       loop->cur_fds_size);
 	if (!loop->cur_fds) {
 		ret = llog_ENOMEM(loop);
 		goto err_free;
@@ -593,7 +595,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	count = epoll_wait(loop->efd,
 			   loop->cur_fds,
-			   loop->cur_fds_cnt,
+			   loop->cur_fds_size,
 			   timeout);
 	if (count < 0) {
 		if (errno == EINTR) {
@@ -602,11 +604,12 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 			llog_warn(loop, "epoll_wait dispatching failed: %m");
 			return -errno;
 		}
-	} else if (count > loop->cur_fds_cnt) {
-		count = loop->cur_fds_cnt;
+	} else if (count > loop->cur_fds_size) {
+		count = loop->cur_fds_size;
 	}
 
 	ep = loop->cur_fds;
+	loop->cur_fds_cnt = count;
 	loop->dispatching = true;
 
 	for (i = 0; i < count; ++i) {
@@ -631,15 +634,15 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	loop->dispatching = false;
 
-	if (count == loop->cur_fds_cnt) {
+	if (count == loop->cur_fds_size) {
 		ep = realloc(loop->cur_fds, sizeof(struct epoll_event) *
-			     loop->cur_fds_cnt * 2);
+			     loop->cur_fds_size * 2);
 		if (!ep) {
 			llog_warning(loop, "cannot reallocate dispatch cache to size %u",
-				    loop->cur_fds_cnt * 2);
+				    loop->cur_fds_size * 2);
 		} else {
 			loop->cur_fds = ep;
-			loop->cur_fds_cnt *= 2;
+			loop->cur_fds_size *= 2;
 		}
 	}
 
