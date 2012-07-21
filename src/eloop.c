@@ -592,6 +592,10 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		return -EINVAL;
 	if (loop->exit)
 		return llog_EINVAL(loop);
+	if (loop->dispatching) {
+		llog_warn(loop, "recursive dispatching not allowed");
+		return -EOPNOTSUPP;
+	}
 
 	count = epoll_wait(loop->efd,
 			   loop->cur_fds,
