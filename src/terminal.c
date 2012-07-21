@@ -246,9 +246,7 @@ static void video_event(struct uterm_video *video,
 {
 	struct kmscon_terminal *term = data;
 
-	if (ev->action == UTERM_GONE)
-		rm_display(term, ev->display);
-	else if (ev->action == UTERM_WAKE_UP)
+	if (ev->action == UTERM_WAKE_UP)
 		schedule_redraw(term);
 }
 

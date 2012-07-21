@@ -86,6 +86,8 @@ static void video_event(struct uterm_video *video,
 	if (ev->action == UTERM_NEW) {
 		video_activate(vid, ev->display);
 		kmscon_terminal_add_display(ui->term, ev->display);
+	} else if (ev->action == UTERM_GONE) {
+		kmscon_terminal_remove_display(ui->term, ev->display);
 	} else if (ev->action == UTERM_WAKE_UP) {
 		disp = uterm_video_get_displays(video);
 		while (disp) {
