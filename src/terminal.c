@@ -417,3 +417,12 @@ int kmscon_terminal_add_display(struct kmscon_terminal *term,
 
 	return add_display(term, disp);
 }
+
+void kmscon_terminal_remove_display(struct kmscon_terminal *term,
+				    struct uterm_display *disp)
+{
+	if (!term || !disp)
+		return;
+
+	rm_display(term, disp);
+}
