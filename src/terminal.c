@@ -407,6 +407,14 @@ void kmscon_terminal_close(struct kmscon_terminal *term)
 	term->opened = false;
 }
 
+void kmscon_terminal_redraw(struct kmscon_terminal *term)
+{
+	if (!term)
+		return;
+
+	schedule_redraw(term);
+}
+
 int kmscon_terminal_add_display(struct kmscon_terminal *term,
 				struct uterm_display *disp)
 {

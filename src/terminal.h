@@ -61,6 +61,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term);
 int kmscon_terminal_open(struct kmscon_terminal *term,
 			kmscon_terminal_event_cb event_cb, void *data);
 void kmscon_terminal_close(struct kmscon_terminal *term);
+void kmscon_terminal_redraw(struct kmscon_terminal *term);
 
 int kmscon_terminal_add_display(struct kmscon_terminal *term,
 				struct uterm_display *disp);
