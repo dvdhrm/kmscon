@@ -428,7 +428,14 @@ err_free:
 
 static void video_destroy(struct uterm_video *video)
 {
+	struct uterm_display *disp;
+
 	log_info("free device %p", video);
+	disp = video->displays;
+	video->displays = disp->next;
+	close(disp->fbdev.fd);
+	free(disp->fbdev.node);
+	uterm_display_unref(disp);
 }
 
 static void video_sleep(struct uterm_video *video)
