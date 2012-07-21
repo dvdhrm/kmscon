@@ -47,12 +47,7 @@
 #include "uterm.h"
 #include "uterm_internal.h"
 
-#define LOG_SUBSYSTEM "input_dumb"
-
-struct kbd_dev {
-	unsigned long ref;
-	unsigned int mods;
-};
+#define LOG_SUBSYSTEM "input_plain"
 
 /*
  * These tables do not contain all possible keys from linux/input.h.
@@ -284,21 +279,7 @@ static const struct {
 	[KEY_RIGHTMETA]   =  {  UTERM_MOD4_MASK,     MOD_NORMAL  },
 };
 
-int kbd_dev_new(struct kbd_dev **out, struct kbd_desc *desc)
-{
-	struct kbd_dev *kbd;
-
-	kbd = malloc(sizeof(*kbd));
-	if (!kbd)
-		return -ENOMEM;
-	memset(kbd, 0, sizeof(*kbd));
-	kbd->ref = 1;
-
-	*out = kbd;
-	return 0;
-}
-
-void kbd_dev_ref(struct kbd_dev *kbd)
+static void plain_dev_ref(struct kbd_dev *kbd)
 {
 	if (!kbd || !kbd->ref)
 		return;
@@ -306,7 +287,7 @@ void kbd_dev_ref(struct kbd_dev *kbd)
 	++kbd->ref;
 }
 
-void kbd_dev_unref(struct kbd_dev *kbd)
+static void plain_dev_unref(struct kbd_dev *kbd)
 {
 	if (!kbd || !kbd->ref || --kbd->ref)
 		return;
@@ -314,23 +295,23 @@ void kbd_dev_unref(struct kbd_dev *kbd)
 	free(kbd);
 }
 
-void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
+static void plain_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 {
 	if (!kbd)
 		return;
 
-	kbd->mods = 0;
+	kbd->plain.mods = 0;
 
 	if (input_bit_is_set(ledbits, LED_NUML))
-		kbd->mods |= UTERM_MOD2_MASK;
+		kbd->plain.mods |= UTERM_MOD2_MASK;
 	if (input_bit_is_set(ledbits, LED_CAPSL))
-		kbd->mods |= UTERM_LOCK_MASK;
+		kbd->plain.mods |= UTERM_LOCK_MASK;
 }
 
-int kbd_dev_process_key(struct kbd_dev *kbd,
-			uint16_t key_state,
-			uint16_t code,
-			struct uterm_input_event *out)
+static int plain_dev_process(struct kbd_dev *kbd,
+			     uint16_t key_state,
+			     uint16_t code,
+			     struct uterm_input_event *out)
 {
 	uint32_t keysym;
 	unsigned int mod;
@@ -353,12 +334,12 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 		 */
 		if (key_state == 1) {
 			if (mod_type == MOD_NORMAL)
-				kbd->mods |= mod;
+				kbd->plain.mods |= mod;
 			else if (mod_type == MOD_LOCK)
-				kbd->mods ^= mod;
+				kbd->plain.mods ^= mod;
 		} else if (key_state == 0) {
 			if (mod_type == MOD_NORMAL)
-				kbd->mods &= ~mod;
+				kbd->plain.mods &= ~mod;
 		}
 
 		/* Don't deliver events purely for modifiers. */
@@ -370,11 +351,11 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 
 	keysym = 0;
 
-	if (!keysym && kbd->mods & UTERM_MOD2_MASK)
+	if (!keysym && kbd->plain.mods & UTERM_MOD2_MASK)
 		keysym = keytab_numlock[code];
-	if (!keysym && kbd->mods & UTERM_SHIFT_MASK)
+	if (!keysym && kbd->plain.mods & UTERM_SHIFT_MASK)
 		keysym = keytab_shift[code];
-	if (!keysym && kbd->mods & UTERM_LOCK_MASK)
+	if (!keysym && kbd->plain.mods & UTERM_LOCK_MASK)
 		keysym = keytab_capslock[code];
 	if (!keysym)
 		keysym = keytab_normal[code];
@@ -385,34 +366,81 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	out->keycode = code;
 	out->keysym = keysym;
 	out->unicode = KeysymToUcs4(keysym) ?: UTERM_INPUT_INVALID;
-	out->mods = kbd->mods;
+	out->mods = kbd->plain.mods;
 
 	return 0;
 }
 
-int kbd_desc_new(struct kbd_desc **out,
-			const char *layout,
-			const char *variant,
-			const char *options)
+static int plain_desc_init(struct kbd_desc **out,
+			   const char *layout,
+			   const char *variant,
+			   const char *options)
 {
+	struct kbd_desc *desc;
+
 	if (!out)
 		return -EINVAL;
 
+	desc = malloc(sizeof(*desc));
+	if (!desc)
+		return -ENOMEM;
+	memset(desc, 0, sizeof(*desc));
+	desc->ops = &plain_desc_ops;
+
 	log_debug("new keyboard description (%s, %s, %s)",
-						layout, variant, options);
-	*out = NULL;
+		  layout, variant, options);
+	*out = desc;
 	return 0;
 }
 
-void kbd_desc_ref(struct kbd_desc *desc)
+static void plain_desc_ref(struct kbd_desc *desc)
 {
+	if (!desc || !desc->ref)
+		return;
+
+	++desc->ref;
 }
 
-void kbd_desc_unref(struct kbd_desc *desc)
+static void plain_desc_unref(struct kbd_desc *desc)
 {
+	if (!desc || !desc->ref || --desc->ref)
+		return;
+
+	log_debug("destroying keyboard description");
+	free(desc);
 }
 
-void kbd_keysym_to_string(uint32_t keysym, char *str, size_t size)
+static int plain_desc_alloc(struct kbd_desc *desc, struct kbd_dev **out)
+{
+	struct kbd_dev *kbd;
+
+	kbd = malloc(sizeof(*kbd));
+	if (!kbd)
+		return -ENOMEM;
+	memset(kbd, 0, sizeof(*kbd));
+	kbd->ref = 1;
+	kbd->ops = &plain_dev_ops;
+
+	*out = kbd;
+	return 0;
+}
+
+static void plain_keysym_to_string(uint32_t keysym, char *str, size_t size)
 {
 	snprintf(str, size, "%#x", keysym);
 }
+
+const struct kbd_desc_ops plain_desc_ops = {
+	.init = plain_desc_init,
+	.ref = plain_desc_ref,
+	.unref = plain_desc_unref,
+	.alloc = plain_desc_alloc,
+	.keysym_to_string = plain_keysym_to_string,
+};
+
+const struct kbd_dev_ops plain_dev_ops = {
+	.ref = plain_dev_ref,
+	.unref = plain_dev_unref,
+	.reset = plain_dev_reset,
+	.process = plain_dev_process,
+};

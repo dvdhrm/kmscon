@@ -35,44 +35,9 @@
 #include "uterm.h"
 #include "uterm_internal.h"
 
-#define LOG_SUBSYSTEM "input_xkb"
+#define LOG_SUBSYSTEM "input_uxkb"
 
-struct kbd_desc {
-	unsigned long ref;
-	struct xkb_context *ctx;
-	struct xkb_keymap *keymap;
-};
-
-struct kbd_dev {
-	unsigned long ref;
-	struct kbd_desc *desc;
-	struct xkb_state *state;
-};
-
-int kbd_dev_new(struct kbd_dev **out, struct kbd_desc *desc)
-{
-	struct kbd_dev *kbd;
-
-	kbd = malloc(sizeof(*kbd));
-	if (!kbd)
-		return -ENOMEM;
-
-	memset(kbd, 0, sizeof(*kbd));
-	kbd->ref = 1;
-	kbd->desc = desc;
-
-	kbd->state = xkb_state_new(desc->keymap);
-	if (!kbd->state) {
-		free(kbd);
-		return -ENOMEM;
-	}
-
-	kbd_desc_ref(desc);
-	*out = kbd;
-	return 0;
-}
-
-void kbd_dev_ref(struct kbd_dev *kbd)
+static void uxkb_dev_ref(struct kbd_dev *kbd)
 {
 	if (!kbd || !kbd->ref)
 		return;
@@ -80,12 +45,12 @@ void kbd_dev_ref(struct kbd_dev *kbd)
 	++kbd->ref;
 }
 
-void kbd_dev_unref(struct kbd_dev *kbd)
+static void uxkb_dev_unref(struct kbd_dev *kbd)
 {
 	if (!kbd || !kbd->ref || --kbd->ref)
 		return;
 
-	xkb_state_unref(kbd->state);
+	xkb_state_unref(kbd->uxkb.state);
 	kbd_desc_unref(kbd->desc);
 	free(kbd);
 }
@@ -120,10 +85,10 @@ static unsigned int get_effective_modmask(struct xkb_state *state)
 	return mods;
 }
 
-int kbd_dev_process_key(struct kbd_dev *kbd,
-			uint16_t key_state,
-			uint16_t code,
-			struct uterm_input_event *out)
+static int uxkb_dev_process(struct kbd_dev *kbd,
+			    uint16_t key_state,
+			    uint16_t code,
+			    struct uterm_input_event *out)
 {
 	struct xkb_state *state;
 	struct xkb_keymap *keymap;
@@ -134,7 +99,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	if (!kbd)
 		return -EINVAL;
 
-	state = kbd->state;
+	state = kbd->uxkb.state;
 	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
@@ -161,8 +126,8 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
 	 */
 	out->keycode = code;
 	out->keysym = keysyms[0];
-	out->mods = get_effective_modmask(state);;
-	out->unicode = xkb_keysym_to_utf32(out->keysym) ?: UTERM_INPUT_INVALID;
+	out->mods = get_effective_modmask(state);
+	out->unicode = xkb_keysym_to_utf32(out->keysym) ? : UTERM_INPUT_INVALID;
 
 	return 0;
 }
@@ -172,7 +137,7 @@ int kbd_dev_process_key(struct kbd_dev *kbd,
  * We don't reset the locked group, this should survive a VT switch, etc. The
  * locked modifiers are reset according to the keyboard LEDs.
  */
-void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
+static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 {
 	unsigned int i;
 	struct xkb_state *state;
@@ -188,7 +153,7 @@ void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	if (!kbd)
 		return;
 
-	state = kbd->state;
+	state = kbd->uxkb.state;
 
 	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
 		if (!input_bit_is_set(ledbits, led_names[i].led))
@@ -205,10 +170,10 @@ void kbd_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	(void)state;
 }
 
-int kbd_desc_new(struct kbd_desc **out,
-			const char *layout,
-			const char *variant,
-			const char *options)
+static int uxkb_desc_init(struct kbd_desc **out,
+			  const char *layout,
+			  const char *variant,
+			  const char *options)
 {
 	int ret;
 	struct kbd_desc *desc;
@@ -229,15 +194,16 @@ int kbd_desc_new(struct kbd_desc **out,
 
 	memset(desc, 0, sizeof(*desc));
 	desc->ref = 1;
+	desc->ops = &uxkb_desc_ops;
 
-	desc->ctx = xkb_context_new(0);
-	if (!desc->ctx) {
+	desc->uxkb.ctx = xkb_context_new(0);
+	if (!desc->uxkb.ctx) {
 		ret = -ENOMEM;
 		goto err_desc;
 	}
 
-	desc->keymap = xkb_map_new_from_names(desc->ctx, &rmlvo, 0);
-	if (!desc->keymap) {
+	desc->uxkb.keymap = xkb_map_new_from_names(desc->uxkb.ctx, &rmlvo, 0);
+	if (!desc->uxkb.keymap) {
 		log_warn("failed to create keymap (%s, %s, %s), "
 			 "reverting to default US keymap",
 			 layout, variant, options);
@@ -246,8 +212,9 @@ int kbd_desc_new(struct kbd_desc **out,
 		rmlvo.variant = "";
 		rmlvo.options = "";
 
-		desc->keymap = xkb_map_new_from_names(desc->ctx, &rmlvo, 0);
-		if (!desc->keymap) {
+		desc->uxkb.keymap = xkb_map_new_from_names(desc->uxkb.ctx,
+							   &rmlvo, 0);
+		if (!desc->uxkb.keymap) {
 			log_warn("failed to create keymap");
 			ret = -EFAULT;
 			goto err_ctx;
@@ -260,13 +227,13 @@ int kbd_desc_new(struct kbd_desc **out,
 	return 0;
 
 err_ctx:
-	xkb_context_unref(desc->ctx);
+	xkb_context_unref(desc->uxkb.ctx);
 err_desc:
 	free(desc);
 	return ret;
 }
 
-void kbd_desc_ref(struct kbd_desc *desc)
+static void uxkb_desc_ref(struct kbd_desc *desc)
 {
 	if (!desc || !desc->ref)
 		return;
@@ -274,18 +241,57 @@ void kbd_desc_ref(struct kbd_desc *desc)
 	++desc->ref;
 }
 
-void kbd_desc_unref(struct kbd_desc *desc)
+static void uxkb_desc_unref(struct kbd_desc *desc)
 {
 	if (!desc || !desc->ref || --desc->ref)
 		return;
 
 	log_debug("destroying keyboard description");
-	xkb_map_unref(desc->keymap);
-	xkb_context_unref(desc->ctx);
+	xkb_map_unref(desc->uxkb.keymap);
+	xkb_context_unref(desc->uxkb.ctx);
 	free(desc);
 }
 
-void kbd_keysym_to_string(uint32_t keysym, char *str, size_t size)
+static int uxkb_desc_alloc(struct kbd_desc *desc, struct kbd_dev **out)
+{
+	struct kbd_dev *kbd;
+
+	kbd = malloc(sizeof(*kbd));
+	if (!kbd)
+		return -ENOMEM;
+
+	memset(kbd, 0, sizeof(*kbd));
+	kbd->ref = 1;
+	kbd->desc = desc;
+	kbd->ops = &uxkb_dev_ops;
+
+	kbd->uxkb.state = xkb_state_new(desc->uxkb.keymap);
+	if (!kbd->uxkb.state) {
+		free(kbd);
+		return -ENOMEM;
+	}
+
+	kbd_desc_ref(desc);
+	*out = kbd;
+	return 0;
+}
+
+static void uxkb_keysym_to_string(uint32_t keysym, char *str, size_t size)
 {
 	xkb_keysym_get_name(keysym, str, size);
 }
+
+const struct kbd_desc_ops uxkb_desc_ops = {
+	.init = uxkb_desc_init,
+	.ref = uxkb_desc_ref,
+	.unref = uxkb_desc_unref,
+	.alloc = uxkb_desc_alloc,
+	.keysym_to_string = uxkb_keysym_to_string,
+};
+
+const struct kbd_dev_ops uxkb_dev_ops = {
+	.ref = uxkb_dev_ref,
+	.unref = uxkb_dev_unref,
+	.reset = uxkb_dev_reset,
+	.process = uxkb_dev_process,
+};

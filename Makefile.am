@@ -152,6 +152,9 @@ libuterm_la_SOURCES = \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
 	src/uterm_input.c \
+	src/uterm_input_plain.c \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c \
 	src/uterm_vt.c \
 	src/vt.h \
 	src/vt.c
@@ -195,12 +198,7 @@ endif
 
 if UTERM_HAVE_XKBCOMMON
 libuterm_la_SOURCES += \
-	src/uterm_input_xkb.c
-else
-libuterm_la_SOURCES += \
-	src/uterm_input_dumb.c \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c
+	src/uterm_input_uxkb.c
 endif
 
 include_HEADERS += \

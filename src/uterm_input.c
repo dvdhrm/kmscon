@@ -88,7 +88,7 @@ static void notify_key(struct uterm_input_dev *dev,
 	if (type != EV_KEY)
 		return;
 
-	ret = kbd_dev_process_key(dev->kbd, value, code, &ev);
+	ret = kbd_dev_process(dev->kbd, value, code, &ev);
 	if (ret)
 		return;
 
@@ -200,7 +200,7 @@ static void input_new_dev(struct uterm_input *input,
 	if (!dev->node)
 		goto err_free;
 
-	ret = kbd_dev_new(&dev->kbd, input->desc);
+	ret = kbd_desc_alloc(input->desc, &dev->kbd);
 	if (ret)
 		goto err_node;
 
@@ -254,11 +254,22 @@ int uterm_input_new(struct uterm_input **out,
 		goto err_free;
 
 	ret = kbd_desc_new(&input->desc,
-					conf_global.xkb_layout,
-					conf_global.xkb_variant,
-					conf_global.xkb_options);
-	if (ret)
+			   conf_global.xkb_layout,
+			   conf_global.xkb_variant,
+			   conf_global.xkb_options,
+			   KBD_UXKB);
+	if (ret == -EOPNOTSUPP) {
+		log_info("XKB keyboard backend not available, trying plain backend");
+		ret = kbd_desc_new(&input->desc,
+				   conf_global.xkb_layout,
+				   conf_global.xkb_variant,
+				   conf_global.xkb_options,
+				   KBD_PLAIN);
+		if (ret)
+			goto err_hook;
+	} else if (ret) {
 		goto err_hook;
+	}
 
 	log_debug("new object %p", input);
 	ev_eloop_ref(input->eloop);

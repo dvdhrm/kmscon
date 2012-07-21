@@ -336,7 +336,8 @@ if test ! x$enable_xkbcommon = xno ; then
 fi
 
 if test x$xkbcommon_enabled = xyes ; then
-        test # dummy
+        AC_DEFINE([UTERM_HAVE_XKBCOMMON], [1],
+                  [Use xkbcommon as input keyboard handling backend])
 else
         XKBCOMMON_CFLAGS=""
         XKBCOMMON_LIBS=""

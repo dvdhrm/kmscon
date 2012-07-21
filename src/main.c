@@ -182,8 +182,10 @@ static void seat_add_video(struct kmscon_seat *seat,
 
 	ret = kmscon_ui_new(&seat->ui, seat->app->eloop, seat->video,
 			    seat->input);
-	if (ret)
+	if (ret) {
+		log_error("cannot create UI object");
 		goto err_video;
+	}
 
 	seat->vdev = dev;
 	log_debug("new graphics device on seat %s", seat->sname);
