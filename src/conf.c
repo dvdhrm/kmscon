@@ -385,6 +385,9 @@ static void strip_spaces(char **buf)
 	while (**buf == ' ' || **buf == '\r' || **buf == '\t')
 		++*buf;
 
+	if (!**buf)
+		return;
+
 	tail = *buf;
 	while (*tail)
 		++tail;
