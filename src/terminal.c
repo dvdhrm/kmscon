@@ -133,26 +133,34 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	}
 
 	scr = malloc(sizeof(*scr));
-	if (!scr)
+	if (!scr) {
+		log_error("cannot allocate memory for display %p");
 		return -ENOMEM;
+	}
 	memset(scr, 0, sizeof(*scr));
 	scr->disp = disp;
 
 	ret = uterm_screen_new_single(&scr->screen, disp);
-	if (ret)
+	if (ret) {
+		log_error("cannot create screen for display %p", scr->disp);
 		goto err_free;
+	}
 
 	width = uterm_screen_width(scr->screen);
 	height = uterm_screen_height(scr->screen);
 
 	ret = font_buffer_new(&scr->buf, width, height);
-	if (ret)
+	if (ret) {
+		log_error("cannot create buffer for display %p", scr->disp);
 		goto err_screen;
+	}
 
 	ret = font_screen_new_fixed(&scr->fscr, scr->buf, FONT_ATTR(NULL, 12, 0),
 				80, 24, scr->screen, term->shader);
-	if (ret)
+	if (ret) {
+		log_error("cannot create font for display %p", scr->disp);
 		goto err_buf;
+	}
 
 	scr->next = term->screens;
 	if (scr->next)
