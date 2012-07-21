@@ -181,6 +181,7 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	}
 	kmscon_dlist_unlink(&vt->list);
 	vt->vtm = NULL;
+	uterm_vt_unref(vt);
 }
 
 void uterm_vt_ref(struct uterm_vt *vt)
