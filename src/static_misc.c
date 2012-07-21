@@ -358,6 +358,7 @@ void kmscon_hashtable_free(struct kmscon_hashtable *tbl)
 	}
 
 	htable_clear(&tbl->tbl);
+	free(tbl);
 }
 
 int kmscon_hashtable_insert(struct kmscon_hashtable *tbl, void *key,
