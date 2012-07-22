@@ -771,11 +771,11 @@ int font_screen_draw_perform(struct font_screen *screen, float *m)
 	static const float ver[] = { -1, -1, 1, -1, -1, 1, 1, -1, 1, 1, -1, 1 };
 	static const float tex[] = { 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1 };
 	const struct uterm_video_buffer buf = {
-		.data = (void*)screen->buf->data,
 		.width = screen->buf->width,
 		.height = screen->buf->height,
 		.stride = screen->buf->stride,
-		.bpp = 4,
+		.format = UTERM_FORMAT_XRGB32,
+		.data = (void*)screen->buf->data,
 	};
 
 	if (!screen)

@@ -376,7 +376,7 @@ static int display_blit(struct uterm_display *disp,
 		return -EINVAL;
 	if (!buf || !video_is_awake(disp->video))
 		return -EINVAL;
-	if (buf->bpp != 4)
+	if (buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
 	tmp = x + width;
@@ -394,10 +394,10 @@ static int display_blit(struct uterm_display *disp,
 	dst = rb->map;
 
 	dst = &dst[y * rb->stride + x * 4];
-	src = &buf->data[y * buf->stride + x * buf->bpp];
+	src = &buf->data[y * buf->stride + x * 4];
 
 	while (--height) {
-		memcpy(dst, src, buf->bpp * width);
+		memcpy(dst, src, 4 * width);
 		dst += rb->stride;
 		src += buf->stride;
 	}

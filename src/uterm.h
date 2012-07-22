@@ -158,12 +158,18 @@ struct uterm_video_hotplug {
 	int action;
 };
 
+enum uterm_video_format {
+	UTERM_FORMAT_MONO,
+	UTERM_FORMAT_GREY,
+	UTERM_FORMAT_XRGB32,
+};
+
 struct uterm_video_buffer {
-	uint8_t *data;
 	unsigned int width;
 	unsigned int height;
 	unsigned int stride;
-	unsigned int bpp;
+	unsigned int format;
+	uint8_t *data;
 };
 
 typedef void (*uterm_video_cb) (struct uterm_video *video,
