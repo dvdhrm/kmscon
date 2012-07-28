@@ -107,4 +107,9 @@ int kmscon_font_render(struct kmscon_font *font, kmscon_symbol_t sym,
 void kmscon_font_drop(struct kmscon_font *font,
 		      const struct kmscon_glyph *glyph);
 
+/* modularized backends */
+
+int kmscon_font_8x16_load(void);
+void kmscon_font_8x16_unload(void);
+
 #endif /* KMSCON_TEXT_H */
