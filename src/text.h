@@ -110,5 +110,7 @@ void kmscon_font_drop(struct kmscon_font *font,
 
 int kmscon_font_8x16_load(void);
 void kmscon_font_8x16_unload(void);
+int kmscon_font_pango_load(void);
+void kmscon_font_pango_unload(void);
 
 #endif /* KMSCON_TEXT_H */

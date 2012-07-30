@@ -1,0 +1,431 @@
+/*
+ * kmscon - Pango backend for font handling of text renderer
+ *
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011 University of Tuebingen
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/**
+ * SECTION:text_font_pango.c
+ * @short_description: Pango backend for font handling of text renderer
+ * @include: text.h
+ *
+ * The pango backend uses pango and freetype2 to render glyphs into memory
+ * buffers. It uses a hashmap to cache all rendered glyphs of a single
+ * font-face. Therefore, rendering should be very fast. Also, when loading a
+ * glyph it pre-renders all common (mostly ASCII) characters, so it can measure
+ * the font and return a valid font hight/width.
+ *
+ * This is a _full_ font backend, that is, it provides every feature you expect
+ * from a font renderer. It does glyph substitution if a specific font face does
+ * not provide a requested glyph, it does correct font loading, it does
+ * italic/bold fonts correctly and more.
+ * However, this also means it pulls in a lot of dependencies including glib,
+ * pango, freetype2 and more.
+ */
+
+#include <errno.h>
+#include <glib.h>
+#include <pango/pango.h>
+#include <pango/pangoft2.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include "log.h"
+#include "static_misc.h"
+#include "text.h"
+#include "unicode.h"
+#include "uterm.h"
+
+#define LOG_SUBSYSTEM "text_font_pango"
+
+struct face {
+	unsigned long ref;
+	struct kmscon_dlist list;
+
+	struct kmscon_font_attr attr;
+	PangoContext *ctx;
+	pthread_mutex_t glyph_lock;
+	struct kmscon_hashtable *glyphs;
+};
+
+static pthread_mutex_t manager_mutex = PTHREAD_MUTEX_INITIALIZER;
+static unsigned long manager__refcnt;
+static PangoFontMap *manager__lib;
+static struct kmscon_dlist manager__list = KMSCON_DLIST_INIT(manager__list);
+
+static void manager_lock()
+{
+	pthread_mutex_lock(&manager_mutex);
+}
+
+static void manager_unlock()
+{
+	pthread_mutex_unlock(&manager_mutex);
+}
+
+static int manager__ref()
+{
+	if (!manager__refcnt++) {
+		manager__lib = pango_ft2_font_map_new();
+		if (!manager__lib) {
+			log_warn("cannot create font map");
+			--manager__refcnt;
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
+
+static void manager__unref()
+{
+	if (!--manager__refcnt) {
+		g_object_unref(manager__lib);
+		manager__lib = NULL;
+	}
+}
+
+static int get_glyph(struct face *face, struct kmscon_glyph **out,
+		     kmscon_symbol_t ch)
+{
+	struct kmscon_glyph *glyph;
+	PangoLayout *layout;
+	PangoRectangle rec;
+	PangoLayoutLine *line;
+	FT_Bitmap bitmap;
+	size_t len, cnt;
+	const char *val;
+	bool res;
+	int ret;
+
+	pthread_mutex_lock(&face->glyph_lock);
+	res = kmscon_hashtable_find(face->glyphs, (void**)&glyph,
+				    (void*)(long)ch);
+	pthread_mutex_unlock(&face->glyph_lock);
+	if (res) {
+		*out = glyph;
+		return 0;
+	}
+
+	manager_lock();
+
+	glyph = malloc(sizeof(*glyph));
+	if (!glyph) {
+		log_error("cannot allocate memory for new glyph");
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+	memset(glyph, 0, sizeof(*glyph));
+
+	layout = pango_layout_new(face->ctx);
+
+	/* render one line only */
+	pango_layout_set_height(layout, 0);
+
+	/* no line spacing */
+	pango_layout_set_spacing(layout, 0);
+
+	val = kmscon_symbol_get_u8(ch, &len);
+	pango_layout_set_text(layout, val, len);
+	kmscon_symbol_free_u8(val);
+
+	cnt = pango_layout_get_line_count(layout);
+	if (cnt == 0) {
+		ret = -ERANGE;
+		goto out_glyph;
+	}
+
+	line = pango_layout_get_line_readonly(layout, 0);
+
+	pango_layout_line_get_pixel_extents(line, NULL, &rec);
+	glyph->ascent = -rec.y;
+	glyph->descent = rec.height - glyph->ascent;
+	glyph->buf.width = rec.width;
+	glyph->buf.height = rec.height;
+	glyph->buf.stride = rec.width;
+	glyph->buf.format = UTERM_FORMAT_GREY;
+
+	if (!glyph->buf.width || !glyph->buf.height ||
+	    glyph->ascent > glyph->buf.height) {
+		ret = -ERANGE;
+		goto out_glyph;
+	}
+
+	glyph->buf.data = malloc(glyph->buf.height * glyph->buf.stride);
+	if (!bitmap.buffer) {
+		log_error("cannot allocate bitmap memory");
+		ret = -ENOMEM;
+		goto out_glyph;
+	}
+	memset(glyph->buf.data, 0, glyph->buf.height * glyph->buf.stride);
+
+	bitmap.rows = glyph->buf.height;
+	bitmap.width = glyph->buf.width;
+	bitmap.pitch = glyph->buf.stride;
+	bitmap.num_grays = 256;
+	bitmap.pixel_mode = FT_PIXEL_MODE_GRAY;
+	bitmap.buffer = glyph->buf.data;
+
+	pango_ft2_render_layout_line(&bitmap, line, -rec.x, -rec.y);
+
+	pthread_mutex_lock(&face->glyph_lock);
+	ret = kmscon_hashtable_insert(face->glyphs, (void*)(long)ch, glyph);
+	pthread_mutex_unlock(&face->glyph_lock);
+	if (ret) {
+		log_error("cannot add glyph to hashtable");
+		goto out_buffer;
+	}
+
+	*out = glyph;
+	goto out_layout;
+
+out_buffer:
+	free(glyph->buf.data);
+out_glyph:
+	free(glyph);
+out_layout:
+	g_object_unref(layout);
+out_unlock:
+	manager_unlock();
+	return ret;
+}
+
+static void free_glyph(void *data)
+{
+	struct kmscon_glyph *glyph = data;
+
+	free(glyph->buf.data);
+	free(glyph);
+}
+
+static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
+{
+	struct kmscon_dlist *iter;
+	struct face *face;
+	PangoFontDescription *desc;
+	int ret;
+
+	manager_lock();
+
+	kmscon_dlist_for_each(iter, &manager__list) {
+		face = kmscon_dlist_entry(iter, struct face, list);
+		if (kmscon_font_attr_match(&face->attr, attr)) {
+			++face->ref;
+			*out = face;
+			ret = 0;
+			goto out_unlock;
+		}
+	}
+
+	ret = manager__ref();
+	if (ret)
+		goto out_unlock;
+
+	face = malloc(sizeof(*face));
+	if (!face) {
+		log_error("cannot allocate memory for new face");
+		ret = -ENOMEM;
+		goto err_manager;
+	}
+	memset(face, 0, sizeof(*face));
+	face->ref = 1;
+	memcpy(&face->attr, attr, sizeof(*attr));
+
+	ret = pthread_mutex_init(&face->glyph_lock, NULL);
+	if (ret) {
+		log_error("cannot initialize glyph lock");
+		goto err_free;
+	}
+
+	ret = kmscon_hashtable_new(&face->glyphs, kmscon_direct_hash,
+				   kmscon_direct_equal, NULL, free_glyph);
+	if (ret) {
+		log_error("cannot allocate hashtable");
+		goto err_lock;
+	}
+
+	face->ctx = pango_font_map_create_context(manager__lib);
+	pango_context_set_base_dir(face->ctx, PANGO_DIRECTION_LTR);
+	pango_context_set_language(face->ctx, pango_language_get_default());
+
+	desc = pango_font_description_from_string(attr->name);
+
+	/* TODO: even though we specify an absolute size, we currently get
+	 * slightly smaller fonts back from pango. This is very odd and we
+	 * haven't found the reason for it, yet. It's not very problematic as
+	 * our text renderer expects such behavior. However, fixing it would be
+	 * nice. */
+	pango_font_description_set_absolute_size(desc,
+					PANGO_SCALE * face->attr.height);
+
+	pango_font_description_set_weight(desc,
+			attr->bold ? PANGO_WEIGHT_BOLD : PANGO_WEIGHT_NORMAL);
+	pango_font_description_set_style(desc,
+			attr->italic ? PANGO_STYLE_ITALIC : PANGO_STYLE_NORMAL);
+	pango_font_description_set_variant(desc, PANGO_VARIANT_NORMAL);
+	pango_font_description_set_stretch(desc, PANGO_STRETCH_NORMAL);
+	pango_font_description_set_gravity(desc, PANGO_GRAVITY_SOUTH);
+	pango_context_set_font_description(face->ctx, desc);
+	pango_font_description_free(desc);
+
+	kmscon_dlist_link(&manager__list, &face->list);
+	*out = face;
+	ret = 0;
+	goto out_unlock;
+
+err_lock:
+	pthread_mutex_destroy(&face->glyph_lock);
+err_free:
+	free(face);
+err_manager:
+	manager__unref();
+out_unlock:
+	manager_unlock();
+	return ret;
+}
+
+static void manager_put_face(struct face *face)
+{
+	manager_lock();
+
+	if (--face->ref) {
+		kmscon_dlist_unlink(&face->list);
+		kmscon_hashtable_free(face->glyphs);
+		pthread_mutex_destroy(&face->glyph_lock);
+		g_object_unref(face->ctx);
+		free(face);
+		manager__unref();
+	}
+
+	manager_unlock();
+}
+
+static int kmscon_font_pango_init(struct kmscon_font *out,
+				  const struct kmscon_font_attr *attr)
+{
+	struct face *face;
+	int ret;
+	kmscon_symbol_t ch;
+	unsigned int i, num, width, asc, desc;
+	struct kmscon_glyph *glyph;
+
+	log_debug("loading pango font %s", attr->name);
+
+	memcpy(&out->attr, attr, sizeof(*attr));
+	kmscon_font_attr_normalize(&out->attr);
+
+	ret = manager_get_face(&face, &out->attr);
+	if (ret)
+		return ret;
+
+	/* Measure font face: We prerender all ASCII characters here so we can
+	 * measure the average and maximum font width/height and as a bonus all
+	 * characters will already be cached so the next renderings will be
+	 * pretty fast. */
+
+	num = 0;
+	width = 0;
+	asc = 0;
+	desc = 0;
+	for (i = 0x20; i < 0x7f; ++i) {
+		ch = kmscon_symbol_make(i);
+		ret = get_glyph(face, &glyph, ch);
+		if (ret)
+			continue;
+
+		if (glyph->ascent > asc)
+			asc = glyph->ascent;
+		if (glyph->descent > desc)
+			desc = glyph->descent;
+		if (glyph->buf.width > width)
+			width = glyph->buf.width;
+	}
+
+	if (!num) {
+		log_warning("cannot measure font, using pango hints...");
+	} else {
+		out->attr.width = width;
+		out->attr.height = asc + desc;
+		out->baseline = desc;
+		kmscon_font_attr_normalize(&out->attr);
+	}
+
+	out->data = face;
+	return 0;
+}
+
+static void kmscon_font_pango_destroy(struct kmscon_font *font)
+{
+	struct face *face;
+
+	log_debug("unloading pango font");
+	face = font->data;
+	manager_put_face(face);
+}
+
+static int kmscon_font_pango_render(struct kmscon_font *font,
+				    kmscon_symbol_t sym,
+				    const struct kmscon_glyph **out)
+{
+	struct kmscon_glyph *glyph;
+	int ret;
+
+	ret = get_glyph(font->data, &glyph, sym);
+	if (ret)
+		return ret;
+
+	*out = glyph;
+	return 0;
+}
+
+static void kmscon_font_pango_drop(struct kmscon_font *font,
+				   const struct kmscon_glyph *glyph)
+{
+}
+
+static const struct kmscon_font_ops kmscon_font_pango_ops = {
+	.name = "pango",
+	.init = kmscon_font_pango_init,
+	.destroy = kmscon_font_pango_destroy,
+	.render = kmscon_font_pango_render,
+	.drop = kmscon_font_pango_drop,
+};
+
+int kmscon_font_pango_load(void)
+{
+	int ret;
+
+	ret = kmscon_font_register(&kmscon_font_pango_ops);
+	if (ret) {
+		log_error("cannot register pango font");
+		return ret;
+	}
+
+	return 0;
+}
+
+void kmscon_font_pango_unload(void)
+{
+	kmscon_font_unregister(kmscon_font_pango_ops.name);
+}

@@ -121,7 +121,8 @@ libkmscon_core_la_SOURCES = \
 	src/font_pango.c \
 	src/text.h \
 	src/text_font.c \
-	src/text_font_8x16.c
+	src/text_font_8x16.c \
+	src/text_font_pango.c
 
 if KMSCON_HAVE_GLES2
 libkmscon_core_la_SOURCES += \
