@@ -70,8 +70,6 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 struct kmscon_glyph {
 	unsigned int ascent;
 	unsigned int descent;
-	unsigned int xoff;
-	unsigned int yoff;
 	struct uterm_video_buffer buf;
 };
 
@@ -79,6 +77,7 @@ struct kmscon_font {
 	unsigned long ref;
 	const struct kmscon_font_ops *ops;
 	struct kmscon_font_attr attr;
+	unsigned int baseline;
 	void *data;
 };
 
