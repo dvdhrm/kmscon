@@ -371,7 +371,7 @@ static int display_blit(struct uterm_display *disp,
 	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
 	src = buf->data;
 
-	while (--height) {
+	while (height--) {
 		memcpy(dst, src, 4 * width);
 		dst += disp->fbdev.stride;
 		src += buf->stride;
@@ -410,7 +410,7 @@ static int display_fill(struct uterm_display *disp,
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
 	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
 
-	while (--height) {
+	while (height--) {
 		for (i = 0; i < width; ++i) {
 			((uint32_t*)dst)[i] = ((r & 0xff) << 16) |
 					      ((g & 0xff) << 8) |
