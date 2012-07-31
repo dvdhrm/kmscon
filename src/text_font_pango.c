@@ -364,13 +364,15 @@ static int kmscon_font_pango_init(struct kmscon_font *out,
 	}
 
 	if (!num) {
-		log_warning("cannot measure font, using pango hints...");
+		log_warning("cannot measure font");
+		out->attr.width = out->attr.height;
+		out->baseline = 0;
 	} else {
 		out->attr.width = width;
 		out->attr.height = asc + desc;
 		out->baseline = desc;
-		kmscon_font_attr_normalize(&out->attr);
 	}
+	kmscon_font_attr_normalize(&out->attr);
 
 	out->data = face;
 	return 0;
