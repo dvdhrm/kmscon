@@ -1303,6 +1303,23 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			num = 1;
 		kmscon_console_move_left(vte->con, num);
 		break;
+	case 'd': /* VPA */
+		/* Vertical Line Position Absolute */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		x = kmscon_console_get_cursor_x(vte->con);
+		kmscon_console_move_to(vte->con, x, num - 1);
+		break;
+	case 'e': /* VPR */
+		/* Vertical Line Position Relative */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		x = kmscon_console_get_cursor_x(vte->con);
+		y = kmscon_console_get_cursor_y(vte->con);
+		kmscon_console_move_to(vte->con, x, y + num);
+		break;
 	case 'H': /* CUP */
 	case 'f': /* HVP */
 		/* position cursor */
