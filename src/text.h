@@ -39,6 +39,7 @@
 #define KMSCON_TEXT_H
 
 #include <stdlib.h>
+#include "font.h"
 #include "unicode.h"
 #include "uterm.h"
 
@@ -105,6 +106,61 @@ int kmscon_font_render(struct kmscon_font *font, kmscon_symbol_t sym,
 		       const struct kmscon_glyph **out);
 void kmscon_font_drop(struct kmscon_font *font,
 		      const struct kmscon_glyph *glyph);
+
+/* text renderer */
+
+struct kmscon_text;
+struct kmscon_text_ops;
+
+struct kmscon_text {
+	unsigned long ref;
+	const struct kmscon_text_ops *ops;
+	struct kmscon_font *font;
+	struct uterm_screen *screen;
+	uint8_t bg_r;
+	uint8_t bg_g;
+	uint8_t bg_b;
+	unsigned int cols;
+	unsigned int rows;
+	bool rendering;
+	void *data;
+};
+
+struct kmscon_text_ops {
+	const char *name;
+	int (*init) (struct kmscon_text *txt);
+	void (*destroy) (struct kmscon_text *txt);
+	void (*new_font) (struct kmscon_text *txt);
+	void (*new_bgcolor) (struct kmscon_text *txt);
+	void (*new_screen) (struct kmscon_text *txt);
+	void (*prepare) (struct kmscon_text *txt);
+	void (*draw) (struct kmscon_text *txt, kmscon_symbol_t ch,
+		      unsigned int posx, unsigned int posy,
+		      const struct font_char_attr *attr);
+	void (*render) (struct kmscon_text *txt);
+};
+
+int kmscon_text_register(const struct kmscon_text_ops *ops);
+void kmscon_text_unregister(const char *name);
+
+int kmscon_text_new(struct kmscon_text **out, const char *backend);
+void kmscon_text_ref(struct kmscon_text *txt);
+void kmscon_text_unref(struct kmscon_text *txt);
+
+void kmscon_text_set_font(struct kmscon_text *txt,
+			  struct kmscon_font *font);
+void kmscon_text_set_bgcolor(struct kmscon_text *txt,
+			     uint8_t r, uint8_t g, uint8_t b);
+void kmscon_text_set_screen(struct kmscon_text *txt,
+			    struct uterm_screen *screen);
+unsigned int kmscon_text_get_cols(struct kmscon_text *txt);
+unsigned int kmscon_text_get_rows(struct kmscon_text *txt);
+
+void kmscon_text_prepare(struct kmscon_text *txt);
+void kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+		      unsigned int posx, unsigned int posy,
+		      const struct font_char_attr *attr);
+void kmscon_text_render(struct kmscon_text *txt);
 
 /* modularized backends */
 
