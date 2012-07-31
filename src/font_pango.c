@@ -787,8 +787,7 @@ int font_screen_draw_perform(struct font_screen *screen, float *m)
 			    screen->buf->data);
 		gl_shader_draw_tex(screen->shader, ver, tex, 6, screen->tex, m);
 	} else {
-		uterm_screen_blit(screen->scr, &buf, 0, 0,
-				  buf.width, buf.height);
+		uterm_screen_blit(screen->scr, &buf, 0, 0);
 	}
 
 	cairo_restore(screen->cr);

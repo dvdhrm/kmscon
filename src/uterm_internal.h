@@ -57,8 +57,7 @@ struct display_ops {
 	int (*swap) (struct uterm_display *disp);
 	int (*blit) (struct uterm_display *disp,
 		     const struct uterm_video_buffer *buf,
-		     unsigned int x, unsigned int y,
-		     unsigned int width, unsigned int height);
+		     unsigned int x, unsigned int y);
 };
 
 struct video_ops {

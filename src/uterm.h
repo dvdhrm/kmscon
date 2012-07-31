@@ -194,8 +194,7 @@ int uterm_screen_use(struct uterm_screen *screen);
 int uterm_screen_swap(struct uterm_screen *screen);
 int uterm_screen_blit(struct uterm_screen *screen,
 		      const struct uterm_video_buffer *buf,
-		      unsigned int x, unsigned int y,
-		      unsigned int width, unsigned int height);
+		      unsigned int x, unsigned int y);
 
 /* display modes interface */
 

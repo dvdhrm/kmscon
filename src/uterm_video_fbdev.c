@@ -349,11 +349,11 @@ static int display_swap(struct uterm_display *disp)
 
 static int display_blit(struct uterm_display *disp,
 			const struct uterm_video_buffer *buf,
-			unsigned int x, unsigned int y,
-			unsigned int width, unsigned int height)
+			unsigned int x, unsigned int y)
 {
 	unsigned int tmp;
 	uint8_t *dst, *src;
+	unsigned int width, height;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
@@ -362,23 +362,28 @@ static int display_blit(struct uterm_display *disp,
 	if (buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
-	tmp = x + width;
-	if (tmp < x || x >= buf->width)
+	tmp = x + buf->width;
+	if (tmp < x || x >= disp->fbdev.xres)
 		return -EINVAL;
-	if (tmp > buf->width)
-		width = buf->width - x;
-	tmp = y + height;
-	if (tmp < y || y >= buf->height)
+	if (tmp > disp->fbdev.xres)
+		width = disp->fbdev.xres - x;
+	else
+		width = buf->width;
+
+	tmp = y + buf->height;
+	if (tmp < y || y >= disp->fbdev.yres)
 		return -EINVAL;
-	if (tmp > buf->height)
-		height = buf->height - y;
+	if (tmp > disp->fbdev.yres)
+		height = disp->fbdev.yres - y;
+	else
+		height = buf->height;
 
 	if (!(disp->flags & DISPLAY_DBUF) || disp->fbdev.bufid)
 		dst = disp->fbdev.map;
 	else
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
 	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
-	src = &buf->data[y * buf->stride + x * 4];
+	src = buf->data;
 
 	while (--height) {
 		memcpy(dst, src, 4 * width);
