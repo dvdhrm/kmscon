@@ -360,6 +360,7 @@ static int kmscon_font_pango_init(struct kmscon_font *out,
 			desc = glyph->descent;
 		if (glyph->buf.width > width)
 			width = glyph->buf.width;
+		++num;
 	}
 
 	if (!num) {
