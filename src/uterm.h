@@ -159,7 +159,6 @@ struct uterm_video_hotplug {
 };
 
 enum uterm_video_format {
-	UTERM_FORMAT_MONO,
 	UTERM_FORMAT_GREY,
 	UTERM_FORMAT_XRGB32,
 };
