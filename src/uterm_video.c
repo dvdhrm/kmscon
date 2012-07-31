@@ -144,6 +144,18 @@ int uterm_screen_blit(struct uterm_screen *screen,
 			  buf, x, y);
 }
 
+int uterm_screen_fill(struct uterm_screen *screen,
+		      uint8_t r, uint8_t g, uint8_t b,
+		      unsigned int x, unsigned int y,
+		      unsigned int width, unsigned int height)
+{
+	if (!screen)
+		return -EINVAL;
+
+	return VIDEO_CALL(screen->disp->ops->fill, -EOPNOTSUPP, screen->disp,
+			  r, g, b, x, y, width, height);
+}
+
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops)
 {
 	struct uterm_mode *mode;

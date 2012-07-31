@@ -413,6 +413,51 @@ static int display_blit(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_fill(struct uterm_display *disp,
+			uint8_t r, uint8_t g, uint8_t b,
+			unsigned int x, unsigned int y,
+			unsigned int width, unsigned int height)
+{
+	unsigned int tmp, i;
+	uint8_t *dst;
+	struct dumb_rb *rb;
+	unsigned int sw, sh;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!video_is_awake(disp->video))
+		return -EINVAL;
+
+	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	sw = disp->current_mode->dumb.info.hdisplay;
+	sh = disp->current_mode->dumb.info.vdisplay;
+
+	tmp = x + width;
+	if (tmp < x || x >= sw)
+		return -EINVAL;
+	if (tmp > sw)
+		width = sw - x;
+	tmp = y + height;
+	if (tmp < y || y >= sh)
+		return -EINVAL;
+	if (tmp > sh)
+		height = sh - y;
+
+	dst = rb->map;
+	dst = &dst[y * rb->stride + x * 4];
+
+	while (--height) {
+		for (i = 0; i < width; ++i) {
+			((uint32_t*)dst)[i] = ((r & 0xff) << 16) |
+					      ((g & 0xff) << 8) |
+					       (b & 0xff);
+		}
+		dst += rb->stride;
+	}
+
+	return 0;
+}
+
 static void show_displays(struct uterm_video *video)
 {
 	int ret;
@@ -729,6 +774,7 @@ const struct display_ops dumb_display_ops = {
 	.use = NULL,
 	.swap = display_swap,
 	.blit = display_blit,
+	.fill = display_fill,
 };
 
 const struct video_ops dumb_video_ops = {

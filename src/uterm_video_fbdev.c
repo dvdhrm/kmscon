@@ -394,6 +394,48 @@ static int display_blit(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_fill(struct uterm_display *disp,
+			uint8_t r, uint8_t g, uint8_t b,
+			unsigned int x, unsigned int y,
+			unsigned int width, unsigned int height)
+{
+	unsigned int tmp, i;
+	uint8_t *dst;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!video_is_awake(disp->video))
+		return -EINVAL;
+
+	tmp = x + width;
+	if (tmp < x || x >= disp->fbdev.xres)
+		return -EINVAL;
+	if (tmp > disp->fbdev.xres)
+		width = disp->fbdev.xres - x;
+	tmp = y + height;
+	if (tmp < y || y >= disp->fbdev.yres)
+		return -EINVAL;
+	if (tmp > disp->fbdev.yres)
+		height = disp->fbdev.yres - y;
+
+	if (!(disp->flags & DISPLAY_DBUF) || disp->fbdev.bufid)
+		dst = disp->fbdev.map;
+	else
+		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
+	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
+
+	while (--height) {
+		for (i = 0; i < width; ++i) {
+			((uint32_t*)dst)[i] = ((r & 0xff) << 16) |
+					      ((g & 0xff) << 8) |
+					       (b & 0xff);
+		}
+		dst += disp->fbdev.stride;
+	}
+
+	return 0;
+}
+
 static int video_init(struct uterm_video *video, const char *node)
 {
 	int ret;
@@ -488,6 +530,7 @@ const struct display_ops fbdev_display_ops = {
 	.use = NULL,
 	.swap = display_swap,
 	.blit = display_blit,
+	.fill = display_fill,
 };
 
 const struct video_ops fbdev_video_ops = {
