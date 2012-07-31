@@ -465,3 +465,16 @@ bool uterm_input_is_awake(struct uterm_input *input)
 
 	return input->awake;
 }
+
+void uterm_input_keysym_to_string(struct uterm_input *input,
+				  uint32_t keysym, char *str, size_t size)
+{
+	if (!str || !size)
+		return;
+	if (!input) {
+		*str = 0;
+		return;
+	}
+
+	kbd_desc_keysym_to_string(input->desc, keysym, str, size);
+}

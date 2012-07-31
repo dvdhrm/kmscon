@@ -298,6 +298,9 @@ void uterm_input_sleep(struct uterm_input *input);
 void uterm_input_wake_up(struct uterm_input *input);
 bool uterm_input_is_awake(struct uterm_input *input);
 
+void uterm_input_keysym_to_string(struct uterm_input *input,
+				  uint32_t keysym, char *str, size_t size);
+
 /*
  * System Monitor
  * This watches the system for new seats, graphics devices or other devices that
