@@ -1452,6 +1452,20 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		/* device status reports */
 		csi_dsr(vte);
 		break;
+	case 'S': /* SU */
+		/* scroll up */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_scroll_up(vte->con, num);
+		break;
+	case 'T': /* SD */
+		/* scroll down */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		kmscon_console_scroll_down(vte->con, num);
+		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);
 	}
