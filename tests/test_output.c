@@ -1,7 +1,7 @@
 /*
  * test_output - Test KMS/DRI output
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -63,6 +63,67 @@ float d_col[] = { 1, 1, 0, 1,
 		1, 1, 1, 1,
 		0, 0, 1, 1,
 		0, 1, 1, 1 };
+
+static int blit_outputs(struct uterm_video *video)
+{
+	struct uterm_display *iter;
+	int j, ret;
+	struct uterm_screen *screen;
+
+	j = 0;
+	iter = uterm_video_get_displays(video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		log_notice("Activating display %d %p...", j, iter);
+		ret = uterm_display_activate(iter, NULL);
+		if (ret)
+			log_err("Cannot activate display %d: %d", j, ret);
+		else
+			log_notice("Successfully activated display %d", j);
+
+		ret = uterm_display_set_dpms(iter, UTERM_DPMS_ON);
+		if (ret)
+			log_err("Cannot set DPMS to ON: %d", ret);
+
+		++j;
+	}
+
+	iter = uterm_video_get_displays(video);
+	for ( ; iter; iter = uterm_display_next(iter)) {
+		if (uterm_display_get_state(iter) != UTERM_DISPLAY_ACTIVE)
+			continue;
+
+		ret = uterm_screen_new_single(&screen, iter);
+		if (ret) {
+			log_err("Cannot create temp-screen object: %d", ret);
+			continue;
+		}
+
+		ret = uterm_screen_fill(screen, 0xff, 0xff, 0xff, 0, 0,
+					uterm_screen_width(screen),
+					uterm_screen_height(screen));
+		if (ret) {
+			log_err("cannot fill framebuffer");
+			uterm_screen_unref(screen);
+			continue;
+		}
+
+		ret = uterm_screen_swap(screen);
+		if (ret) {
+			log_err("Cannot swap screen: %d", ret);
+			uterm_screen_unref(screen);
+			continue;
+		}
+
+		log_notice("Successfully set screen on display %p", iter);
+		uterm_screen_unref(screen);
+	}
+
+	log_notice("Waiting 5 seconds...");
+	ev_eloop_run(eloop, 5000);
+	log_notice("Exiting...");
+
+	return 0;
+}
 
 static int set_outputs(struct uterm_video *video)
 {
@@ -176,19 +237,35 @@ int main(int argc, char **argv)
 {
 	struct uterm_video *video;
 	int ret;
+	unsigned int mode;
+	const char *node;
 
 	ret = test_prepare(argc, argv, &eloop);
 	if (ret)
 		goto err_fail;
 
-	log_notice("Creating video object...");
-	ret = uterm_video_new(&video, eloop, UTERM_VIDEO_DRM, "/dev/dri/card0");
-	if (ret)
-		goto err_exit;
+	if (conf_global.use_fbdev) {
+		mode = UTERM_VIDEO_FBDEV;
+		node = "/dev/fb0";
+	} else {
+		mode = UTERM_VIDEO_DRM;
+		node = "/dev/dri/card0";
+	}
 
-	ret = uterm_video_use(video);
-	if (ret)
-		goto err_unref;
+	log_notice("Creating video object using %s...", node);
+
+	ret = uterm_video_new(&video, eloop, mode, node);
+	if (ret) {
+		if (mode == UTERM_VIDEO_DRM) {
+			log_notice("cannot create drm device; trying dumb drm mode");
+			ret = uterm_video_new(&video, eloop,
+					      UTERM_VIDEO_DUMB, node);
+			if (ret)
+				goto err_exit;
+		} else {
+			goto err_exit;
+		}
+	}
 
 	log_notice("Wakeing up video object...");
 	ret = uterm_video_wake_up(video);
@@ -202,7 +279,12 @@ int main(int argc, char **argv)
 			goto err_unref;
 		}
 	} else {
-		ret = set_outputs(video);
+		ret = uterm_video_use(video);
+		if (ret)
+			ret = blit_outputs(video);
+		else
+			ret = set_outputs(video);
+
 		if (ret) {
 			log_err("Cannot set outputs: %d", ret);
 			goto err_unref;
