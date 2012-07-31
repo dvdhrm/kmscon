@@ -173,7 +173,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	}
 
 	glyph->buf.data = malloc(glyph->buf.height * glyph->buf.stride);
-	if (!bitmap.buffer) {
+	if (!glyph->buf.data) {
 		log_error("cannot allocate bitmap memory");
 		ret = -ENOMEM;
 		goto out_glyph;
