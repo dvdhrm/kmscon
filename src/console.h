@@ -83,6 +83,8 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
 			  const struct font_char_attr *attr);
 void kmscon_console_newline(struct kmscon_console *con);
+void kmscon_console_scroll_up(struct kmscon_console *con, unsigned int num);
+void kmscon_console_scroll_down(struct kmscon_console *con, unsigned int num);
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 			    unsigned int y);
 void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,

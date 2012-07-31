@@ -854,6 +854,22 @@ void kmscon_console_newline(struct kmscon_console *con)
 	kmscon_console_move_line_home(con);
 }
 
+void kmscon_console_scroll_up(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	console_scroll_up(con, num);
+}
+
+void kmscon_console_scroll_down(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	console_scroll_down(con, num);
+}
+
 void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 			    unsigned int y)
 {
