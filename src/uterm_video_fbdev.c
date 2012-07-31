@@ -301,20 +301,6 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	return 0;
 }
 
-void *fbdev_display_map(struct uterm_display *disp)
-{
-	if (!disp->video || !video_is_awake(disp->video))
-		return NULL;
-	if (!(disp->flags & DISPLAY_ONLINE))
-		return NULL;
-
-	/* TODO: temporary function to obtain a pointer to the frambuffer from
-	 * the calling application. Stuff like bpp, size, etc. must be
-	 * published, too, otherwise, no-one will be able to use it. */
-
-	return disp->fbdev.map;
-}
-
 static int display_swap(struct uterm_display *disp)
 {
 	struct fb_var_screeninfo *vinfo;
