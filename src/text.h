@@ -169,4 +169,7 @@ void kmscon_font_8x16_unload(void);
 int kmscon_font_pango_load(void);
 void kmscon_font_pango_unload(void);
 
+int kmscon_text_bblit_load(void);
+void kmscon_text_bblit_unload(void);
+
 #endif /* KMSCON_TEXT_H */
