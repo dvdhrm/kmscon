@@ -1331,6 +1331,14 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			y = 1;
 		kmscon_console_move_to(vte->con, y - 1, x - 1);
 		break;
+	case 'G': /* CHA */
+		/* Cursor Character Absolute */
+		num = vte->csi_argv[0];
+		if (num <= 0)
+			num = 1;
+		y = kmscon_console_get_cursor_y(vte->con);
+		kmscon_console_move_to(vte->con, num - 1, y);
+		break;
 	case 'J':
 		if (vte->csi_flags & CSI_WHAT)
 			protect = true;
