@@ -144,6 +144,19 @@ int uterm_screen_blit(struct uterm_screen *screen,
 			  buf, x, y);
 }
 
+int uterm_screen_blend(struct uterm_screen *screen,
+		       const struct uterm_video_buffer *buf,
+		       unsigned int x, unsigned int y,
+		       uint8_t fr, uint8_t fg, uint8_t fb,
+		       uint8_t br, uint8_t bg, uint8_t bb)
+{
+	if (!screen)
+		return -EINVAL;
+
+	return VIDEO_CALL(screen->disp->ops->blend, -EOPNOTSUPP, screen->disp,
+			  buf, x, y, fr, fg, fb, br, bg, bb);
+}
+
 int uterm_screen_fill(struct uterm_screen *screen,
 		      uint8_t r, uint8_t g, uint8_t b,
 		      unsigned int x, unsigned int y,

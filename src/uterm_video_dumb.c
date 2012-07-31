@@ -413,6 +413,72 @@ static int display_blit(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_blend(struct uterm_display *disp,
+			 const struct uterm_video_buffer *buf,
+			 unsigned int x, unsigned int y,
+			 uint8_t fr, uint8_t fg, uint8_t fb,
+			 uint8_t br, uint8_t bg, uint8_t bb)
+{
+	unsigned int tmp;
+	uint8_t *dst, *src;
+	struct dumb_rb *rb;
+	unsigned int width, height, i;
+	unsigned int sw, sh;
+	unsigned int r, g, b;
+
+	if (!disp->video || !display_is_online(disp))
+		return -EINVAL;
+	if (!buf || !video_is_awake(disp->video))
+		return -EINVAL;
+
+	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	sw = disp->current_mode->dumb.info.hdisplay;
+	sh = disp->current_mode->dumb.info.vdisplay;
+
+	tmp = x + buf->width;
+	if (tmp < x || x >= sw)
+		return -EINVAL;
+	if (tmp > sw)
+		width = sw - x;
+	else
+		width = buf->width;
+
+	tmp = y + buf->height;
+	if (tmp < y || y >= sh)
+		return -EINVAL;
+	if (tmp > sh)
+		height = sh - y;
+	else
+		height = buf->height;
+
+	dst = rb->map;
+	dst = &dst[y * rb->stride + x * 4];
+	src = buf->data;
+
+	if (buf->format == UTERM_FORMAT_GREY) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				r = (fr & 0xff) * src[i] / 255 +
+				    (br & 0xff) * (255 - src[i]) / 255;
+				g = (fg & 0xff) * src[i] / 255 +
+				    (bg & 0xff) * (255 - src[i]) / 255;
+				b = (fb & 0xff) * src[i] / 255 +
+				    (bb & 0xff) * (255 - src[i]) / 255;
+				((uint32_t*)dst)[i] =
+					((r & 0xff) << 16) |
+					((g & 0xff) << 8) |
+					 (b & 0xff);
+			}
+			dst += rb->stride;
+			src += buf->stride;
+		}
+	} else {
+		log_warning("using unsupported buffer format for blending");
+	}
+
+	return 0;
+}
+
 static int display_fill(struct uterm_display *disp,
 			uint8_t r, uint8_t g, uint8_t b,
 			unsigned int x, unsigned int y,
@@ -774,6 +840,7 @@ const struct display_ops dumb_display_ops = {
 	.use = NULL,
 	.swap = display_swap,
 	.blit = display_blit,
+	.blend = display_blend,
 	.fill = display_fill,
 };
 

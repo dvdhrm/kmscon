@@ -58,6 +58,11 @@ struct display_ops {
 	int (*blit) (struct uterm_display *disp,
 		     const struct uterm_video_buffer *buf,
 		     unsigned int x, unsigned int y);
+	int (*blend) (struct uterm_display *disp,
+		      const struct uterm_video_buffer *buf,
+		      unsigned int x, unsigned int y,
+		      uint8_t fr, uint8_t fg, uint8_t fb,
+		      uint8_t br, uint8_t bg, uint8_t bb);
 	int (*fill) (struct uterm_display *disp,
 		     uint8_t r, uint8_t g, uint8_t b, unsigned int x,
 		     unsigned int y, unsigned int width, unsigned int height);

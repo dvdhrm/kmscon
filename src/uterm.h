@@ -194,6 +194,11 @@ int uterm_screen_swap(struct uterm_screen *screen);
 int uterm_screen_blit(struct uterm_screen *screen,
 		      const struct uterm_video_buffer *buf,
 		      unsigned int x, unsigned int y);
+int uterm_screen_blend(struct uterm_screen *screen,
+		       const struct uterm_video_buffer *buf,
+		       unsigned int x, unsigned int y,
+		       uint8_t fr, uint8_t fg, uint8_t fb,
+		       uint8_t br, uint8_t bg, uint8_t bb);
 int uterm_screen_fill(struct uterm_screen *screen,
 		      uint8_t r, uint8_t g, uint8_t b,
 		      unsigned int x, unsigned int y,
