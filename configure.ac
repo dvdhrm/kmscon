@@ -76,7 +76,7 @@ PKG_CHECK_MODULES([GLES2], [glesv2],
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
                   [have_xkbcommon=yes], [have_xkbcommon=no])
 
-PKG_CHECK_MODULES([PANGO], [pango pangocairo cairo],
+PKG_CHECK_MODULES([PANGO], [pango pangoft2],
                   [have_pango=yes], [have_pango=no])
 
 PKG_CHECK_MODULES([FREETYPE2], [freetype2],

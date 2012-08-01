@@ -37,7 +37,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include "font.h"
-#include "gl.h"
+#include "text.h"
 #include "unicode.h"
 
 struct kmscon_console;
@@ -78,7 +78,7 @@ void kmscon_console_set_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_all_tabstops(struct kmscon_console *con);
 
-void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr);
+void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt);
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
 			  const struct font_char_attr *attr);

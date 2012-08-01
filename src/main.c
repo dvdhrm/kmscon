@@ -33,6 +33,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"
+#include "text.h"
 #include "ui.h"
 #include "uterm.h"
 #include "vt.h"
@@ -333,10 +334,14 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_out;
 
+	kmscon_font_8x16_load();
+	kmscon_font_pango_load();
+	kmscon_text_bblit_load();
+
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
 	if (ret)
-		goto err_out;
+		goto err_unload;
 
 	if (conf_global.switchvt) {
 		/* TODO: implement automatic VT switching */
@@ -361,11 +366,18 @@ int main(int argc, char **argv)
 	}
 
 	destroy_app(&app);
+	kmscon_text_bblit_unload();
+	kmscon_font_pango_unload();
+	kmscon_font_8x16_unload();
 	conf_free();
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
+err_unload:
+	kmscon_text_bblit_unload();
+	kmscon_font_pango_unload();
+	kmscon_font_8x16_unload();
 err_out:
 	conf_free();
 	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));

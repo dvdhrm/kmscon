@@ -39,7 +39,9 @@
 #include "gl.h"
 #include "log.h"
 #include "pty.h"
+#include "static_misc.h"
 #include "terminal.h"
+#include "text.h"
 #include "unicode.h"
 #include "uterm.h"
 #include "vte.h"
@@ -47,12 +49,11 @@
 #define LOG_SUBSYSTEM "terminal"
 
 struct screen {
-	struct screen *next;
-	struct screen *prev;
+	struct kmscon_dlist list;
 	struct uterm_display *disp;
 	struct uterm_screen *screen;
-	struct font_buffer *buf;
-	struct font_screen *fscr;
+	struct kmscon_font *font;
+	struct kmscon_text *txt;
 };
 
 struct kmscon_terminal {
@@ -63,9 +64,9 @@ struct kmscon_terminal {
 	struct gl_shader *shader;
 	bool opened;
 
-	struct screen *screens;
-	unsigned int max_width;
-	unsigned int max_height;
+	struct kmscon_dlist screens;
+	unsigned int min_cols;
+	unsigned int min_rows;
 
 	bool redraw;
 	struct kmscon_console *console;
@@ -79,18 +80,19 @@ struct kmscon_terminal {
 static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct kmscon_terminal *term = data;
-	struct screen *iter;
 	struct uterm_screen *screen;
 	int ret;
 	unsigned int cflags;
+	struct kmscon_dlist *iter;
+	struct screen *ent;
 
 	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	term->redraw = false;
 	cflags = kmscon_console_get_flags(term->console);
 
-	iter = term->screens;
-	for (; iter; iter = iter->next) {
-		screen = iter->screen;
+	kmscon_dlist_for_each(iter, &term->screens) {
+		ent = kmscon_dlist_entry(iter, struct screen, list);
+		screen = ent->screen;
 
 		ret = uterm_screen_use(screen);
 		if (!ret) {
@@ -101,7 +103,7 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 				gl_clear_color(0.0, 0.0, 0.0, 1.0);
 			gl_clear();
 		}
-		kmscon_console_draw(term->console, iter->fscr);
+		kmscon_console_draw(term->console, ent->txt);
 		uterm_screen_swap(screen);
 	}
 }
@@ -120,15 +122,53 @@ static void schedule_redraw(struct kmscon_terminal *term)
 		term->redraw = true;
 }
 
+/*
+ * Resize terminal
+ * We support multiple monitors per terminal. As some software-rendering
+ * backends to not support scaling, we always use the smalles cols/rows that are
+ * provided so wider displays will have black margins.
+ * This can be extended to support scaling but that would mean we need to check
+ * whether the text-renderer backend supports that, first (TODO).
+ *
+ * If @force is true, then the console/pty are notified even though the size did
+ * not changed. If @notify is false, then console/pty are not notified even
+ * though the size might have changed. force = true and notify = false doesn't
+ * make any sense, though.
+ */
+static void terminal_resize(struct kmscon_terminal *term,
+			    unsigned int cols, unsigned int rows,
+			    bool force, bool notify)
+{
+	bool resize = false;
+
+	if (!term->min_cols || (cols > 0 && cols < term->min_cols)) {
+		term->min_cols = cols;
+		resize = true;
+	}
+	if (!term->min_rows || (rows > 0 && rows < term->min_rows)) {
+		term->min_rows = rows;
+		resize = true;
+	}
+
+	if (!notify || (!resize && !force))
+		return;
+
+	/* shrinking always succeeds */
+	kmscon_console_resize(term->console, term->min_cols, term->min_rows);
+	kmscon_pty_resize(term->pty, term->min_cols, term->min_rows);
+}
+
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 {
+	struct kmscon_dlist *iter;
 	struct screen *scr;
 	int ret;
-	unsigned int width, height;
-	struct screen *iter;
+	unsigned int cols, rows;
+	const struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 
-	for (iter = term->screens; iter; iter = iter->next) {
-		if (iter->disp == disp)
+	kmscon_dlist_for_each(iter, &term->screens) {
+		scr = kmscon_dlist_entry(iter, struct screen, list);
+		if (scr->disp == disp)
 			return 0;
 	}
 
@@ -146,34 +186,35 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_free;
 	}
 
-	width = uterm_screen_width(scr->screen);
-	height = uterm_screen_height(scr->screen);
-
-	ret = font_buffer_new(&scr->buf, width, height);
+	ret = kmscon_font_find(&scr->font, &attr, NULL);
 	if (ret) {
-		log_error("cannot create buffer for display %p", scr->disp);
+		log_error("cannot create font");
 		goto err_screen;
 	}
 
-	ret = font_screen_new_fixed(&scr->fscr, scr->buf, FONT_ATTR(NULL, 12, 0),
-				80, 24, scr->screen, term->shader);
+	ret = kmscon_text_new(&scr->txt, NULL);
 	if (ret) {
-		log_error("cannot create font for display %p", scr->disp);
-		goto err_buf;
+		log_error("cannot create text-renderer");
+		goto err_font;
 	}
 
-	scr->next = term->screens;
-	if (scr->next)
-		scr->next->prev = scr;
-	term->screens = scr;
+	kmscon_text_set_bgcolor(scr->txt, 0, 0, 0);
+	kmscon_text_set_font(scr->txt, scr->font);
+	kmscon_text_set_screen(scr->txt, scr->screen);
+
+	cols = kmscon_text_get_cols(scr->txt);
+	rows = kmscon_text_get_rows(scr->txt);
+	terminal_resize(term, cols, rows, false, true);
+
+	kmscon_dlist_link(&term->screens, &scr->list);
 
 	log_debug("added display %p to terminal %p", disp, term);
 	schedule_redraw(term);
 	uterm_display_ref(scr->disp);
 	return 0;
 
-err_buf:
-	font_buffer_free(scr->buf);
+err_font:
+	kmscon_font_unref(scr->font);
 err_screen:
 	uterm_screen_unref(scr->screen);
 err_free:
@@ -181,49 +222,68 @@ err_free:
 	return ret;
 }
 
-static void free_screen(struct screen *scr)
+static void free_screen(struct kmscon_terminal *term, struct screen *scr,
+			bool update)
 {
+	struct kmscon_dlist *iter;
+	struct screen *ent;
+
 	log_debug("destroying terminal screen %p", scr);
-	font_screen_free(scr->fscr);
-	font_buffer_free(scr->buf);
+	kmscon_dlist_unlink(&scr->list);
+	kmscon_text_unref(scr->txt);
+	kmscon_font_unref(scr->font);
 	uterm_screen_unref(scr->screen);
 	uterm_display_unref(scr->disp);
 	free(scr);
+
+	if (!update)
+		return;
+
+	term->min_cols = 0;
+	term->min_rows = 0;
+	kmscon_dlist_for_each(iter, &term->screens) {
+		ent = kmscon_dlist_entry(iter, struct screen, list);
+		terminal_resize(term,
+				kmscon_text_get_cols(ent->txt),
+				kmscon_text_get_rows(ent->txt),
+				false, false);
+	}
+
+	terminal_resize(term, 0, 0, true, true);
 }
 
 static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
 {
+	struct kmscon_dlist *iter;
 	struct screen *scr;
 
-	for (scr = term->screens; scr; scr = scr->next) {
-		if (scr->disp == disp) {
-			if (scr->prev)
-				scr->prev->next = scr->next;
-			if (scr->next)
-				scr->next->prev = scr->prev;
-			if (term->screens == scr)
-				term->screens = scr->next;
+	kmscon_dlist_for_each(iter, &term->screens) {
+		scr = kmscon_dlist_entry(iter, struct screen, list);
+		if (scr->disp == disp)
 			break;
-		}
 	}
 
-	if (!scr)
+	if (iter == &term->screens)
 		return;
 
 	log_debug("removed display %p from terminal %p", disp, term);
-	free_screen(scr);
-	if (!term->screens && term->cb)
+	free_screen(term, scr, true);
+	if (kmscon_dlist_empty(&term->screens) && term->cb)
 		term->cb(term, KMSCON_TERMINAL_NO_DISPLAY, term->data);
 }
 
 static void rm_all_screens(struct kmscon_terminal *term)
 {
+	struct kmscon_dlist *iter;
 	struct screen *scr;
 
-	while ((scr = term->screens)) {
-		term->screens = scr->next;
-		free_screen(scr);
+	while ((iter = term->screens.next) != &term->screens) {
+		scr = kmscon_dlist_entry(iter, struct screen, list);
+		free_screen(term, scr, false);
 	}
+
+	term->min_cols = 0;
+	term->min_rows = 0;
 }
 
 static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
@@ -280,6 +340,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->eloop = loop;
 	term->video = video;
 	term->input = input;
+	kmscon_dlist_init(&term->screens);
 
 	ret = kmscon_console_new(&term->console);
 	if (ret)

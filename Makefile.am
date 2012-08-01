@@ -118,8 +118,9 @@ libkmscon_core_la_SOURCES = \
 	src/pty.c src/pty.h \
 	src/gl.h \
 	src/gl_math.c \
-	src/font_pango.c \
 	src/text.h \
+	src/text.c \
+	src/text_bblit.c \
 	src/text_font.c \
 	src/text_font_8x16.c \
 	src/text_font_pango.c

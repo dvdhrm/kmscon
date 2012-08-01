@@ -37,8 +37,8 @@
 #include <string.h>
 #include "console.h"
 #include "font.h"
-#include "gl.h"
 #include "log.h"
+#include "text.h"
 #include "unicode.h"
 
 #define LOG_SUBSYSTEM "console"
@@ -729,17 +729,16 @@ void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
 		con->tab_ruler[i] = false;
 }
 
-void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
+void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 {
 	unsigned int cur_x, cur_y;
 	unsigned int i, j, k;
 	struct line *iter, *line = NULL;
 	struct cell *cell;
-	float m[16];
-	bool cursor_done = false, draw_bg;
 	struct font_char_attr attr;
+	bool cursor_done = false;
 
-	if (!con || !fscr)
+	if (!con || !txt)
 		return;
 
 	cur_x = con->cursor_x;
@@ -749,7 +748,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 	if (con->cursor_y >= con->size_y)
 		cur_y = con->size_y - 1;
 
-	font_screen_draw_start(fscr);
+	kmscon_text_prepare(txt);
 
 	iter = con->sb_pos;
 	k = 0;
@@ -780,22 +779,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 			if (con->flags & KMSCON_CONSOLE_INVERSE)
 				attr.inverse = !attr.inverse;
 
-			/* draw bg only if it differs from real bg */
-			if (attr.inverse &&
-			    attr.fr == con->bg_r &&
-			    attr.fg == con->bg_g &&
-			    attr.fb == con->bg_b)
-				draw_bg = false;
-			else if (!attr.inverse &&
-				 attr.br == con->bg_r &&
-				 attr.bg == con->bg_g &&
-				 attr.bb == con->bg_b)
-				draw_bg = false;
-			else
-				draw_bg = true;
-
-			font_screen_draw_char(fscr, cell->ch, &attr,
-					      j, i, 1, 1, draw_bg);
+			kmscon_text_draw(txt, cell->ch, j, i, &attr);
 		}
 
 		if (k == cur_y + 1 && !cursor_done) {
@@ -803,14 +787,12 @@ void kmscon_console_draw(struct kmscon_console *con, struct font_screen *fscr)
 			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
 				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
 					attr.inverse = !attr.inverse;
-				font_screen_draw_char(fscr, 0, &attr,
-						      cur_x, i, 1, 1, true);
+				kmscon_text_draw(txt, 0, cur_x, i, &attr);
 			}
 		}
 	}
 
-	gl_m4_identity(m);
-	font_screen_draw_perform(fscr, m);
+	kmscon_text_render(txt);
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
