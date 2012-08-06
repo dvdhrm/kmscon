@@ -359,7 +359,7 @@ static void manager_put_face(struct face *face)
 static int kmscon_font_pango_init(struct kmscon_font *out,
 				  const struct kmscon_font_attr *attr)
 {
-	struct face *face;
+	struct face *face = NULL;
 	int ret;
 
 	memcpy(&out->attr, attr, sizeof(*attr));

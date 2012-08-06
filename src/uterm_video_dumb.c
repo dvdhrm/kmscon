@@ -310,6 +310,7 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 		return -EFAULT;
 	}
 
+	ret = 0;
 	for (i = 0; i < conn->count_props; ++i) {
 		prop = drmModeGetProperty(disp->video->dumb.fd, conn->props[i]);
 		if (!prop)

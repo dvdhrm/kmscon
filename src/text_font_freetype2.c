@@ -563,7 +563,7 @@ static int generate_specials(struct face *face)
 static int kmscon_font_freetype2_init(struct kmscon_font *out,
 				      const struct kmscon_font_attr *attr)
 {
-	struct face *face;
+	struct face *face = NULL;
 	int ret;
 	kmscon_symbol_t ch;
 	unsigned int i, width;
