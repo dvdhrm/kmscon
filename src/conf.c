@@ -108,7 +108,10 @@ static void print_help()
 		"Input Device Options:\n"
 		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
-		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
+		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
+		"\n"
+		"Font Options:\n"
+		"\t    --font-engine <engine>  [pango] Font engine\n",
 		"kmscon");
 	/*
 	 * 80 char line:
@@ -173,7 +176,8 @@ struct conf_option options[] = {
 	OPTION_STRING(0, "xkb-layout", &conf_global.xkb_layout, "us"),
 	OPTION_STRING(0, "xkb-variant", &conf_global.xkb_variant, ""),
 	OPTION_STRING(0, "xkb-options", &conf_global.xkb_options, ""),
-	OPTION_STRING(0, "seat", &conf_global.seat, "seat0")
+	OPTION_STRING(0, "seat", &conf_global.seat, "seat0"),
+	OPTION_STRING(0, "font-engine", &conf_global.font_engine, "pango"),
 };
 
 /* free all memory that we allocated and reset to initial state */

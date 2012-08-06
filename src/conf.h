@@ -73,6 +73,9 @@ struct conf_obj {
 
 	/* seat name */
 	char *seat;
+
+	/* font engine */
+	char *font_engine;
 };
 
 extern struct conf_obj conf_global;
