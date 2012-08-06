@@ -35,10 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "htable.h"
-#include "log.h"
 #include "static_misc.h"
-
-#define LOG_SUBSYSTEM "misc"
 
 #define RING_SIZE 512
 
