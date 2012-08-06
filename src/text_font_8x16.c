@@ -97,9 +97,18 @@ static int kmscon_font_8x16_render(struct kmscon_font *font,
 	return 0;
 }
 
-static void kmscon_font_8x16_drop(struct kmscon_font *font,
-				  const struct kmscon_glyph *glyph)
+static int kmscon_font_8x16_render_empty(struct kmscon_font *font,
+					 const struct kmscon_glyph **out)
 {
+	*out = &kmscon_font_8x16_glyphs[0];
+	return 0;
+}
+
+static int kmscon_font_8x16_render_inval(struct kmscon_font *font,
+					 const struct kmscon_glyph **out)
+{
+	*out = &kmscon_font_8x16_glyphs['?'];
+	return 0;
 }
 
 static const struct kmscon_font_ops kmscon_font_8x16_ops = {
@@ -107,7 +116,8 @@ static const struct kmscon_font_ops kmscon_font_8x16_ops = {
 	.init = kmscon_font_8x16_init,
 	.destroy = kmscon_font_8x16_destroy,
 	.render = kmscon_font_8x16_render,
-	.drop = kmscon_font_8x16_drop,
+	.render_empty = kmscon_font_8x16_render_empty,
+	.render_inval = kmscon_font_8x16_render_inval,
 };
 
 int kmscon_font_8x16_load(void)
@@ -130,8 +140,6 @@ void kmscon_font_8x16_unload(void)
 
 static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 	{ /* 0 0x00 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -174,8 +182,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 1 0x01 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -218,8 +224,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 2 0x02 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -262,8 +266,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 3 0x03 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -306,8 +308,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 4 0x04 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -350,8 +350,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 5 0x05 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -394,8 +392,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 6 0x06 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -438,8 +434,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 7 0x07 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -482,8 +476,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 8 0x08 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -526,8 +518,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 9 0x09 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -570,8 +560,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 10 0x0a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -614,8 +602,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 11 0x0b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -658,8 +644,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 12 0x0c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -702,8 +686,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 13 0x0d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -746,8 +728,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 14 0x0e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -790,8 +770,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 15 0x0f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -834,8 +812,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 16 0x10 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -878,8 +854,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 17 0x11 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -922,8 +896,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 18 0x12 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -966,8 +938,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 19 0x13 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1010,8 +980,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 20 0x14 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1054,8 +1022,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 21 0x15 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1098,8 +1064,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 22 0x16 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1142,8 +1106,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 23 0x17 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1186,8 +1148,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 24 0x18 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1230,8 +1190,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 25 0x19 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1274,8 +1232,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 26 0x1a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1318,8 +1274,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 27 0x1b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1362,8 +1316,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 28 0x1c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1406,8 +1358,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 29 0x1d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1450,8 +1400,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 30 0x1e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1494,8 +1442,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 31 0x1f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1538,8 +1484,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 32 0x20 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1582,8 +1526,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 33 0x21 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1626,8 +1568,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 34 0x22 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1670,8 +1610,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 35 0x23 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1714,8 +1652,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 36 0x24 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1758,8 +1694,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 37 0x25 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1802,8 +1736,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 38 0x26 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1846,8 +1778,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 39 0x27 '*/
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1890,8 +1820,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 40 0x28 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1934,8 +1862,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 41 0x29 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -1978,8 +1904,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 42 0x2a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2022,8 +1946,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 43 0x2b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2066,8 +1988,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 44 0x2c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2110,8 +2030,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 45 0x2d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2154,8 +2072,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 46 0x2e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2198,8 +2114,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 47 0x2f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2242,8 +2156,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 48 0x30 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2286,8 +2198,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 49 0x31 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2330,8 +2240,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 50 0x32 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2374,8 +2282,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 51 0x33 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2418,8 +2324,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 52 0x34 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2462,8 +2366,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 53 0x35 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2506,8 +2408,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 54 0x36 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2550,8 +2450,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 55 0x37 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2594,8 +2492,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 56 0x38 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2638,8 +2534,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 57 0x39 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2682,8 +2576,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 58 0x3a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2726,8 +2618,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 59 0x3b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2770,8 +2660,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 60 0x3c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2814,8 +2702,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 61 0x3d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2858,8 +2744,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 62 0x3e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2902,8 +2786,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 63 0x3f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2946,8 +2828,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 64 0x40 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -2990,8 +2870,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 65 0x41 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3034,8 +2912,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 66 0x42 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3078,8 +2954,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 67 0x43 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3122,8 +2996,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 68 0x44 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3166,8 +3038,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 69 0x45 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3210,8 +3080,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 70 0x46 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3254,8 +3122,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 71 0x47 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3298,8 +3164,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 72 0x48 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3342,8 +3206,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 73 0x49 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3386,8 +3248,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 74 0x4a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3430,8 +3290,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 75 0x4b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3474,8 +3332,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 76 0x4c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3518,8 +3374,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 77 0x4d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3562,8 +3416,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 78 0x4e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3606,8 +3458,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 79 0x4f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3650,8 +3500,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 80 0x50 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3694,8 +3542,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 81 0x51 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3738,8 +3584,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 82 0x52 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3782,8 +3626,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 83 0x53 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3826,8 +3668,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 84 0x54 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3870,8 +3710,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 85 0x55 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3914,8 +3752,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 86 0x56 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -3958,8 +3794,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 87 0x57 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4002,8 +3836,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 88 0x58 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4046,8 +3878,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 89 0x59 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4090,8 +3920,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 90 0x5a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4134,8 +3962,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 91 0x5b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4178,8 +4004,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 92 0x5c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4222,8 +4046,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 93 0x5d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4266,8 +4088,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 94 0x5e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4310,8 +4130,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 95 0x5f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4354,8 +4172,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 96 0x60 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4398,8 +4214,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 97 0x61 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4442,8 +4256,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 98 0x62 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4486,8 +4298,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 99 0x63 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4530,8 +4340,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 100 0x64 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4574,8 +4382,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 101 0x65 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4618,8 +4424,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 102 0x66 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4662,8 +4466,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 103 0x67 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4706,8 +4508,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 104 0x68 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4750,8 +4550,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 105 0x69 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4794,8 +4592,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 106 0x6a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4838,8 +4634,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 107 0x6b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4882,8 +4676,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 108 0x6c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4926,8 +4718,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 109 0x6d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -4970,8 +4760,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 110 0x6e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5014,8 +4802,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 111 0x6f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5058,8 +4844,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 112 0x70 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5102,8 +4886,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 113 0x71 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5146,8 +4928,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 114 0x72 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5190,8 +4970,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 115 0x73 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5234,8 +5012,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 116 0x74 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5278,8 +5054,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 117 0x75 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5322,8 +5096,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 118 0x76 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5366,8 +5138,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 119 0x77 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5410,8 +5180,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 120 0x78 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5454,8 +5222,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 121 0x79 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5498,8 +5264,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 122 0x7a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5542,8 +5306,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 123 0x7b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5586,8 +5348,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 124 0x7c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5630,8 +5390,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 125 0x7d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5674,8 +5432,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 126 0x7e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5718,8 +5474,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 127 0x7f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5762,8 +5516,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 128 0x80 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5806,8 +5558,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 129 0x81 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5850,8 +5600,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 130 0x82 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5894,8 +5642,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 131 0x83 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5938,8 +5684,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 132 0x84 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -5982,8 +5726,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 133 0x85 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6026,8 +5768,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 134 0x86 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6070,8 +5810,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 135 0x87 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6114,8 +5852,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 136 0x88 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6158,8 +5894,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 137 0x89 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6202,8 +5936,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 138 0x8a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6246,8 +5978,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 139 0x8b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6290,8 +6020,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 140 0x8c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6334,8 +6062,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 141 0x8d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6378,8 +6104,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 142 0x8e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6422,8 +6146,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 143 0x8f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6466,8 +6188,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 144 0x90 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6510,8 +6230,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 145 0x91 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6554,8 +6272,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 146 0x92 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6598,8 +6314,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 147 0x93 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6642,8 +6356,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 148 0x94 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6686,8 +6398,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 149 0x95 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6730,8 +6440,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 150 0x96 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6774,8 +6482,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 151 0x97 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6818,8 +6524,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 152 0x98 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6862,8 +6566,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 153 0x99 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6906,8 +6608,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 154 0x9a */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6950,8 +6650,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 155 0x9b */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -6994,8 +6692,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 156 0x9c */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7038,8 +6734,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 157 0x9d */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7082,8 +6776,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 158 0x9e */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7126,8 +6818,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 159 0x9f */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7170,8 +6860,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 160 0xa0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7214,8 +6902,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 161 0xa1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7258,8 +6944,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 162 0xa2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7302,8 +6986,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 163 0xa3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7346,8 +7028,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 164 0xa4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7390,8 +7070,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 165 0xa5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7434,8 +7112,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 166 0xa6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7478,8 +7154,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 167 0xa7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7522,8 +7196,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 168 0xa8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7566,8 +7238,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 169 0xa9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7610,8 +7280,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 170 0xaa */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7654,8 +7322,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 171 0xab */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7698,8 +7364,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 172 0xac */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7742,8 +7406,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 173 0xad */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7786,8 +7448,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 174 0xae */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7830,8 +7490,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 175 0xaf */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7874,8 +7532,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 176 0xb0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7918,8 +7574,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 177 0xb1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -7962,8 +7616,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 178 0xb2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8006,8 +7658,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 179 0xb3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8050,8 +7700,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 180 0xb4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8094,8 +7742,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 181 0xb5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8138,8 +7784,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 182 0xb6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8182,8 +7826,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 183 0xb7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8226,8 +7868,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 184 0xb8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8270,8 +7910,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 185 0xb9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8314,8 +7952,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 186 0xba */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8358,8 +7994,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 187 0xbb */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8402,8 +8036,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 188 0xbc */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8446,8 +8078,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 189 0xbd */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8490,8 +8120,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 190 0xbe */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8534,8 +8162,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 191 0xbf */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8578,8 +8204,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 192 0xc0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8622,8 +8246,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 193 0xc1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8666,8 +8288,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 194 0xc2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8710,8 +8330,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 195 0xc3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8754,8 +8372,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 196 0xc4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8798,8 +8414,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 197 0xc5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8842,8 +8456,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 198 0xc6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8886,8 +8498,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 199 0xc7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8930,8 +8540,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 200 0xc8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -8974,8 +8582,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 201 0xc9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9018,8 +8624,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 202 0xca */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9062,8 +8666,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 203 0xcb */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9106,8 +8708,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 204 0xcc */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9150,8 +8750,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 205 0xcd */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9194,8 +8792,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 206 0xce */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9238,8 +8834,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 207 0xcf */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9282,8 +8876,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 208 0xd0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9326,8 +8918,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 209 0xd1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9370,8 +8960,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 210 0xd2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9414,8 +9002,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 211 0xd3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9458,8 +9044,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 212 0xd4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9502,8 +9086,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 213 0xd5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9546,8 +9128,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 214 0xd6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9590,8 +9170,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 215 0xd7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9634,8 +9212,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 216 0xd8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9678,8 +9254,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 217 0xd9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9722,8 +9296,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 218 0xda */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9766,8 +9338,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 219 0xdb */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9810,8 +9380,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 220 0xdc */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9854,8 +9422,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 221 0xdd */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9898,8 +9464,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 222 0xde */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9942,8 +9506,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 223 0xdf */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -9986,8 +9548,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 224 0xe0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10030,8 +9590,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 225 0xe1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10074,8 +9632,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 226 0xe2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10118,8 +9674,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 227 0xe3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10162,8 +9716,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 228 0xe4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10206,8 +9758,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 229 0xe5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10250,8 +9800,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 230 0xe6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10294,8 +9842,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 231 0xe7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10338,8 +9884,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 232 0xe8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10382,8 +9926,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 233 0xe9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10426,8 +9968,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 234 0xea */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10470,8 +10010,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 235 0xeb */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10514,8 +10052,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 236 0xec */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10558,8 +10094,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 237 0xed */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10602,8 +10136,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 238 0xee */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10646,8 +10178,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 239 0xef */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10690,8 +10220,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 240 0xf0 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10734,8 +10262,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 241 0xf1 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10778,8 +10304,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 242 0xf2 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10822,8 +10346,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 243 0xf3 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10866,8 +10388,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 244 0xf4 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10910,8 +10430,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 245 0xf5 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10954,8 +10472,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 246 0xf6 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -10998,8 +10514,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 247 0xf7 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11042,8 +10556,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 248 0xf8 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11086,8 +10598,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 249 0xf9 */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11130,8 +10640,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 250 0xfa */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11174,8 +10682,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 251 0xfb */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11218,8 +10724,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 252 0xfc */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11262,8 +10766,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 253 0xfd */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11306,8 +10808,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 254 0xfe */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,
@@ -11350,8 +10850,6 @@ static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 		},
 	},
 	{ /* 255 0xff */
-		.ascent = 12,
-		.descent = 4,
 		.buf = {
 			.width = 8,
 			.height = 16,

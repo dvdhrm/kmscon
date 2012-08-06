@@ -76,11 +76,11 @@ PKG_CHECK_MODULES([GLES2], [glesv2],
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
                   [have_xkbcommon=yes], [have_xkbcommon=no])
 
+PKG_CHECK_MODULES([FREETYPE2], [freetype2 fontconfig],
+                  [have_freetype2=yes], [have_freetype2=no])
+
 PKG_CHECK_MODULES([PANGO], [pango pangoft2],
                   [have_pango=yes], [have_pango=no])
-
-PKG_CHECK_MODULES([FREETYPE2], [freetype2],
-                  [have_freetype2=yes], [have_freetype2=no])
 
 #
 # Parse arguments
@@ -98,6 +98,12 @@ AC_MSG_CHECKING([whether to use udev for device hotplug support])
 AC_ARG_ENABLE([udev],
               [AS_HELP_STRING([--enable-udev],
                               [enable device hotplug support with udev])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to use dbus for IPC])
+AC_ARG_ENABLE([dbus],
+              [AS_HELP_STRING([--enable-dbus],
+                              [enable dbus IPC])])
 AC_MSG_RESULT([ok])
 
 AC_MSG_CHECKING([whether to use uterm fbdev video backend])
@@ -122,6 +128,24 @@ AC_MSG_CHECKING([whether to use xkbcommon keyboard backend])
 AC_ARG_ENABLE([xkbcommon],
               [AS_HELP_STRING([--disable-xkbcommon],
                               [disable xkbcommon keyboard backend])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to use static 8x16 font backend])
+AC_ARG_ENABLE([f8x16],
+              [AS_HELP_STRING([--disable-f8x16],
+                              [disable static 8x16 font backend])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to use freetype2 font backend])
+AC_ARG_ENABLE([freetype2],
+              [AS_HELP_STRING([--disable-freetype2],
+                              [disable freetype2 font backend])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to use pango font backend])
+AC_ARG_ENABLE([pango],
+              [AS_HELP_STRING([--disable-pango],
+                              [disable pango font backend])])
 AC_MSG_RESULT([ok])
 
 AC_MSG_CHECKING([whether to build with debugging on])
@@ -346,6 +370,62 @@ fi
 AM_CONDITIONAL([UTERM_HAVE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
 
 #
+# Font backends
+# This checks for the 8x16, freetype2 and pango font backends and enables them
+# if requested and available.
+#
+
+f8x16_enabled=no
+if test ! x$enable_f8x16 = xno ; then
+        f8x16_enabled=yes
+fi
+
+if test x$f8x16_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_8X16], [1],
+                  [Use static 8x16 font backend])
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_8X16], [test x$f8x16_enabled = xyes])
+
+freetype2_enabled=no
+if test ! x$enable_freetype2 = xno ; then
+        if test x$have_freetype2 = xyes ; then
+                freetype2_enabled=yes
+        elif test x$enable_freetype2 = xyes ; then
+                AC_ERROR([freetype2/fontconfig not found for freetype2 backend])
+        fi
+fi
+
+if test x$freetype2_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_FREETYPE2], [1],
+                  [Use freetype2 as font backend])
+else
+        FREETYPE2_CFLAGS=""
+        FREETYPE2_LIBS=""
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_FREETYPE2], [test x$freetype2_enabled = xyes])
+
+pango_enabled=no
+if test ! x$enable_pango = xno ; then
+        if test x$have_pango = xyes ; then
+                pango_enabled=yes
+        elif test x$enable_pango = xyes ; then
+                AC_ERROR([pango not found for pango font backend])
+        fi
+fi
+
+if test x$pango_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_PANGO], [1],
+                  [Use pango as font backend])
+else
+        PANGO_CFLAGS=""
+        PANGO_LIBS=""
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_PANGO], [test x$pango_enabled = xyes])
+
+#
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
 # makefiles.
@@ -390,10 +470,15 @@ AC_MSG_NOTICE([Build configuration:
 	         dbus: $dbus_enabled
 	    xkbcommon: $xkbcommon_enabled
 
-	libuterm video backends:
+  libuterm video backends:
 	        fbdev: $fbdev_enabled
 	     dumb drm: $dumb_enabled
 	          drm: $drm_enabled
 	    OpenGLES2: $gles2_enabled
+
+  font backends:
+	         8x16: $f8x16_enabled
+	    freetype2: $freetype2_enabled
+	        pango: $pango_enabled
 
 	Run "make" to start compilation process])

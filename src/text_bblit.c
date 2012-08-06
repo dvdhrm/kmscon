@@ -128,35 +128,30 @@ static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 	const struct kmscon_glyph *glyph;
 	int ret;
 	struct bblit *bblit = txt->data;
-	int off, pos;
 
-	ret = kmscon_font_render(txt->font, ch, &glyph);
+	if (ch == 0 || ch == ' ') {
+		ret = kmscon_font_render_empty(txt->font, &glyph);
+	} else {
+		ret = kmscon_font_render(txt->font, ch, &glyph);
+	}
+
 	if (ret) {
-		/* TODO: document 0 as fallback glyph */
-		ret = kmscon_font_render(txt->font, 0, &glyph);
+		ret = kmscon_font_render_inval(txt->font, &glyph);
 		if (ret)
 			return;
 	}
-
-	/* position glyph correctly */
-	off = bblit->base - glyph->ascent;
-	pos = posy * bblit->advance_y;
-	if (pos + off < 0)
-		pos = 0;
-	else
-		pos += off;
 
 	/* draw glyph */
 	if (attr->inverse) {
 		uterm_screen_blend(txt->screen, &glyph->buf,
 				   posx * bblit->advance_x,
-				   pos,
+				   posy * bblit->advance_y,
 				   attr->br, attr->bg, attr->bb,
 				   attr->fr, attr->fg, attr->fb);
 	} else {
 		uterm_screen_blend(txt->screen, &glyph->buf,
 				   posx * bblit->advance_x,
-				   pos,
+				   posy * bblit->advance_y,
 				   attr->fr, attr->fg, attr->fb,
 				   attr->br, attr->bg, attr->bb);
 	}

@@ -64,6 +64,8 @@ struct face {
 	struct kmscon_dlist list;
 
 	struct kmscon_font_attr attr;
+	struct kmscon_font_attr real_attr;
+	unsigned int baseline;
 	PangoContext *ctx;
 	pthread_mutex_t glyph_lock;
 	struct kmscon_hashtable *glyphs;
@@ -159,15 +161,12 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	line = pango_layout_get_line_readonly(layout, 0);
 
 	pango_layout_line_get_pixel_extents(line, NULL, &rec);
-	glyph->ascent = -rec.y;
-	glyph->descent = rec.height - glyph->ascent;
-	glyph->buf.width = rec.width;
-	glyph->buf.height = rec.height;
-	glyph->buf.stride = rec.width;
+	glyph->buf.width = face->real_attr.width;
+	glyph->buf.height = face->real_attr.height;
+	glyph->buf.stride = glyph->buf.width;
 	glyph->buf.format = UTERM_FORMAT_GREY;
 
-	if (!glyph->buf.width || !glyph->buf.height ||
-	    glyph->ascent > glyph->buf.height) {
+	if (!glyph->buf.width || !glyph->buf.height) {
 		ret = -ERANGE;
 		goto out_glyph;
 	}
@@ -222,9 +221,12 @@ static void free_glyph(void *data)
 static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 {
 	struct kmscon_dlist *iter;
-	struct face *face;
+	struct face *face, *f;
 	PangoFontDescription *desc;
-	int ret;
+	PangoLayout *layout;
+	PangoRectangle rec;
+	int ret, num;
+	const char *str;
 
 	manager_lock();
 
@@ -270,15 +272,8 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 	pango_context_set_language(face->ctx, pango_language_get_default());
 
 	desc = pango_font_description_from_string(attr->name);
-
-	/* TODO: even though we specify an absolute size, we currently get
-	 * slightly smaller fonts back from pango. This is very odd and we
-	 * haven't found the reason for it, yet. It's not very problematic as
-	 * our text renderer expects such behavior. However, fixing it would be
-	 * nice. */
 	pango_font_description_set_absolute_size(desc,
 					PANGO_SCALE * face->attr.height);
-
 	pango_font_description_set_weight(desc,
 			attr->bold ? PANGO_WEIGHT_BOLD : PANGO_WEIGHT_NORMAL);
 	pango_font_description_set_style(desc,
@@ -289,11 +284,51 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 	pango_context_set_font_description(face->ctx, desc);
 	pango_font_description_free(desc);
 
+	/* measure font */
+	layout = pango_layout_new(face->ctx);
+	pango_layout_set_height(layout, 0);
+	pango_layout_set_spacing(layout, 0);
+	str = "abcdefghijklmnopqrstuvwxyz"
+	      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	      "@!\"$%&/()=?\\}][{°^~+*#'<>|-_.:,;`´";
+	num = strlen(str);
+	pango_layout_set_text(layout, str, num);
+	pango_layout_get_pixel_extents(layout, NULL, &rec);
+
+	memcpy(&face->real_attr, &face->attr, sizeof(face->attr));
+	face->real_attr.height = rec.height;
+	face->real_attr.width = rec.width / num;
+	face->baseline = PANGO_PIXELS_CEIL(pango_layout_get_baseline(layout));
+	g_object_unref(layout);
+
+	kmscon_font_attr_normalize(&face->real_attr);
+	if (!face->real_attr.height || !face->real_attr.width) {
+		log_warning("invalid scaled font sizes");
+		ret = -EFAULT;
+		goto err_face;
+	}
+
+	/* The real metrics probably differ from the requested metrics so try
+	 * again to find a suitable cached font. */
+	kmscon_dlist_for_each(iter, &manager__list) {
+		f = kmscon_dlist_entry(iter, struct face, list);
+		if (kmscon_font_attr_match(&f->real_attr, &face->real_attr)) {
+			++f->ref;
+			*out = f;
+			ret = 0;
+			goto err_face;
+		}
+	}
+
+	memcpy(attr, &face->real_attr, sizeof(*attr));
 	kmscon_dlist_link(&manager__list, &face->list);
 	*out = face;
 	ret = 0;
 	goto out_unlock;
 
+err_face:
+	g_object_unref(face->ctx);
+	kmscon_hashtable_free(face->glyphs);
 err_lock:
 	pthread_mutex_destroy(&face->glyph_lock);
 err_free:
@@ -326,53 +361,16 @@ static int kmscon_font_pango_init(struct kmscon_font *out,
 {
 	struct face *face;
 	int ret;
-	kmscon_symbol_t ch;
-	unsigned int i, num, width, asc, desc;
-	struct kmscon_glyph *glyph;
-
-	log_debug("loading pango font %s", attr->name);
 
 	memcpy(&out->attr, attr, sizeof(*attr));
 	kmscon_font_attr_normalize(&out->attr);
 
+	log_debug("loading pango font %s", out->attr.name);
+
 	ret = manager_get_face(&face, &out->attr);
 	if (ret)
 		return ret;
-
-	/* Measure font face: We prerender all ASCII characters here so we can
-	 * measure the average and maximum font width/height and as a bonus all
-	 * characters will already be cached so the next renderings will be
-	 * pretty fast. */
-
-	num = 0;
-	width = 0;
-	asc = 0;
-	desc = 0;
-	for (i = 0x20; i < 0x7f; ++i) {
-		ch = kmscon_symbol_make(i);
-		ret = get_glyph(face, &glyph, ch);
-		if (ret)
-			continue;
-
-		if (glyph->ascent > asc)
-			asc = glyph->ascent;
-		if (glyph->descent > desc)
-			desc = glyph->descent;
-		if (glyph->buf.width > width)
-			width = glyph->buf.width;
-		++num;
-	}
-
-	if (!num) {
-		log_warning("cannot measure font");
-		out->attr.width = out->attr.height;
-		out->baseline = 0;
-	} else {
-		out->attr.width = width;
-		out->attr.height = asc + desc;
-		out->baseline = desc;
-	}
-	kmscon_font_attr_normalize(&out->attr);
+	out->baseline = face->baseline;
 
 	out->data = face;
 	return 0;
@@ -402,9 +400,16 @@ static int kmscon_font_pango_render(struct kmscon_font *font,
 	return 0;
 }
 
-static void kmscon_font_pango_drop(struct kmscon_font *font,
-				   const struct kmscon_glyph *glyph)
+static int kmscon_font_pango_render_empty(struct kmscon_font *font,
+					  const struct kmscon_glyph **out)
 {
+	return kmscon_font_pango_render(font, ' ', out);
+}
+
+static int kmscon_font_pango_render_inval(struct kmscon_font *font,
+					  const struct kmscon_glyph **out)
+{
+	return kmscon_font_pango_render(font, '?', out);
 }
 
 static const struct kmscon_font_ops kmscon_font_pango_ops = {
@@ -412,7 +417,8 @@ static const struct kmscon_font_ops kmscon_font_pango_ops = {
 	.init = kmscon_font_pango_init,
 	.destroy = kmscon_font_pango_destroy,
 	.render = kmscon_font_pango_render,
-	.drop = kmscon_font_pango_drop,
+	.render_empty = kmscon_font_pango_render_empty,
+	.render_inval = kmscon_font_pango_render_inval,
 };
 
 int kmscon_font_pango_load(void)

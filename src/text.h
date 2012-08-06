@@ -69,9 +69,8 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 			    const struct kmscon_font_attr *a2);
 
 struct kmscon_glyph {
-	unsigned int ascent;
-	unsigned int descent;
 	struct uterm_video_buffer buf;
+	void *data;
 };
 
 struct kmscon_font {
@@ -89,8 +88,10 @@ struct kmscon_font_ops {
 	void (*destroy) (struct kmscon_font *font);
 	int (*render) (struct kmscon_font *font, kmscon_symbol_t sym,
 		       const struct kmscon_glyph **out);
-	void (*drop) (struct kmscon_font *font,
-		      const struct kmscon_glyph *glyph);
+	int (*render_empty) (struct kmscon_font *font,
+			     const struct kmscon_glyph **out);
+	int (*render_inval) (struct kmscon_font *font,
+			     const struct kmscon_glyph **out);
 };
 
 int kmscon_font_register(const struct kmscon_font_ops *ops);
@@ -104,8 +105,10 @@ void kmscon_font_unref(struct kmscon_font *font);
 
 int kmscon_font_render(struct kmscon_font *font, kmscon_symbol_t sym,
 		       const struct kmscon_glyph **out);
-void kmscon_font_drop(struct kmscon_font *font,
-		      const struct kmscon_glyph *glyph);
+int kmscon_font_render_empty(struct kmscon_font *font,
+			     const struct kmscon_glyph **out);
+int kmscon_font_render_inval(struct kmscon_font *font,
+			     const struct kmscon_glyph **out);
 
 /* text renderer */
 
@@ -164,10 +167,59 @@ void kmscon_text_render(struct kmscon_text *txt);
 
 /* modularized backends */
 
+#ifdef KMSCON_HAVE_8X16
+
 int kmscon_font_8x16_load(void);
 void kmscon_font_8x16_unload(void);
+
+#else
+
+static inline int kmscon_font_8x16_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_font_8x16_unload(void)
+{
+}
+
+#endif
+
+#ifdef KMSCON_HAVE_FREETYPE2
+
+int kmscon_font_freetype2_load(void);
+void kmscon_font_freetype2_unload(void);
+
+#else
+
+static inline int kmscon_font_freetype2_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_font_freetype2_unload(void)
+{
+}
+
+#endif
+
+#ifdef KMSCON_HAVE_PANGO
+
 int kmscon_font_pango_load(void);
 void kmscon_font_pango_unload(void);
+
+#else
+
+static inline int kmscon_font_pango_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_font_pango_unload(void)
+{
+}
+
+#endif
 
 int kmscon_text_bblit_load(void);
 void kmscon_text_bblit_unload(void);

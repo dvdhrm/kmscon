@@ -121,13 +121,26 @@ libkmscon_core_la_SOURCES = \
 	src/text.h \
 	src/text.c \
 	src/text_bblit.c \
-	src/text_font.c \
-	src/text_font_8x16.c \
-	src/text_font_pango.c
+	src/text_font.c
 
 if KMSCON_HAVE_GLES2
 libkmscon_core_la_SOURCES += \
 	src/gl_shader.c
+endif
+
+if KMSCON_HAVE_8X16
+libkmscon_core_la_SOURCES += \
+	src/text_font_8x16.c
+endif
+
+if KMSCON_HAVE_FREETYPE2
+libkmscon_core_la_SOURCES += \
+	src/text_font_freetype2.c
+endif
+
+if KMSCON_HAVE_PANGO
+libkmscon_core_la_SOURCES += \
+	src/text_font_pango.c
 endif
 
 libkmscon_core_la_CPPFLAGS = \
