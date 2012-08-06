@@ -433,7 +433,7 @@ struct uxkb_dev {
 	int unused;
 };
 
-static const bool xkb_available = false;
+static const bool uxkb_available = false;
 static const struct kbd_desc_ops uxkb_desc_ops;
 static const struct kbd_dev_ops uxkb_dev_ops;
 
