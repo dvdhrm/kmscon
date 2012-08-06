@@ -28,7 +28,8 @@
  * @short_description: Bit-Blitting Text Renderer Backend
  * @include: text.h
  *
- * TODO
+ * The bit-blitting renderer requires framebuffer access to the output device
+ * and simply blits the glyphs into the buffer.
  */
 
 #include <errno.h>
@@ -44,30 +45,13 @@
 
 #define LOG_SUBSYSTEM "text_bblit"
 
-struct bblit {
-	unsigned int advance_x;
-	unsigned int advance_y;
-	unsigned int base;
-};
-
 static int bblit_init(struct kmscon_text *txt)
 {
-	struct bblit *bblit;
-
-	bblit = malloc(sizeof(*bblit));
-	if (!bblit)
-		return -ENOMEM;
-	memset(bblit, 0, sizeof(*bblit));
-
-	txt->data = bblit;
 	return 0;
 }
 
 static void bblit_destroy(struct kmscon_text *txt)
 {
-	struct bblit *bblit = txt->data;
-
-	free(bblit);
 }
 
 static void bblit_recalculate_size(struct kmscon_text *txt)
@@ -93,7 +77,6 @@ static void bblit_new_font(struct kmscon_text *txt)
 
 static void bblit_new_bgcolor(struct kmscon_text *txt)
 {
-	/* nothing to do here */
 }
 
 static void bblit_new_screen(struct kmscon_text *txt)
@@ -103,12 +86,6 @@ static void bblit_new_screen(struct kmscon_text *txt)
 
 static void bblit_prepare(struct kmscon_text *txt)
 {
-	struct bblit *bblit = txt->data;
-
-	/* precalculate values for glyph positioning */
-	bblit->advance_x = txt->font->attr.width;
-	bblit->advance_y = txt->font->attr.height;
-	bblit->base = bblit->advance_y - txt->font->baseline;
 }
 
 static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
@@ -117,7 +94,6 @@ static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 {
 	const struct kmscon_glyph *glyph;
 	int ret;
-	struct bblit *bblit = txt->data;
 
 	if (ch == 0 || ch == ' ') {
 		ret = kmscon_font_render_empty(txt->font, &glyph);
@@ -134,14 +110,14 @@ static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 	/* draw glyph */
 	if (attr->inverse) {
 		uterm_screen_blend(txt->screen, &glyph->buf,
-				   posx * bblit->advance_x,
-				   posy * bblit->advance_y,
+				   posx * txt->font->attr.width,
+				   posy * txt->font->attr.height,
 				   attr->br, attr->bg, attr->bb,
 				   attr->fr, attr->fg, attr->fb);
 	} else {
 		uterm_screen_blend(txt->screen, &glyph->buf,
-				   posx * bblit->advance_x,
-				   posy * bblit->advance_y,
+				   posx * txt->font->attr.width,
+				   posy * txt->font->attr.height,
 				   attr->fr, attr->fg, attr->fb,
 				   attr->br, attr->bg, attr->bb);
 	}
@@ -149,7 +125,6 @@ static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 
 static void bblit_render(struct kmscon_text *txt)
 {
-	/* nothing to do */
 }
 
 static const struct kmscon_text_ops kmscon_text_bblit_ops = {
