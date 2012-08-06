@@ -103,17 +103,7 @@ static void bblit_new_screen(struct kmscon_text *txt)
 
 static void bblit_prepare(struct kmscon_text *txt)
 {
-	int ret;
-	unsigned int w, h;
 	struct bblit *bblit = txt->data;
-
-	/* clear screen by drawing background */
-	w = uterm_screen_width(txt->screen);
-	h = uterm_screen_height(txt->screen);
-	ret = uterm_screen_fill(txt->screen, txt->bg_r, txt->bg_g, txt->bg_b,
-				0, 0, w, h);
-	if (ret)
-		log_warning("cannot draw screen background");
 
 	/* precalculate values for glyph positioning */
 	bblit->advance_x = txt->font->attr.width;
