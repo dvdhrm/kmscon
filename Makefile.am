@@ -49,8 +49,9 @@ lib_LTLIBRARIES = \
 # Also make the linker discard all unused symbols as we are not building a
 # shared library.
 #
-# When compiling in debug mode, we disable optimization and enable debug symbols
-# so debugging with gdb is easier.
+# When compiling in debug mode, we enable debug symbols so debugging with gdb
+# is easier. If optimizations are disabled, we pass -O0 to the compiler.
+# Otherwise, we use standard optimizations -O2.
 #
 
 AM_CFLAGS = \
@@ -63,9 +64,13 @@ AM_LDFLAGS = \
 	-Wl,--as-needed
 
 if DEBUG
-AM_CFLAGS += -O0 -g
-else
+AM_CFLAGS += -g
+endif
+
+if OPTIMIZATIONS
 AM_CFLAGS += -O2
+else
+AM_CFLAGS += -O0
 endif
 
 #

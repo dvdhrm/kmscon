@@ -154,15 +154,26 @@ AC_ARG_ENABLE([debug],
                               [whether to build with debugging on])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to disable code optimizations])
+AC_ARG_ENABLE([optimizations],
+              [AS_HELP_STRING([--disable-optimizations],
+                              [whether to disable code optimizations])])
+AC_MSG_RESULT([ok])
+
 #
-# Debug mode
-# In debug mode we use -g -O0 for compilation and set several flags so verbose
-# logging is possible.
+# Debug mode and code optimizations
+# In debug mode we compile with -g and enable several debug-messages and flags.
+# With optimizations (default), we add -O2 to compile-flags.
 #
 
 debug_enabled=no
 if test x$enable_debug = xyes ; then
         debug_enabled=yes
+fi
+
+optimizations_enabled=no
+if test ! x$enable_optimizations = xno ; then
+        optimizations_enabled=yes
 fi
 
 if test x$debug_enabled = xyes ; then
@@ -177,6 +188,7 @@ else
 fi
 
 AM_CONDITIONAL([DEBUG], [test x$debug_enabled = xyes])
+AM_CONDITIONAL([OPTIMIZATIONS], [test x$optimizations_enabled = xyes])
 
 #
 # Main dependencies
@@ -464,6 +476,7 @@ AC_OUTPUT([src/genshader.c])
 AC_MSG_NOTICE([Build configuration:
 
 	        debug: $debug_enabled
+	optimizations: $optimizations_enabled
 
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
