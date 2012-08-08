@@ -36,7 +36,6 @@
 #include "conf.h"
 #include "console.h"
 #include "eloop.h"
-#include "font.h"
 #include "log.h"
 #include "pty.h"
 #include "static_misc.h"

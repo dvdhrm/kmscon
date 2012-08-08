@@ -36,7 +36,6 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
-#include "font.h"
 #include "text.h"
 #include "unicode.h"
 

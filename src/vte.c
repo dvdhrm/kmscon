@@ -55,7 +55,6 @@
 #include <X11/keysym.h>
 
 #include "console.h"
-#include "font.h"
 #include "log.h"
 #include "unicode.h"
 #include "vte.h"

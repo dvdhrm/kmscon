@@ -36,7 +36,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "font.h"
 #include "log.h"
 #include "static_misc.h"
 #include "text.h"

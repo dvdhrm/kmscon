@@ -39,9 +39,24 @@
 #define KMSCON_TEXT_H
 
 #include <stdlib.h>
-#include "font.h"
 #include "unicode.h"
 #include "uterm.h"
+
+/* chars */
+
+/* TODO: rename to kmscon_char_attr */
+struct font_char_attr {
+	uint8_t fr;			/* foreground red */
+	uint8_t fg;			/* foreground green */
+	uint8_t fb;			/* foreground blue */
+	uint8_t br;			/* background red */
+	uint8_t bg;			/* background green */
+	uint8_t bb;			/* background blue */
+	unsigned int bold : 1;		/* bold character */
+	unsigned int underline : 1;	/* underlined character */
+	unsigned int inverse : 1;	/* inverse colors */
+	unsigned int protect : 1;	/* cannot be erased */
+};
 
 /* fonts */
 

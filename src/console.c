@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "console.h"
-#include "font.h"
 #include "log.h"
 #include "text.h"
 #include "unicode.h"
