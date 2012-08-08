@@ -120,7 +120,6 @@ libkmscon_core_la_SOURCES = \
 	src/pty.c src/pty.h \
 	src/text.h \
 	src/text.c \
-	src/text_bblit.c \
 	src/text_font.c
 
 if KMSCON_HAVE_8X16
@@ -136,6 +135,11 @@ endif
 if KMSCON_HAVE_PANGO
 libkmscon_core_la_SOURCES += \
 	src/text_font_pango.c
+endif
+
+if KMSCON_HAVE_BBLIT
+libkmscon_core_la_SOURCES += \
+	src/text_bblit.c
 endif
 
 libkmscon_core_la_CPPFLAGS = \

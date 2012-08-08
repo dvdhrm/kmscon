@@ -148,6 +148,12 @@ AC_ARG_ENABLE([pango],
                               [disable pango font backend])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to use bblit rendering backend])
+AC_ARG_ENABLE([bblit],
+              [AS_HELP_STRING([--disable-bblit],
+                              [disable bblit rendering backend])])
+AC_MSG_RESULT([ok])
+
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug],
@@ -438,6 +444,22 @@ fi
 AM_CONDITIONAL([KMSCON_HAVE_PANGO], [test x$pango_enabled = xyes])
 
 #
+# BBlit Rendering backend
+#
+
+bblit_enabled=no
+if test ! x$enable_bblit = xno ; then
+        bblit_enabled=yes
+fi
+
+if test x$bblit_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_BBLIT], [1],
+                  [Use bblit rendering backend])
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_BBLIT], [test x$bblit_enabled = xyes])
+
+#
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
 # makefiles.
@@ -493,5 +515,8 @@ AC_MSG_NOTICE([Build configuration:
 	         8x16: $f8x16_enabled
 	    freetype2: $freetype2_enabled
 	        pango: $pango_enabled
+
+  rendering backends:
+	        bblit: $bblit_enabled
 
 	Run "make" to start compilation process])
