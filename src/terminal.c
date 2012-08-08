@@ -37,7 +37,6 @@
 #include "console.h"
 #include "eloop.h"
 #include "font.h"
-#include "gl.h"
 #include "log.h"
 #include "pty.h"
 #include "static_misc.h"
@@ -62,7 +61,6 @@ struct kmscon_terminal {
 	struct ev_eloop *eloop;
 	struct uterm_video *video;
 	struct uterm_input *input;
-	struct gl_shader *shader;
 	bool opened;
 
 	struct kmscon_dlist screens;
@@ -82,28 +80,16 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct kmscon_terminal *term = data;
 	struct uterm_screen *screen;
-	int ret;
-	unsigned int cflags;
 	struct kmscon_dlist *iter;
 	struct screen *ent;
 
 	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	term->redraw = false;
-	cflags = kmscon_console_get_flags(term->console);
 
 	kmscon_dlist_for_each(iter, &term->screens) {
 		ent = kmscon_dlist_entry(iter, struct screen, list);
 		screen = ent->screen;
 
-		ret = uterm_screen_use(screen);
-		if (!ret) {
-			gl_viewport(screen);
-			if (cflags & KMSCON_CONSOLE_INVERSE)
-				gl_clear_color(1.0, 1.0, 1.0, 1.0);
-			else
-				gl_clear_color(0.0, 0.0, 0.0, 1.0);
-			gl_clear();
-		}
 		kmscon_console_draw(term->console, ent->txt);
 		uterm_screen_swap(screen);
 	}
@@ -355,16 +341,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_vte;
 
-	ret = uterm_video_use(term->video);
-	if (!ret) {
-		ret = gl_shader_new(&term->shader);
-		if (ret)
-			goto err_pty;
-	}
-
 	ret = uterm_input_register_cb(term->input, input_event, term);
 	if (ret)
-		goto err_shader;
+		goto err_pty;
 
 	ev_eloop_ref(term->eloop);
 	uterm_video_ref(term->video);
@@ -374,8 +353,6 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	log_debug("new terminal object %p", term);
 	return 0;
 
-err_shader:
-	gl_shader_unref(term->shader);
 err_pty:
 	kmscon_pty_unref(term->pty);
 err_vte:
@@ -407,7 +384,6 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	kmscon_terminal_close(term);
 	rm_all_screens(term);
 	uterm_input_unregister_cb(term->input, input_event, term);
-	gl_shader_unref(term->shader);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
