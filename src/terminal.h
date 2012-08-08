@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include "console.h"
 #include "eloop.h"
-#include "gl.h"
 #include "uterm.h"
 
 struct kmscon_terminal;
