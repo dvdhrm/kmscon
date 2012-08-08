@@ -305,8 +305,9 @@ bool kmscon_direct_equal(const void *data1, const void *data2)
 static size_t rehash(const void *ele, void *priv)
 {
 	struct kmscon_hashtable *tbl = priv;
+	const struct kmscon_hashentry *ent = ele;
 
-	return tbl->hash_cb(ele);
+	return tbl->hash_cb(ent->key);
 }
 
 int kmscon_hashtable_new(struct kmscon_hashtable **out,
