@@ -258,8 +258,12 @@ libkmscon_static_la_SOURCES = \
 	external/htable.h \
 	external/htable.c
 
+if KMSCON_HAVE_GLES2
 nodist_libkmscon_static_la_SOURCES = \
+	src/static_gl.h \
+	src/static_gl_math.c \
 	src/static_shaders.c
+endif
 
 #
 # Binaries
