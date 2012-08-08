@@ -1,7 +1,7 @@
 /*
- * kmscon - Vertex Shader
+ * kmscon - Fragment Shader
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,18 +25,14 @@
  */
 
 /*
- * Vertex Shader
- * This shader is a very basic vertex shader which forwards all data and
- * performs basic matrix multiplications.
+ * Fragement Shader
+ * A basic fragment shader which applies a 2D texture.
  */
 
-uniform mat4 projection;
-attribute vec2 position;
-attribute vec2 texture_position;
+uniform sampler2D texture;
 varying vec2 texpos;
 
 void main()
 {
-	gl_Position = projection * vec4(position, 0.0, 1.0);
-	texpos = texture_position;
+	gl_FragColor = texture2D(texture, texpos);
 }

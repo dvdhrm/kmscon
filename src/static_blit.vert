@@ -1,7 +1,7 @@
 /*
  * kmscon - Vertex Shader
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,18 +25,18 @@
  */
 
 /*
- * Default Vertex Shader
+ * Vertex Shader
  * This shader is a very basic vertex shader which forwards all data and
  * performs basic matrix multiplications.
  */
 
 uniform mat4 projection;
 attribute vec2 position;
-attribute vec4 color;
-varying vec4 col;
+attribute vec2 texture_position;
+varying vec2 texpos;
 
 void main()
 {
-	col = color;
 	gl_Position = projection * vec4(position, 0.0, 1.0);
+	texpos = texture_position;
 }

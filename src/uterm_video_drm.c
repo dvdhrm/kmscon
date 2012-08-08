@@ -403,6 +403,377 @@ static int display_swap(struct uterm_display *disp)
 	return 0;
 }
 
+extern const char *gl_static_fill_vert;
+extern const char *gl_static_fill_frag;
+extern const char *gl_static_blend_vert;
+extern const char *gl_static_blend_frag;
+extern const char *gl_static_blit_vert;
+extern const char *gl_static_blit_frag;
+
+static int init_shaders(struct uterm_video *video)
+{
+	int ret;
+	char *fill_attr[] = { "position", "color" };
+	char *blend_attr[] = { "position", "texture_position" };
+	char *blit_attr[] = { "position", "texture_position" };
+
+	if (video->drm.sinit == 1)
+		return -EFAULT;
+	else if (video->drm.sinit == 2)
+		return 0;
+
+	video->drm.sinit = 1;
+
+	ret = gl_shader_new(&video->drm.fill_shader, gl_static_fill_vert,
+			    gl_static_fill_frag, fill_attr, 2, log_llog);
+	if (ret)
+		return ret;
+
+	video->drm.uni_fill_proj = gl_shader_get_uniform(
+					video->drm.fill_shader,
+					"projection");
+
+	ret = gl_shader_new(&video->drm.blend_shader, gl_static_blend_vert,
+			    gl_static_blend_frag, blend_attr, 2, log_llog);
+	if (ret)
+		return ret;
+
+	video->drm.uni_blend_proj = gl_shader_get_uniform(
+					video->drm.blend_shader,
+					"projection");
+	video->drm.uni_blend_tex = gl_shader_get_uniform(
+					video->drm.blend_shader,
+					"texture");
+	video->drm.uni_blend_fgcol = gl_shader_get_uniform(
+					video->drm.blend_shader,
+					"fgcolor");
+	video->drm.uni_blend_bgcol = gl_shader_get_uniform(
+					video->drm.blend_shader,
+					"bgcolor");
+
+	ret = gl_shader_new(&video->drm.blit_shader, gl_static_blit_vert,
+			    gl_static_blit_frag, blit_attr, 2, log_llog);
+	if (ret)
+		return ret;
+
+	video->drm.uni_blit_proj = gl_shader_get_uniform(
+					video->drm.blit_shader,
+					"projection");
+	video->drm.uni_blit_tex = gl_shader_get_uniform(
+					video->drm.blit_shader,
+					"texture");
+
+	gl_tex_new(&video->drm.tex, 1);
+	video->drm.sinit = 2;
+
+	return 0;
+}
+
+static void deinit_shaders(struct uterm_video *video)
+{
+	if (video->drm.sinit == 0)
+		return;
+
+	video->drm.sinit = 0;
+	gl_tex_free(&video->drm.tex, 1);
+	gl_shader_unref(video->drm.blit_shader);
+	gl_shader_unref(video->drm.blend_shader);
+	gl_shader_unref(video->drm.fill_shader);
+}
+
+static int display_blit(struct uterm_display *disp,
+			const struct uterm_video_buffer *buf,
+			unsigned int x, unsigned int y)
+{
+	unsigned int sw, sh, tmp, width, height;
+	float mat[16];
+	float vertices[6 * 2], texpos[6 * 2];
+	int ret;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!video_is_awake(disp->video))
+		return -EINVAL;
+	if (buf->format != UTERM_FORMAT_XRGB32)
+		return -EINVAL;
+
+	ret = display_use(disp);
+	if (ret)
+		return ret;
+	ret = init_shaders(disp->video);
+	if (ret)
+		return ret;
+
+	sw = disp->current_mode->drm.info.hdisplay;
+	sh = disp->current_mode->drm.info.vdisplay;
+
+	vertices[0] = -1.0;
+	vertices[1] = -1.0;
+	vertices[2] = -1.0;
+	vertices[3] = +1.0;
+	vertices[4] = +1.0;
+	vertices[5] = +1.0;
+
+	vertices[6] = -1.0;
+	vertices[7] = -1.0;
+	vertices[8] = +1.0;
+	vertices[9] = +1.0;
+	vertices[10] = +1.0;
+	vertices[11] = -1.0;
+
+	texpos[0] = 0.0;
+	texpos[1] = 0.0;
+	texpos[2] = 0.0;
+	texpos[3] = 1.0;
+	texpos[4] = 1.0;
+	texpos[5] = 1.0;
+
+	texpos[6] = 0.0;
+	texpos[7] = 0.0;
+	texpos[8] = 1.0;
+	texpos[9] = 1.0;
+	texpos[10] = 1.0;
+	texpos[11] = 0.0;
+
+	tmp = x + buf->width;
+	if (tmp < x || x >= sw)
+		return -EINVAL;
+	if (tmp > sw)
+		width = sw - x;
+	else
+		width = buf->width;
+
+	tmp = y + buf->height;
+	if (tmp < y || y >= sh)
+		return -EINVAL;
+	if (tmp > sh)
+		height = sh - y;
+	else
+		height = buf->height;
+
+	glViewport(x, y, width, height);
+	glDisable(GL_BLEND);
+
+	gl_shader_use(disp->video->drm.blit_shader);
+
+	gl_m4_identity(mat);
+	glUniformMatrix4fv(disp->video->drm.uni_blit_proj, 1, GL_FALSE, mat);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, disp->video->drm.tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride / 4);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
+		     GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf->data);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	glUniform1i(disp->video->drm.uni_blit_tex, 0);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	if (gl_has_error(disp->video->drm.blit_shader)) {
+		log_warning("GL error");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int display_blend(struct uterm_display *disp,
+			 const struct uterm_video_buffer *buf,
+			 unsigned int x, unsigned int y,
+			 uint8_t fr, uint8_t fg, uint8_t fb,
+			 uint8_t br, uint8_t bg, uint8_t bb)
+{
+	unsigned int sw, sh, tmp, width, height;
+	float mat[16];
+	float vertices[6 * 2], texpos[6 * 2], fgcol[3], bgcol[3];
+	int ret;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!video_is_awake(disp->video))
+		return -EINVAL;
+	if (buf->format != UTERM_FORMAT_GREY)
+		return -EINVAL;
+
+	ret = display_use(disp);
+	if (ret)
+		return ret;
+	ret = init_shaders(disp->video);
+	if (ret)
+		return ret;
+
+	sw = disp->current_mode->drm.info.hdisplay;
+	sh = disp->current_mode->drm.info.vdisplay;
+
+	vertices[0] = -1.0;
+	vertices[1] = -1.0;
+	vertices[2] = -1.0;
+	vertices[3] = +1.0;
+	vertices[4] = +1.0;
+	vertices[5] = +1.0;
+
+	vertices[6] = -1.0;
+	vertices[7] = -1.0;
+	vertices[8] = +1.0;
+	vertices[9] = +1.0;
+	vertices[10] = +1.0;
+	vertices[11] = -1.0;
+
+	texpos[0] = 0.0;
+	texpos[1] = 0.0;
+	texpos[2] = 0.0;
+	texpos[3] = 1.0;
+	texpos[4] = 1.0;
+	texpos[5] = 1.0;
+
+	texpos[6] = 0.0;
+	texpos[7] = 0.0;
+	texpos[8] = 1.0;
+	texpos[9] = 1.0;
+	texpos[10] = 1.0;
+	texpos[11] = 0.0;
+
+	fgcol[0] = fr / 255.0;
+	fgcol[1] = fg / 255.0;
+	fgcol[2] = fb / 255.0;
+	bgcol[0] = br / 255.0;
+	bgcol[1] = bg / 255.0;
+	bgcol[2] = bb / 255.0;
+
+	tmp = x + buf->width;
+	if (tmp < x || x >= sw)
+		return -EINVAL;
+	if (tmp > sw)
+		width = sw - x;
+	else
+		width = buf->width;
+
+	tmp = y + buf->height;
+	if (tmp < y || y >= sh)
+		return -EINVAL;
+	if (tmp > sh)
+		height = sh - y;
+	else
+		height = buf->height;
+
+	glViewport(x, y, width, height);
+	glDisable(GL_BLEND);
+
+	gl_shader_use(disp->video->drm.blend_shader);
+
+	gl_m4_identity(mat);
+	glUniformMatrix4fv(disp->video->drm.uni_blend_proj, 1, GL_FALSE, mat);
+
+	glUniform3fv(disp->video->drm.uni_blend_fgcol, 1, fgcol);
+	glUniform3fv(disp->video->drm.uni_blend_bgcol, 1, bgcol);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, disp->video->drm.tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA,
+		     GL_UNSIGNED_BYTE, buf->data);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+	glUniform1i(disp->video->drm.uni_blend_tex, 0);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	if (gl_has_error(disp->video->drm.blend_shader)) {
+		log_warning("GL error");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int display_fill(struct uterm_display *disp,
+			uint8_t r, uint8_t g, uint8_t b,
+			unsigned int x, unsigned int y,
+			unsigned int width, unsigned int height)
+{
+	unsigned int sw, sh, tmp, i;
+	float mat[16];
+	float vertices[6 * 2], colors[6 * 4];
+	int ret;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!video_is_awake(disp->video))
+		return -EINVAL;
+
+	ret = display_use(disp);
+	if (ret)
+		return ret;
+	ret = init_shaders(disp->video);
+	if (ret)
+		return ret;
+
+	sw = disp->current_mode->drm.info.hdisplay;
+	sh = disp->current_mode->drm.info.vdisplay;
+
+	for (i = 0; i < 6; ++i) {
+		colors[i * 4 + 0] = r / 255.0;
+		colors[i * 4 + 1] = g / 255.0;
+		colors[i * 4 + 2] = b / 255.0;
+		colors[i * 4 + 3] = 1.0;
+	}
+
+	vertices[0] = -1.0;
+	vertices[1] = -1.0;
+	vertices[2] = -1.0;
+	vertices[3] = +1.0;
+	vertices[4] = +1.0;
+	vertices[5] = +1.0;
+
+	vertices[6] = -1.0;
+	vertices[7] = -1.0;
+	vertices[8] = +1.0;
+	vertices[9] = +1.0;
+	vertices[10] = +1.0;
+	vertices[11] = -1.0;
+
+	tmp = x + width;
+	if (tmp < x || x >= sw)
+		return -EINVAL;
+	if (tmp > sw)
+		width = sw - x;
+	tmp = y + height;
+	if (tmp < y || y >= sh)
+		return -EINVAL;
+	if (tmp > sh)
+		height = sh - y;
+
+	glViewport(x, y, width, height);
+	glDisable(GL_BLEND);
+
+	gl_shader_use(disp->video->drm.fill_shader);
+	gl_m4_identity(mat);
+	glUniformMatrix4fv(disp->video->drm.uni_fill_proj, 1, GL_FALSE, mat);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, vertices);
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, colors);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	if (gl_has_error(disp->video->drm.fill_shader)) {
+		log_warning("GL error");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static void show_displays(struct uterm_video *video)
 {
 	int ret;
@@ -644,11 +1015,14 @@ static void video_destroy(struct uterm_video *video)
 
 	log_info("free drm device");
 	ev_eloop_rm_fd(drm->efd);
-	if (eglGetCurrentContext() == drm->ctx)
-		eglMakeCurrent(drm->disp,
-				EGL_NO_SURFACE,
-				EGL_NO_SURFACE,
-				EGL_NO_CONTEXT);
+
+	video_do_use(video);
+	deinit_shaders(video);
+
+	eglMakeCurrent(drm->disp,
+			EGL_NO_SURFACE,
+			EGL_NO_SURFACE,
+			EGL_NO_CONTEXT);
 	eglDestroyContext(drm->disp, drm->ctx);
 	eglTerminate(drm->disp);
 	gbm_device_destroy(drm->gbm);
@@ -788,7 +1162,9 @@ const struct display_ops drm_display_ops = {
 	.set_dpms = display_set_dpms,
 	.use = display_use,
 	.swap = display_swap,
-	.blit = NULL,
+	.blit = display_blit,
+	.blend = display_blend,
+	.fill = display_fill,
 };
 
 const struct video_ops drm_video_ops = {

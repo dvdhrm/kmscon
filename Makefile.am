@@ -83,10 +83,12 @@ endif
 #
 
 SHADERS = \
-	src/output_shader_def.vert \
-	src/output_shader_def.frag \
-	src/output_shader_tex.vert \
-	src/output_shader_tex.frag
+	src/static_fill.vert \
+	src/static_fill.frag \
+	src/static_blend.vert \
+	src/static_blend.frag \
+	src/static_blit.vert \
+	src/static_blit.frag
 
 EXTRA_DIST += \
 	$(SHADERS)

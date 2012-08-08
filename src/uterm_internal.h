@@ -91,6 +91,7 @@ struct video_ops {
 #include <GLES2/gl2ext.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "static_gl.h"
 
 struct drm_mode {
 	drmModeModeInfo info;
@@ -119,6 +120,22 @@ struct drm_video {
 	struct gbm_device *gbm;
 	EGLDisplay *disp;
 	EGLContext *ctx;
+
+	unsigned int sinit;
+	GLuint tex;
+
+	struct gl_shader *fill_shader;
+	GLuint uni_fill_proj;
+
+	struct gl_shader *blend_shader;
+	GLuint uni_blend_proj;
+	GLuint uni_blend_tex;
+	GLuint uni_blend_fgcol;
+	GLuint uni_blend_bgcol;
+
+	struct gl_shader *blit_shader;
+	GLuint uni_blit_proj;
+	GLuint uni_blit_tex;
 };
 
 static const bool drm_available = true;
