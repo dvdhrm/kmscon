@@ -71,6 +71,7 @@ typedef void (*llog_submit_t) (const char *file,
 			       const char *format,
 			       va_list args);
 
+__attribute__((__unused__))
 static void llog_format(llog_submit_t llog,
 			const char *file,
 			int line,
