@@ -121,17 +121,10 @@ libkmscon_core_la_SOURCES = \
 	src/vte_charsets.c \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
-	src/gl.h \
-	src/gl_math.c \
 	src/text.h \
 	src/text.c \
 	src/text_bblit.c \
 	src/text_font.c
-
-if KMSCON_HAVE_GLES2
-libkmscon_core_la_SOURCES += \
-	src/gl_shader.c
-endif
 
 if KMSCON_HAVE_8X16
 libkmscon_core_la_SOURCES += \
