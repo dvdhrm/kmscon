@@ -391,7 +391,7 @@ bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key)
 	size_t hash;
 
 	if (!tbl)
-		return -EINVAL;
+		return false;
 
 	hash = tbl->hash_cb(key);
 
