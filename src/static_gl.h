@@ -33,9 +33,12 @@
 #ifndef GL_H_INCLUDED
 #define GL_H_INCLUDED
 
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include "static_llog.h"
 
 /*
  * Math Helpers
@@ -59,5 +62,28 @@ void gl_m4_stack_free(struct gl_m4_stack *stack);
 float *gl_m4_stack_push(struct gl_m4_stack *stack);
 float *gl_m4_stack_pop(struct gl_m4_stack *stack);
 float *gl_m4_stack_tip(struct gl_m4_stack *stack);
+
+/*
+ * Shader Helpers
+ * These helpers load, compile and link shaders and allow easy attribute/uniform
+ * access.
+ */
+
+struct gl_shader;
+
+int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
+		  char **attr, size_t attr_count, llog_submit_t llog);
+void gl_shader_ref(struct gl_shader *shader);
+void gl_shader_unref(struct gl_shader *shader);
+GLuint gl_shader_get_uniform(struct gl_shader *shader, const char *name);
+void gl_shader_use(struct gl_shader *shader);
+
+void gl_tex_new(GLuint *tex, size_t num);
+void gl_tex_free(GLuint *tex, size_t num);
+void gl_tex_load(GLuint tex, unsigned int width, unsigned int stride,
+		 unsigned int height, uint8_t *buf);
+
+void gl_clear_error();
+bool gl_has_error(struct gl_shader *shader);
 
 #endif /* GL_H_INCLUDED */
