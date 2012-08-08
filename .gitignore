@@ -23,7 +23,7 @@ stamp-*
 .dirstamp
 .libs
 genshader
-src/output_shaders.c
+src/static_shaders.c
 src/genshader.c
 docs/reference/*.txt
 docs/reference/*.bak

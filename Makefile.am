@@ -82,24 +82,22 @@ endif
 # pretty simple and just creates a string with the shader source as content.
 #
 
-EXTRA_DIST += \
+SHADERS = \
 	src/output_shader_def.vert \
 	src/output_shader_def.frag \
 	src/output_shader_tex.vert \
 	src/output_shader_tex.frag
+
+EXTRA_DIST += \
+	$(SHADERS)
 CLEANFILES += \
-	src/output_shaders.c
+	src/static_shaders.c
 
 nodist_genshader_SOURCES = \
 	src/genshader.c
 
-src/output_shaders.c: \
-		src/output_shader_def.vert \
-		src/output_shader_def.frag \
-		src/output_shader_tex.vert \
-		src/output_shader_tex.frag \
-		genshader$(EXEEXT)
-	./genshader$(EXEEXT)
+src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
+	./genshader$(EXEEXT) src/static_shaders.c $(SHADERS)
 
 #
 # libkmscon-core
@@ -107,9 +105,6 @@ src/output_shaders.c: \
 # them as separate library to allow linking them to the test programs.
 # Only "main.c" is not included here as it contains the main() function.
 #
-
-nodist_libkmscon_core_la_SOURCES = \
-	src/output_shaders.c
 
 libkmscon_core_la_SOURCES = \
 	src/conf.c src/conf.h \
@@ -262,6 +257,9 @@ libkmscon_static_la_SOURCES = \
 	src/static_misc.c \
 	external/htable.h \
 	external/htable.c
+
+nodist_libkmscon_static_la_SOURCES = \
+	src/static_shaders.c
 
 #
 # Binaries
