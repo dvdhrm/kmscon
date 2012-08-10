@@ -151,6 +151,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	int ret;
 	unsigned int cols, rows;
 	const struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
+	const char *be;
 
 	kmscon_dlist_for_each(iter, &term->screens) {
 		scr = kmscon_dlist_entry(iter, struct screen, list);
@@ -178,7 +179,13 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_screen;
 	}
 
-	ret = kmscon_text_new(&scr->txt, NULL);
+	ret = uterm_screen_use(scr->screen);
+	if (!ret)
+		be = "gltex";
+	else
+		be = NULL;
+
+	ret = kmscon_text_new(&scr->txt, be);
 	if (ret) {
 		log_error("cannot create text-renderer");
 		goto err_font;
