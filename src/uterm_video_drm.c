@@ -574,6 +574,8 @@ static int display_blit(struct uterm_display *disp,
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 
 	if (gl_has_error(disp->video->drm.blit_shader)) {
 		log_warning("GL error");
@@ -688,6 +690,8 @@ static int display_blend(struct uterm_display *disp,
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 
 	if (gl_has_error(disp->video->drm.blend_shader)) {
 		log_warning("GL error");
@@ -765,6 +769,8 @@ static int display_fill(struct uterm_display *disp,
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glDisableVertexAttribArray(0);
+	glDisableVertexAttribArray(1);
 
 	if (gl_has_error(disp->video->drm.fill_shader)) {
 		log_warning("GL error");
