@@ -88,7 +88,9 @@ SHADERS = \
 	src/static_blend.vert \
 	src/static_blend.frag \
 	src/static_blit.vert \
-	src/static_blit.frag
+	src/static_blit.frag \
+	src/static_gltex.vert \
+	src/static_gltex.frag
 
 EXTRA_DIST += \
 	$(SHADERS)
@@ -140,6 +142,11 @@ endif
 if KMSCON_HAVE_BBLIT
 libkmscon_core_la_SOURCES += \
 	src/text_bblit.c
+endif
+
+if KMSCON_HAVE_GLES2
+libkmscon_core_la_SOURCES += \
+	src/text_gltex.c
 endif
 
 libkmscon_core_la_CPPFLAGS = \

@@ -460,6 +460,17 @@ fi
 AM_CONDITIONAL([KMSCON_HAVE_BBLIT], [test x$bblit_enabled = xyes])
 
 #
+# OpenGL Texture rendering backend
+# This is not really an option but automatically enabled if OpenGLES2 support
+# was selected.
+#
+
+gltex_enabled=no
+if test x$gles2_enabled = xyes ; then
+        gltex_enabled=yes
+fi
+
+#
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
 # makefiles.
@@ -518,5 +529,6 @@ AC_MSG_NOTICE([Build configuration:
 
   rendering backends:
 	        bblit: $bblit_enabled
+	        gltex: $gltex_enabled
 
 	Run "make" to start compilation process])

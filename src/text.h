@@ -251,4 +251,22 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
+#ifdef KMSCON_HAVE_GLES2
+
+int kmscon_text_gltex_load(void);
+void kmscon_text_gltex_unload(void);
+
+#else
+
+static inline int kmscon_text_gltex_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_text_gltex_unload(void)
+{
+}
+
+#endif
+
 #endif /* KMSCON_TEXT_H */
