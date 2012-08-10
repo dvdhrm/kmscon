@@ -184,9 +184,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_font;
 	}
 
-	kmscon_text_set_bgcolor(scr->txt, 0, 0, 0);
-	kmscon_text_set_font(scr->txt, scr->font);
-	kmscon_text_set_screen(scr->txt, scr->screen);
+	kmscon_text_set(scr->txt, scr->font, scr->screen);
 
 	cols = kmscon_text_get_cols(scr->txt);
 	rows = kmscon_text_get_rows(scr->txt);

@@ -214,7 +214,11 @@ int kmscon_text_new(struct kmscon_text **out,
 	text->ref = 1;
 	text->ops = be->ops;
 
-	ret = text->ops->init(text);
+	if (text->ops->init)
+		ret = text->ops->init(text);
+	else
+		ret = 0;
+
 	if (ret) {
 		if (be == def) {
 			log_error("default backend %s cannot create renderer",
@@ -275,74 +279,99 @@ void kmscon_text_unref(struct kmscon_text *text)
 	if (!text || !text->ref || --text->ref)
 		return;
 
-	text_lock();
 	log_debug("freeing text renderer");
-	text->ops->destroy(text);
-	kmscon_font_unref(text->font);
-	uterm_screen_unref(text->screen);
+	kmscon_text_unset(text);
+
+	text_lock();
+
+	if (text->ops->destroy)
+		text->ops->destroy(text);
 	free(text);
+
 	text_unlock();
 }
 
 /**
- * kmscon_text_set_font:
+ * kmscon_text_set:
  * @txt: Valid text-renderer object
- * @font: Valid font object
+ * @font: font object
+ * @screen: screen object
  *
- * This makes the text-renderer @txt use the font @font. You can drop your
- * reference to @font after calling this.
+ * This makes the text-renderer @txt use the font @font and screen @screen. You
+ * can drop your reference to both after calling this.
+ * This calls kmscon_text_unset() first to remove all previous associations.
+ * None of the arguments can be NULL!
+ * If this function fails then you must assume that no font/screen will be set
+ * and the object is invalid.
+ *
+ * Returns: 0 on success, negative error code on failure.
  */
-void kmscon_text_set_font(struct kmscon_text *txt,
-			  struct kmscon_font *font)
+int kmscon_text_set(struct kmscon_text *txt,
+		    struct kmscon_font *font,
+		    struct uterm_screen *screen)
 {
-	if (!txt || !font)
-		return;
+	int ret;
 
-	kmscon_font_unref(txt->font);
+	if (!txt || !font || !screen)
+		return -EINVAL;
+
+	kmscon_text_unset(txt);
+
 	txt->font = font;
-	kmscon_font_ref(txt->font);
+	txt->screen = screen;
 
-	txt->ops->new_font(txt);
+	if (txt->ops->set) {
+		ret = txt->ops->set(txt);
+		if (ret) {
+			txt->font = NULL;
+			txt->screen = NULL;
+			return ret;
+		}
+	}
+
+	kmscon_font_ref(txt->font);
+	uterm_screen_ref(txt->screen);
+
+	return 0;
 }
 
 /**
- * kmscon_text_set_bgcolor:
- * @txt: Valid text-renderer object
- * @r: red value
- * @g: green value
- * @b: blue value
+ * kmscon_text_unset():
+ * @txt: text renderer
  *
- * This sets the background color to r/g/b. The background color is a solid
- * color which is used for the whole background. You should give the same as the
- * default background color of your characters as this will speed up the drawing
- * operations.
+ * This redos kmscon_text_set() by dropping the internal references to the font
+ * and screen and invalidating the object. You need to call kmscon_text_set()
+ * again to make use of this text renderer.
+ * This is automatically called when the text renderer is destroyed.
  */
-void kmscon_text_set_bgcolor(struct kmscon_text *txt,
-			     uint8_t r, uint8_t g, uint8_t b)
+void kmscon_text_unset(struct kmscon_text *txt)
 {
-	if (!txt)
+	if (!txt || !txt->screen || !txt->font)
 		return;
 
-	txt->bg_r = r;
-	txt->bg_g = g;
-	txt->bg_b = b;
+	if (txt->ops->unset)
+		txt->ops->unset(txt);
 
-	txt->ops->new_bgcolor(txt);
-}
-
-void kmscon_text_set_screen(struct kmscon_text *txt,
-			    struct uterm_screen *screen)
-{
-	if (!txt || !screen)
-		return;
-
+	kmscon_font_unref(txt->font);
 	uterm_screen_unref(txt->screen);
-	txt->screen = screen;
-	uterm_screen_ref(txt->screen);
-
-	txt->ops->new_screen(txt);
+	txt->font = NULL;
+	txt->screen = NULL;
+	txt->cols = 0;
+	txt->rows = 0;
+	txt->rendering = false;
 }
 
+/**
+ * kmscon_text_get_cols:
+ * @txt: valid text renderer
+ *
+ * After setting the arguments with kmscon_text_set(), the renderer will compute
+ * the number of columns/rows of the console that it can display on the screen.
+ * You can retrieve these values via these functions.
+ * If kmscon_text_set() hasn't been called, this will return 0.
+ *
+ * Returns: Number of columns or 0 if @txt is invalid
+ */
 unsigned int kmscon_text_get_cols(struct kmscon_text *txt)
 {
 	if (!txt)
@@ -351,6 +380,17 @@ unsigned int kmscon_text_get_cols(struct kmscon_text *txt)
 	return txt->cols;
 }
 
+/**
+ * kmscon_text_get_rows:
+ * @txt: valid text renderer
+ *
+ * After setting the arguments with kmscon_text_set(), the renderer will compute
+ * the number of columns/rows of the console that it can display on the screen.
+ * You can retrieve these values via these functions.
+ * If kmscon_text_set() hasn't been called, this will return 0.
+ *
+ * Returns: Number of rows or 0 if @txt is invalid
+ */
 unsigned int kmscon_text_get_rows(struct kmscon_text *txt)
 {
 	if (!txt)
@@ -359,32 +399,101 @@ unsigned int kmscon_text_get_rows(struct kmscon_text *txt)
 	return txt->rows;
 }
 
-void kmscon_text_prepare(struct kmscon_text *txt)
+/**
+ * kmscon_text_prepare:
+ * @txt: valid text renderer
+ *
+ * This starts a rendering-round. When rendering a console via a text renderer,
+ * you have to call this first, then render all your glyphs via
+ * kmscon_text_draw() and finally use kmscon_text_render(). If you modify this
+ * renderer during rendering or if you activate different OpenGL contexts in
+ * between, you need to restart rendering by calling kmscon_text_prepare() again
+ * and redoing everything from the beginning.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int kmscon_text_prepare(struct kmscon_text *txt)
 {
+	int ret = 0;
+
 	if (!txt || !txt->font || !txt->screen)
-		return;
+		return -EINVAL;
 
 	txt->rendering = true;
-	txt->ops->prepare(txt);
+	if (txt->ops->prepare)
+		ret = txt->ops->prepare(txt);
+	if (ret)
+		txt->rendering = false;
+
+	return ret;
 }
 
-void kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+/**
+ * kmscon_text_draw:
+ * @txt: valid text renderer
+ * @ch: symbol you want to draw
+ * @posx: X-position of the glyph
+ * @posy: Y-position of the glyph
+ * @attr: glyph attributes
+ *
+ * This draws a single glyph at the requested position. The position is a
+ * console position, not a pixel position! You must precede this call with
+ * kmscon_text_prepare(). Use this function to feed all glyphs into the
+ * rendering pipeline and finally call kmscon_text_render().
+ *
+ * Returns: 0 on success or negative error code if this glyph couldn't be drawn.
+ */
+int kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
 		      const struct font_char_attr *attr)
 {
 	if (!txt || !txt->rendering)
-		return;
+		return -EINVAL;
 	if (posx >= txt->cols || posy >= txt->rows || !attr)
-		return;
+		return -EINVAL;
 
-	txt->ops->draw(txt, ch, posx, posy, attr);
+	return txt->ops->draw(txt, ch, posx, posy, attr);
 }
 
-void kmscon_text_render(struct kmscon_text *txt)
+/**
+ * kmscon_text_render:
+ * @txt: valid text renderer
+ *
+ * This does the final rendering round after kmscon_text_prepare() has been
+ * called and all glyphs were sent to the renderer via kmscon_text_draw().
+ *
+ * Returns: 0 on success, negative error on failure.
+ */
+int kmscon_text_render(struct kmscon_text *txt)
+{
+	int ret = 0;
+
+	if (!txt || !txt->rendering)
+		return -EINVAL;
+
+	if (txt->ops->render)
+		ret = txt->ops->render(txt);
+	txt->rendering = false;
+
+	return ret;
+}
+
+/**
+ * kmscon_text_abort:
+ * @txt: valid text renderer
+ *
+ * If you called kmscon_text_prepare() but you want to abort rendering instead
+ * of finishing it with kmscon_text_render(), you can safely call this to reset
+ * internal state. It is optional to call this or simply restart rendering.
+ * Especially if the other renderers return an error, then they probably already
+ * aborted rendering and it is not required to call this.
+ */
+void kmscon_text_abort(struct kmscon_text *txt)
 {
 	if (!txt || !txt->rendering)
 		return;
 
-	txt->ops->render(txt);
+	if (txt->ops->abort)
+		txt->ops->abort(txt);
 	txt->rendering = false;
 }

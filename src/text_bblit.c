@@ -44,21 +44,9 @@
 
 #define LOG_SUBSYSTEM "text_bblit"
 
-static int bblit_init(struct kmscon_text *txt)
-{
-	return 0;
-}
-
-static void bblit_destroy(struct kmscon_text *txt)
-{
-}
-
-static void bblit_recalculate_size(struct kmscon_text *txt)
+static int bblit_set(struct kmscon_text *txt)
 {
 	unsigned int sw, sh, fw, fh;
-
-	if (!txt->font || !txt->screen)
-		return;
 
 	fw = txt->font->attr.width;
 	fh = txt->font->attr.height;
@@ -67,29 +55,13 @@ static void bblit_recalculate_size(struct kmscon_text *txt)
 
 	txt->cols = sw / fw;
 	txt->rows = sh / fh;
+
+	return 0;
 }
 
-static void bblit_new_font(struct kmscon_text *txt)
-{
-	bblit_recalculate_size(txt);
-}
-
-static void bblit_new_bgcolor(struct kmscon_text *txt)
-{
-}
-
-static void bblit_new_screen(struct kmscon_text *txt)
-{
-	bblit_recalculate_size(txt);
-}
-
-static void bblit_prepare(struct kmscon_text *txt)
-{
-}
-
-static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
-		       unsigned int posx, unsigned int posy,
-		       const struct font_char_attr *attr)
+static int bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+		      unsigned int posx, unsigned int posy,
+		      const struct font_char_attr *attr)
 {
 	const struct kmscon_glyph *glyph;
 	int ret;
@@ -103,39 +75,37 @@ static void bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 	if (ret) {
 		ret = kmscon_font_render_inval(txt->font, &glyph);
 		if (ret)
-			return;
+			return ret;
 	}
 
 	/* draw glyph */
 	if (attr->inverse) {
-		uterm_screen_blend(txt->screen, &glyph->buf,
-				   posx * txt->font->attr.width,
-				   posy * txt->font->attr.height,
-				   attr->br, attr->bg, attr->bb,
-				   attr->fr, attr->fg, attr->fb);
+		ret = uterm_screen_blend(txt->screen, &glyph->buf,
+					 posx * txt->font->attr.width,
+					 posy * txt->font->attr.height,
+					 attr->br, attr->bg, attr->bb,
+					 attr->fr, attr->fg, attr->fb);
 	} else {
-		uterm_screen_blend(txt->screen, &glyph->buf,
-				   posx * txt->font->attr.width,
-				   posy * txt->font->attr.height,
-				   attr->fr, attr->fg, attr->fb,
-				   attr->br, attr->bg, attr->bb);
+		ret = uterm_screen_blend(txt->screen, &glyph->buf,
+					 posx * txt->font->attr.width,
+					 posy * txt->font->attr.height,
+					 attr->fr, attr->fg, attr->fb,
+					 attr->br, attr->bg, attr->bb);
 	}
-}
 
-static void bblit_render(struct kmscon_text *txt)
-{
+	return ret;
 }
 
 static const struct kmscon_text_ops kmscon_text_bblit_ops = {
 	.name = "bblit",
-	.init = bblit_init,
-	.destroy = bblit_destroy,
-	.new_font = bblit_new_font,
-	.new_bgcolor = bblit_new_bgcolor,
-	.new_screen = bblit_new_screen,
-	.prepare = bblit_prepare,
+	.init = NULL,
+	.destroy = NULL,
+	.set = bblit_set,
+	.unset = NULL,
+	.prepare = NULL,
 	.draw = bblit_draw,
-	.render = bblit_render,
+	.render = NULL,
+	.abort = NULL,
 };
 
 int kmscon_text_bblit_load(void)
