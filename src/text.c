@@ -180,7 +180,7 @@ int kmscon_text_new(struct kmscon_text **out,
 		ret = -EFAULT;
 	} else {
 		ret = 0;
-		def = kmscon_dlist_entry(text__list.next,
+		def = kmscon_dlist_entry(text__list.prev,
 					 struct text_backend,
 					 list);
 		if (!backend) {
