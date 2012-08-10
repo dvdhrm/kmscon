@@ -191,7 +191,11 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_font;
 	}
 
-	kmscon_text_set(scr->txt, scr->font, scr->screen);
+	ret = kmscon_text_set(scr->txt, scr->font, scr->screen);
+	if (ret) {
+		log_error("cannot set text-renderer parameters");
+		goto err_text;
+	}
 
 	cols = kmscon_text_get_cols(scr->txt);
 	rows = kmscon_text_get_rows(scr->txt);
@@ -204,6 +208,8 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	uterm_display_ref(scr->disp);
 	return 0;
 
+err_text:
+	kmscon_text_unref(scr->txt);
 err_font:
 	kmscon_font_unref(scr->font);
 err_screen:
