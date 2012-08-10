@@ -736,6 +736,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	struct cell *cell;
 	struct font_char_attr attr;
 	bool cursor_done = false;
+	int ret;
 
 	if (!con || !txt)
 		return;
@@ -747,7 +748,11 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	if (con->cursor_y >= con->size_y)
 		cur_y = con->size_y - 1;
 
-	kmscon_text_prepare(txt);
+	ret = kmscon_text_prepare(txt);
+	if (ret) {
+		log_warning("cannot prepare text-renderer for rendering");
+		return;
+	}
 
 	iter = con->sb_pos;
 	k = 0;
@@ -778,7 +783,10 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 			if (con->flags & KMSCON_CONSOLE_INVERSE)
 				attr.inverse = !attr.inverse;
 
-			kmscon_text_draw(txt, cell->ch, j, i, &attr);
+			ret = kmscon_text_draw(txt, cell->ch, j, i, &attr);
+			if (ret)
+				log_debug("cannot draw glyph at %ux%u via text-renderer",
+					  j, i);
 		}
 
 		if (k == cur_y + 1 && !cursor_done) {
@@ -791,7 +799,9 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 		}
 	}
 
-	kmscon_text_render(txt);
+	ret = kmscon_text_render(txt);
+	if (ret)
+		log_warning("cannot render via text-renderer");
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
