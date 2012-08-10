@@ -34,6 +34,8 @@
  *
  * The event-loop allows the callbacks to modify _any_ data they want. They can
  * remove themself or other sources from the event loop even in a callback.
+ * This, however, means that recursive dispatch calls are not supported to
+ * increase performance and avoid internal dispatch-stacks.
  *
  * Sources can be one of:
  *  - File descriptors: An fd that is watched for readable/writeable events
@@ -43,8 +45,116 @@
  *  - Idle: An event that occurs when nothing else is done
  *  - Eloop: An event loop itself can be a source of another event loop
  *
- * A source can be registered for a single event-loop only! You cannot add it to
- * multiple event loops simultaneously.
+ * A source can be registered for a single event-loop only! You cannot add it
+ * to multiple event loops simultaneously. Also all provided sources are based
+ * on the file-descriptor source so it is guaranteed that you can get a
+ * file-desciptor for every source-type. This is not exported via the public
+ * API, but you can get the epoll-fd which is basically a selectable FD summary
+ * of all event sources.
+ *
+ * For instance, if you're developing a library, you can use the eloop library
+ * internally and you will have a full event-loop implementation inside of a
+ * library without any side-effects. You simply export the epoll-fd of the
+ * eloop-object via your public API and the outside users think you only use a
+ * single file-descriptor. They include this FD in their own application event
+ * loop which will then dispatch the messages to your library. Internally, you
+ * simply forward this dispatching to ev_eloop_dispatch() which then calls all
+ * your internal callbacks.
+ * That is, you have an event loop inside your library without requiring the
+ * outside-user to use the same event loop. You also have no global state or
+ * thread-bound event-loops like the Qt/Gtk event loops. So you have full
+ * access to the whole event loop without any side-effects.
+ *
+ *
+ * The whole eloop library does not use any global data. Therefore, it is fully
+ * re-entrant and no synchronization needed. However, a single object is not
+ * thread-safe. This means, if you access a single eloop object or registered
+ * sources on this eloop object in two different threads, you need to
+ * synchronize them. Furthermore, all callbacks are called from the thread that
+ * calls ev_eloop_dispatch() or ev_eloop_run().
+ * This guarantees that you have full control over the eloop but that you also
+ * have to implement additional functionality like thread-affinity yourself
+ * (obviously, only if you need it).
+ *
+ * The philosophy behind this library is that a proper application needs only a
+ * single thread that uses an event loop. Multiple threads should be used to do
+ * calculations, but not to avoid learning how to do non-blocking I/O!
+ * Therefore, only the application threads needs an event-loop, all other
+ * threads only perform calculation and return the data to the main thread.
+ * However, the library does not enforce this design-choice. On the contrary,
+ * it supports all other types of application-designs, too. But as it is
+ * optimized for performance, other application-designs may need to add further
+ * functionality (like thread-affinity) by themself as it would slow down the
+ * event loop if it was natively implemented.
+ *
+ *
+ * To get started simply create an eloop object with ev_eloop_new(). All
+ * functions return 0 on success and a negative error code like -EFAULT on
+ * failure. -EINVAL is returned if invalid parameters were passed.
+ * Every object can be ref-counted. *_ref() increases the reference-count and
+ * *_unref() decreases it. *_unref() also destroys the object if the ref-count
+ * drops to 0.
+ * To create new objects you call *_new(). It stores a pointer to the new
+ * object in the location you passed as parameter. Nearly all structues are
+ * opaque, that is, you cannot access member fields directly. This guarantees
+ * ABI stability.
+ *
+ * You can create sources with ev_fd_new(), ev_timer_new(), ... and you can add
+ * them to you eloop with ev_eloop_add_fd() or ev_eloop_add_timer(), ...
+ * After they are added you can call ev_eloop_run() to run this eloop for the
+ * given time. If you pass -1 as timeout, it runs until some callback calls
+ * ev_eloop_exit() on this eloop.
+ * You can perform _any_ operations on an eloop object inside of callbacks. You
+ * can add new sources, remove sources, destroy sources, modify sources. You
+ * also do all this on the currently active source.
+ *
+ * All objects are enabled by default. You can disable them with *_disable()
+ * and re-enable them with *_enable(). Only when enabled, they are added to the
+ * dispatcher and callbacks are called.
+ *
+ * Two sources are different for performance reasons:
+ *   Idle sources: Idle sources can be registered with
+ *   ev_eloop_register_idle_cb() and unregistered with
+ *   ev_eloop_unregister_idle_cb(). They internally share a single
+ *   file-descriptor to make them faster so you cannot get the same access as
+ *   to other event sources (you cannot enable/disable them or similar).
+ *   Idle sources are called every-time ev_eloop_dispatch() is called. That is,
+ *   as long as an idle-source is registered, the event-loop will not go to
+ *   sleep!
+ *
+ *   Signal sources: Talking about the API they are very similar to
+ *   idle-sources. They same restrictions apply, however, their type is very
+ *   different. A signal-callback is called when the specified signal is
+ *   received. They are not called in signal-context! But rather called in the
+ *   same context as every other source. They are implemented with
+ *   linux-signalfd.
+ *   You can register multiple callbacks for the same signal and all callbacks
+ *   will be called (compared to plain signalfd where only one fd gets the
+ *   signal). This is done internally by sharing the signalfd.
+ *   However, there is one restriction: You cannot share a signalfd between
+ *   multiple eloop-instances. That is, if you register a callback for the same
+ *   signal on two different eloop-instances (which are connected themself),
+ *   then only one eloop-instance will fire the signal source. This is a
+ *   restriction of signalfd that cannot be overcome. However, it is very
+ *   uncommon to register multiple callbacks for a signal so this shouldn't
+ *   affect common application use-cases.
+ *   Also note that if you register a callback for SIGCHLD then the eloop-
+ *   object will automatically reap all pending zombies _after_ your callback
+ *   has been called. So if you need to check for them, then check for all of
+ *   them in the callback. After you return, they will be gone.
+ *   When adding a signal handler the signal is automatically added to the
+ *   currently blocked signals. It is not removed when dropping the
+ *   signal-source, though.
+ *
+ * Eloop uses several system calls which may fail. All errors (including memory
+ * allocation errors via -ENOMEM) are forwarded to the caller, however, it is
+ * often preferable to have a more detailed logging message. Therefore, eloop
+ * takes a loggin-function as argument for each object. Pass NULL if you are
+ * not interested in logging. This will disable logging entirely.
+ * Otherwise, pass in a callback from your application. This callback will be
+ * called when a message is to be logged. The function may be called under any
+ * circumstances (out-of-memory, etc...) and should always behave well.
+ * Nothing is ever logged except through this callback.
  */
 
 #include <errno.h>
@@ -113,7 +223,7 @@ struct ev_eloop {
  * @enabled: true if the object is currently enabled
  * @loop: NULL or pointer to eloop if bound
  *
- * File descriptors are the most mosic event source. Internally, they are used
+ * File descriptors are the most basic event source. Internally, they are used
  * to implement all other kinds of event sources.
  */
 struct ev_fd {
@@ -262,9 +372,9 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
  * @loop: The event loop where this shared signal is registered
  * @signum: Signal number that this shared signal is for
  *
- * This creates a new shared signal and links it into the list of shared signals
- * in @loop. It automatically adds @signum to the signal mask of the current
- * thread so the signal is blocked.
+ * This creates a new shared signal and links it into the list of shared
+ * signals in @loop. It automatically adds @signum to the signal mask of the
+ * current thread so the signal is blocked.
  *
  * Returns: 0 on success, otherwise negative error code
  */
@@ -490,7 +600,7 @@ err_free:
 
 /**
  * ev_eloop_ref:
- * @loop: Event loop to be modified
+ * @loop: Event loop to be modified or NULL
  *
  * This increases the ref-count of @loop by 1.
  */
@@ -504,7 +614,7 @@ void ev_eloop_ref(struct ev_eloop *loop)
 
 /**
  * ev_eloop_unref:
- * @loop: Event loop to be modified
+ * @loop: Event loop to be modified or NULL
  *
  * This decreases the ref-count of @loop by 1. If it drops to zero, the event
  * loop is destroyed. Note that every registered event source takes a ref-count
@@ -1254,6 +1364,20 @@ static void timer_cb(struct ev_fd *fd, int mask, void *data)
 	}
 }
 
+/**
+ * ev_timer_new:
+ * @out: Timer pointer where to store the new timer
+ * @spec: Timespan
+ * @cb: callback to use for this event-source
+ * @data: user-specified data
+ * @log: logging function or NULL
+ *
+ * This creates a new timer-source. See "man timerfd_create" for information on
+ * the @spec argument. The timer is always relative and uses the
+ * monotonic-kernel clock.
+ *
+ * Returns: 0 on success, negative error on failure
+ */
 int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 		 ev_timer_cb cb, void *data, ev_log_t log)
 {
@@ -1302,6 +1426,12 @@ err_free:
 	return ret;
 }
 
+/**
+ * ev_timer_ref:
+ * @timer: Timer object
+ *
+ * Increase reference count by 1.
+ */
 void ev_timer_ref(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1312,6 +1442,12 @@ void ev_timer_ref(struct ev_timer *timer)
 	++timer->ref;
 }
 
+/**
+ * ev_timer_unref:
+ * @timer: Timer object
+ *
+ * Decrease reference-count by 1 and destroy timer if it drops to 0.
+ */
 void ev_timer_unref(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1326,6 +1462,15 @@ void ev_timer_unref(struct ev_timer *timer)
 	free(timer);
 }
 
+/**
+ * ev_timer_enable:
+ * @timer: Timer object
+ *
+ * Enable the timer. This calls ev_fd_enable() on the fd that implements this
+ * timer.
+ *
+ * Returns: 0 on success negative error code on failure
+ */
 int ev_timer_enable(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1334,6 +1479,15 @@ int ev_timer_enable(struct ev_timer *timer)
 	return ev_fd_enable(timer->efd);
 }
 
+/**
+ * ev_timer_disable:
+ * @timer: Timer object
+ *
+ * Disable the timer. This calls ev_fd_disable() on the fd that implements this
+ * timer.
+ *
+ * Returns: 0 on success and negative error code on failure
+ */
 void ev_timer_disable(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1342,16 +1496,41 @@ void ev_timer_disable(struct ev_timer *timer)
 	ev_fd_disable(timer->efd);
 }
 
+/**
+ * ev_timer_is_enabled:
+ * @timer: Timer object
+ *
+ * Checks whether the timer is enabled.
+ *
+ * Returns: true if timer is enabled, false otherwise
+ */
 bool ev_timer_is_enabled(struct ev_timer *timer)
 {
 	return timer && ev_fd_is_enabled(timer->efd);
 }
 
+/**
+ * ev_timer_is_bound:
+ * @timer: Timer object
+ *
+ * Checks whether the timer is bound to an event loop.
+ *
+ * Returns: true if the timer is bound, false otherwise.
+ */
 bool ev_timer_is_bound(struct ev_timer *timer)
 {
 	return timer && ev_fd_is_bound(timer->efd);
 }
 
+/**
+ * ev_timer_set_cb_data:
+ * @timer: Timer object
+ * @cb: User callback or NULL
+ * @data: User data or NULL
+ *
+ * This changes the user-supplied callback and data that is used for this timer
+ * object.
+ */
 void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
 {
 	if (!timer)
@@ -1361,6 +1540,16 @@ void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
 	timer->data = data;
 }
 
+/**
+ * ev_timer_update:
+ * @timer: Timer object
+ * @spec: timespan
+ *
+ * This changes the timer timespan. See "man timerfd_settime" for information
+ * on the @spec parameter.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 {
 	int ret;
@@ -1379,6 +1568,19 @@ int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 	return 0;
 }
 
+/**
+ * ev_eloop_new_timer:
+ * @loop: event loop
+ * @out: output where to store the new timer
+ * @spec: timespan
+ * @cb: user callback
+ * @data: user-supplied data
+ *
+ * This is a combination of ev_timer_new() and ev_eloop_add_timer(). See both
+ * for more information.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 			const struct itimerspec *spec, ev_timer_cb cb,
 			void *data)
@@ -1406,6 +1608,16 @@ int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 	return 0;
 }
 
+/**
+ * ev_eloop_add_timer:
+ * @loop: event loop
+ * @timer: Timer source
+ *
+ * This adds @timer as source to @loop. @timer must be currently unbound,
+ * otherwise, this will fail with -EALREADY.
+ *
+ * Returns: 0 on success, negative error code on failure
+ */
 int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer)
 {
 	int ret;
@@ -1426,6 +1638,13 @@ int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer)
 	return 0;
 }
 
+/**
+ * ev_eloop_rm_timer:
+ * @timer: Timer object
+ *
+ * If @timer is currently bound to an event loop, this will remove this bondage
+ * again.
+ */
 void ev_eloop_rm_timer(struct ev_timer *timer)
 {
 	if (!timer || !ev_fd_is_bound(timer->efd))
@@ -1489,6 +1708,17 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
 	}
 }
 
+/**
+ * ev_counter_new:
+ * @out: Where to store the new counter
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ * @log: logging function or NULL
+ *
+ * This creates a new counter object and stores it in @out.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data,
 		   ev_log_t log)
 {
@@ -1529,6 +1759,12 @@ err_free:
 	return ret;
 }
 
+/**
+ * ev_counter_ref:
+ * @cnt: Counter object
+ *
+ * This increases the reference-count of @cnt by 1.
+ */
 void ev_counter_ref(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1539,6 +1775,13 @@ void ev_counter_ref(struct ev_counter *cnt)
 	++cnt->ref;
 }
 
+/**
+ * ev_counter_unref:
+ * @cnt: Counter object
+ *
+ * This decreases the reference-count of @cnt by 1 and destroys the object if
+ * it drops to 0.
+ */
 void ev_counter_unref(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1553,6 +1796,15 @@ void ev_counter_unref(struct ev_counter *cnt)
 	free(cnt);
 }
 
+/**
+ * ev_counter_enable:
+ * @cnt: Counter object
+ *
+ * This enables the counter object. It calls ev_fd_enable() on the underlying
+ * file-descriptor.
+ *
+ * Returns: 0 on success, negative error code on failure
+ */
 int ev_counter_enable(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1561,6 +1813,13 @@ int ev_counter_enable(struct ev_counter *cnt)
 	return ev_fd_enable(cnt->efd);
 }
 
+/**
+ * ev_counter_disable:
+ * @cnt: Counter object
+ *
+ * This disables the counter. It calls ev_fd_disable() on the underlying
+ * file-descriptor.
+ */
 void ev_counter_disable(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1569,16 +1828,41 @@ void ev_counter_disable(struct ev_counter *cnt)
 	ev_fd_disable(cnt->efd);
 }
 
+/**
+ * ev_counter_is_enabled:
+ * @cnt: counter object
+ *
+ * Checks whether the counter is enabled.
+ *
+ * Returns: true if the counter is enabled, otherwise returns false.
+ */
 bool ev_counter_is_enabled(struct ev_counter *cnt)
 {
 	return cnt && ev_fd_is_enabled(cnt->efd);
 }
 
+/**
+ * ev_counter_is_bound:
+ * @cnt: Counter object
+ *
+ * Checks whether the counter is bound to an event loop.
+ *
+ * Returns: true if the counter is bound, otherwise false is returned.
+ */
 bool ev_counter_is_bound(struct ev_counter *cnt)
 {
 	return cnt && ev_fd_is_bound(cnt->efd);
 }
 
+/**
+ * ev_counter_set_cb_data:
+ * @cnt: Counter object
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This changes the user-supplied callback and data for the given counter
+ * object.
+ */
 void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 			    void *data)
 {
@@ -1589,6 +1873,15 @@ void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 	cnt->data = data;
 }
 
+/**
+ * ev_counter_inc:
+ * @cnt: Counter object
+ * @val: Counter increase amount
+ *
+ * This increases the counter @cnt by @val.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 {
 	int ret;
@@ -1618,6 +1911,17 @@ int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 	return 0;
 }
 
+/**
+ * ev_eloop_new_counter:
+ * @eloop: event loop
+ * @out: output storage for new counter
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This combines ev_counter_new() and ev_eloop_add_counter() in one call.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 			 ev_counter_cb cb, void *data)
 {
@@ -1644,6 +1948,16 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 	return 0;
 }
 
+/**
+ * ev_eloop_add_counter:
+ * @eloop: Event loop
+ * @cnt: Counter object
+ *
+ * This adds @cnt to the given event loop @eloop. If @cnt is already bound,
+ * this will fail with -EALREADY.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
 {
 	int ret;
@@ -1664,6 +1978,12 @@ int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
 	return 0;
 }
 
+/**
+ * ev_eloop_rm_counter:
+ * @cnt: Counter object
+ *
+ * If @cnt is bound to an event-loop, then this will remove this bondage again.
+ */
 void ev_eloop_rm_counter(struct ev_counter *cnt)
 {
 	if (!cnt || !ev_fd_is_bound(cnt->efd))
@@ -1681,6 +2001,18 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
  * same shared signal sources.
  */
 
+/**
+ * ev_eloop_register_signal_cb:
+ * @loop: event loop
+ * @signum: Signal number
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This register a new callback for the given signal @signum. @cb must not be
+ * NULL!
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data)
 {
@@ -1709,6 +2041,18 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 	return kmscon_hook_add_cast(sig->hook, cb, data);
 }
 
+/**
+ * ev_eloop_unregister_signal_cb:
+ * @loop: event loop
+ * @signum: signal number
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This removes a previously registered signal-callback again. The arguments
+ * must be the same as for the ev_eloop_register_signal_cb() call. If multiple
+ * callbacks with the same arguments are registered, then only one callback is
+ * removed. It doesn't matter which callback is removed as both are identical.
+ */
 void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 					ev_signal_shared_cb cb, void *data)
 {
@@ -1737,6 +2081,17 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
  * needed.
  */
 
+/**
+ * ev_eloop_register_idle_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This register a new idle-source with the given callback and data. @cb must
+ * not be NULL!.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data)
 {
@@ -1771,6 +2126,17 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	return 0;
 }
 
+/**
+ * ev_eloop_unregister_idle_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This removes an idle-source. The arguments must be the same as for the
+ * ev_eloop_register_idle_cb() call. If two identical callbacks are registered,
+ * then only one is removed. It doesn't matter which one is removed, because
+ * they are identical.
+ */
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 				 void *data)
 {

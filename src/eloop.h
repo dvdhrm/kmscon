@@ -46,6 +46,19 @@ struct ev_fd;
 struct ev_timer;
 struct ev_counter;
 
+/**
+ * ev_log_t:
+ * @file: Source code file where the log message originated or NULL
+ * @line: Line number in source code or 0
+ * @func: C function name or NULL
+ * @subs: Subsystem where the message came from or NULL
+ * @sev: Kernel-style severity between 0=FATAL and 7=DEBUG
+ * @format: printf-formatted message
+ * @args: arguments for printf-style @format
+ *
+ * This is the type of a logging callback function. You can always pass NULL
+ * instead of such a function to disable logging.
+ */
 typedef void (*ev_log_t) (const char *file,
 			  int line,
 			  const char *func,
@@ -54,15 +67,74 @@ typedef void (*ev_log_t) (const char *file,
 			  const char *format,
 			  va_list args);
 
+/**
+ * ev_fd_cb:
+ * @fd: File descriptor event source
+ * @mask: Mask of @EV_READABLE, @EV_WRITEABLE, etc.
+ * @data: user-supplied data
+ *
+ * This is the callback-type for file-descriptor event sources.
+ */
 typedef void (*ev_fd_cb) (struct ev_fd *fd, int mask, void *data);
+
+/**
+ * ev_timer_cb:
+ * @timer: Timer source
+ * @num: Number of times the timer fired since last wakeup
+ * @data: user-supplied data
+ *
+ * This is the callback-type for timer event sources. If the process was too
+ * busy to be woken up as fast as possible, then @num may be bigger than 1.
+ */
 typedef void (*ev_timer_cb)
 			(struct ev_timer *timer, uint64_t num, void *data);
+
+/**
+ * ev_counter_cb:
+ * @cnt: Counter source
+ * @num: Current counter state
+ * @data: user-supplied data
+ *
+ * This is the callback-type for counter event sources. @num is at least 1 but
+ * may be bigger if the timer was increased multiple times or by bigger values.
+ * The counter is reset to 0 before this callback is called.
+ */
 typedef void (*ev_counter_cb)
 			(struct ev_counter *cnt, uint64_t num, void *data);
+
+/**
+ * ev_signal_shared_cb:
+ * @eloop: event loop object
+ * @info: signalfd info for this event, see "man signalfd"
+ * @data: user-supplied data
+ *
+ * This is the callback-type for shared signal events.
+ */
 typedef void (*ev_signal_shared_cb)
 	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
+
+/**
+ * ev_idle_cb:
+ * @eloop: event loop object
+ * @unused: Unused parameter which is required internally
+ * @data: user-supplied data
+ *
+ * This is the callback-type for idle-source events.
+ */
 typedef void (*ev_idle_cb) (struct ev_eloop *eloop, void *unused, void *data);
 
+/**
+ * ev_eloop_flags:
+ * @EV_READABLE: file-descriptor is readable
+ * @EV_WRITEABLE: file-desciprotr is writeable
+ * @EV_HUP: Hang-up on file-descriptor
+ * @EV_ERR: I/O error on file-descriptor
+ *
+ * These flags are used for events on file-descriptors. You can combine them
+ * with binary-operators like @EV_READABLE | @EV_WRITEABLE.
+ * @EV_HUP and @EV_ERR are always raised for file-descriptors, even if not
+ * requested explicitly.
+ */
 enum ev_eloop_flags {
 	EV_READABLE = 0x01,
 	EV_WRITEABLE = 0x02,
