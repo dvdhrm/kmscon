@@ -138,9 +138,10 @@ void conf_default_string(struct conf_option *opt);
 extern const struct conf_type conf_bool;
 extern const struct conf_type conf_string;
 
-void conf_free(void);
-int conf_parse_argv(int argc, char **argv);
-int conf_parse_file(const char *path);
-int conf_parse_all_files(void);
+void conf_free(struct conf_option *opts, size_t len);
+int conf_parse_argv(struct conf_option *opts, size_t len,
+		    int argc, char **argv);
+int conf_parse_file(struct conf_option *opts, size_t len, const char *path);
+int conf_parse_all_files(struct conf_option *opts, size_t len);
 
 #endif /* CONFIG_CONFIG_H */

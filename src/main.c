@@ -24,8 +24,10 @@
  */
 
 #include <errno.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/signalfd.h>
@@ -350,17 +352,145 @@ err_app:
 	return ret;
 }
 
+static void print_help()
+{
+	/*
+	 * Usage/Help information
+	 * This should be scaled to a maximum of 80 characters per line:
+	 *
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%1$s [options]\n"
+		"\t%1$s -h [options]\n"
+		"\t%1$s -l [options] -- /bin/sh [sh-arguments]\n"
+		"\n"
+		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"given multiple times, only the last argument matters if not otherwise stated.\n"
+		"\n"
+		"General Options:\n"
+		"\t-h, --help                  [off]   Print this help and exit\n"
+		"\t-v, --verbose               [off]   Print verbose messages\n"
+		"\t    --debug                 [off]   Enable debug mode\n"
+		"\t    --silent                [off]   Suppress notices and warnings\n"
+		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
+		"\t    --seat <seat-name>      [seat0] Select seat; default: seat0\n"
+		"\n"
+		"Terminal Options:\n"
+		"\t-l, --login                 [/bin/sh]\n"
+		"\t                              Start the given login process instead\n"
+		"\t                              of the default process; all arguments\n"
+		"\t                              following '--' will be be parsed as\n"
+		"\t                              argv to this process. No more options\n"
+		"\t                              after '--' will be parsed so use it at\n"
+		"\t                              the end of the argument string\n"
+		"\t-t, --term <TERM>           [vt220]\n"
+		"\t                              Value of the TERM environment variable\n"
+		"\t                              for the child process\n"
+		"\n"
+		"Video Options:\n"
+		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
+		"\n"
+		"Input Device Options:\n"
+		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
+		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
+		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
+		"\n"
+		"Font Options:\n"
+		"\t    --font-engine <engine>  [pango] Font engine\n",
+		"kmscon");
+	/*
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+}
+
+static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	/* --debug implies --verbose */
+	if (conf_global.debug)
+		conf_global.verbose = 1;
+
+	return 0;
+}
+
+static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
+			   int idx)
+{
+	/* exit after printing --help information */
+	if (conf_global.help) {
+		print_help();
+		conf_global.exit = true;
+	}
+
+	return 0;
+}
+
+static char *def_argv[] = { NULL, "-i", NULL };
+
+static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	int ret;
+
+	/* parse "--login [...] -- args" arguments */
+	if (conf_global.login) {
+		if (idx >= argc) {
+			fprintf(stderr, "Arguments for --login missing\n");
+			return -EFAULT;
+		}
+
+		conf_global.argv = &argv[idx];
+		ret = argc - idx;
+	} else {
+		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
+		conf_global.argv = def_argv;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+struct conf_option options[] = {
+	CONF_OPTION_BOOL('h', "help", aftercheck_help, &conf_global.help, false),
+	CONF_OPTION_BOOL('v', "verbose", NULL, &conf_global.verbose, false),
+	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &conf_global.debug, false),
+	CONF_OPTION_BOOL(0, "silent", NULL, &conf_global.silent, false),
+	CONF_OPTION_BOOL(0, "fbdev", NULL, &conf_global.use_fbdev, false),
+	CONF_OPTION_BOOL('s', "switchvt", NULL, &conf_global.switchvt, false),
+	CONF_OPTION_BOOL('l', "login", aftercheck_login, &conf_global.login, false),
+	CONF_OPTION_STRING('t', "term", NULL, &conf_global.term, "vt220"),
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &conf_global.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", NULL, &conf_global.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", NULL, &conf_global.xkb_options, ""),
+	CONF_OPTION_STRING(0, "seat", NULL, &conf_global.seat, "seat0"),
+	CONF_OPTION_STRING(0, "font-engine", NULL, &conf_global.font_engine, "pango"),
+};
+
 int main(int argc, char **argv)
 {
 	int ret;
 	struct kmscon_app app;
+	size_t onum;
 
-	ret = conf_parse_argv(argc, argv);
+	onum = sizeof(options) / sizeof(*options);
+	ret = conf_parse_argv(options, onum, argc, argv);
 	if (ret)
 		goto err_out;
 
 	if (conf_global.exit) {
-		conf_free();
+		conf_free(options, onum);
 		return EXIT_SUCCESS;
 	}
 
@@ -372,7 +502,7 @@ int main(int argc, char **argv)
 
 	log_print_init("kmscon");
 
-	ret = conf_parse_all_files();
+	ret = conf_parse_all_files(options, onum);
 	if (ret)
 		goto err_out;
 
@@ -415,7 +545,7 @@ int main(int argc, char **argv)
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();
 	kmscon_font_8x16_unload();
-	conf_free();
+	conf_free(options, onum);
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
@@ -427,7 +557,7 @@ err_unload:
 	kmscon_font_pango_unload();
 	kmscon_font_8x16_unload();
 err_out:
-	conf_free();
+	conf_free(options, onum);
 	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));
 	return -ret;
 }
