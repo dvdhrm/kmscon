@@ -62,7 +62,7 @@ struct conf_option {
 	unsigned int flags;
 	char short_name;
 	const char *long_name;
-	struct conf_type *type;
+	const struct conf_type *type;
 	void *mem;
 	void *def;
 };
@@ -163,13 +163,13 @@ static void default_string(struct conf_option *opt)
 	*(void**)opt->mem = opt->def;
 }
 
-static struct conf_type conf_bool = {
+static const struct conf_type conf_bool = {
 	.parse = parse_bool,
 	.free = NULL,
 	.set_default = default_bool,
 };
 
-static struct conf_type conf_string = {
+static const struct conf_type conf_string = {
 	.parse = parse_string,
 	.free = free_value,
 	.set_default = default_string,
