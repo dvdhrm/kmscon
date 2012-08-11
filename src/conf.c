@@ -48,11 +48,15 @@ struct conf_option;
 struct conf_obj conf_global;
 static char *def_argv[] = { NULL, "-i", NULL };
 
+/* config option flags */
 #define CONF_DONE		0x0001
 #define CONF_LOCKED		0x0002
-#define CONF_HAS_ARG		0x0004
+
+/* config type flags */
+#define CONF_HAS_ARG		0x0001
 
 struct conf_type {
+	unsigned int flags;
 	int (*parse) (struct conf_option *opt, bool on, const char *arg);
 	void (*free) (struct conf_option *opt);
 	void (*set_default) (struct conf_option *opt);
@@ -164,12 +168,14 @@ static void default_string(struct conf_option *opt)
 }
 
 static const struct conf_type conf_bool = {
+	.flags = 0,
 	.parse = parse_bool,
 	.free = NULL,
 	.set_default = default_bool,
 };
 
 static const struct conf_type conf_string = {
+	.flags = CONF_HAS_ARG,
 	.parse = parse_string,
 	.free = free_value,
 	.set_default = default_string,
@@ -185,7 +191,7 @@ static const struct conf_type conf_string = {
 		    _mem, \
 		    _def)
 #define CONF_OPTION_STRING(_short, _long, _mem, _def) \
-	CONF_OPTION(CONF_HAS_ARG, \
+	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_string, \
@@ -260,20 +266,20 @@ int conf_parse_argv(int argc, char **argv)
 	for (i = 0; i < len; ++i) {
 		if (options[i].short_name) {
 			short_options[pos++] = options[i].short_name;
-			if (options[i].flags & CONF_HAS_ARG)
+			if (options[i].type->flags & CONF_HAS_ARG)
 				short_options[pos++] = ':';
 		}
 
 		if (options[i].long_name) {
 			/* skip the "no-" prefix */
 			opt->name = &options[i].long_name[3];
-			opt->has_arg = !!(options[i].flags & CONF_HAS_ARG);
+			opt->has_arg = !!(options[i].type->flags & CONF_HAS_ARG);
 			opt->flag = NULL;
 			opt->val = 100000 + i;
 			++opt;
 
 			/* boolean args are also added with "no-" prefix */
-			if (!(options[i].flags & CONF_HAS_ARG)) {
+			if (!(options[i].type->flags & CONF_HAS_ARG)) {
 				opt->name = options[i].long_name;
 				opt->has_arg = 0;
 				opt->flag = NULL;
@@ -303,29 +309,29 @@ int conf_parse_argv(int argc, char **argv)
 		} else if (c < 100000) {
 			for (i = 0; i < len; ++i) {
 				if (options[i].short_name == c) {
-					options[i].flags |= CONF_LOCKED;
 					ret = options[i].type->parse(&options[i],
 								     true,
 								     optarg);
 					if (ret)
 						return ret;
+					options[i].flags |= CONF_LOCKED;
 					options[i].flags |= CONF_DONE;
 					break;
 				}
 			}
 		} else if (c < 200000) {
 			i = c - 100000;
-			options[i].flags |= CONF_LOCKED;
 			ret = options[i].type->parse(&options[i], true, optarg);
 			if (ret)
 				return ret;
+			options[i].flags |= CONF_LOCKED;
 			options[i].flags |= CONF_DONE;
 		} else {
 			i = c - 200000;
-			options[i].flags |= CONF_LOCKED;
 			ret = options[i].type->parse(&options[i], false, NULL);
 			if (ret)
 				return ret;
+			options[i].flags |= CONF_LOCKED;
 			options[i].flags |= CONF_DONE;
 		}
 	}
@@ -384,10 +390,10 @@ static int parse_kv_pair(const char *key, const char *value)
 		else
 			continue;
 
-		if (opt->flags & CONF_HAS_ARG && !value) {
+		if (opt->type->flags & CONF_HAS_ARG && !value) {
 			log_error("config option '%s' requires an argument", key);
 			return -EFAULT;
-		} else if (!(opt->flags & CONF_HAS_ARG) && value) {
+		} else if (!(opt->type->flags & CONF_HAS_ARG) && value) {
 			log_error("config option '%s' does not take arguments", key);
 			return -EFAULT;
 		}
