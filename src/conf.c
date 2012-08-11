@@ -147,37 +147,37 @@ static int parse_string(struct conf_option *opt, bool on, const char *arg)
 	return 0;
 }
 
-#define OPTION(_flags, _short, _long, _parse, _mem, _def) \
+#define CONF_OPTION(_flags, _short, _long, _parse, _mem, _def) \
 	{ _flags, _short, "no-" _long, _parse, _mem, _def }
-#define OPTION_BOOL(_short, _long, _mem, _def) \
-	OPTION(CONF_BOOL, \
-	       _short, \
-	       _long, \
-	       parse_bool, \
-	       _mem, \
-	       _def)
-#define OPTION_STRING(_short, _long, _mem, _def) \
-	OPTION(CONF_HAS_ARG | CONF_STRING, \
-	       _short, \
-	       _long, \
-	       parse_string, \
-	       _mem, \
-	       _def)
+#define CONF_OPTION_BOOL(_short, _long, _mem, _def) \
+	CONF_OPTION(CONF_BOOL, \
+		    _short, \
+		    _long, \
+		    parse_bool, \
+		    _mem, \
+		    _def)
+#define CONF_OPTION_STRING(_short, _long, _mem, _def) \
+	CONF_OPTION(CONF_HAS_ARG | CONF_STRING, \
+		    _short, \
+		    _long, \
+		    parse_string, \
+		    _mem, \
+		    _def)
 
 struct conf_option options[] = {
-	OPTION_BOOL('h', "help", &conf_global.help, false),
-	OPTION_BOOL('v', "verbose", &conf_global.verbose, false),
-	OPTION_BOOL(0, "debug", &conf_global.debug, false),
-	OPTION_BOOL(0, "silent", &conf_global.silent, false),
-	OPTION_BOOL(0, "fbdev", &conf_global.use_fbdev, false),
-	OPTION_BOOL('s', "switchvt", &conf_global.switchvt, false),
-	OPTION_BOOL('l', "login", &conf_global.login, false),
-	OPTION_STRING('t', "term", &conf_global.term, "vt220"),
-	OPTION_STRING(0, "xkb-layout", &conf_global.xkb_layout, "us"),
-	OPTION_STRING(0, "xkb-variant", &conf_global.xkb_variant, ""),
-	OPTION_STRING(0, "xkb-options", &conf_global.xkb_options, ""),
-	OPTION_STRING(0, "seat", &conf_global.seat, "seat0"),
-	OPTION_STRING(0, "font-engine", &conf_global.font_engine, "pango"),
+	CONF_OPTION_BOOL('h', "help", &conf_global.help, false),
+	CONF_OPTION_BOOL('v', "verbose", &conf_global.verbose, false),
+	CONF_OPTION_BOOL(0, "debug", &conf_global.debug, false),
+	CONF_OPTION_BOOL(0, "silent", &conf_global.silent, false),
+	CONF_OPTION_BOOL(0, "fbdev", &conf_global.use_fbdev, false),
+	CONF_OPTION_BOOL('s', "switchvt", &conf_global.switchvt, false),
+	CONF_OPTION_BOOL('l', "login", &conf_global.login, false),
+	CONF_OPTION_STRING('t', "term", &conf_global.term, "vt220"),
+	CONF_OPTION_STRING(0, "xkb-layout", &conf_global.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", &conf_global.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", &conf_global.xkb_options, ""),
+	CONF_OPTION_STRING(0, "seat", &conf_global.seat, "seat0"),
+	CONF_OPTION_STRING(0, "font-engine", &conf_global.font_engine, "pango"),
 };
 
 /* free all memory that we allocated and reset to initial state */
