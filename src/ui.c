@@ -39,7 +39,7 @@
 #include "ui.h"
 #include "uterm.h"
 
-#define LOG_SUBSYSTEM "config"
+#define LOG_SUBSYSTEM "ui"
 
 struct ui_video {
 	struct kmscon_dlist list;
