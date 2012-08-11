@@ -62,8 +62,9 @@ struct kmscon_conf_t {
 	/* argv for login process */
 	char **argv;
 
-	/* seat name */
-	char *seat;
+	/* seats */
+	char **seats;
+	bool all_seats;
 
 	/* font engine */
 	char *font_engine;

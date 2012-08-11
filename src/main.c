@@ -112,6 +112,26 @@ static void seat_new(struct kmscon_app *app,
 {
 	struct kmscon_seat *seat;
 	int ret;
+	unsigned int i;
+	bool found;
+
+	found = false;
+	if (kmscon_conf.all_seats) {
+		found = true;
+	} else {
+		for (i = 0; kmscon_conf.seats[i]; ++i) {
+			if (!strcmp(kmscon_conf.seats[i], sname)) {
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (!found) {
+		log_info("ignoring seat %s as not specified in seat-list",
+			 sname);
+		return;
+	}
 
 	seat = malloc(sizeof(*seat));
 	if (!seat)
@@ -386,7 +406,8 @@ static void print_help()
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
 		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
-		"\t    --seat <seat-name>      [seat0] Select seat; default: seat0\n"
+		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
+		"\t                                    kmscon run on all seats\n"
 		"\n"
 		"Terminal Options:\n"
 		"\t-l, --login                 [/bin/sh]\n"
@@ -468,6 +489,19 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 	return ret;
 }
 
+static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	if (kmscon_conf.seats[0] &&
+	    !kmscon_conf.seats[1] &&
+	    !strcmp(kmscon_conf.seats[0], "all"))
+		kmscon_conf.all_seats = true;
+
+	return 0;
+}
+
+static char *def_seats[] = { "seat0", NULL };
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
@@ -480,8 +514,8 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
-	CONF_OPTION_STRING(0, "seat", NULL, &kmscon_conf.seat, "seat0"),
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
+	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
 };
 
 int main(int argc, char **argv)
