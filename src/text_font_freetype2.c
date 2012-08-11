@@ -519,7 +519,7 @@ static void manager_put_face(struct face *face)
 {
 	manager_lock();
 
-	if (--face->ref) {
+	if (!--face->ref) {
 		kmscon_dlist_unlink(&face->list);
 		kmscon_hashtable_free(face->glyphs);
 		pthread_mutex_destroy(&face->glyph_lock);
