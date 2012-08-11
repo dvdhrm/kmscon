@@ -181,12 +181,14 @@ static void seat_add_video(struct kmscon_seat *seat,
 		}
 	}
 
-	ret = kmscon_ui_new(&seat->ui, seat->app->eloop, seat->video,
+	ret = kmscon_ui_new(&seat->ui, seat->app->eloop,
 			    seat->input);
 	if (ret) {
 		log_error("cannot create UI object");
 		goto err_video;
 	}
+
+	kmscon_ui_add_video(seat->ui, seat->video);
 
 	seat->vdev = dev;
 	log_debug("new graphics device on seat %s", seat->sname);
@@ -205,6 +207,7 @@ static void seat_rm_video(struct kmscon_seat *seat,
 
 	log_debug("free graphics device on seat %s", seat->sname);
 
+	kmscon_ui_remove_video(seat->ui, seat->video);
 	kmscon_ui_free(seat->ui);
 	seat->ui = NULL;
 	seat->vdev = NULL;

@@ -165,13 +165,12 @@ static void terminal_event(struct kmscon_terminal *term,
 
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
-			struct uterm_video *video,
 			struct uterm_input *input)
 {
 	struct kmscon_ui *ui;
 	int ret;
 
-	if (!out || !eloop || !video || !input)
+	if (!out || !eloop || !input)
 		return -EINVAL;
 
 	ui = malloc(sizeof(*ui));
@@ -185,8 +184,6 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	ret = kmscon_terminal_new(&ui->term, eloop, ui->input);
 	if (ret)
 		goto err_free;
-
-	video_new(ui, video);
 
 	ret = uterm_input_register_cb(ui->input, input_event, ui);
 	if (ret)
@@ -222,4 +219,29 @@ void kmscon_ui_free(struct kmscon_ui *ui)
 	uterm_input_unref(ui->input);
 	ev_eloop_unref(ui->eloop);
 	free(ui);
+}
+
+void kmscon_ui_add_video(struct kmscon_ui *ui, struct uterm_video *video)
+{
+	if (!ui || !video)
+		return;
+
+	video_new(ui, video);
+}
+
+void kmscon_ui_remove_video(struct kmscon_ui *ui, struct uterm_video *video)
+{
+	struct ui_video *vid;
+	struct kmscon_dlist *iter;
+
+	if (!ui || !video)
+		return;
+
+	kmscon_dlist_for_each(iter, &ui->video_list) {
+		vid = kmscon_dlist_entry(iter, struct ui_video, list);
+		if (vid->video == video) {
+			video_free(vid);
+			return;
+		}
+	}
 }
