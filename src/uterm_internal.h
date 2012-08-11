@@ -249,7 +249,18 @@ struct fbdev_display {
 	size_t len;
 	uint8_t *map;
 	unsigned int stride;
-	unsigned int bpp;
+
+	bool xrgb32;
+	unsigned int Bpp;
+	unsigned int off_r;
+	unsigned int off_g;
+	unsigned int off_b;
+	unsigned int len_r;
+	unsigned int len_g;
+	unsigned int len_b;
+	int_fast32_t dither_r;
+	int_fast32_t dither_g;
+	int_fast32_t dither_b;
 };
 
 struct fbdev_video {
@@ -312,6 +323,7 @@ int mode_new(struct uterm_mode **out, const struct mode_ops *ops);
 #define DISPLAY_AVAILABLE	0x04
 #define DISPLAY_OPEN		0x08
 #define DISPLAY_DBUF		0x10
+#define DISPLAY_DITHERING	0x20
 
 struct uterm_display {
 	unsigned long ref;

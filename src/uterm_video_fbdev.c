@@ -81,7 +81,9 @@ static int display_activate_force(struct uterm_display *disp,
 				  struct uterm_mode *mode,
 				  bool force)
 {
-	static const char depths[] = { 32, 24, 16, 0 };
+	/* TODO: Add support for 24-bpp. However, we need to check how 3-bytes
+	 * integers are assembled in big/little/mixed endian systems. */
+	static const char depths[] = { 32, 16, 0 };
 	struct fb_var_screeninfo *vinfo;
 	struct fb_fix_screeninfo *finfo;
 	int ret, i;
@@ -112,10 +114,6 @@ static int display_activate_force(struct uterm_display *disp,
 	vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 	vinfo->xres_virtual = vinfo->xres;
 	vinfo->yres_virtual = vinfo->yres * 2;
-	vinfo->bits_per_pixel = 32;
-
-	log_info("activating display %s to %ux%u %u bpp", disp->fbdev.node,
-		 vinfo->xres, vinfo->yres, vinfo->bits_per_pixel);
 	disp->flags |= DISPLAY_DBUF;
 
 	/* udlfb is broken as it reports the sizes of the virtual framebuffer
@@ -153,7 +151,8 @@ static int display_activate_force(struct uterm_display *disp,
 	 * modes like pseudocolor or direct-color do not provide this. As I have
 	 * never seen a device that does not support TRUECOLOR, I think we can
 	 * ignore them here. */
-	if (finfo->visual != FB_VISUAL_TRUECOLOR) {
+	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
+	    vinfo->bits_per_pixel != 32) {
 		for (i = 0; depths[i]; ++i) {
 			vinfo->bits_per_pixel = depths[i];
 			vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
@@ -176,36 +175,34 @@ static int display_activate_force(struct uterm_display *disp,
 	    (disp->flags & DISPLAY_DBUF &&
 	     vinfo->yres_virtual < vinfo->yres * 2) ||
 	    vinfo->yres_virtual < vinfo->yres) {
-		log_error("device %s does not support out buffer sizes",
+		log_error("device %s has weird buffer sizes",
 			  disp->fbdev.node);
 		return -EFAULT;
 	}
 
-	if (vinfo->bits_per_pixel % 8) {
-		log_error("device %s uses no power of 8 bpp: %u",
+	if (vinfo->bits_per_pixel != 32 &&
+	    vinfo->bits_per_pixel != 16) {
+		log_error("device %s does not support 16/32 bpp but: %u",
 			  disp->fbdev.node, vinfo->bits_per_pixel);
 		return -EFAULT;
 	}
 
-	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
-	    vinfo->bits_per_pixel < 16) {
-		log_error("device %s does not support true-color bpp >= 16",
+	if (finfo->visual != FB_VISUAL_TRUECOLOR) {
+		log_error("device %s does not support true-color",
 			  disp->fbdev.node);
 		return -EFAULT;
 	}
 
-	/* TODO: remove this check and correctly provide conversions for the
-	 * blitting functions. In fact, the for-loop above is totally useless
-	 * while using this restriction here but lets be optimistic and say that
-	 * this will be replaced soon. */
-	if (vinfo->red.offset != 16 || vinfo->red.length != 8 ||
-	    vinfo->green.offset != 8 || vinfo->green.length != 8 ||
-	    vinfo->blue.offset != 0 || vinfo->green.length != 8 ||
-	    vinfo->bits_per_pixel != 32) {
-		log_error("device %s does not support xrgb32",
+	if (vinfo->red.length > 8 ||
+	    vinfo->green.length > 8 ||
+	    vinfo->blue.length > 8) {
+		log_error("device %s uses unusual color-ranges",
 			  disp->fbdev.node);
 		return -EFAULT;
 	}
+
+	log_info("activating display %s to %ux%u %u bpp", disp->fbdev.node,
+		 vinfo->xres, vinfo->yres, vinfo->bits_per_pixel);
 
 	/* calculate monitor rate, default is 60 Hz */
 	quot = (vinfo->upper_margin + vinfo->lower_margin + vinfo->yres);
@@ -232,9 +229,30 @@ static int display_activate_force(struct uterm_display *disp,
 	disp->fbdev.xres = vinfo->xres;
 	disp->fbdev.yres = vinfo->yres;
 	disp->fbdev.len = len;
-	disp->fbdev.bpp = vinfo->bits_per_pixel / 8;
 	disp->fbdev.stride = finfo->line_length;
 	disp->fbdev.bufid = 0;
+	disp->fbdev.Bpp = vinfo->bits_per_pixel / 8;
+	disp->fbdev.off_r = vinfo->red.offset;
+	disp->fbdev.len_r = vinfo->red.length;
+	disp->fbdev.off_g = vinfo->green.offset;
+	disp->fbdev.len_g = vinfo->green.length;
+	disp->fbdev.off_b = vinfo->blue.offset;
+	disp->fbdev.len_b = vinfo->blue.length;
+	disp->fbdev.dither_r = 0;
+	disp->fbdev.dither_g = 0;
+	disp->fbdev.dither_b = 0;
+	disp->fbdev.xrgb32 = false;
+	if (disp->fbdev.len_r == 8 &&
+	    disp->fbdev.len_g == 8 &&
+	    disp->fbdev.len_b == 8 &&
+	    disp->fbdev.off_r == 16 &&
+	    disp->fbdev.off_g ==  8 &&
+	    disp->fbdev.off_b ==  0 &&
+	    disp->fbdev.Bpp == 4)
+		disp->fbdev.xrgb32 = true;
+
+	/* TODO: make dithering configurable */
+	disp->flags |= DISPLAY_DITHERING;
 
 	ret = mode_new(&disp->modes, &fbdev_mode_ops);
 	if (ret) {
@@ -344,13 +362,75 @@ static int display_swap(struct uterm_display *disp)
 	return 0;
 }
 
+static int clamp_value(int val, int low, int up)
+{
+	if (val < low)
+		return low;
+	else if (val > up)
+		return up;
+	else
+		return val;
+}
+
+static uint_fast32_t xrgb32_to_device(struct uterm_display *disp,
+				      uint32_t pixel)
+{
+	uint8_t r, g, b, nr, ng, nb;
+	int i;
+	uint_fast32_t res;
+
+	r = (pixel >> 16) & 0xff;
+	g = (pixel >>  8) & 0xff;
+	b = (pixel >>  0) & 0xff;
+
+	if (disp->flags & DISPLAY_DITHERING) {
+		/* This is some very basic dithering which simply does small
+		 * rotations in the lower pixel bits. TODO: Let's take a look
+		 * at Floyd-Steinberg dithering which should give much better
+		 * results. It is slightly slower, though.
+		 * Or even better would be some Sierra filter like the Sierra
+		 * LITE. */
+		disp->fbdev.dither_r = r - disp->fbdev.dither_r;
+		disp->fbdev.dither_g = g - disp->fbdev.dither_g;
+		disp->fbdev.dither_b = b - disp->fbdev.dither_b;
+		r = clamp_value(disp->fbdev.dither_r, 0, 255) >> (8 - disp->fbdev.len_r);
+		g = clamp_value(disp->fbdev.dither_g, 0, 255) >> (8 - disp->fbdev.len_g);
+		b = clamp_value(disp->fbdev.dither_b, 0, 255) >> (8 - disp->fbdev.len_b);
+		nr = r << (8 - disp->fbdev.len_r);
+		ng = g << (8 - disp->fbdev.len_g);
+		nb = b << (8 - disp->fbdev.len_b);
+
+		for (i = disp->fbdev.len_r; i < 8; i <<= 1)
+			nr |= nr >> i;
+		for (i = disp->fbdev.len_g; i < 8; i <<= 1)
+			ng |= ng >> i;
+		for (i = disp->fbdev.len_b; i < 8; i <<= 1)
+			nb |= nb >> i;
+
+		disp->fbdev.dither_r = nr - disp->fbdev.dither_r;
+		disp->fbdev.dither_g = ng - disp->fbdev.dither_g;
+		disp->fbdev.dither_b = nb - disp->fbdev.dither_b;
+
+		res  = r << disp->fbdev.off_r;
+		res |= g << disp->fbdev.off_g;
+		res |= b << disp->fbdev.off_b;
+	} else {
+		res  = (r >> (8 - disp->fbdev.len_r)) << disp->fbdev.off_r;
+		res |= (g >> (8 - disp->fbdev.len_g)) << disp->fbdev.off_g;
+		res |= (b >> (8 - disp->fbdev.len_b)) << disp->fbdev.off_b;
+	}
+
+	return res;
+}
+
 static int display_blit(struct uterm_display *disp,
 			const struct uterm_video_buffer *buf,
 			unsigned int x, unsigned int y)
 {
 	unsigned int tmp;
 	uint8_t *dst, *src;
-	unsigned int width, height;
+	unsigned int width, height, i;
+	uint32_t val;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
@@ -379,13 +459,35 @@ static int display_blit(struct uterm_display *disp,
 		dst = disp->fbdev.map;
 	else
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
-	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
+	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.Bpp];
 	src = buf->data;
 
-	while (height--) {
-		memcpy(dst, src, 4 * width);
-		dst += disp->fbdev.stride;
-		src += buf->stride;
+	if (disp->fbdev.xrgb32) {
+		while (height--) {
+			memcpy(dst, src, 4 * width);
+			dst += disp->fbdev.stride;
+			src += buf->stride;
+		}
+	} else if (disp->fbdev.Bpp == 2) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				val = ((uint32_t*)src)[i];
+				((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+			}
+			dst += disp->fbdev.stride;
+			src += buf->stride;
+		}
+	} else if (disp->fbdev.Bpp == 4) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				val = ((uint32_t*)src)[i];
+				((uint32_t*)dst)[i] = xrgb32_to_device(disp, val);
+			}
+			dst += disp->fbdev.stride;
+			src += buf->stride;
+		}
+	} else {
+		log_debug("invalid Bpp");
 	}
 
 	return 0;
@@ -401,10 +503,13 @@ static int display_blend(struct uterm_display *disp,
 	uint8_t *dst, *src;
 	unsigned int width, height, i;
 	unsigned int r, g, b;
+	uint32_t val;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 	if (!buf || !video_is_awake(disp->video))
+		return -EINVAL;
+	if (buf->format != UTERM_FORMAT_GREY)
 		return -EINVAL;
 
 	tmp = x + buf->width;
@@ -427,10 +532,10 @@ static int display_blend(struct uterm_display *disp,
 		dst = disp->fbdev.map;
 	else
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
-	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
+	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.Bpp];
 	src = buf->data;
 
-	if (buf->format == UTERM_FORMAT_GREY) {
+	if (disp->fbdev.xrgb32) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
 				r = (fr & 0xff) * src[i] / 255 +
@@ -439,16 +544,50 @@ static int display_blend(struct uterm_display *disp,
 				    (bg & 0xff) * (255 - src[i]) / 255;
 				b = (fb & 0xff) * src[i] / 255 +
 				    (bb & 0xff) * (255 - src[i]) / 255;
-				((uint32_t*)dst)[i] =
-					((r & 0xff) << 16) |
-					((g & 0xff) << 8) |
-					 (b & 0xff);
+				val  = (r & 0xff) << 16;
+				val |= (g & 0xff) << 8;
+				val |= (b & 0xff) << 0;
+				((uint32_t*)dst)[i] = val;
+			}
+			dst += disp->fbdev.stride;
+			src += buf->stride;
+		}
+	} else if (disp->fbdev.Bpp == 2) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				r = (fr & 0xff) * src[i] / 255 +
+				    (br & 0xff) * (255 - src[i]) / 255;
+				g = (fg & 0xff) * src[i] / 255 +
+				    (bg & 0xff) * (255 - src[i]) / 255;
+				b = (fb & 0xff) * src[i] / 255 +
+				    (bb & 0xff) * (255 - src[i]) / 255;
+				val  = (r & 0xff) << 16;
+				val |= (g & 0xff) << 8;
+				val |= (b & 0xff) << 0;
+				((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+			}
+			dst += disp->fbdev.stride;
+			src += buf->stride;
+		}
+	} else if (disp->fbdev.Bpp == 4) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				r = (fr & 0xff) * src[i] / 255 +
+				    (br & 0xff) * (255 - src[i]) / 255;
+				g = (fg & 0xff) * src[i] / 255 +
+				    (bg & 0xff) * (255 - src[i]) / 255;
+				b = (fb & 0xff) * src[i] / 255 +
+				    (bb & 0xff) * (255 - src[i]) / 255;
+				val  = (r & 0xff) << 16;
+				val |= (g & 0xff) << 8;
+				val |= (b & 0xff) << 0;
+				((uint32_t*)dst)[i] = xrgb32_to_device(disp, val);
 			}
 			dst += disp->fbdev.stride;
 			src += buf->stride;
 		}
 	} else {
-		log_warning("using unsupported buffer format for blending");
+		log_warning("invalid Bpp");
 	}
 
 	return 0;
@@ -461,6 +600,7 @@ static int display_fill(struct uterm_display *disp,
 {
 	unsigned int tmp, i;
 	uint8_t *dst;
+	uint32_t full_val, rgb32;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
@@ -482,15 +622,39 @@ static int display_fill(struct uterm_display *disp,
 		dst = disp->fbdev.map;
 	else
 		dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
-	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.bpp];
+	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.Bpp];
 
-	while (height--) {
-		for (i = 0; i < width; ++i) {
-			((uint32_t*)dst)[i] = ((r & 0xff) << 16) |
-					      ((g & 0xff) << 8) |
-					       (b & 0xff);
+	full_val  = ((r & 0xff) >> (8 - disp->fbdev.len_r)) << disp->fbdev.off_r;
+	full_val |= ((g & 0xff) >> (8 - disp->fbdev.len_g)) << disp->fbdev.off_g;
+	full_val |= ((b & 0xff) >> (8 - disp->fbdev.len_b)) << disp->fbdev.off_b;
+
+	if (disp->fbdev.Bpp == 2) {
+		if (disp->flags & DISPLAY_DITHERING) {
+			rgb32  = (r & 0xff) << 16;
+			rgb32 |= (g & 0xff) <<  8;
+			rgb32 |= (b & 0xff) <<  0;
+			while (height--) {
+				for (i = 0; i < width; ++i)
+					((uint16_t*)dst)[i] = xrgb32_to_device(disp, rgb32);
+				dst += disp->fbdev.stride;
+			}
+		} else {
+			full_val &= 0xffff;
+			while (height--) {
+				for (i = 0; i < width; ++i)
+					((uint16_t*)dst)[i] = full_val;
+				dst += disp->fbdev.stride;
+			}
 		}
-		dst += disp->fbdev.stride;
+	} else if (disp->fbdev.Bpp == 4) {
+		while (height--) {
+			for (i = 0; i < width; ++i)
+				((uint32_t*)dst)[i] = full_val;
+			dst += disp->fbdev.stride;
+		}
+	} else {
+		log_error("invalid Bpp");
+		return -EFAULT;
 	}
 
 	return 0;
