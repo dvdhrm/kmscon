@@ -36,9 +36,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "conf.h"
+#include "main.h"
 #include "eloop.h"
 #include "log.h"
+#include "main.h"
 #include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
@@ -254,16 +255,16 @@ int uterm_input_new(struct uterm_input **out,
 		goto err_free;
 
 	ret = kbd_desc_new(&input->desc,
-			   conf_global.xkb_layout,
-			   conf_global.xkb_variant,
-			   conf_global.xkb_options,
+			   kmscon_conf.xkb_layout,
+			   kmscon_conf.xkb_variant,
+			   kmscon_conf.xkb_options,
 			   KBD_UXKB);
 	if (ret == -EOPNOTSUPP) {
 		log_info("XKB keyboard backend not available, trying plain backend");
 		ret = kbd_desc_new(&input->desc,
-				   conf_global.xkb_layout,
-				   conf_global.xkb_variant,
-				   conf_global.xkb_options,
+				   kmscon_conf.xkb_layout,
+				   kmscon_conf.xkb_variant,
+				   kmscon_conf.xkb_options,
 				   KBD_PLAIN);
 		if (ret)
 			goto err_hook;

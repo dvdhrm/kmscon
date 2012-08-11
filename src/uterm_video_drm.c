@@ -44,7 +44,6 @@
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "conf.h"
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"

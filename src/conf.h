@@ -1,5 +1,5 @@
 /*
- * App Configuration
+ * Configuration Parsers
  *
  * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
  *
@@ -25,15 +25,9 @@
 
 /*
  * Configuration
- * This file provides a static global configuration. Several functions are
- * available which parse external data like command-line options or
- * configuration-files into the global configuration "conf_global".
- * All subsystems can add their parsers and values here so the single
- * configuration object will be sufficient to configure the whole application.
- *
- * The data is static and should be considered read-only. Only on startup the
- * configuration is written, all later functions should only read it. This is no
- * database so there is no reason to write the config again.
+ * This provides generic command-line argument and configuration file parsers
+ * which can be used by different applications that are part of this
+ * distribution.
  */
 
 #ifndef CONFIG_CONFIG_H
@@ -41,44 +35,6 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include <unistd.h>
-
-struct conf_obj {
-	/* show help/usage information */
-	bool help;
-	/* exit application after parsing options */
-	bool exit;
-	/* enable debug messages */
-	bool debug;
-	/* enable verbose info messages */
-	bool verbose;
-	/* disable notices and warnings */
-	bool silent;
-	/* enter new VT directly */
-	bool switchvt;
-	/* use framebuffers instead of DRM */
-	bool use_fbdev;
-
-	/* input KBD layout */
-	char *xkb_layout;
-	char *xkb_variant;
-	char *xkb_options;
-
-	/* TERM value */
-	char *term;
-	/* custom login process */
-	bool login;
-	/* argv for login process */
-	char **argv;
-
-	/* seat name */
-	char *seat;
-
-	/* font engine */
-	char *font_engine;
-};
-
-extern struct conf_obj conf_global;
 
 /* configuration parser */
 

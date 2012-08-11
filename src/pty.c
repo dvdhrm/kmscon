@@ -35,9 +35,9 @@
 #include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
-#include "conf.h"
 #include "eloop.h"
 #include "log.h"
+#include "main.h"
 #include "static_misc.h"
 #include "pty.h"
 
@@ -150,10 +150,10 @@ static void pty_close(struct kmscon_pty *pty, bool user)
 static void __attribute__((noreturn))
 exec_child(int pty_master)
 {
-	setenv("TERM", conf_global.term, 1);
-	execvp(conf_global.argv[0], conf_global.argv);
+	setenv("TERM", kmscon_conf.term, 1);
+	execvp(kmscon_conf.argv[0], kmscon_conf.argv);
 
-	log_err("failed to exec child %s: %m", conf_global.argv[0]);
+	log_err("failed to exec child %s: %m", kmscon_conf.argv[0]);
 
 	exit(EXIT_FAILURE);
 }

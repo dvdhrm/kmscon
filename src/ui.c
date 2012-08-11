@@ -31,7 +31,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "conf.h"
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"

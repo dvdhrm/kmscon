@@ -41,8 +41,6 @@
 
 #define LOG_SUBSYSTEM "config"
 
-struct conf_obj conf_global;
-
 void conf_free_value(struct conf_option *opt)
 {
 	if (*(void**)opt->mem != opt->def)

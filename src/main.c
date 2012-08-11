@@ -34,6 +34,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
+#include "main.h"
 #include "static_misc.h"
 #include "text.h"
 #include "ui.h"
@@ -177,7 +178,7 @@ static void seat_add_video(struct kmscon_seat *seat,
 	unsigned int mode;
 	struct kmscon_video *vid;
 
-	if ((type == UTERM_MONITOR_FBDEV) != !!conf_global.use_fbdev)
+	if ((type == UTERM_MONITOR_FBDEV) != !!kmscon_conf.use_fbdev)
 		return;
 
 	vid = malloc(sizeof(*vid));
@@ -186,7 +187,7 @@ static void seat_add_video(struct kmscon_seat *seat,
 	memset(vid, 0, sizeof(*vid));
 	vid->vdev = dev;
 
-	if (conf_global.use_fbdev)
+	if (kmscon_conf.use_fbdev)
 		mode = UTERM_VIDEO_FBDEV;
 	else
 		mode = UTERM_VIDEO_DRM;
@@ -352,6 +353,8 @@ err_app:
 	return ret;
 }
 
+struct kmscon_conf_t kmscon_conf;
+
 static void print_help()
 {
 	/*
@@ -419,8 +422,8 @@ static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
 	/* --debug implies --verbose */
-	if (conf_global.debug)
-		conf_global.verbose = 1;
+	if (kmscon_conf.debug)
+		kmscon_conf.verbose = 1;
 
 	return 0;
 }
@@ -429,9 +432,9 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 			   int idx)
 {
 	/* exit after printing --help information */
-	if (conf_global.help) {
+	if (kmscon_conf.help) {
 		print_help();
-		conf_global.exit = true;
+		kmscon_conf.exit = true;
 	}
 
 	return 0;
@@ -445,17 +448,17 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 	int ret;
 
 	/* parse "--login [...] -- args" arguments */
-	if (conf_global.login) {
+	if (kmscon_conf.login) {
 		if (idx >= argc) {
 			fprintf(stderr, "Arguments for --login missing\n");
 			return -EFAULT;
 		}
 
-		conf_global.argv = &argv[idx];
+		kmscon_conf.argv = &argv[idx];
 		ret = argc - idx;
 	} else {
 		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
-		conf_global.argv = def_argv;
+		kmscon_conf.argv = def_argv;
 		ret = 0;
 	}
 
@@ -463,19 +466,19 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 }
 
 struct conf_option options[] = {
-	CONF_OPTION_BOOL('h', "help", aftercheck_help, &conf_global.help, false),
-	CONF_OPTION_BOOL('v', "verbose", NULL, &conf_global.verbose, false),
-	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &conf_global.debug, false),
-	CONF_OPTION_BOOL(0, "silent", NULL, &conf_global.silent, false),
-	CONF_OPTION_BOOL(0, "fbdev", NULL, &conf_global.use_fbdev, false),
-	CONF_OPTION_BOOL('s', "switchvt", NULL, &conf_global.switchvt, false),
-	CONF_OPTION_BOOL('l', "login", aftercheck_login, &conf_global.login, false),
-	CONF_OPTION_STRING('t', "term", NULL, &conf_global.term, "vt220"),
-	CONF_OPTION_STRING(0, "xkb-layout", NULL, &conf_global.xkb_layout, "us"),
-	CONF_OPTION_STRING(0, "xkb-variant", NULL, &conf_global.xkb_variant, ""),
-	CONF_OPTION_STRING(0, "xkb-options", NULL, &conf_global.xkb_options, ""),
-	CONF_OPTION_STRING(0, "seat", NULL, &conf_global.seat, "seat0"),
-	CONF_OPTION_STRING(0, "font-engine", NULL, &conf_global.font_engine, "pango"),
+	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
+	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
+	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &kmscon_conf.debug, false),
+	CONF_OPTION_BOOL(0, "silent", NULL, &kmscon_conf.silent, false),
+	CONF_OPTION_BOOL(0, "fbdev", NULL, &kmscon_conf.use_fbdev, false),
+	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
+	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
+	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
+	CONF_OPTION_STRING(0, "seat", NULL, &kmscon_conf.seat, "seat0"),
+	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
 };
 
 int main(int argc, char **argv)
@@ -489,16 +492,16 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_out;
 
-	if (conf_global.exit) {
+	if (kmscon_conf.exit) {
 		conf_free(options, onum);
 		return EXIT_SUCCESS;
 	}
 
-	if (!conf_global.debug && !conf_global.verbose && conf_global.silent)
+	if (!kmscon_conf.debug && !kmscon_conf.verbose && kmscon_conf.silent)
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
 	else
-		log_set_config(&LOG_CONFIG_INFO(conf_global.debug,
-						conf_global.verbose));
+		log_set_config(&LOG_CONFIG_INFO(kmscon_conf.debug,
+						kmscon_conf.verbose));
 
 	log_print_init("kmscon");
 
@@ -517,13 +520,13 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_unload;
 
-	if (conf_global.switchvt) {
+	if (kmscon_conf.switchvt) {
 		/* TODO: implement automatic VT switching */
 	}
 
 	ev_eloop_run(app.eloop, -1);
 
-	if (conf_global.switchvt) {
+	if (kmscon_conf.switchvt) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it
 		 * returns -EINPROGRESS we need to wait for the VT-leave SIGUSR2
 		 * signal to arrive. Therefore, we use a separate eloop object

@@ -111,6 +111,7 @@ src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
 #
 
 libkmscon_core_la_SOURCES = \
+	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
 	src/console.c src/console.h \

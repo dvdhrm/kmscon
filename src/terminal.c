@@ -33,10 +33,10 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "conf.h"
 #include "console.h"
 #include "eloop.h"
 #include "log.h"
+#include "main.h"
 #include "pty.h"
 #include "static_misc.h"
 #include "terminal.h"
@@ -172,7 +172,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_free;
 	}
 
-	ret = kmscon_font_find(&scr->font, &attr, conf_global.font_engine);
+	ret = kmscon_font_find(&scr->font, &attr, kmscon_conf.font_engine);
 	if (ret) {
 		log_error("cannot create font");
 		goto err_screen;
