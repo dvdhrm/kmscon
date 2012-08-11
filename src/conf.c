@@ -42,36 +42,8 @@
 
 #define LOG_SUBSYSTEM "config"
 
-struct conf_type;
-struct conf_option;
-
 struct conf_obj conf_global;
 static char *def_argv[] = { NULL, "-i", NULL };
-
-/* config option flags */
-#define CONF_DONE		0x0001
-#define CONF_LOCKED		0x0002
-
-/* config type flags */
-#define CONF_HAS_ARG		0x0001
-
-struct conf_type {
-	unsigned int flags;
-	int (*parse) (struct conf_option *opt, bool on, const char *arg);
-	void (*free) (struct conf_option *opt);
-	void (*set_default) (struct conf_option *opt);
-};
-
-struct conf_option {
-	unsigned int flags;
-	char short_name;
-	const char *long_name;
-	const struct conf_type *type;
-	int (*aftercheck) (struct conf_option *opt, int argc,
-			   char **argv, int idx);
-	void *mem;
-	void *def;
-};
 
 static void print_help()
 {
@@ -136,24 +108,24 @@ static void print_help()
 	 */
 }
 
-static void free_value(struct conf_option *opt)
+void conf_free_value(struct conf_option *opt)
 {
 	if (*(void**)opt->mem != opt->def)
 		free(*(void**)opt->mem);
 }
 
-static int parse_bool(struct conf_option *opt, bool on, const char *arg)
+int conf_parse_bool(struct conf_option *opt, bool on, const char *arg)
 {
 	*(bool*)opt->mem = on;
 	return 0;
 }
 
-static void default_bool(struct conf_option *opt)
+void conf_default_bool(struct conf_option *opt)
 {
 	*(bool*)opt->mem = (bool)opt->def;
 }
 
-static int parse_string(struct conf_option *opt, bool on, const char *arg)
+int conf_parse_string(struct conf_option *opt, bool on, const char *arg)
 {
 	char *val = strdup(arg);
 	if (!val)
@@ -164,43 +136,24 @@ static int parse_string(struct conf_option *opt, bool on, const char *arg)
 	return 0;
 }
 
-static void default_string(struct conf_option *opt)
+void conf_default_string(struct conf_option *opt)
 {
 	*(void**)opt->mem = opt->def;
 }
 
-static const struct conf_type conf_bool = {
+const struct conf_type conf_bool = {
 	.flags = 0,
-	.parse = parse_bool,
+	.parse = conf_parse_bool,
 	.free = NULL,
-	.set_default = default_bool,
+	.set_default = conf_default_bool,
 };
 
-static const struct conf_type conf_string = {
+const struct conf_type conf_string = {
 	.flags = CONF_HAS_ARG,
-	.parse = parse_string,
-	.free = free_value,
-	.set_default = default_string,
+	.parse = conf_parse_string,
+	.free = conf_free_value,
+	.set_default = conf_default_string,
 };
-
-#define CONF_OPTION(_flags, _short, _long, _type, _aftercheck, _mem, _def) \
-	{ _flags, _short, "no-" _long, _type, _aftercheck, _mem, _def }
-#define CONF_OPTION_BOOL(_short, _long, _aftercheck, _mem, _def) \
-	CONF_OPTION(0, \
-		    _short, \
-		    _long, \
-		    &conf_bool, \
-		    _aftercheck, \
-		    _mem, \
-		    _def)
-#define CONF_OPTION_STRING(_short, _long, _aftercheck, _mem, _def) \
-	CONF_OPTION(0, \
-		    _short, \
-		    _long, \
-		    &conf_string, \
-		    _aftercheck, \
-		    _mem, \
-		    _def)
 
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)

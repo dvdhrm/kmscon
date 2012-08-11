@@ -80,6 +80,64 @@ struct conf_obj {
 
 extern struct conf_obj conf_global;
 
+/* configuration parser */
+
+struct conf_type;
+struct conf_option;
+
+/* config option flags */
+#define CONF_DONE		0x0001
+#define CONF_LOCKED		0x0002
+
+/* config type flags */
+#define CONF_HAS_ARG		0x0001
+
+struct conf_type {
+	unsigned int flags;
+	int (*parse) (struct conf_option *opt, bool on, const char *arg);
+	void (*free) (struct conf_option *opt);
+	void (*set_default) (struct conf_option *opt);
+};
+
+struct conf_option {
+	unsigned int flags;
+	char short_name;
+	const char *long_name;
+	const struct conf_type *type;
+	int (*aftercheck) (struct conf_option *opt, int argc,
+			   char **argv, int idx);
+	void *mem;
+	void *def;
+};
+
+#define CONF_OPTION(_flags, _short, _long, _type, _aftercheck, _mem, _def) \
+	{ _flags, _short, "no-" _long, _type, _aftercheck, _mem, _def }
+#define CONF_OPTION_BOOL(_short, _long, _aftercheck, _mem, _def) \
+	CONF_OPTION(0, \
+		    _short, \
+		    _long, \
+		    &conf_bool, \
+		    _aftercheck, \
+		    _mem, \
+		    _def)
+#define CONF_OPTION_STRING(_short, _long, _aftercheck, _mem, _def) \
+	CONF_OPTION(0, \
+		    _short, \
+		    _long, \
+		    &conf_string, \
+		    _aftercheck, \
+		    _mem, \
+		    _def)
+
+void conf_free_value(struct conf_option *opt);
+int conf_parse_bool(struct conf_option *opt, bool on, const char *arg);
+void conf_default_bool(struct conf_option *opt);
+int conf_parse_string(struct conf_option *opt, bool on, const char *arg);
+void conf_default_string(struct conf_option *opt);
+
+extern const struct conf_type conf_bool;
+extern const struct conf_type conf_string;
+
 void conf_free(void);
 int conf_parse_argv(int argc, char **argv);
 int conf_parse_file(const char *path);
