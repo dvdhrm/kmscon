@@ -54,20 +54,17 @@ struct kmscon_seat {
 	struct uterm_monitor_seat *useat;
 	char *sname;
 
-	/*
-	 * Session Data
-	 * We currently allow only a single session on each seat. That is, only
-	 * one kmscon instance can run in a single process on each seat. If you
-	 * want multiple instances, then start kmscon twice.
-	 * We also allow only a single graphics card per seat.
-	 * TODO: support multiple sessions per seat in a single kmscon process
-	 */
-
+	bool awake;
 	struct uterm_vt *vt;
 	struct uterm_input *input;
+	struct kmscon_ui *ui;
+	struct kmscon_dlist videos;
+};
+
+struct kmscon_video {
+	struct kmscon_dlist list;
 	struct uterm_monitor_dev *vdev;
 	struct uterm_video *video;
-	struct kmscon_ui *ui;
 };
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -82,13 +79,25 @@ static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 {
 	struct kmscon_seat *seat = data;
+	struct kmscon_dlist *iter;
+	struct kmscon_video *vid;
 
 	if (action == UTERM_VT_ACTIVATE) {
+		seat->awake = true;
 		uterm_input_wake_up(seat->input);
-		uterm_video_wake_up(seat->video);
+
+		kmscon_dlist_for_each(iter, &seat->videos) {
+			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+			uterm_video_wake_up(vid->video);
+		}
 	} else if (action == UTERM_VT_DEACTIVATE) {
-		uterm_video_sleep(seat->video);
+		kmscon_dlist_for_each(iter, &seat->videos) {
+			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+			uterm_video_sleep(vid->video);
+		}
+
 		uterm_input_sleep(seat->input);
+		seat->awake = false;
 	}
 
 	return 0;
@@ -107,6 +116,7 @@ static void seat_new(struct kmscon_app *app,
 	memset(seat, 0, sizeof(*seat));
 	seat->app = app;
 	seat->useat = useat;
+	kmscon_dlist_init(&seat->videos);
 
 	seat->sname = strdup(sname);
 	if (!seat->sname) {
@@ -123,12 +133,18 @@ static void seat_new(struct kmscon_app *app,
 	if (ret)
 		goto err_vt;
 
+	ret = kmscon_ui_new(&seat->ui, app->eloop, seat->input);
+	if (ret)
+		goto err_input;
+
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	kmscon_dlist_link(&app->seats, &seat->list);
 
 	log_info("new seat %s", seat->sname);
 	return;
 
+err_input:
+	uterm_input_unref(seat->input);
 err_vt:
 	uterm_vt_deallocate(seat->vt);
 err_name:
@@ -157,62 +173,85 @@ static void seat_add_video(struct kmscon_seat *seat,
 {
 	int ret;
 	unsigned int mode;
+	struct kmscon_video *vid;
 
-	if (seat->video)
-		return;
 	if ((type == UTERM_MONITOR_FBDEV) != !!conf_global.use_fbdev)
 		return;
+
+	vid = malloc(sizeof(*vid));
+	if (!vid)
+		return;
+	memset(vid, 0, sizeof(*vid));
+	vid->vdev = dev;
 
 	if (conf_global.use_fbdev)
 		mode = UTERM_VIDEO_FBDEV;
 	else
 		mode = UTERM_VIDEO_DRM;
 
-	ret = uterm_video_new(&seat->video, seat->app->eloop, mode, node);
+	ret = uterm_video_new(&vid->video, seat->app->eloop, mode, node);
 	if (ret) {
 		if (mode == UTERM_VIDEO_DRM) {
 			log_info("cannot create drm device; trying dumb drm mode");
-			ret = uterm_video_new(&seat->video, seat->app->eloop,
+			ret = uterm_video_new(&vid->video, seat->app->eloop,
 					      UTERM_VIDEO_DUMB, node);
 			if (ret)
-				return;
+				goto err_free;
 		} else {
-			return;
+			goto err_free;
 		}
 	}
 
-	ret = kmscon_ui_new(&seat->ui, seat->app->eloop,
-			    seat->input);
-	if (ret) {
-		log_error("cannot create UI object");
-		goto err_video;
-	}
+	kmscon_ui_add_video(seat->ui, vid->video);
+	if (seat->awake)
+		uterm_video_wake_up(vid->video);
+	kmscon_dlist_link(&seat->videos, &vid->list);
 
-	kmscon_ui_add_video(seat->ui, seat->video);
-
-	seat->vdev = dev;
 	log_debug("new graphics device on seat %s", seat->sname);
 	return;
 
-err_video:
-	uterm_video_unref(seat->video);
-	seat->video = NULL;
+err_free:
+	free(vid);
+	log_warning("cannot add video object %s on %s", node, seat->sname);
+	return;
 }
 
 static void seat_rm_video(struct kmscon_seat *seat,
 			  struct uterm_monitor_dev *dev)
 {
-	if (!seat->video || seat->vdev != dev)
-		return;
+	struct kmscon_dlist *iter;
+	struct kmscon_video *vid;
 
-	log_debug("free graphics device on seat %s", seat->sname);
+	kmscon_dlist_for_each(iter, &seat->videos) {
+		vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+		if (vid->vdev != dev)
+			continue;
 
-	kmscon_ui_remove_video(seat->ui, seat->video);
-	kmscon_ui_free(seat->ui);
-	seat->ui = NULL;
-	seat->vdev = NULL;
-	uterm_video_unref(seat->video);
-	seat->video = NULL;
+		log_debug("free graphics device on seat %s", seat->sname);
+
+		kmscon_ui_remove_video(seat->ui, vid->video);
+		uterm_video_unref(vid->video);
+		kmscon_dlist_unlink(&vid->list);
+		free(vid);
+
+		break;
+	}
+}
+
+static void seat_hotplug_video(struct kmscon_seat *seat,
+			       struct uterm_monitor_dev *dev)
+{
+	struct kmscon_dlist *iter;
+	struct kmscon_video *vid;
+
+	kmscon_dlist_for_each(iter, &seat->videos) {
+		vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+		if (vid->vdev != dev)
+			continue;
+
+		uterm_video_poll(vid->video);
+		break;
+	}
 }
 
 static void monitor_event(struct uterm_monitor *mon,
@@ -253,9 +292,9 @@ static void monitor_event(struct uterm_monitor *mon,
 		break;
 	case UTERM_MONITOR_HOTPLUG_DEV:
 		seat = ev->seat_data;
-		if (!seat || seat->vdev != ev->dev)
+		if (!seat)
 			break;
-		uterm_video_poll(seat->video);
+		seat_hotplug_video(seat, ev->dev);
 		break;
 	}
 }
