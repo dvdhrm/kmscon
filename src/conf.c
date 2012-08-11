@@ -67,6 +67,8 @@ struct conf_option {
 	char short_name;
 	const char *long_name;
 	const struct conf_type *type;
+	int (*aftercheck) (struct conf_option *opt, int argc,
+			   char **argv, int idx);
 	void *mem;
 	void *def;
 };
@@ -181,37 +183,84 @@ static const struct conf_type conf_string = {
 	.set_default = default_string,
 };
 
-#define CONF_OPTION(_flags, _short, _long, _type, _mem, _def) \
-	{ _flags, _short, "no-" _long, _type, _mem, _def }
-#define CONF_OPTION_BOOL(_short, _long, _mem, _def) \
+#define CONF_OPTION(_flags, _short, _long, _type, _aftercheck, _mem, _def) \
+	{ _flags, _short, "no-" _long, _type, _aftercheck, _mem, _def }
+#define CONF_OPTION_BOOL(_short, _long, _aftercheck, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_bool, \
+		    _aftercheck, \
 		    _mem, \
 		    _def)
-#define CONF_OPTION_STRING(_short, _long, _mem, _def) \
+#define CONF_OPTION_STRING(_short, _long, _aftercheck, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_string, \
+		    _aftercheck, \
 		    _mem, \
 		    _def)
 
+static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	/* --debug implies --verbose */
+	if (conf_global.debug)
+		conf_global.verbose = 1;
+
+	return 0;
+}
+
+static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
+			   int idx)
+{
+	/* exit after printing --help information */
+	if (conf_global.help) {
+		print_help();
+		conf_global.exit = true;
+	}
+
+	return 0;
+}
+
+static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	int ret;
+
+	/* parse "--login [...] -- args" arguments */
+	if (conf_global.login) {
+		if (idx >= argc) {
+			fprintf(stderr, "Arguments for --login missing\n");
+			return -EFAULT;
+		}
+
+		conf_global.argv = &argv[idx];
+		ret = argc - idx;
+	} else {
+		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
+		conf_global.argv = def_argv;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 struct conf_option options[] = {
-	CONF_OPTION_BOOL('h', "help", &conf_global.help, false),
-	CONF_OPTION_BOOL('v', "verbose", &conf_global.verbose, false),
-	CONF_OPTION_BOOL(0, "debug", &conf_global.debug, false),
-	CONF_OPTION_BOOL(0, "silent", &conf_global.silent, false),
-	CONF_OPTION_BOOL(0, "fbdev", &conf_global.use_fbdev, false),
-	CONF_OPTION_BOOL('s', "switchvt", &conf_global.switchvt, false),
-	CONF_OPTION_BOOL('l', "login", &conf_global.login, false),
-	CONF_OPTION_STRING('t', "term", &conf_global.term, "vt220"),
-	CONF_OPTION_STRING(0, "xkb-layout", &conf_global.xkb_layout, "us"),
-	CONF_OPTION_STRING(0, "xkb-variant", &conf_global.xkb_variant, ""),
-	CONF_OPTION_STRING(0, "xkb-options", &conf_global.xkb_options, ""),
-	CONF_OPTION_STRING(0, "seat", &conf_global.seat, "seat0"),
-	CONF_OPTION_STRING(0, "font-engine", &conf_global.font_engine, "pango"),
+	CONF_OPTION_BOOL('h', "help", aftercheck_help, &conf_global.help, false),
+	CONF_OPTION_BOOL('v', "verbose", NULL, &conf_global.verbose, false),
+	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &conf_global.debug, false),
+	CONF_OPTION_BOOL(0, "silent", NULL, &conf_global.silent, false),
+	CONF_OPTION_BOOL(0, "fbdev", NULL, &conf_global.use_fbdev, false),
+	CONF_OPTION_BOOL('s', "switchvt", NULL, &conf_global.switchvt, false),
+	CONF_OPTION_BOOL('l', "login", aftercheck_login, &conf_global.login, false),
+	CONF_OPTION_STRING('t', "term", NULL, &conf_global.term, "vt220"),
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &conf_global.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", NULL, &conf_global.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", NULL, &conf_global.xkb_options, ""),
+	CONF_OPTION_STRING(0, "seat", NULL, &conf_global.seat, "seat0"),
+	CONF_OPTION_STRING(0, "font-engine", NULL, &conf_global.font_engine, "pango"),
 };
 
 /* free all memory that we allocated and reset to initial state */
@@ -352,26 +401,29 @@ int conf_parse_argv(int argc, char **argv)
 		}
 	}
 
-	/* parse "--login [...] -- args" arguments */
-	if (conf_global.login) {
-		conf_global.argv = &argv[optind];
-	} else {
-		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
-		conf_global.argv = def_argv;
-		if (optind != argc) {
-			fprintf(stderr, "Unparsed remaining arguments\n");
-			return -EFAULT;
+	/* Perform aftercheck:
+	 * All arguments that provide an aftercheck will be passed the remaining
+	 * arguments in order. If they return a negative error code, it is
+	 * interpreted as fatal error and returned to the caller. A positive
+	 * error code is interpreted as the amount of remaining arguments that
+	 * have been consumed by this aftercheck. 0 means nothing has been
+	 * consumed.
+	 * The next argument's aftercheck will only get the now remaning
+	 * arguments passed in. If not all arguments are consumed, then this
+	 * function will report an error to the caller. */
+	for (i = 0; i < len; ++i) {
+		if (options[i].aftercheck) {
+			ret = options[i].aftercheck(&options[i], argc, argv, optind);
+			if (ret < 0)
+				return ret;
+			optind += ret;
 		}
 	}
 
-	/* --debug implies --verbose */
-	if (conf_global.debug)
-		conf_global.verbose = 1;
-
-	/* exit after printing --help information */
-	if (conf_global.help) {
-		print_help();
-		conf_global.exit = 1;
+	if (optind < argc) {
+		fprintf(stderr, "Unparsed remaining arguments starting with: %s\n",
+			argv[optind]);
+		return -EFAULT;
 	}
 
 	return 0;
