@@ -27,11 +27,12 @@ console.
     Use "--disable-xkbcommon" if you have problems due to compile-errors.
 
     For font handling the following is required:
-      - glib: only for Unicode handling
+      - 8x16: The 8x16 font is a static built-in font which does not require
+              external dependencies.
+      - freetype2: The freetype2 font uses libfreetype2 and libfontconfig to
+                   provide a very basic font backend.
       - pango: drawing text with pango
-               Pango requires: glib, cairo, pangocairo, pango and freetype2
-    Both (glib and pango) dependencies will be removed soon and made optional with
-    plain freetype2+font-config being the fall-back.
+               Pango requires: glib, pango, fontconfig, freetype2 and more
 
     For multi-seat support you need the following packages:
       - systemd: Actually only the systemd-logind daemon and library is required.
@@ -46,18 +47,40 @@ console.
   To compile the test applications, run:
     $ make check
 
-  If you want only a very basic kmscon program without that much dependencies,
+  If you want only a very basic kmscon program without any major dependencies,
   use:
-    $ ./configure --disable-debug --disable-drm --disable-xkbcommon --disable-systemd
+    $ ./configure --disable-debug --disable-drm --disable-xkbcommon --disable-systemd --disable-pango --disable-freetype2
+  However, you will loose a lot of functionality by dropping all dependencies.
+
+  The following configure options are available. If build-time dependencies
+  cannot be satisfied, an option is automatically turned off, except if you
+  explicitely enable it via command line:
+    --enable-systemd: This requires the systemd-logind library to provide
+                      multi-seat support for kmscon. [default: on]
+    --enable-udev: This requires libudev for hotplugging support. This is
+                   currently mandatory and cannot be disabled. [default: on]
+    --enable-fbdev: This adds fbdev video output support. [default: on]
+    --enable-drm: This adds DRM video output support. [default: on]
+    --enable-gles2: This adds OpenGL hardware accelerated font rendering
+                    [default: on]
+    --enable-xkbcommon: Use xkbcommon for internationalized keyboard handling.
+                        [default: on]
+    --enable-f8x16: The 8x16 font is a static built-in fallback font
+                    [default: on]
+    --enable-freetype2: Uses freetype2 and fontconfig as font-backend.
+                        [default: on]
+    --enable-pango: Uses pango as font-backend. [default: on]
+    --enable-bblit: Use simply 2D bit-blitting as renderering fallback
+                    [default: on]
+    --enable-debug: Enable debug mode [default: off]
+    --enable-optimizations: Use GCC code optimizations [default: on]
 
 == Running ==
 
   To get usage information, run:
     $ ./kmscon --help
   You can then run kmscon with:
-    $ ./kmscon [options] --switchvt
-  The --switchvt option will make your machine switch the active VT directly to
-  kmscon after starting it. (this is currently not implemented, though)
+    $ ./kmscon [options]
 
   For debug output use "--debug". For verbose output use "--verbose". If you
   didn't compile DRM support then you can use "--fbdev" to make kmscon select
