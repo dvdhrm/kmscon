@@ -24,6 +24,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+static void print_help();
+
 #include <errno.h>
 #include <linux/input.h>
 #include <locale.h>
@@ -42,6 +44,12 @@
 
 static struct ev_eloop *eloop;
 static struct uterm_input *input;
+
+struct {
+	char *xkb_layout;
+	char *xkb_variant;
+	char *xkb_options;
+} input_conf;
 
 /* Pressing Ctrl-\ should toggle the capturing. */
 static void sig_quit(struct ev_eloop *p,
@@ -109,7 +117,10 @@ static void monitor_event(struct uterm_monitor *mon,
 		if (strcmp(ev->seat_name, "seat0"))
 			return;
 
-		ret = uterm_input_new(&input, eloop);
+		ret = uterm_input_new(&input, eloop,
+				      input_conf.xkb_layout,
+				      input_conf.xkb_variant,
+				      input_conf.xkb_options);
 		if (ret)
 			return;
 		ret = uterm_input_register_cb(input, input_arrived, NULL);
@@ -128,12 +139,60 @@ static void monitor_event(struct uterm_monitor *mon,
 	}
 }
 
+static void print_help()
+{
+	/*
+	 * Usage/Help information
+	 * This should be scaled to a maximum of 80 characters per line:
+	 *
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%1$s [options]\n"
+		"\t%1$s -h [options]\n"
+		"\n"
+		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"given multiple times, only the last argument matters if not otherwise stated.\n"
+		"\n"
+		"General Options:\n"
+		TEST_HELP
+		"\n"
+		"Input Device Options:\n"
+		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
+		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
+		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
+		"test_input");
+	/*
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+}
+
+struct conf_option options[] = {
+	TEST_OPTIONS,
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &input_conf.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", NULL, &input_conf.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", NULL, &input_conf.xkb_options, ""),
+};
+
 int main(int argc, char **argv)
 {
 	int ret;
 	struct uterm_monitor *mon;
+	size_t onum;
 
-	ret = test_prepare(argc, argv, &eloop);
+	onum = sizeof(options) / sizeof(*options);
+	ret = test_prepare(options, onum, argc, argv, &eloop);
 	if (ret)
 		goto err_fail;
 
@@ -160,8 +219,9 @@ int main(int argc, char **argv)
 err_mon:
 	uterm_monitor_unref(mon);
 err_exit:
-	test_exit(eloop);
+	test_exit(options, onum, eloop);
 err_fail:
-	test_fail(ret);
+	if (ret != -ECANCELED)
+		test_fail(ret);
 	return abs(ret);
 }

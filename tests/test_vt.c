@@ -33,17 +33,57 @@
  * ctrl+alt+FX (or some equivalent) to switch back to X/VT.
  */
 
+static void print_help();
+
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include "eloop.h"
 #include "log.h"
 #include "uterm.h"
 #include "test_include.h"
+
+static void print_help()
+{
+	/*
+	 * Usage/Help information
+	 * This should be scaled to a maximum of 80 characters per line:
+	 *
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%1$s [options]\n"
+		"\t%1$s -h [options]\n"
+		"\n"
+		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"given multiple times, only the last argument matters if not otherwise stated.\n"
+		"\n"
+		"General Options:\n"
+		TEST_HELP,
+		"test_vt");
+	/*
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+}
+
+struct conf_option options[] = {
+	TEST_OPTIONS
+};
 
 int main(int argc, char **argv)
 {
@@ -51,8 +91,10 @@ int main(int argc, char **argv)
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
 	struct uterm_vt *vt;
+	size_t onum;
 
-	ret = test_prepare(argc, argv, &eloop);
+	onum = sizeof(options) / sizeof(*options);
+	ret = test_prepare(options, onum, argc, argv, &eloop);
 	if (ret)
 		goto err_fail;
 
@@ -81,8 +123,9 @@ int main(int argc, char **argv)
 err_vtm:
 	uterm_vt_master_unref(vtm);
 err_exit:
-	test_exit(eloop);
+	test_exit(options, onum, eloop);
 err_fail:
-	test_fail(ret);
+	if (ret != -ECANCELED)
+		test_fail(ret);
 	return abs(ret);
 }

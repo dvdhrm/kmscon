@@ -37,6 +37,8 @@
  * $ ./test_output something
  */
 
+static void print_help();
+
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -51,6 +53,11 @@
 
 /* eloop object */
 static struct ev_eloop *eloop;
+
+struct {
+	bool fbdev;
+	bool test;
+} output_conf;
 
 static int blit_outputs(struct uterm_video *video)
 {
@@ -143,18 +150,64 @@ static int list_outputs(struct uterm_video *video)
 	return 0;
 }
 
+static void print_help()
+{
+	/*
+	 * Usage/Help information
+	 * This should be scaled to a maximum of 80 characters per line:
+	 *
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%1$s [options]\n"
+		"\t%1$s -h [options]\n"
+		"\n"
+		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"given multiple times, only the last argument matters if not otherwise stated.\n"
+		"\n"
+		"General Options:\n"
+		TEST_HELP
+		"\n"
+		"Video Options:\n"
+		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
+		"\t    --test                  [off]   Try displaying content instead of listing devices\n",
+		"test_input");
+	/*
+	 * 80 char line:
+	 *       |   10   |    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 * 80 char line starting with tab:
+	 *       |10|    20   |    30   |    40   |    50   |    60   |    70   |    80   |
+	 *      "\t901234567890123456789012345678901234567890123456789012345678901234567890\n"
+	 */
+}
+
+struct conf_option options[] = {
+	TEST_OPTIONS,
+	CONF_OPTION_BOOL(0, "fbdev", NULL, &output_conf.fbdev, false),
+	CONF_OPTION_BOOL(0, "test", NULL, &output_conf.test, false),
+};
+
 int main(int argc, char **argv)
 {
 	struct uterm_video *video;
 	int ret;
 	unsigned int mode;
 	const char *node;
+	size_t onum;
 
-	ret = test_prepare(argc, argv, &eloop);
+	onum = sizeof(options) / sizeof(*options);
+	ret = test_prepare(options, onum, argc, argv, &eloop);
 	if (ret)
 		goto err_fail;
 
-	if (conf_global.use_fbdev) {
+	if (output_conf.fbdev) {
 		mode = UTERM_VIDEO_FBDEV;
 		node = "/dev/fb0";
 	} else {
@@ -182,7 +235,7 @@ int main(int argc, char **argv)
 	if (ret < 0)
 		goto err_unref;
 
-	if (argc < 2) {
+	if (!output_conf.test) {
 		ret = list_outputs(video);
 		if (ret) {
 			log_err("Cannot list outputs: %d", ret);
@@ -199,8 +252,9 @@ int main(int argc, char **argv)
 err_unref:
 	uterm_video_unref(video);
 err_exit:
-	test_exit(eloop);
+	test_exit(options, onum, eloop);
 err_fail:
-	test_fail(ret);
+	if (ret != -ECANCELED)
+		test_fail(ret);
 	return abs(ret);
 }

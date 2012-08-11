@@ -33,6 +33,48 @@
 #include "eloop.h"
 #include "log.h"
 
+#define TEST_HELP \
+	"\t-h, --help                  [off]   Print this help and exit\n" \
+	"\t-v, --verbose               [off]   Print verbose messages\n" \
+	"\t    --debug                 [off]   Enable debug mode\n" \
+	"\t    --silent                [off]   Suppress notices and warnings\n"
+
+struct {
+	bool help;
+	bool exit;
+	bool verbose;
+	bool debug;
+	bool silent;
+} test_conf;
+
+static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	/* --debug implies --verbose */
+	if (test_conf.debug)
+		test_conf.verbose = 1;
+
+	return 0;
+}
+
+static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
+			   int idx)
+{
+	/* exit after printing --help information */
+	if (test_conf.help) {
+		print_help();
+		test_conf.exit = true;
+	}
+
+	return 0;
+}
+
+#define TEST_OPTIONS \
+	CONF_OPTION_BOOL('h', "help", aftercheck_help, &test_conf.help, false), \
+	CONF_OPTION_BOOL('v', "verbose", NULL, &test_conf.verbose, false), \
+	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &test_conf.debug, false), \
+	CONF_OPTION_BOOL(0, "silent", NULL, &test_conf.silent, false)
+
 static void sig_generic(struct ev_eloop *p, struct signalfd_siginfo *info,
 			void *data)
 {
@@ -42,46 +84,52 @@ static void sig_generic(struct ev_eloop *p, struct signalfd_siginfo *info,
 	log_info("terminating due to caught signal %d", info->ssi_signo);
 }
 
-static int test_prepare(int argc, char **argv, struct ev_eloop **out)
+static int test_prepare(struct conf_option *opts, size_t len,
+			int argc, char **argv, struct ev_eloop **out)
 {
 	int ret;
 	struct ev_eloop *eloop;
 
-	ret = conf_parse_argv(argc, argv);
+	ret = conf_parse_argv(opts, len, argc, argv);
 	if (ret)
-		return -EINVAL;
+		goto err_out;
 
-	if (conf_global.exit)
-		return -1;
+	if (test_conf.exit) {
+		ret = -ECANCELED;
+		goto err_out;
+	}
 
-	if (!conf_global.debug && !conf_global.verbose && conf_global.silent)
+	if (!test_conf.debug && !test_conf.verbose && test_conf.silent)
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
 	else
-		log_set_config(&LOG_CONFIG_INFO(conf_global.debug,
-						conf_global.verbose));
+		log_set_config(&LOG_CONFIG_INFO(test_conf.debug,
+						test_conf.verbose));
 
 	log_print_init(argv[0]);
 
 	ret = ev_eloop_new(&eloop, log_llog);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = ev_eloop_register_signal_cb(eloop, SIGTERM, sig_generic, eloop);
-	if (ret) {
-		ev_eloop_unref(eloop);
-		return ret;
-	}
+	if (ret)
+		goto err_unref;
 
 	ret = ev_eloop_register_signal_cb(eloop, SIGINT, sig_generic, eloop);
 	if (ret) {
 		ev_eloop_unregister_signal_cb(eloop, SIGTERM,
 						sig_generic, eloop);
-		ev_eloop_unref(eloop);
-		return ret;
+		goto err_unref;
 	}
 
 	*out = eloop;
 	return 0;
+
+err_unref:
+	ev_eloop_unref(eloop);
+err_out:
+	conf_free(opts, len);
+	return ret;
 }
 
 static void test_fail(int ret)
@@ -90,9 +138,11 @@ static void test_fail(int ret)
 		log_err("init failed, errno %d: %s", ret, strerror(-ret));
 }
 
-static void test_exit(struct ev_eloop *eloop)
+static void test_exit(struct conf_option *opts, size_t len,
+		      struct ev_eloop *eloop)
 {
 	ev_eloop_unregister_signal_cb(eloop, SIGINT, sig_generic, eloop);
 	ev_eloop_unregister_signal_cb(eloop, SIGTERM, sig_generic, eloop);
 	ev_eloop_unref(eloop);
+	conf_free(opts, len);
 }
