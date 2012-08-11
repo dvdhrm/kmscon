@@ -111,6 +111,8 @@ static void video_new(struct kmscon_ui *ui, struct uterm_video *video)
 			return;
 	}
 
+	log_debug("adding video device");
+
 	vid = malloc(sizeof(*vid));
 	if (!vid)
 		return;
@@ -124,6 +126,7 @@ static void video_new(struct kmscon_ui *ui, struct uterm_video *video)
 
 	kmscon_dlist_link(&ui->video_list, &vid->list);
 	uterm_video_ref(vid->video);
+
 	return;
 
 err_free:
@@ -132,7 +135,19 @@ err_free:
 
 static void video_free(struct ui_video *vid)
 {
+	struct uterm_display *disp;
+	struct kmscon_ui *ui = vid->ui;
+
+	log_debug("removing video device");
 	kmscon_dlist_unlink(&vid->list);
+
+	disp = uterm_video_get_displays(vid->video);
+	while (disp) {
+		kmscon_terminal_remove_display(ui->term, disp);
+		kmscon_terminal_redraw(ui->term);
+		disp = uterm_display_next(disp);
+	}
+
 	uterm_video_unregister_cb(vid->video, video_event, vid);
 	uterm_video_unref(vid->video);
 	free(vid);
