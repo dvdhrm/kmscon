@@ -287,7 +287,10 @@ typedef void (*uterm_input_cb) (struct uterm_input *input,
 				struct uterm_input_event *ev,
 				void *data);
 
-int uterm_input_new(struct uterm_input **out, struct ev_eloop *eloop);
+int uterm_input_new(struct uterm_input **out, struct ev_eloop *eloop,
+		    const char *layout,
+		    const char *variant,
+		    const char *options);
 void uterm_input_ref(struct uterm_input *input);
 void uterm_input_unref(struct uterm_input *input);
 

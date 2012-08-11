@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "main.h"
 #include "eloop.h"
 #include "log.h"
 #include "main.h"
@@ -234,7 +233,10 @@ static void input_free_dev(struct uterm_input_dev *dev)
 }
 
 int uterm_input_new(struct uterm_input **out,
-			struct ev_eloop *eloop)
+		    struct ev_eloop *eloop,
+		    const char *layout,
+		    const char *variant,
+		    const char *options)
 {
 	struct uterm_input *input;
 	int ret;
@@ -255,16 +257,16 @@ int uterm_input_new(struct uterm_input **out,
 		goto err_free;
 
 	ret = kbd_desc_new(&input->desc,
-			   kmscon_conf.xkb_layout,
-			   kmscon_conf.xkb_variant,
-			   kmscon_conf.xkb_options,
+			   layout,
+			   variant,
+			   options,
 			   KBD_UXKB);
 	if (ret == -EOPNOTSUPP) {
 		log_info("XKB keyboard backend not available, trying plain backend");
 		ret = kbd_desc_new(&input->desc,
-				   kmscon_conf.xkb_layout,
-				   kmscon_conf.xkb_variant,
-				   kmscon_conf.xkb_options,
+				   layout,
+				   variant,
+				   options,
 				   KBD_PLAIN);
 		if (ret)
 			goto err_hook;

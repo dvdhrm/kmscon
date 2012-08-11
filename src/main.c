@@ -132,7 +132,10 @@ static void seat_new(struct kmscon_app *app,
 	if (ret)
 		goto err_name;
 
-	ret = uterm_input_new(&seat->input, app->eloop);
+	ret = uterm_input_new(&seat->input, app->eloop,
+			      kmscon_conf.xkb_layout,
+			      kmscon_conf.xkb_variant,
+			      kmscon_conf.xkb_options);
 	if (ret)
 		goto err_vt;
 
