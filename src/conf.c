@@ -42,20 +42,27 @@
 
 #define LOG_SUBSYSTEM "config"
 
+struct conf_type;
+struct conf_option;
+
 struct conf_obj conf_global;
 static char *def_argv[] = { NULL, "-i", NULL };
 
 #define CONF_DONE		0x0001
 #define CONF_LOCKED		0x0002
 #define CONF_HAS_ARG		0x0004
-#define CONF_STRING		0x0100
-#define CONF_BOOL		0x0200
+
+struct conf_type {
+	int (*parse) (struct conf_option *opt, bool on, const char *arg);
+	void (*free) (struct conf_option *opt);
+	void (*set_default) (struct conf_option *opt);
+};
 
 struct conf_option {
 	unsigned int flags;
 	char short_name;
 	const char *long_name;
-	int (*parse) (struct conf_option *opt, bool on, const char *arg);
+	struct conf_type *type;
 	void *mem;
 	void *def;
 };
@@ -125,8 +132,7 @@ static void print_help()
 
 static void free_value(struct conf_option *opt)
 {
-	if (opt->flags & CONF_STRING &&
-	    *(void**)opt->mem != opt->def)
+	if (*(void**)opt->mem != opt->def)
 		free(*(void**)opt->mem);
 }
 
@@ -136,31 +142,53 @@ static int parse_bool(struct conf_option *opt, bool on, const char *arg)
 	return 0;
 }
 
+static void default_bool(struct conf_option *opt)
+{
+	*(bool*)opt->mem = (bool)opt->def;
+}
+
 static int parse_string(struct conf_option *opt, bool on, const char *arg)
 {
 	char *val = strdup(arg);
 	if (!val)
 		return -ENOMEM;
 
-	free_value(opt);
+	opt->type->free(opt);
 	*(void**)opt->mem = val;
 	return 0;
 }
 
-#define CONF_OPTION(_flags, _short, _long, _parse, _mem, _def) \
-	{ _flags, _short, "no-" _long, _parse, _mem, _def }
+static void default_string(struct conf_option *opt)
+{
+	*(void**)opt->mem = opt->def;
+}
+
+static struct conf_type conf_bool = {
+	.parse = parse_bool,
+	.free = NULL,
+	.set_default = default_bool,
+};
+
+static struct conf_type conf_string = {
+	.parse = parse_string,
+	.free = free_value,
+	.set_default = default_string,
+};
+
+#define CONF_OPTION(_flags, _short, _long, _type, _mem, _def) \
+	{ _flags, _short, "no-" _long, _type, _mem, _def }
 #define CONF_OPTION_BOOL(_short, _long, _mem, _def) \
-	CONF_OPTION(CONF_BOOL, \
+	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
-		    parse_bool, \
+		    &conf_bool, \
 		    _mem, \
 		    _def)
 #define CONF_OPTION_STRING(_short, _long, _mem, _def) \
-	CONF_OPTION(CONF_HAS_ARG | CONF_STRING, \
+	CONF_OPTION(CONF_HAS_ARG, \
 		    _short, \
 		    _long, \
-		    parse_string, \
+		    &conf_string, \
 		    _mem, \
 		    _def)
 
@@ -186,8 +214,10 @@ void conf_free(void)
 	unsigned int i, num;
 
 	num = sizeof(options) / sizeof(*options);
-	for (i = 0; i < num; ++i)
-		free_value(&options[i]);
+	for (i = 0; i < num; ++i) {
+		if (options[i].type->free)
+			options[i].type->free(&options[i]);
+	}
 
 	memset(&conf_global, 0, sizeof(conf_global));
 }
@@ -274,9 +304,9 @@ int conf_parse_argv(int argc, char **argv)
 			for (i = 0; i < len; ++i) {
 				if (options[i].short_name == c) {
 					options[i].flags |= CONF_LOCKED;
-					ret = options[i].parse(&options[i],
-							       true,
-							       optarg);
+					ret = options[i].type->parse(&options[i],
+								     true,
+								     optarg);
 					if (ret)
 						return ret;
 					options[i].flags |= CONF_DONE;
@@ -286,14 +316,14 @@ int conf_parse_argv(int argc, char **argv)
 		} else if (c < 200000) {
 			i = c - 100000;
 			options[i].flags |= CONF_LOCKED;
-			ret = options[i].parse(&options[i], true, optarg);
+			ret = options[i].type->parse(&options[i], true, optarg);
 			if (ret)
 				return ret;
 			options[i].flags |= CONF_DONE;
 		} else {
 			i = c - 200000;
 			options[i].flags |= CONF_LOCKED;
-			ret = options[i].parse(&options[i], false, NULL);
+			ret = options[i].type->parse(&options[i], false, NULL);
 			if (ret)
 				return ret;
 			options[i].flags |= CONF_DONE;
@@ -306,12 +336,8 @@ int conf_parse_argv(int argc, char **argv)
 	/* set default values if not configured */
 	for (i = 0; i < len; ++i) {
 		if (!(options[i].flags & CONF_DONE) &&
-		    options[i].mem) {
-			if (options[i].flags & CONF_STRING)
-				*(void**)options[i].mem = options[i].def;
-			else if (options[i].flags & CONF_BOOL)
-				*(bool*)options[i].mem = (bool)options[i].def;
-			options[i].flags |= CONF_DONE;
+		    options[i].type->set_default) {
+			options[i].type->set_default(&options[i]);
 		}
 	}
 
@@ -370,7 +396,7 @@ static int parse_kv_pair(const char *key, const char *value)
 		if (opt->flags & CONF_LOCKED)
 			return 0;
 
-		ret = opt->parse(opt, set, value);
+		ret = opt->type->parse(opt, set, value);
 		if (ret)
 			return ret;
 
