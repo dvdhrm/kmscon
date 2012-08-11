@@ -299,6 +299,7 @@ int conf_parse_argv(int argc, char **argv)
 		} else if (c == ':') {
 			fprintf(stderr, "Missing argument for option %s\n",
 				argv[optind - 1]);
+			return -EFAULT;
 		} else if (c == '?') {
 			if (optopt)
 				fprintf(stderr, "Unknown argument -%c\n",
@@ -306,6 +307,7 @@ int conf_parse_argv(int argc, char **argv)
 			else
 				fprintf(stderr, "Unknown argument %s\n",
 					argv[optind - 1]);
+			return -EFAULT;
 		} else if (c < 100000) {
 			for (i = 0; i < len; ++i) {
 				if (options[i].short_name == c) {
@@ -353,8 +355,10 @@ int conf_parse_argv(int argc, char **argv)
 	} else {
 		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
 		conf_global.argv = def_argv;
-		if (optind != argc)
+		if (optind != argc) {
 			fprintf(stderr, "Unparsed remaining arguments\n");
+			return -EFAULT;
+		}
 	}
 
 	/* --debug implies --verbose */
