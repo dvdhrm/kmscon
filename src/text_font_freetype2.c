@@ -495,7 +495,6 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 		}
 	}
 
-	memcpy(attr, &face->real_attr, sizeof(*attr));
 	kmscon_dlist_link(&manager__list, &face->list);
 	*out = face;
 	ret = 0;
@@ -578,6 +577,7 @@ static int kmscon_font_freetype2_init(struct kmscon_font *out,
 	ret = manager_get_face(&face, &out->attr);
 	if (ret)
 		return ret;
+	memcpy(&out->attr, &face->real_attr, sizeof(out->attr));
 	out->baseline = face->baseline;
 
 	/* Shrinking is done to get a better width-value for fonts. As not all
