@@ -116,6 +116,17 @@ static int display_activate_force(struct uterm_display *disp,
 
 	log_info("activating display %s to %ux%u %u bpp", disp->fbdev.node,
 		 vinfo->xres, vinfo->yres, vinfo->bits_per_pixel);
+	disp->flags |= DISPLAY_DBUF;
+
+	/* udlfb is broken as it reports the sizes of the virtual framebuffer
+	 * (even mmap() accepts it) but the actual size that we can access
+	 * without segfaults is the _real_ framebuffer. Therefore, disable
+	 * double-buffering for it.
+	 * TODO: fix this kernel-side! */
+	if (!strcmp(finfo->id, "udlfb")) {
+		disp->flags &= ~DISPLAY_DBUF;
+		vinfo->yres_virtual = vinfo->yres;
+	}
 
 	ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
 	if (ret) {
@@ -123,15 +134,15 @@ static int display_activate_force(struct uterm_display *disp,
 		vinfo->yres_virtual = vinfo->yres;
 		ret = ioctl(disp->fbdev.fd, FBIOPUT_VSCREENINFO, vinfo);
 		if (ret) {
-			log_err("cannot set vinfo (%d): %m",
-				errno);
+			log_debug("cannot reset fb offsets (%d): %m", errno);
 			return -EFAULT;
 		}
-		log_debug("disabling double buffering");
-	} else {
-		disp->flags |= DISPLAY_DBUF;
-		log_debug("enabling double buffering");
 	}
+
+	if (disp->flags & DISPLAY_DBUF)
+		log_debug("enabling double buffering");
+	else
+		log_debug("disabling double buffering");
 
 	ret = refresh_info(disp);
 	if (ret)
