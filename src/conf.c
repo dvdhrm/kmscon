@@ -297,15 +297,18 @@ int conf_parse_argv(int argc, char **argv)
 		if (c <= 0) {
 			break;
 		} else if (c == ':') {
-			fprintf(stderr, "Missing argument for option %s\n",
+			fprintf(stderr, "Missing argument for: %s\n",
 				argv[optind - 1]);
 			return -EFAULT;
 		} else if (c == '?') {
-			if (optopt)
-				fprintf(stderr, "Unknown argument -%c\n",
+			if (optopt && optopt < 100000)
+				fprintf(stderr, "Unknown argument: -%c\n",
 					optopt);
+			else if (!optopt)
+				fprintf(stderr, "Unknown argument: %s\n",
+					argv[optind - 1]);
 			else
-				fprintf(stderr, "Unknown argument %s\n",
+				fprintf(stderr, "Parameter takes no argument: %s\n",
 					argv[optind - 1]);
 			return -EFAULT;
 		} else if (c < 100000) {
