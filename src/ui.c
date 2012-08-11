@@ -182,7 +182,7 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	ui->input = input;
 	kmscon_dlist_init(&ui->video_list);
 
-	ret = kmscon_terminal_new(&ui->term, eloop, video, ui->input);
+	ret = kmscon_terminal_new(&ui->term, eloop, ui->input);
 	if (ret)
 		goto err_free;
 

@@ -58,7 +58,6 @@ struct screen {
 struct kmscon_terminal {
 	unsigned long ref;
 	struct ev_eloop *eloop;
-	struct uterm_video *video;
 	struct uterm_input *input;
 	bool opened;
 
@@ -319,13 +318,12 @@ static void write_event(struct kmscon_vte *vte, const char *u8, size_t len,
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct uterm_video *video,
 			struct uterm_input *input)
 {
 	struct kmscon_terminal *term;
 	int ret;
 
-	if (!out || !loop || !video || !input)
+	if (!out || !loop || !input)
 		return -EINVAL;
 
 	term = malloc(sizeof(*term));
@@ -335,7 +333,6 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	memset(term, 0, sizeof(*term));
 	term->ref = 1;
 	term->eloop = loop;
-	term->video = video;
 	term->input = input;
 	kmscon_dlist_init(&term->screens);
 
@@ -356,7 +353,6 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		goto err_pty;
 
 	ev_eloop_ref(term->eloop);
-	uterm_video_ref(term->video);
 	uterm_input_ref(term->input);
 	*out = term;
 
@@ -400,7 +396,6 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	if (term->redraw)
 		ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	uterm_input_unref(term->input);
-	uterm_video_unref(term->video);
 	ev_eloop_unref(term->eloop);
 	free(term);
 }
