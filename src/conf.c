@@ -74,6 +74,57 @@ void conf_default_string(struct conf_option *opt)
 	*(void**)opt->mem = opt->def;
 }
 
+int conf_parse_string_list(struct conf_option *opt, bool on, const char *arg)
+{
+	unsigned int i;
+	unsigned int num, len, size, pos;
+	char **list, *off;
+
+	num = 0;
+	size = 0;
+	len = 0;
+	for (i = 0; arg[i]; ++i) {
+		if (arg[i] != ',') {
+			++len;
+			continue;
+		}
+
+		++num;
+		size += len + 1;
+		len = 0;
+	}
+
+	if (len > 0 || !i || (i > 0 && arg[i - 1] == ',')) {
+		++num;
+		size += len + 1;
+	}
+
+	list = malloc(sizeof(char*) * (num + 1) + size);
+	if (!list)
+		return -ENOMEM;
+
+	off = (void*)(((char*)list) + (sizeof(char*) * (num + 1)));
+	i = 0;
+	for (pos = 0; pos < num; ++pos) {
+		list[pos] = off;
+		while (arg[i] && arg[i] != ',')
+			*off++ = arg[i++];
+		if (arg[i])
+			++i;
+		*off++ = 0;
+	}
+	list[pos] = NULL;
+
+	opt->type->free(opt);
+	*(void**)opt->mem = list;
+	return 0;
+}
+
+void conf_default_string_list(struct conf_option *opt)
+{
+	*(void**)opt->mem = opt->def;
+}
+
 const struct conf_type conf_bool = {
 	.flags = 0,
 	.parse = conf_parse_bool,
@@ -86,6 +137,13 @@ const struct conf_type conf_string = {
 	.parse = conf_parse_string,
 	.free = conf_free_value,
 	.set_default = conf_default_string,
+};
+
+const struct conf_type conf_string_list = {
+	.flags = CONF_HAS_ARG,
+	.parse = conf_parse_string_list,
+	.free = conf_free_value,
+	.set_default = conf_default_string_list,
 };
 
 /* free all memory that we allocated and reset to initial state */
