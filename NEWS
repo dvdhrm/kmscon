@@ -1,5 +1,47 @@
 = KMSCON Release News =
 
+CHANGES WITH 3: (development release)
+	* VTE support has been improved greatly. vt220 should be supported fully
+	  except for multi-line characters.
+
+	* glib dependency removed. Hashtables and unicode support is now
+	  implemented in kmscon.
+
+	* Configfiles are now supported. /etc/kmscon.conf and ~/.kmscon.conf are
+	  read by kmscon on startup. They can include the same options as the
+	  command line options of kmscon. However, command-line options have
+	  precedence.
+
+	* Multiple video objects are now supported per seat. That is, if you
+	  have more than one graphics card per seat, all of them will be used by
+	  kmscon. Multiple displays were supported from the beginning.
+
+	* Modularized input backend. The XKB backend is fully optional and can
+	  be activated/deactivated during runtime. The Dumb backend has been
+	  renamed to "plain".
+
+	* The eloop library is fully documented and should be API stable from
+	  now on.
+
+	* The font renderer subsystem has been rewritten and replaced with a new
+	  subsystem which can load different font-renderers during runtime.
+	  Several backends including static 8x16 backend has been added. It is
+	  possible to compile kmscon without freetype2/pango dependencies now.
+
+	* 2D blitting to framebuffers has been improved greatly. More devices
+	  are supported now and blending is available, too. The 3D devices have
+	  been updated to support these blitting operations via OpenGL. This may
+	  be slow on older devices, though.
+
+	* New text renderer subsystem has been added. It can load multiple
+	  different text-renderers during runtime. The default renderer (bblit)
+	  uses 2D blitting operations to render text. However, the gltex
+	  renderer is also available (optionally) which renders with OpenGL
+	  textures. This can improve performance greatly on modern devices.
+
+	* Gcc optimizations are now enabled by default to improve rendering
+	  performance.
+
 CHANGES WITH 2: (development release)
 	* Build scripts were improved and simplified. They also allow much more
 	  control about the build process now. The source was split into several
