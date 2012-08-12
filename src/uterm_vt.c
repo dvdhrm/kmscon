@@ -50,11 +50,6 @@
 
 struct kmscon_vt;
 
-enum kmscon_vt_id {
-	KMSCON_VT_CUR = 0,
-	KMSCON_VT_NEW = -1,
-};
-
 typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt,
 			      unsigned int action,
 			      void *data);
@@ -230,7 +225,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	if (!tty_fd || !tty_num)
 		return -EINVAL;
 
-	if (id == KMSCON_VT_NEW) {
+	if (id < 0) {
 		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
 			fd = open("/dev/tty1",
@@ -264,7 +259,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
+int kmscon_vt_open(struct kmscon_vt *vt, struct ev_eloop *eloop)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -277,7 +272,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, int id, struct ev_eloop *eloop)
 
 	log_debug("open vt %p", vt);
 
-	ret = open_tty(id, &vt->fd, &vt->num);
+	ret = open_tty(-1, &vt->fd, &vt->num);
 	if (ret)
 		return ret;
 
@@ -522,7 +517,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		ret = kmscon_vt_new(&vt->vt, vt_event, vt);
 		if (ret)
 			goto err_free;
-		ret = kmscon_vt_open(vt->vt, KMSCON_VT_NEW, vt->vtm->eloop);
+		ret = kmscon_vt_open(vt->vt, vt->vtm->eloop);
 		if (ret) {
 			kmscon_vt_unref(vt->vt);
 			goto err_free;
