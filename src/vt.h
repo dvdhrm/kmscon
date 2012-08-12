@@ -56,8 +56,6 @@ typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt,
 				enum kmscon_vt_action action,
 				void *data);
 
-bool kmscon_vt_supported(void);
-
 int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data);
 void kmscon_vt_ref(struct kmscon_vt *vt);
 void kmscon_vt_unref(struct kmscon_vt *vt);

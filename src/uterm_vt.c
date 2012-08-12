@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"
@@ -56,8 +57,17 @@ struct uterm_vt_master {
 	unsigned long ref;
 	struct ev_eloop *eloop;
 
+	bool vt_support;
 	struct kmscon_dlist vts;
 };
+
+static bool check_vt_support(void)
+{
+	if (!access("/dev/tty", F_OK))
+		return true;
+	else
+		return false;
+}
 
 static int vt_call(struct uterm_vt *vt, unsigned int event)
 {
@@ -141,7 +151,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	vt->cb = cb;
 	vt->data = data;
 
-	if (!strcmp(seat, "seat0") && kmscon_vt_supported()) {
+	if (!strcmp(seat, "seat0") && vtm->vt_support) {
 		ret = kmscon_vt_new(&vt->vt, vt_event, vt);
 		if (ret)
 			goto err_free;
@@ -238,6 +248,7 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 	vtm->ref = 1;
 	vtm->eloop = eloop;
 	kmscon_dlist_init(&vtm->vts);
+	vtm->vt_support = check_vt_support();
 
 	ev_eloop_ref(vtm->eloop);
 	*out = vtm;
