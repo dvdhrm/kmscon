@@ -50,18 +50,13 @@
 
 struct kmscon_vt;
 
-enum kmscon_vt_action {
-	KMSCON_VT_ENTER,
-	KMSCON_VT_LEAVE,
-};
-
 enum kmscon_vt_id {
 	KMSCON_VT_CUR = 0,
 	KMSCON_VT_NEW = -1,
 };
 
 typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt,
-			      enum kmscon_vt_action action,
+			      unsigned int action,
 			      void *data);
 
 void kmscon_vt_close(struct kmscon_vt *vt);
@@ -144,7 +139,7 @@ static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 		log_warn("cannot set graphics mode on vt %p", vt);
 
 	if (vt->cb)
-		vt->cb(vt, KMSCON_VT_ENTER, vt->data);
+		vt->cb(vt, UTERM_VT_ACTIVATE, vt->data);
 }
 
 static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -161,7 +156,7 @@ static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	if (ret || vts.v_active != vt->num)
 		return;
 
-	if (vt->cb && !vt->cb(vt, KMSCON_VT_LEAVE, vt->data)) {
+	if (vt->cb && !vt->cb(vt, UTERM_VT_DEACTIVATE, vt->data)) {
 		log_debug("leaving VT %d %p denied", vt->num, vt);
 		ioctl(vt->fd, VT_RELDISP, 0);
 	} else {
@@ -487,25 +482,9 @@ static int vt_call(struct uterm_vt *vt, unsigned int event)
 	return 0;
 }
 
-static bool vt_event(struct kmscon_vt *ovt, enum kmscon_vt_action action,
-		     void *data)
+static bool vt_event(struct kmscon_vt *ovt, unsigned int action, void *data)
 {
-	struct uterm_vt *vt = data;
-	int ret = 0;
-
-	switch (action) {
-	case KMSCON_VT_ENTER:
-		ret = vt_call(vt, UTERM_VT_ACTIVATE);
-		break;
-	case KMSCON_VT_LEAVE:
-		ret = vt_call(vt, UTERM_VT_DEACTIVATE);
-		break;
-	}
-
-	if (ret)
-		return false;
-
-	return true;
+	return !vt_call(data, action);
 }
 
 static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
