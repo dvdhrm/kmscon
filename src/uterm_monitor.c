@@ -530,7 +530,7 @@ static void monitor_udev_change(struct uterm_monitor *mon,
 
 		/* DRM devices send hotplug events; catch them here */
 		val = udev_device_get_property_value(dev, "HOTPLUG");
-		if (!strcmp(val, "1")) {
+		if (val && !strcmp(val, "1")) {
 			memset(&ev, 0, sizeof(ev));
 			ev.type = UTERM_MONITOR_HOTPLUG_DEV;
 			ev.seat = sdev->seat;
