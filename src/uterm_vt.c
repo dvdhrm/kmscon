@@ -105,10 +105,8 @@ static int vt_call(struct uterm_vt *vt, unsigned int event)
 	return 0;
 }
 
-static void real_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-		       void *data)
+static void real_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
-	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
@@ -129,10 +127,8 @@ static void real_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
-static void real_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-		       void *data)
+static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
-	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
@@ -224,20 +220,10 @@ static int real_open(struct uterm_vt *vt)
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave,
-					  vt);
-	if (ret)
-		goto err_fd;
-
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter,
-					  vt);
-	if (ret)
-		goto err_sig1;
-
 	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->real_efd, vt->real_fd,
 			      EV_READABLE, real_input, vt);
 	if (ret)
-		goto err_sig2;
+		goto err_fd;
 
 	/*
 	 * Get the number of the VT which is active now, so we have something
@@ -275,8 +261,8 @@ static int real_open(struct uterm_vt *vt)
 
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_PROCESS;
-	mode.relsig = SIGUSR1;
-	mode.acqsig = SIGUSR2;
+	mode.acqsig = SIGUSR1;
+	mode.relsig = SIGUSR2;
 
 	if (ioctl(vt->real_fd, VT_SETMODE, &mode)) {
 		log_err("cannot take control of vt handling");
@@ -298,10 +284,6 @@ err_reset:
 err_eloop:
 	ev_eloop_rm_fd(vt->real_efd);
 	vt->real_efd = NULL;
-err_sig2:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter, vt);
-err_sig1:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave, vt);
 err_fd:
 	close(vt->real_fd);
 	vt->real_fd = -1;
@@ -317,8 +299,6 @@ static void real_close(struct uterm_vt *vt)
 	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
 	ev_eloop_rm_fd(vt->real_efd);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter, vt);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave, vt);
 	vt->real_efd = NULL;
 	close(vt->real_fd);
 
@@ -402,6 +382,24 @@ static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
+static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+		       void *data)
+{
+	struct uterm_vt *vt = data;
+
+	if (vt->mode == UTERM_VT_REAL)
+		real_enter(vt, info);
+}
+
+static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+		       void *data)
+{
+	struct uterm_vt *vt = data;
+
+	if (vt->mode == UTERM_VT_REAL)
+		real_leave(vt, info);
+}
+
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      const char *seat,
@@ -429,22 +427,34 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	vt->real_num = -1;
 	vt->real_saved_num = -1;
 
+	ret = ev_eloop_register_signal_cb(vtm->eloop, SIGUSR1, vt_sigusr1, vt);
+	if (ret)
+		goto err_free;
+
+	ret = ev_eloop_register_signal_cb(vtm->eloop, SIGUSR2, vt_sigusr2, vt);
+	if (ret)
+		goto err_sig1;
+
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
 		vt->mode = UTERM_VT_REAL;
 		ret = real_open(vt);
 		if (ret)
-			goto err_free;
+			goto err_sig2;
 	} else {
 		vt->mode = UTERM_VT_FAKE;
 		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event, vt);
 		if (ret)
-			goto err_free;
+			goto err_sig2;
 	}
 
 	kmscon_dlist_link(&vtm->vts, &vt->list);
 	*out = vt;
 	return 0;
 
+err_sig2:
+	ev_eloop_unregister_signal_cb(vtm->eloop, SIGUSR2, vt_sigusr2, vt);
+err_sig1:
+	ev_eloop_unregister_signal_cb(vtm->eloop, SIGUSR1, vt_sigusr1, vt);
 err_free:
 	free(vt);
 	return ret;
@@ -462,6 +472,8 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 					    vt);
 		vt_call(vt, UTERM_VT_DEACTIVATE);
 	}
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
 	kmscon_dlist_unlink(&vt->list);
 	vt->vtm = NULL;
 	uterm_vt_unref(vt);
