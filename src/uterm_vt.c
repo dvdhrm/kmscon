@@ -110,6 +110,9 @@ static void real_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	struct vt_stat vts;
 	int ret;
 
+	if (info->ssi_code != SI_KERNEL)
+		return;
+
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret || vts.v_active != vt->real_num)
 		return;
@@ -128,6 +131,9 @@ static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
 	int ret;
+
+	if (info->ssi_code != SI_KERNEL)
+		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret || vts.v_active != vt->real_num)
