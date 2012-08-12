@@ -48,74 +48,68 @@
 
 #define LOG_SUBSYSTEM "vt"
 
-struct kmscon_vt;
+void kmscon_vt_close(struct uterm_vt *vt);
 
-typedef bool (*kmscon_vt_cb) (struct kmscon_vt *vt,
-			      unsigned int action,
-			      void *data);
-
-void kmscon_vt_close(struct kmscon_vt *vt);
-
-struct kmscon_vt {
+struct uterm_vt {
 	unsigned long ref;
+	struct kmscon_dlist list;
+	struct uterm_vt_master *vtm;
 
+	uterm_vt_cb cb;
+	void *data;
+
+	bool active;
+
+	bool use_vt;
 	int fd;
 	int num;
 	int saved_num;
 	struct termios saved_attribs;
-	kmscon_vt_cb cb;
-	void *data;
-
-	struct ev_eloop *eloop;
 	struct ev_fd *efd;
 };
 
-int kmscon_vt_new(struct kmscon_vt **out, kmscon_vt_cb cb, void *data)
+struct uterm_vt_master {
+	unsigned long ref;
+	struct ev_eloop *eloop;
+
+	bool vt_support;
+	struct kmscon_dlist vts;
+};
+
+static int vt_call(struct uterm_vt *vt, unsigned int event)
 {
-	struct kmscon_vt *vt;
+	int ret;
 
-	if (!out)
-		return -EINVAL;
+	switch (event) {
+	case UTERM_VT_ACTIVATE:
+		if (!vt->active) {
+			if (vt->cb) {
+				ret = vt->cb(vt, event, vt->data);
+				if (ret)
+					log_warning("vt event handler returned %d instead of 0 on activation", ret);
+			}
+			vt->active = true;
+		}
+		break;
+	case UTERM_VT_DEACTIVATE:
+		if (vt->active) {
+			if (vt->cb) {
+				ret = vt->cb(vt, event, vt->data);
+				if (ret)
+					return ret;
+			}
+			vt->active = false;
+		}
+		break;
+	}
 
-	vt = malloc(sizeof(*vt));
-	if (!vt)
-		return -ENOMEM;
-
-	memset(vt, 0, sizeof(*vt));
-	vt->ref = 1;
-	vt->fd = -1;
-	vt->num = -1;
-	vt->saved_num = -1;
-	vt->cb = cb;
-	vt->data = data;
-
-	log_debug("new vt object %p", vt);
-	*out = vt;
 	return 0;
 }
 
-void kmscon_vt_ref(struct kmscon_vt *vt)
-{
-	if (!vt)
-		return;
-
-	++vt->ref;
-}
-
-void kmscon_vt_unref(struct kmscon_vt *vt)
-{
-	if (!vt || !vt->ref || --vt->ref)
-		return;
-
-	log_debug("free vt object %p", vt);
-	kmscon_vt_close(vt);
-	free(vt);
-}
-
 static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-			void *data)
+		     void *data)
 {
-	struct kmscon_vt *vt = data;
+	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
@@ -133,14 +127,13 @@ static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS))
 		log_warn("cannot set graphics mode on vt %p", vt);
 
-	if (vt->cb)
-		vt->cb(vt, UTERM_VT_ACTIVATE, vt->data);
+	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
 static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-			void *data)
+		     void *data)
 {
-	struct kmscon_vt *vt = data;
+	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
@@ -151,7 +144,7 @@ static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	if (ret || vts.v_active != vt->num)
 		return;
 
-	if (vt->cb && !vt->cb(vt, UTERM_VT_DEACTIVATE, vt->data)) {
+	if (vt_call(vt, UTERM_VT_DEACTIVATE)) {
 		log_debug("leaving VT %d %p denied", vt->num, vt);
 		ioctl(vt->fd, VT_RELDISP, 0);
 	} else {
@@ -164,7 +157,7 @@ static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 static void vt_input(struct ev_fd *fd, int mask, void *data)
 {
-	struct kmscon_vt *vt = data;
+	struct uterm_vt *vt = data;
 
 	if (!vt || vt->fd < 0)
 		return;
@@ -173,48 +166,46 @@ static void vt_input(struct ev_fd *fd, int mask, void *data)
 	tcflush(vt->fd, TCIFLUSH);
 }
 
-static int connect_eloop(struct kmscon_vt *vt, struct ev_eloop *eloop)
+static int connect_eloop(struct uterm_vt *vt)
 {
 	int ret;
 
-	if (!vt || !eloop || vt->fd < 0)
+	if (!vt || vt->fd < 0)
 		return -EINVAL;
 
-	ret = ev_eloop_register_signal_cb(eloop, SIGUSR1, vt_leave, vt);
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave,
+					  vt);
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_register_signal_cb(eloop, SIGUSR2, vt_enter, vt);
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter,
+					  vt);
 	if (ret)
 		goto err_sig1;
 
-	ret = ev_eloop_new_fd(eloop, &vt->efd, vt->fd, EV_READABLE,
-				vt_input, vt);
+	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->efd, vt->fd, EV_READABLE,
+			      vt_input, vt);
 	if (ret)
 		goto err_sig2;
 
-	vt->eloop = eloop;
-	ev_eloop_ref(vt->eloop);
 	return 0;
 
 err_sig2:
-	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
 err_sig1:
-	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR1, vt_leave, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
 	return ret;
 }
 
-static void disconnect_eloop(struct kmscon_vt *vt)
+static void disconnect_eloop(struct uterm_vt *vt)
 {
 	if (!vt)
 		return;
 
 	ev_eloop_rm_fd(vt->efd);
-	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR2, vt_enter, vt);
-	ev_eloop_unregister_signal_cb(vt->eloop, SIGUSR1, vt_leave, vt);
-	ev_eloop_unref(vt->eloop);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
 	vt->efd = NULL;
-	vt->eloop = NULL;
 }
 
 static int open_tty(int id, int *tty_fd, int *tty_num)
@@ -259,7 +250,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-int kmscon_vt_open(struct kmscon_vt *vt, struct ev_eloop *eloop)
+int kmscon_vt_open(struct uterm_vt *vt)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -276,7 +267,7 @@ int kmscon_vt_open(struct kmscon_vt *vt, struct ev_eloop *eloop)
 	if (ret)
 		return ret;
 
-	ret = connect_eloop(vt, eloop);
+	ret = connect_eloop(vt);
 	if (ret)
 		goto err_fd;
 
@@ -344,7 +335,7 @@ err_fd:
 	return ret;
 }
 
-void kmscon_vt_close(struct kmscon_vt *vt)
+void kmscon_vt_close(struct uterm_vt *vt)
 {
 	if (!vt || vt->fd < 0)
 		return;
@@ -361,7 +352,7 @@ void kmscon_vt_close(struct kmscon_vt *vt)
 }
 
 /* Switch to this VT and make it the active VT. */
-int kmscon_vt_enter(struct kmscon_vt *vt)
+int kmscon_vt_enter(struct uterm_vt *vt)
 {
 	int ret;
 
@@ -389,7 +380,7 @@ int kmscon_vt_enter(struct kmscon_vt *vt)
  * active. Returns -EINPROGRESS if we started the VT switch. Returns <0 on
  * failure.
  */
-int kmscon_vt_leave(struct kmscon_vt *vt)
+int kmscon_vt_leave(struct uterm_vt *vt)
 {
 	int ret;
 	struct vt_stat vts;
@@ -419,67 +410,12 @@ int kmscon_vt_leave(struct kmscon_vt *vt)
 	return -EINPROGRESS;
 }
 
-struct uterm_vt {
-	unsigned long ref;
-	struct kmscon_dlist list;
-	struct uterm_vt_master *vtm;
-
-	uterm_vt_cb cb;
-	void *data;
-
-	bool active;
-	struct kmscon_vt *vt;
-};
-
-struct uterm_vt_master {
-	unsigned long ref;
-	struct ev_eloop *eloop;
-
-	bool vt_support;
-	struct kmscon_dlist vts;
-};
-
 static bool check_vt_support(void)
 {
 	if (!access("/dev/tty", F_OK))
 		return true;
 	else
 		return false;
-}
-
-static int vt_call(struct uterm_vt *vt, unsigned int event)
-{
-	int ret;
-
-	switch (event) {
-	case UTERM_VT_ACTIVATE:
-		if (!vt->active) {
-			if (vt->cb) {
-				ret = vt->cb(vt, event, vt->data);
-				if (ret)
-					log_warning("vt event handler returned %d instead of 0 on activation", ret);
-			}
-			vt->active = true;
-		}
-		break;
-	case UTERM_VT_DEACTIVATE:
-		if (vt->active) {
-			if (vt->cb) {
-				ret = vt->cb(vt, event, vt->data);
-				if (ret)
-					return ret;
-			}
-			vt->active = false;
-		}
-		break;
-	}
-
-	return 0;
-}
-
-static bool vt_event(struct kmscon_vt *ovt, unsigned int action, void *data)
-{
-	return !vt_call(data, action);
 }
 
 static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
@@ -513,15 +449,16 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	vt->cb = cb;
 	vt->data = data;
 
+	vt->use_vt = false;
+	vt->fd = -1;
+	vt->num = -1;
+	vt->saved_num = -1;
+
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
-		ret = kmscon_vt_new(&vt->vt, vt_event, vt);
+		vt->use_vt = true;
+		ret = kmscon_vt_open(vt);
 		if (ret)
 			goto err_free;
-		ret = kmscon_vt_open(vt->vt, vt->vtm->eloop);
-		if (ret) {
-			kmscon_vt_unref(vt->vt);
-			goto err_free;
-		}
 	} else {
 		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event,
 						vt);
@@ -543,9 +480,8 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return;
 
-	if (vt->vt) {
-		kmscon_vt_close(vt->vt);
-		kmscon_vt_unref(vt->vt);
+	if (vt->use_vt) {
+		kmscon_vt_close(vt);
 	} else {
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, vt_idle_event,
 					    vt);
@@ -578,8 +514,8 @@ int uterm_vt_activate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return -EINVAL;
 
-	if (vt->vt)
-		return kmscon_vt_enter(vt->vt);
+	if (vt->use_vt)
+		return kmscon_vt_enter(vt);
 	else
 		return -EFAULT;
 }
@@ -589,8 +525,8 @@ int uterm_vt_deactivate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return -EINVAL;
 
-	if (vt->vt)
-		return kmscon_vt_leave(vt->vt);
+	if (vt->use_vt)
+		return kmscon_vt_leave(vt);
 	else
 		return -EFAULT;
 }
