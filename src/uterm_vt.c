@@ -48,24 +48,23 @@
 
 #define LOG_SUBSYSTEM "vt"
 
-void kmscon_vt_close(struct uterm_vt *vt);
-
 struct uterm_vt {
 	unsigned long ref;
 	struct kmscon_dlist list;
 	struct uterm_vt_master *vtm;
+	unsigned int mode;
 
 	uterm_vt_cb cb;
 	void *data;
 
 	bool active;
 
-	bool use_vt;
-	int fd;
-	int num;
-	int saved_num;
-	struct termios saved_attribs;
-	struct ev_fd *efd;
+	/* this is for *real* linux kernel VTs */
+	int real_fd;
+	int real_num;
+	int real_saved_num;
+	struct termios real_saved_attribs;
+	struct ev_fd *real_efd;
 };
 
 struct uterm_vt_master {
@@ -106,64 +105,64 @@ static int vt_call(struct uterm_vt *vt, unsigned int event)
 	return 0;
 }
 
-static void vt_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-		     void *data)
+static void real_enter(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+		       void *data)
 {
 	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
-	if (!vt || vt->fd < 0)
+	if (vt->real_fd < 0)
 		return;
 
-	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
-	if (ret || vts.v_active != vt->num)
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
+	if (ret || vts.v_active != vt->real_num)
 		return;
 
-	log_debug("enter VT %d %p", vt->num, vt);
+	log_debug("enter VT %d %p", vt->real_num, vt);
 
-	ioctl(vt->fd, VT_RELDISP, VT_ACKACQ);
+	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
 
-	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS))
+	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS))
 		log_warn("cannot set graphics mode on vt %p", vt);
 
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
-static void vt_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-		     void *data)
+static void real_leave(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+		       void *data)
 {
 	struct uterm_vt *vt = data;
 	struct vt_stat vts;
 	int ret;
 
-	if (!vt || vt->fd < 0)
+	if (vt->real_fd < 0)
 		return;
 
-	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
-	if (ret || vts.v_active != vt->num)
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
+	if (ret || vts.v_active != vt->real_num)
 		return;
 
 	if (vt_call(vt, UTERM_VT_DEACTIVATE)) {
-		log_debug("leaving VT %d %p denied", vt->num, vt);
-		ioctl(vt->fd, VT_RELDISP, 0);
+		log_debug("leaving VT %d %p denied", vt->real_num, vt);
+		ioctl(vt->real_fd, VT_RELDISP, 0);
 	} else {
-		log_debug("leaving VT %d %p", vt->num, vt);
-		ioctl(vt->fd, VT_RELDISP, 1);
-		if (ioctl(vt->fd, KDSETMODE, KD_TEXT))
+		log_debug("leaving VT %d %p", vt->real_num, vt);
+		ioctl(vt->real_fd, VT_RELDISP, 1);
+		if (ioctl(vt->real_fd, KDSETMODE, KD_TEXT))
 			log_warn("cannot set text mode on vt %p", vt);
 	}
 }
 
-static void vt_input(struct ev_fd *fd, int mask, void *data)
+static void real_input(struct ev_fd *fd, int mask, void *data)
 {
 	struct uterm_vt *vt = data;
 
-	if (!vt || vt->fd < 0)
+	if (vt->real_fd < 0)
 		return;
 
 	/* we ignore input from the VT because we get it from evdev */
-	tcflush(vt->fd, TCIFLUSH);
+	tcflush(vt->real_fd, TCIFLUSH);
 }
 
 static int open_tty(int id, int *tty_fd, int *tty_num)
@@ -208,7 +207,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-int kmscon_vt_open(struct uterm_vt *vt)
+static int real_open(struct uterm_vt *vt)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -216,27 +215,27 @@ int kmscon_vt_open(struct uterm_vt *vt)
 	int ret;
 	sigset_t mask;
 
-	if (vt->fd >= 0)
+	if (vt->real_fd >= 0)
 		return -EALREADY;
 
 	log_debug("open vt %p", vt);
 
-	ret = open_tty(-1, &vt->fd, &vt->num);
+	ret = open_tty(-1, &vt->real_fd, &vt->real_num);
 	if (ret)
 		return ret;
 
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave,
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave,
 					  vt);
 	if (ret)
 		goto err_fd;
 
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter,
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter,
 					  vt);
 	if (ret)
 		goto err_sig1;
 
-	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->efd, vt->fd, EV_READABLE,
-			      vt_input, vt);
+	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->real_efd, vt->real_fd,
+			      EV_READABLE, real_input, vt);
 	if (ret)
 		goto err_sig2;
 
@@ -244,31 +243,31 @@ int kmscon_vt_open(struct uterm_vt *vt)
 	 * Get the number of the VT which is active now, so we have something
 	 * to switch back to in kmscon_vt_switch_leave.
 	 */
-	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warn("cannot find the currently active VT");
-		vt->saved_num = -1;
+		vt->real_saved_num = -1;
 	} else {
-		vt->saved_num = vts.v_active;
+		vt->real_saved_num = vts.v_active;
 	}
 
-	if (tcgetattr(vt->fd, &vt->saved_attribs) < 0) {
+	if (tcgetattr(vt->real_fd, &vt->real_saved_attribs) < 0) {
 		log_err("cannot get terminal attributes");
 		ret = -EFAULT;
 		goto err_eloop;
 	}
 
 	/* Ignore control characters and disable echo */
-	raw_attribs = vt->saved_attribs;
+	raw_attribs = vt->real_saved_attribs;
 	cfmakeraw(&raw_attribs);
 
 	/* Fix up line endings to be normal (cfmakeraw hoses them) */
 	raw_attribs.c_oflag |= OPOST | OCRNL;
 
-	if (tcsetattr(vt->fd, TCSANOW, &raw_attribs) < 0)
+	if (tcsetattr(vt->real_fd, TCSANOW, &raw_attribs) < 0)
 		log_warn("cannot put terminal into raw mode");
 
-	if (ioctl(vt->fd, KDSETMODE, KD_GRAPHICS)) {
+	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("vt: cannot set graphics mode\n");
 		ret = -errno;
 		goto err_reset;
@@ -279,7 +278,7 @@ int kmscon_vt_open(struct uterm_vt *vt)
 	mode.relsig = SIGUSR1;
 	mode.acqsig = SIGUSR2;
 
-	if (ioctl(vt->fd, VT_SETMODE, &mode)) {
+	if (ioctl(vt->real_fd, VT_SETMODE, &mode)) {
 		log_err("cannot take control of vt handling");
 		ret = -errno;
 		goto err_text;
@@ -293,52 +292,50 @@ int kmscon_vt_open(struct uterm_vt *vt)
 	return 0;
 
 err_text:
-	ioctl(vt->fd, KDSETMODE, KD_TEXT);
+	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 err_reset:
-	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
+	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
 err_eloop:
-	ev_eloop_rm_fd(vt->efd);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
-	vt->efd = NULL;
+	ev_eloop_rm_fd(vt->real_efd);
+	vt->real_efd = NULL;
 err_sig2:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter, vt);
 err_sig1:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave, vt);
 err_fd:
-	close(vt->fd);
-	vt->fd = -1;
+	close(vt->real_fd);
+	vt->real_fd = -1;
 	return ret;
 }
 
-void kmscon_vt_close(struct uterm_vt *vt)
+static void real_close(struct uterm_vt *vt)
 {
-	if (!vt || vt->fd < 0)
+	if (vt->real_fd < 0)
 		return;
 
 	log_debug("closing vt %p", vt);
-	ioctl(vt->fd, KDSETMODE, KD_TEXT);
-	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
-	ev_eloop_rm_fd(vt->efd);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
-	vt->efd = NULL;
-	close(vt->fd);
+	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
+	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
+	ev_eloop_rm_fd(vt->real_efd);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, real_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, real_leave, vt);
+	vt->real_efd = NULL;
+	close(vt->real_fd);
 
-	vt->fd = -1;
-	vt->num = -1;
-	vt->saved_num = -1;
+	vt->real_fd = -1;
+	vt->real_num = -1;
+	vt->real_saved_num = -1;
 }
 
 /* Switch to this VT and make it the active VT. */
-int kmscon_vt_enter(struct uterm_vt *vt)
+static int real_activate(struct uterm_vt *vt)
 {
 	int ret;
 
-	if (!vt || vt->fd < 0 || vt->num < 0)
+	if (vt->real_fd < 0 || vt->real_num < 0)
 		return -EINVAL;
 
-	ret = ioctl(vt->fd, VT_ACTIVATE, vt->num);
+	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
 	if (ret) {
 		log_warn("cannot enter VT %p", vt);
 		return -EFAULT;
@@ -359,27 +356,27 @@ int kmscon_vt_enter(struct uterm_vt *vt)
  * active. Returns -EINPROGRESS if we started the VT switch. Returns <0 on
  * failure.
  */
-int kmscon_vt_leave(struct uterm_vt *vt)
+static int real_deactivate(struct uterm_vt *vt)
 {
 	int ret;
 	struct vt_stat vts;
 
-	if (!vt || vt->fd < 0)
+	if (vt->real_fd < 0)
 		return -EINVAL;
 
-	if (vt->saved_num < 0)
+	if (vt->real_saved_num < 0)
 		return 0;
 
-	ret = ioctl(vt->fd, VT_GETSTATE, &vts);
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warn("cannot find current VT");
 		return -EFAULT;
 	}
 
-	if (vts.v_active != vt->num)
+	if (vts.v_active != vt->real_num)
 		return 0;
 
-	ret = ioctl(vt->fd, VT_ACTIVATE, vt->saved_num);
+	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_saved_num);
 	if (ret) {
 		log_warn("cannot leave VT %p", vt);
 		return -EFAULT;
@@ -428,19 +425,18 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	vt->cb = cb;
 	vt->data = data;
 
-	vt->use_vt = false;
-	vt->fd = -1;
-	vt->num = -1;
-	vt->saved_num = -1;
+	vt->real_fd = -1;
+	vt->real_num = -1;
+	vt->real_saved_num = -1;
 
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
-		vt->use_vt = true;
-		ret = kmscon_vt_open(vt);
+		vt->mode = UTERM_VT_REAL;
+		ret = real_open(vt);
 		if (ret)
 			goto err_free;
 	} else {
-		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event,
-						vt);
+		vt->mode = UTERM_VT_FAKE;
+		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event, vt);
 		if (ret)
 			goto err_free;
 	}
@@ -459,8 +455,8 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return;
 
-	if (vt->use_vt) {
-		kmscon_vt_close(vt);
+	if (vt->mode == UTERM_VT_REAL) {
+		real_close(vt);
 	} else {
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, vt_idle_event,
 					    vt);
@@ -493,8 +489,8 @@ int uterm_vt_activate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return -EINVAL;
 
-	if (vt->use_vt)
-		return kmscon_vt_enter(vt);
+	if (vt->mode == UTERM_VT_REAL)
+		return real_activate(vt);
 	else
 		return -EFAULT;
 }
@@ -504,8 +500,8 @@ int uterm_vt_deactivate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return -EINVAL;
 
-	if (vt->use_vt)
-		return kmscon_vt_leave(vt);
+	if (vt->mode == UTERM_VT_REAL)
+		return real_deactivate(vt);
 	else
 		return -EFAULT;
 }

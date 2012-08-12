@@ -57,6 +57,11 @@ enum uterm_vt_action {
 	UTERM_VT_DEACTIVATE,
 };
 
+enum uterm_vt_mode {
+	UTERM_VT_REAL,
+	UTERM_VT_FAKE,
+};
+
 typedef int (*uterm_vt_cb) (struct uterm_vt *vt, unsigned int action,
 			    void *data);
 
