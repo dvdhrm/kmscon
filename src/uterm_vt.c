@@ -166,48 +166,6 @@ static void vt_input(struct ev_fd *fd, int mask, void *data)
 	tcflush(vt->fd, TCIFLUSH);
 }
 
-static int connect_eloop(struct uterm_vt *vt)
-{
-	int ret;
-
-	if (!vt || vt->fd < 0)
-		return -EINVAL;
-
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave,
-					  vt);
-	if (ret)
-		return ret;
-
-	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter,
-					  vt);
-	if (ret)
-		goto err_sig1;
-
-	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->efd, vt->fd, EV_READABLE,
-			      vt_input, vt);
-	if (ret)
-		goto err_sig2;
-
-	return 0;
-
-err_sig2:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
-err_sig1:
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
-	return ret;
-}
-
-static void disconnect_eloop(struct uterm_vt *vt)
-{
-	if (!vt)
-		return;
-
-	ev_eloop_rm_fd(vt->efd);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
-	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
-	vt->efd = NULL;
-}
-
 static int open_tty(int id, int *tty_fd, int *tty_num)
 {
 	int fd;
@@ -267,9 +225,20 @@ int kmscon_vt_open(struct uterm_vt *vt)
 	if (ret)
 		return ret;
 
-	ret = connect_eloop(vt);
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave,
+					  vt);
 	if (ret)
 		goto err_fd;
+
+	ret = ev_eloop_register_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter,
+					  vt);
+	if (ret)
+		goto err_sig1;
+
+	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->efd, vt->fd, EV_READABLE,
+			      vt_input, vt);
+	if (ret)
+		goto err_sig2;
 
 	/*
 	 * Get the number of the VT which is active now, so we have something
@@ -328,7 +297,14 @@ err_text:
 err_reset:
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
 err_eloop:
-	disconnect_eloop(vt);
+	ev_eloop_rm_fd(vt->efd);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
+	vt->efd = NULL;
+err_sig2:
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
+err_sig1:
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
 err_fd:
 	close(vt->fd);
 	vt->fd = -1;
@@ -343,7 +319,10 @@ void kmscon_vt_close(struct uterm_vt *vt)
 	log_debug("closing vt %p", vt);
 	ioctl(vt->fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->fd, TCSANOW, &vt->saved_attribs);
-	disconnect_eloop(vt);
+	ev_eloop_rm_fd(vt->efd);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_enter, vt);
+	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_leave, vt);
+	vt->efd = NULL;
 	close(vt->fd);
 
 	vt->fd = -1;
