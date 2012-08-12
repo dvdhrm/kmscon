@@ -110,9 +110,6 @@ static void real_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	struct vt_stat vts;
 	int ret;
 
-	if (vt->real_fd < 0)
-		return;
-
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret || vts.v_active != vt->real_num)
 		return;
@@ -132,9 +129,6 @@ static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	struct vt_stat vts;
 	int ret;
 
-	if (vt->real_fd < 0)
-		return;
-
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret || vts.v_active != vt->real_num)
 		return;
@@ -153,9 +147,6 @@ static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 static void real_input(struct ev_fd *fd, int mask, void *data)
 {
 	struct uterm_vt *vt = data;
-
-	if (vt->real_fd < 0)
-		return;
 
 	/* we ignore input from the VT because we get it from evdev */
 	tcflush(vt->real_fd, TCIFLUSH);
@@ -210,9 +201,6 @@ static int real_open(struct uterm_vt *vt)
 	struct vt_stat vts;
 	int ret;
 	sigset_t mask;
-
-	if (vt->real_fd >= 0)
-		return -EALREADY;
 
 	log_debug("open vt %p", vt);
 
@@ -286,15 +274,11 @@ err_eloop:
 	vt->real_efd = NULL;
 err_fd:
 	close(vt->real_fd);
-	vt->real_fd = -1;
 	return ret;
 }
 
 static void real_close(struct uterm_vt *vt)
 {
-	if (vt->real_fd < 0)
-		return;
-
 	log_debug("closing vt %p", vt);
 	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
@@ -312,7 +296,7 @@ static int real_activate(struct uterm_vt *vt)
 {
 	int ret;
 
-	if (vt->real_fd < 0 || vt->real_num < 0)
+	if (vt->real_num < 0)
 		return -EINVAL;
 
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
@@ -340,9 +324,6 @@ static int real_deactivate(struct uterm_vt *vt)
 {
 	int ret;
 	struct vt_stat vts;
-
-	if (vt->real_fd < 0)
-		return -EINVAL;
 
 	if (vt->real_saved_num < 0)
 		return 0;
@@ -462,12 +443,17 @@ err_free:
 
 void uterm_vt_deallocate(struct uterm_vt *vt)
 {
-	if (!vt || !vt->vtm)
+	unsigned int mode;
+
+	if (!vt || !vt->vtm || vt->mode == UTERM_VT_DEAD)
 		return;
 
-	if (vt->mode == UTERM_VT_REAL) {
+	mode = vt->mode;
+	vt->mode = UTERM_VT_DEAD;
+
+	if (mode == UTERM_VT_REAL) {
 		real_close(vt);
-	} else {
+	} else if (mode == UTERM_VT_FAKE) {
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, vt_idle_event,
 					    vt);
 		vt_call(vt, UTERM_VT_DEACTIVATE);
