@@ -57,6 +57,7 @@ static struct ev_eloop *eloop;
 struct {
 	bool fbdev;
 	bool test;
+	char *dev;
 } output_conf;
 
 static int blit_outputs(struct uterm_video *video)
@@ -176,7 +177,8 @@ static void print_help()
 		"\n"
 		"Video Options:\n"
 		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
-		"\t    --test                  [off]   Try displaying content instead of listing devices\n",
+		"\t    --test                  [off]   Try displaying content instead of listing devices\n"
+		"\t    --dev                   [/dev/dri/card0 | /dev/fb0] Use the given device\n",
 		"test_input");
 	/*
 	 * 80 char line:
@@ -192,6 +194,7 @@ struct conf_option options[] = {
 	TEST_OPTIONS,
 	CONF_OPTION_BOOL(0, "fbdev", NULL, &output_conf.fbdev, false),
 	CONF_OPTION_BOOL(0, "test", NULL, &output_conf.test, false),
+	CONF_OPTION_STRING(0, "dev", NULL, &output_conf.dev, NULL),
 };
 
 int main(int argc, char **argv)
@@ -214,6 +217,9 @@ int main(int argc, char **argv)
 		mode = UTERM_VIDEO_DRM;
 		node = "/dev/dri/card0";
 	}
+
+	if (output_conf.dev)
+		node = output_conf.dev;
 
 	log_notice("Creating video object using %s...", node);
 
