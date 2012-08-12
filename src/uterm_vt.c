@@ -353,6 +353,36 @@ static int real_deactivate(struct uterm_vt *vt)
 	return -EINPROGRESS;
 }
 
+/*
+ * Fake VT:
+ * For systems without CONFIG_VT or for all seats that have no real VTs (which
+ * is all seats except seat0), we support a fake-VT mechanism. This machanism is
+ * only used for debugging and should not be used in production.
+ * The Fake-VT reacts on SIGUSR1 and SIGUSR2 similar to the real-vt and
+ * activates or deactivates the VT. However, this is a global mechanism as all
+ * fake VTs listen to the same signals. Therefore, this is not really multi-seat
+ * safe.
+ * TODO: Replace this with a proper multi-seat-capable fake-VT mechanism.
+ */
+
+static void fake_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
+{
+	if (info->ssi_code != SI_USER)
+		return;
+
+	log_debug("activating fake VT due to SIGUSR1");
+	vt_call(vt, UTERM_VT_ACTIVATE);
+}
+
+static void fake_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
+{
+	if (info->ssi_code != SI_USER)
+		return;
+
+	log_debug("deactivating fake VT due to SIGUSR2");
+	vt_call(vt, UTERM_VT_DEACTIVATE);
+}
+
 static bool check_vt_support(void)
 {
 	if (!access("/dev/tty", F_OK))
@@ -366,6 +396,7 @@ static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
 	struct uterm_vt *vt = data;
 
 	ev_eloop_unregister_idle_cb(eloop, vt_idle_event, data);
+	log_debug("activating fake VT on startup");
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
@@ -376,6 +407,8 @@ static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 	if (vt->mode == UTERM_VT_REAL)
 		real_enter(vt, info);
+	else if (vt->mode == UTERM_VT_FAKE)
+		fake_enter(vt, info);
 }
 
 static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -385,6 +418,8 @@ static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 	if (vt->mode == UTERM_VT_REAL)
 		real_leave(vt, info);
+	else if (vt->mode == UTERM_VT_FAKE)
+		fake_leave(vt, info);
 }
 
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
