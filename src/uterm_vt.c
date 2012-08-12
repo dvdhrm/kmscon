@@ -385,7 +385,7 @@ static void fake_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 
 static bool check_vt_support(void)
 {
-	if (!access("/dev/tty", F_OK))
+	if (!access("/dev/tty0", F_OK))
 		return true;
 	else
 		return false;
