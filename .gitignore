@@ -3,6 +3,7 @@
 *.lo
 *.la
 kmscon
+fakevt
 /test_*
 Makefile
 Makefile.in

@@ -27,7 +27,8 @@ CLEANFILES =
 #
 
 bin_PROGRAMS = \
-	kmscon
+	kmscon \
+	fakevt
 check_PROGRAMS = \
 	test_output \
 	test_vt \
@@ -300,3 +301,6 @@ test_vt_LDADD = libkmscon-core.la
 
 test_input_SOURCES = tests/test_input.c
 test_input_LDADD = libkmscon-core.la
+
+fakevt_SOURCES = tools/fakevt.c
+fakevt_LDADD = libkmscon-core.la
