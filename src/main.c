@@ -39,7 +39,6 @@
 #include "text.h"
 #include "ui.h"
 #include "uterm.h"
-#include "vt.h"
 
 struct kmscon_app {
 	struct ev_eloop *eloop;

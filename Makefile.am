@@ -176,13 +176,11 @@ libuterm_la_SOURCES = \
 	src/uterm_internal.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
+	src/uterm_vt.c \
 	src/uterm_input.c \
 	src/uterm_input_plain.c \
 	external/imKStoUCS.h \
-	external/imKStoUCS.c \
-	src/uterm_vt.c \
-	src/vt.h \
-	src/vt.c
+	external/imKStoUCS.c
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
