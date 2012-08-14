@@ -58,6 +58,17 @@ void conf_default_bool(struct conf_option *opt)
 	*(bool*)opt->mem = (bool)opt->def;
 }
 
+int conf_parse_uint(struct conf_option *opt, bool on, const char *arg)
+{
+	*(unsigned int*)opt->mem = atoi(arg);
+	return 0;
+}
+
+void conf_default_uint(struct conf_option *opt)
+{
+	*(unsigned int*)opt->mem = (unsigned int)(unsigned long)opt->def;
+}
+
 int conf_parse_string(struct conf_option *opt, bool on, const char *arg)
 {
 	char *val = strdup(arg);
@@ -130,6 +141,13 @@ const struct conf_type conf_bool = {
 	.parse = conf_parse_bool,
 	.free = NULL,
 	.set_default = conf_default_bool,
+};
+
+const struct conf_type conf_uint = {
+	.flags = CONF_HAS_ARG,
+	.parse = conf_parse_uint,
+	.free = NULL,
+	.set_default = conf_default_uint,
 };
 
 const struct conf_type conf_string = {
