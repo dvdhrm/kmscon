@@ -419,6 +419,8 @@ static void print_help()
 		"\t-t, --term <TERM>           [vt220]\n"
 		"\t                              Value of the TERM environment variable\n"
 		"\t                              for the child process\n"
+		"\t    --palette <name>        [default]\n"
+		"\t                              Select the used color palette\n"
 		"\n"
 		"Video Options:\n"
 		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
@@ -510,6 +512,7 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
+	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),

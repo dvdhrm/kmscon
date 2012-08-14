@@ -68,6 +68,9 @@ struct kmscon_conf_t {
 
 	/* font engine */
 	char *font_engine;
+
+	/* color palette */
+	char *palette;
 };
 
 extern struct kmscon_conf_t kmscon_conf;

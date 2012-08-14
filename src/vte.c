@@ -53,9 +53,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <X11/keysym.h>
-
 #include "console.h"
 #include "log.h"
+#include "main.h"
 #include "unicode.h"
 #include "vte.h"
 
@@ -219,6 +219,87 @@ static uint8_t color_palette[COLOR_NUM][3] = {
 	[COLOR_BACKGROUND]    = {   0,   0,   0 }, /* black */
 };
 
+static uint8_t color_palette_solarized[COLOR_NUM][3] = {
+	[COLOR_BLACK]         = {   7,  54,  66 }, /* black */
+	[COLOR_RED]           = { 220,  50,  47 }, /* red */
+	[COLOR_GREEN]         = { 133, 153,   0 }, /* green */
+	[COLOR_YELLOW]        = { 181, 137,   0 }, /* yellow */
+	[COLOR_BLUE]          = {  38, 139, 210 }, /* blue */
+	[COLOR_MAGENTA]       = { 211,  54, 130 }, /* magenta */
+	[COLOR_CYAN]          = {  42, 161, 152 }, /* cyan */
+	[COLOR_LIGHT_GREY]    = { 238, 232, 213 }, /* light grey */
+	[COLOR_DARK_GREY]     = {   0,  43,  54 }, /* dark grey */
+	[COLOR_LIGHT_RED]     = { 203,  75,  22 }, /* light red */
+	[COLOR_LIGHT_GREEN]   = {  88, 110, 117 }, /* light green */
+	[COLOR_LIGHT_YELLOW]  = { 101, 123, 131 }, /* light yellow */
+	[COLOR_LIGHT_BLUE]    = { 131, 148, 150 }, /* light blue */
+	[COLOR_LIGHT_MAGENTA] = { 108, 113, 196 }, /* light magenta */
+	[COLOR_LIGHT_CYAN]    = { 147, 161, 161 }, /* light cyan */
+	[COLOR_WHITE]         = { 253, 246, 227 }, /* white */
+
+	[COLOR_FOREGROUND]    = { 238, 232, 213 }, /* light grey */
+	[COLOR_BACKGROUND]    = {   7,  54,  66 }, /* black */
+};
+
+static uint8_t color_palette_solarized_black[COLOR_NUM][3] = {
+	[COLOR_BLACK]         = {   0,   0,   0 }, /* black */
+	[COLOR_RED]           = { 220,  50,  47 }, /* red */
+	[COLOR_GREEN]         = { 133, 153,   0 }, /* green */
+	[COLOR_YELLOW]        = { 181, 137,   0 }, /* yellow */
+	[COLOR_BLUE]          = {  38, 139, 210 }, /* blue */
+	[COLOR_MAGENTA]       = { 211,  54, 130 }, /* magenta */
+	[COLOR_CYAN]          = {  42, 161, 152 }, /* cyan */
+	[COLOR_LIGHT_GREY]    = { 238, 232, 213 }, /* light grey */
+	[COLOR_DARK_GREY]     = {   0,  43,  54 }, /* dark grey */
+	[COLOR_LIGHT_RED]     = { 203,  75,  22 }, /* light red */
+	[COLOR_LIGHT_GREEN]   = {  88, 110, 117 }, /* light green */
+	[COLOR_LIGHT_YELLOW]  = { 101, 123, 131 }, /* light yellow */
+	[COLOR_LIGHT_BLUE]    = { 131, 148, 150 }, /* light blue */
+	[COLOR_LIGHT_MAGENTA] = { 108, 113, 196 }, /* light magenta */
+	[COLOR_LIGHT_CYAN]    = { 147, 161, 161 }, /* light cyan */
+	[COLOR_WHITE]         = { 253, 246, 227 }, /* white */
+
+	[COLOR_FOREGROUND]    = { 238, 232, 213 }, /* light grey */
+	[COLOR_BACKGROUND]    = {   0,   0,   0 }, /* black */
+};
+
+static uint8_t color_palette_solarized_white[COLOR_NUM][3] = {
+	[COLOR_BLACK]         = {   7,  54,  66 }, /* black */
+	[COLOR_RED]           = { 220,  50,  47 }, /* red */
+	[COLOR_GREEN]         = { 133, 153,   0 }, /* green */
+	[COLOR_YELLOW]        = { 181, 137,   0 }, /* yellow */
+	[COLOR_BLUE]          = {  38, 139, 210 }, /* blue */
+	[COLOR_MAGENTA]       = { 211,  54, 130 }, /* magenta */
+	[COLOR_CYAN]          = {  42, 161, 152 }, /* cyan */
+	[COLOR_LIGHT_GREY]    = { 238, 232, 213 }, /* light grey */
+	[COLOR_DARK_GREY]     = {   0,  43,  54 }, /* dark grey */
+	[COLOR_LIGHT_RED]     = { 203,  75,  22 }, /* light red */
+	[COLOR_LIGHT_GREEN]   = {  88, 110, 117 }, /* light green */
+	[COLOR_LIGHT_YELLOW]  = { 101, 123, 131 }, /* light yellow */
+	[COLOR_LIGHT_BLUE]    = { 131, 148, 150 }, /* light blue */
+	[COLOR_LIGHT_MAGENTA] = { 108, 113, 196 }, /* light magenta */
+	[COLOR_LIGHT_CYAN]    = { 147, 161, 161 }, /* light cyan */
+	[COLOR_WHITE]         = { 253, 246, 227 }, /* white */
+
+	[COLOR_FOREGROUND]    = {   7,  54,  66 }, /* black */
+	[COLOR_BACKGROUND]    = { 238, 232, 213 }, /* light grey */
+};
+
+static uint8_t (*get_palette(void))[3]
+{
+	if (!kmscon_conf.palette)
+		return color_palette;
+
+	if (!strcmp(kmscon_conf.palette, "solarized"))
+		return color_palette_solarized;
+	if (!strcmp(kmscon_conf.palette, "solarized-black"))
+		return color_palette_solarized_black;
+	if (!strcmp(kmscon_conf.palette, "solarized-white"))
+		return color_palette_solarized_white;
+
+	return color_palette;
+}
+
 static void set_fcolor(struct font_char_attr *attr, unsigned int color,
 		       struct kmscon_vte *vte)
 {
@@ -275,7 +356,7 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;
-	vte->palette = color_palette;
+	vte->palette = get_palette();
 	set_fcolor(&vte->def_attr, COLOR_FOREGROUND, vte);
 	set_bcolor(&vte->def_attr, COLOR_BACKGROUND, vte);
 
