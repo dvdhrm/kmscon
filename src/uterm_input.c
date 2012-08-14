@@ -38,7 +38,6 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
-#include "main.h"
 #include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
