@@ -153,7 +153,20 @@ static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	if (!kbd)
 		return;
 
-	state = kbd->uxkb.state;
+	/* TODO: Urghs, while the input device was closed we might have missed
+	 * some events that affect internal state. As xkbcommon does not provide
+	 * a way to reset the internal state, we simply recreate the state. This
+	 * should have the same effect.
+	 * It also has a bug that if the CTRL-Release event is skipped, then
+	 * every further release will never perform a _real_ release. Kind of
+	 * buggy so we should fix it upstream. */
+	state = xkb_state_new(kbd->desc->uxkb.keymap);
+	if (!state) {
+		log_warning("cannot recreate xkb-state");
+		return;
+	}
+	xkb_state_unref(kbd->uxkb.state);
+	kbd->uxkb.state = state;
 
 	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
 		if (!input_bit_is_set(ledbits, led_names[i].led))
@@ -166,8 +179,6 @@ static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 		 *	xkb_state_led_name_set_active(state, led_names[i].led);
 		 */
 	}
-
-	(void)state;
 }
 
 static int uxkb_desc_init(struct kbd_desc **out,
