@@ -158,8 +158,8 @@ struct kmscon_vte {
 	int csi_argv[CSI_ARG_MAX];
 	unsigned int csi_flags;
 
-	unsigned int def_fcol;
-	unsigned int def_bcol;
+	uint8_t (*palette)[3];
+	struct font_char_attr def_attr;
 	struct font_char_attr cattr;
 	unsigned int flags;
 
@@ -201,7 +201,7 @@ static uint8_t color_palette[COLOR_NUM][3] = {
 	[COLOR_GREEN]         = {   0, 205,   0 }, /* green */
 	[COLOR_YELLOW]        = { 205, 205,   0 }, /* yellow */
 	[COLOR_BLUE]          = {   0,   0, 238 }, /* blue */
-	[COLOR_MAGENTA]       = { 205, 0  , 205 }, /* magenta */
+	[COLOR_MAGENTA]       = { 205,   0, 205 }, /* magenta */
 	[COLOR_CYAN]          = {   0, 205, 205 }, /* cyan */
 	[COLOR_LIGHT_GREY]    = { 229, 229, 229 }, /* light grey */
 	[COLOR_DARK_GREY]     = { 127, 127, 127 }, /* dark grey */
@@ -214,24 +214,42 @@ static uint8_t color_palette[COLOR_NUM][3] = {
 	[COLOR_WHITE]         = { 255, 255, 255 }  /* white */
 };
 
-static void set_fcolor(struct font_char_attr *attr, unsigned int color)
+static void set_fcolor(struct font_char_attr *attr, unsigned int color,
+		       struct kmscon_vte *vte)
 {
 	if (color >= COLOR_NUM)
 		color = COLOR_WHITE;
 
-	attr->fr = color_palette[color][0];
-	attr->fg = color_palette[color][1];
-	attr->fb = color_palette[color][2];
+	attr->fr = vte->palette[color][0];
+	attr->fg = vte->palette[color][1];
+	attr->fb = vte->palette[color][2];
 }
 
-static void set_bcolor(struct font_char_attr *attr, unsigned int color)
+static void set_bcolor(struct font_char_attr *attr, unsigned int color,
+		       struct kmscon_vte *vte)
 {
 	if (color >= COLOR_NUM)
 		color = COLOR_BLACK;
 
-	attr->br = color_palette[color][0];
-	attr->bg = color_palette[color][1];
-	attr->bb = color_palette[color][2];
+	attr->br = vte->palette[color][0];
+	attr->bg = vte->palette[color][1];
+	attr->bb = vte->palette[color][2];
+}
+
+static void copy_fcolor(struct font_char_attr *dest,
+			const struct font_char_attr *src)
+{
+	dest->fr = src->fr;
+	dest->fg = src->fg;
+	dest->fb = src->fb;
+}
+
+static void copy_bcolor(struct font_char_attr *dest,
+			const struct font_char_attr *src)
+{
+	dest->br = src->br;
+	dest->bg = src->bg;
+	dest->bb = src->bb;
 }
 
 int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
@@ -252,14 +270,17 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;
-	vte->def_fcol = COLOR_LIGHT_GREY;
-	vte->def_bcol = COLOR_BLACK;
+	vte->palette = color_palette;
+	set_fcolor(&vte->def_attr, COLOR_LIGHT_GREY, vte);
+	set_bcolor(&vte->def_attr, COLOR_BLACK, vte);
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
 		goto err_free;
 
 	kmscon_vte_reset(vte);
+	kmscon_console_set_def_attr(vte->con, &vte->def_attr);
+	kmscon_console_erase_screen(vte->con, false);
 
 	log_debug("new vte object");
 	kmscon_console_ref(vte->con);
@@ -369,8 +390,8 @@ static void reset_state(struct kmscon_vte *vte)
 	vte->saved_state.gl = &kmscon_vte_unicode_lower;
 	vte->saved_state.gr = &kmscon_vte_unicode_upper;
 
-	set_fcolor(&vte->saved_state.cattr, vte->def_fcol);
-	set_bcolor(&vte->saved_state.cattr, vte->def_bcol);
+	copy_fcolor(&vte->saved_state.cattr, &vte->def_attr);
+	copy_bcolor(&vte->saved_state.cattr, &vte->def_attr);
 	vte->saved_state.cattr.bold = 0;
 	vte->saved_state.cattr.underline = 0;
 	vte->saved_state.cattr.inverse = 0;
@@ -863,8 +884,8 @@ static void csi_attribute(struct kmscon_vte *vte)
 		case -1:
 			break;
 		case 0:
-			set_fcolor(&vte->cattr, vte->def_fcol);
-			set_bcolor(&vte->cattr, vte->def_bcol);
+			copy_fcolor(&vte->cattr, &vte->def_attr);
+			copy_bcolor(&vte->cattr, &vte->def_attr);
 			vte->cattr.bold = 0;
 			vte->cattr.underline = 0;
 			vte->cattr.inverse = 0;
@@ -888,106 +909,106 @@ static void csi_attribute(struct kmscon_vte *vte)
 			vte->cattr.inverse = 0;
 			break;
 		case 30:
-			set_fcolor(&vte->cattr, COLOR_BLACK);
+			set_fcolor(&vte->cattr, COLOR_BLACK, vte);
 			break;
 		case 31:
-			set_fcolor(&vte->cattr, COLOR_RED);
+			set_fcolor(&vte->cattr, COLOR_RED, vte);
 			break;
 		case 32:
-			set_fcolor(&vte->cattr, COLOR_GREEN);
+			set_fcolor(&vte->cattr, COLOR_GREEN, vte);
 			break;
 		case 33:
-			set_fcolor(&vte->cattr, COLOR_YELLOW);
+			set_fcolor(&vte->cattr, COLOR_YELLOW, vte);
 			break;
 		case 34:
-			set_fcolor(&vte->cattr, COLOR_BLUE);
+			set_fcolor(&vte->cattr, COLOR_BLUE, vte);
 			break;
 		case 35:
-			set_fcolor(&vte->cattr, COLOR_MAGENTA);
+			set_fcolor(&vte->cattr, COLOR_MAGENTA, vte);
 			break;
 		case 36:
-			set_fcolor(&vte->cattr, COLOR_CYAN);
+			set_fcolor(&vte->cattr, COLOR_CYAN, vte);
 			break;
 		case 37:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_GREY);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_GREY, vte);
 			break;
 		case 39:
-			set_fcolor(&vte->cattr, vte->def_fcol);
+			copy_fcolor(&vte->cattr, &vte->def_attr);
 			break;
 		case 40:
-			set_bcolor(&vte->cattr, COLOR_BLACK);
+			set_bcolor(&vte->cattr, COLOR_BLACK, vte);
 			break;
 		case 41:
-			set_bcolor(&vte->cattr, COLOR_RED);
+			set_bcolor(&vte->cattr, COLOR_RED, vte);
 			break;
 		case 42:
-			set_bcolor(&vte->cattr, COLOR_GREEN);
+			set_bcolor(&vte->cattr, COLOR_GREEN, vte);
 			break;
 		case 43:
-			set_bcolor(&vte->cattr, COLOR_YELLOW);
+			set_bcolor(&vte->cattr, COLOR_YELLOW, vte);
 			break;
 		case 44:
-			set_bcolor(&vte->cattr, COLOR_BLUE);
+			set_bcolor(&vte->cattr, COLOR_BLUE, vte);
 			break;
 		case 45:
-			set_bcolor(&vte->cattr, COLOR_MAGENTA);
+			set_bcolor(&vte->cattr, COLOR_MAGENTA, vte);
 			break;
 		case 46:
-			set_bcolor(&vte->cattr, COLOR_CYAN);
+			set_bcolor(&vte->cattr, COLOR_CYAN, vte);
 			break;
 		case 47:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_GREY);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_GREY, vte);
 			break;
 		case 49:
-			set_bcolor(&vte->cattr, vte->def_bcol);
+			copy_bcolor(&vte->cattr, &vte->def_attr);
 			break;
 		case 90:
-			set_fcolor(&vte->cattr, COLOR_DARK_GREY);
+			set_fcolor(&vte->cattr, COLOR_DARK_GREY, vte);
 			break;
 		case 91:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_RED);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_RED, vte);
 			break;
 		case 92:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_GREEN);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_GREEN, vte);
 			break;
 		case 93:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_YELLOW);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_YELLOW, vte);
 			break;
 		case 94:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_BLUE);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_BLUE, vte);
 			break;
 		case 95:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_MAGENTA);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_MAGENTA, vte);
 			break;
 		case 96:
-			set_fcolor(&vte->cattr, COLOR_LIGHT_CYAN);
+			set_fcolor(&vte->cattr, COLOR_LIGHT_CYAN, vte);
 			break;
 		case 97:
-			set_fcolor(&vte->cattr, COLOR_WHITE);
+			set_fcolor(&vte->cattr, COLOR_WHITE, vte);
 			break;
 		case 100:
-			set_bcolor(&vte->cattr, COLOR_DARK_GREY);
+			set_bcolor(&vte->cattr, COLOR_DARK_GREY, vte);
 			break;
 		case 101:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_RED);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_RED, vte);
 			break;
 		case 102:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_GREEN);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_GREEN, vte);
 			break;
 		case 103:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_YELLOW);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_YELLOW, vte);
 			break;
 		case 104:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_BLUE);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_BLUE, vte);
 			break;
 		case 105:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_MAGENTA);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_MAGENTA, vte);
 			break;
 		case 106:
-			set_bcolor(&vte->cattr, COLOR_LIGHT_CYAN);
+			set_bcolor(&vte->cattr, COLOR_LIGHT_CYAN, vte);
 			break;
 		case 107:
-			set_bcolor(&vte->cattr, COLOR_WHITE);
+			set_bcolor(&vte->cattr, COLOR_WHITE, vte);
 			break;
 		case 38:
 			/* fallthrough */
@@ -1002,7 +1023,7 @@ static void csi_attribute(struct kmscon_vte *vte)
 			code = vte->csi_argv[i + 2];
 			if (vte->csi_argv[i] == 38) {
 				if (code < 16) {
-					set_fcolor(&vte->cattr, code);
+					set_fcolor(&vte->cattr, code, vte);
 				} else if (code < 232) {
 					code -= 16;
 					vte->cattr.fb = bval[code % 6];
@@ -1018,7 +1039,7 @@ static void csi_attribute(struct kmscon_vte *vte)
 				}
 			} else {
 				if (code < 16) {
-					set_bcolor(&vte->cattr, code);
+					set_bcolor(&vte->cattr, code, vte);
 				} else if (code < 232) {
 					code -= 16;
 					vte->cattr.bb = bval[code % 6];
