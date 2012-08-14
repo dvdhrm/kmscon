@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <X11/keysym.h>
 #include "console.h"
 #include "eloop.h"
 #include "log.h"
@@ -309,7 +310,30 @@ static void input_event(struct uterm_input *input,
 	if (!term->opened)
 		return;
 
-	kmscon_vte_handle_keyboard(term->vte, ev);
+	if (UTERM_INPUT_HAS_MODS(ev, UTERM_SHIFT_MASK)) {
+		if (ev->keysym == XK_Up) {
+			kmscon_console_sb_up(term->console, 1);
+			schedule_redraw(term);
+			return;
+		} else if (ev->keysym == XK_Down) {
+			kmscon_console_sb_down(term->console, 1);
+			schedule_redraw(term);
+			return;
+		} else if (ev->keysym == XK_Prior) {
+			kmscon_console_sb_page_up(term->console, 1);
+			schedule_redraw(term);
+			return;
+		} else if (ev->keysym == XK_Next) {
+			kmscon_console_sb_page_down(term->console, 1);
+			schedule_redraw(term);
+			return;
+		}
+	}
+
+	if (kmscon_vte_handle_keyboard(term->vte, ev)) {
+		kmscon_console_sb_reset(term->console);
+		schedule_redraw(term);
+	}
 }
 
 static void write_event(struct kmscon_vte *vte, const char *u8, size_t len,
