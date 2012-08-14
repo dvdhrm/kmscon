@@ -63,6 +63,8 @@ int kmscon_console_set_margins(struct kmscon_console *con,
 void kmscon_console_set_max_sb(struct kmscon_console *con, unsigned int max);
 void kmscon_console_clear_sb(struct kmscon_console *con);
 
+void kmscon_console_set_def_attr(struct kmscon_console *con,
+				 const struct font_char_attr *attr);
 void kmscon_console_reset(struct kmscon_console *con);
 void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags);
 void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags);

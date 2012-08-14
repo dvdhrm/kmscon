@@ -627,6 +627,15 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 	con->sb_pos = NULL;
 }
 
+void kmscon_console_set_def_attr(struct kmscon_console *con,
+				 const struct font_char_attr *attr)
+{
+	if (!con || !attr)
+		return;
+
+	memcpy(&con->def_attr, attr, sizeof(*attr));
+}
+
 void kmscon_console_reset(struct kmscon_console *con)
 {
 	unsigned int i;
