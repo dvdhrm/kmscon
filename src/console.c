@@ -627,6 +627,65 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 	con->sb_pos = NULL;
 }
 
+void kmscon_console_sb_up(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	while (num--) {
+		if (con->sb_pos) {
+			if (!con->sb_pos->prev)
+				return;
+
+			con->sb_pos = con->sb_pos->prev;
+		} else if (!con->sb_last) {
+			return;
+		} else {
+			con->sb_pos = con->sb_last;
+		}
+	}
+}
+
+void kmscon_console_sb_down(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	while (num--) {
+		if (con->sb_pos) {
+			con->sb_pos = con->sb_pos->next;
+			if (!con->sb_pos)
+				return;
+		} else {
+			return;
+		}
+	}
+}
+
+void kmscon_console_sb_page_up(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	kmscon_console_sb_up(con, num * con->size_y);
+}
+
+void kmscon_console_sb_page_down(struct kmscon_console *con, unsigned int num)
+{
+	if (!con || !num)
+		return;
+
+	kmscon_console_sb_down(con, num * con->size_y);
+}
+
+void kmscon_console_sb_reset(struct kmscon_console *con)
+{
+	if (!con)
+		return;
+
+	con->sb_pos = NULL;
+}
+
 void kmscon_console_set_def_attr(struct kmscon_console *con,
 				 const struct font_char_attr *attr)
 {
