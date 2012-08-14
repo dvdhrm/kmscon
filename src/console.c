@@ -61,9 +61,6 @@ struct kmscon_console {
 
 	/* default attributes for new cells */
 	struct font_char_attr def_attr;
-	uint8_t bg_r;
-	uint8_t bg_g;
-	uint8_t bg_b;
 
 	/* current buffer */
 	unsigned int size_x;
@@ -628,18 +625,6 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 	con->sb_last = NULL;
 	con->sb_count = 0;
 	con->sb_pos = NULL;
-}
-
-/* set background color */
-void kmscon_console_set_bg(struct kmscon_console *con, uint8_t r, uint8_t g,
-			   uint8_t b)
-{
-	if (!con)
-		return;
-
-	con->bg_r = r;
-	con->bg_g = g;
-	con->bg_b = b;
 }
 
 void kmscon_console_reset(struct kmscon_console *con)
