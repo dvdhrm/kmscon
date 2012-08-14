@@ -211,6 +211,8 @@ static void seat_add_video(struct kmscon_seat *seat,
 
 	if (kmscon_conf.use_fbdev)
 		mode = UTERM_VIDEO_FBDEV;
+	else if (kmscon_conf.dumb)
+		mode = UTERM_VIDEO_DUMB;
 	else
 		mode = UTERM_VIDEO_DRM;
 
@@ -424,6 +426,8 @@ static void print_help()
 		"\n"
 		"Video Options:\n"
 		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
+		"\t    --dumb                  [off]   Use dumb DRM instead of hardware-\n"
+		"\t                                    accelerated DRM devices\n"
 		"\n"
 		"Input Device Options:\n"
 		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
@@ -514,6 +518,7 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &kmscon_conf.debug, false),
 	CONF_OPTION_BOOL(0, "silent", NULL, &kmscon_conf.silent, false),
 	CONF_OPTION_BOOL(0, "fbdev", NULL, &kmscon_conf.use_fbdev, false),
+	CONF_OPTION_BOOL(0, "dumb", NULL, &kmscon_conf.dumb, false),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),

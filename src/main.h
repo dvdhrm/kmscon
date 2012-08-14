@@ -49,6 +49,8 @@ struct kmscon_conf_t {
 	bool switchvt;
 	/* use framebuffers instead of DRM */
 	bool use_fbdev;
+	/* use dumb DRM devices */
+	bool dumb;
 
 	/* input KBD layout */
 	char *xkb_layout;
