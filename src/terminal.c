@@ -343,6 +343,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	ret = kmscon_console_new(&term->console);
 	if (ret)
 		goto err_free;
+	kmscon_console_set_max_sb(term->console, kmscon_conf.sb_size);
 
 	ret = kmscon_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)

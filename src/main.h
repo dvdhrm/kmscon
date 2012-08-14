@@ -63,6 +63,8 @@ struct kmscon_conf_t {
 	bool login;
 	/* argv for login process */
 	char **argv;
+	/* terminal scroll-back buffer size */
+	unsigned int sb_size;
 
 	/* seats */
 	char **seats;

@@ -423,6 +423,8 @@ static void print_help()
 		"\t                              for the child process\n"
 		"\t    --palette <name>        [default]\n"
 		"\t                              Select the used color palette\n"
+		"\t    --sb-size <num>         [1000]\n"
+		"\t                              Size of the scrollback-buffer in lines\n"
 		"\n"
 		"Video Options:\n"
 		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
@@ -523,6 +525,7 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
 	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
+	CONF_OPTION_UINT(0, "sb-size", NULL, &kmscon_conf.sb_size, 1000),
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
