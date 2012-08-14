@@ -149,8 +149,12 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct screen *scr;
 	int ret;
 	unsigned int cols, rows;
-	const struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
+	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 	const char *be;
+
+	attr.points = kmscon_conf.font_size;
+	strncpy(attr.name, kmscon_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
+	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
 
 	kmscon_dlist_for_each(iter, &term->screens) {
 		scr = kmscon_dlist_entry(iter, struct screen, list);

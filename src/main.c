@@ -431,7 +431,12 @@ static void print_help()
 		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
 		"\n"
 		"Font Options:\n"
-		"\t    --font-engine <engine>  [pango] Font engine\n",
+		"\t    --font-engine <engine>  [pango]\n"
+		"\t                              Font engine\n"
+		"\t    --font-size <points>    [10]\n"
+		"\t                              Font size in points\n"
+		"\t    --font-name <name>      [monospace]\n"
+		"\t                              Font name\n",
 		"kmscon");
 	/*
 	 * 80 char line:
@@ -517,6 +522,8 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
+	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 10),
+	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),
 	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
 };
 

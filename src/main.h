@@ -68,6 +68,10 @@ struct kmscon_conf_t {
 
 	/* font engine */
 	char *font_engine;
+	/* font size */
+	unsigned int font_size;
+	/* font name */
+	char *font_name;
 
 	/* color palette */
 	char *palette;
