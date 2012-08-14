@@ -67,7 +67,7 @@ void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_reset(struct kmscon_vte *vte);
 void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
-void kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
+bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 				const struct uterm_input_event *ev);
 
 #endif /* KMSCON_VTE_H */
