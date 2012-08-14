@@ -192,6 +192,8 @@ enum vte_color {
 	COLOR_LIGHT_MAGENTA,
 	COLOR_LIGHT_CYAN,
 	COLOR_WHITE,
+	COLOR_FOREGROUND,
+	COLOR_BACKGROUND,
 	COLOR_NUM
 };
 
@@ -211,7 +213,10 @@ static uint8_t color_palette[COLOR_NUM][3] = {
 	[COLOR_LIGHT_BLUE]    = {  92,  92, 255 }, /* light blue */
 	[COLOR_LIGHT_MAGENTA] = { 255,   0, 255 }, /* light magenta */
 	[COLOR_LIGHT_CYAN]    = {   0, 255, 255 }, /* light cyan */
-	[COLOR_WHITE]         = { 255, 255, 255 }  /* white */
+	[COLOR_WHITE]         = { 255, 255, 255 }, /* white */
+
+	[COLOR_FOREGROUND]    = { 229, 229, 229 }, /* light grey */
+	[COLOR_BACKGROUND]    = {   0,   0,   0 }, /* black */
 };
 
 static void set_fcolor(struct font_char_attr *attr, unsigned int color,
@@ -271,8 +276,8 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 	vte->write_cb = write_cb;
 	vte->data = data;
 	vte->palette = color_palette;
-	set_fcolor(&vte->def_attr, COLOR_LIGHT_GREY, vte);
-	set_bcolor(&vte->def_attr, COLOR_BLACK, vte);
+	set_fcolor(&vte->def_attr, COLOR_FOREGROUND, vte);
+	set_bcolor(&vte->def_attr, COLOR_BACKGROUND, vte);
 
 	ret = kmscon_utf8_mach_new(&vte->mach);
 	if (ret)
