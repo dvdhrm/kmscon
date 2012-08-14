@@ -66,7 +66,7 @@ struct uterm_input_dev {
 struct uterm_input {
 	unsigned long ref;
 	struct ev_eloop *eloop;
-	bool awake;
+	int awake;
 
 	struct kmscon_hook *hook;
 	struct kbd_desc *desc;
@@ -203,7 +203,7 @@ static void input_new_dev(struct uterm_input *input,
 	if (ret)
 		goto err_node;
 
-	if (input->awake) {
+	if (input->awake > 0) {
 		ret = input_wake_up_dev(dev);
 		if (ret)
 			goto err_kbd;
@@ -426,10 +426,14 @@ void uterm_input_sleep(struct uterm_input *input)
 	struct kmscon_dlist *iter;
 	struct uterm_input_dev *dev;
 
-	if (!input || !input->awake)
+	if (!input)
 		return;
 
-	input->awake = false;
+	--input->awake;
+	if (input->awake != 0)
+		return;
+
+	log_debug("going to sleep");
 
 	kmscon_dlist_for_each(iter, &input->devices) {
 		dev = kmscon_dlist_entry(iter,
@@ -445,10 +449,14 @@ void uterm_input_wake_up(struct uterm_input *input)
 	struct uterm_input_dev *dev;
 	int ret;
 
-	if (!input || input->awake)
+	if (!input)
 		return;
 
-	input->awake = true;
+	++input->awake;
+	if (input->awake != 1)
+		return;
+
+	log_debug("wakeing up");
 
 	kmscon_dlist_for_each_safe(iter, tmp, &input->devices) {
 		dev = kmscon_dlist_entry(iter,
@@ -465,7 +473,7 @@ bool uterm_input_is_awake(struct uterm_input *input)
 	if (!input)
 		return false;
 
-	return input->awake;
+	return input->awake > 0;
 }
 
 void uterm_input_keysym_to_string(struct uterm_input *input,
