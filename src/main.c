@@ -86,21 +86,21 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 
 	if (action == UTERM_VT_ACTIVATE) {
 		seat->awake = true;
-		kmscon_ui_wake_up(seat->ui);
 		uterm_input_wake_up(seat->input);
 
 		kmscon_dlist_for_each(iter, &seat->videos) {
 			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
 			uterm_video_wake_up(vid->video);
 		}
+		kmscon_ui_wake_up(seat->ui);
 	} else if (action == UTERM_VT_DEACTIVATE) {
+		kmscon_ui_sleep(seat->ui);
 		kmscon_dlist_for_each(iter, &seat->videos) {
 			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
 			uterm_video_sleep(vid->video);
 		}
 
 		uterm_input_sleep(seat->input);
-		kmscon_ui_sleep(seat->ui);
 		seat->awake = false;
 	}
 
