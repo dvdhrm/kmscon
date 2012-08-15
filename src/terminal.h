@@ -66,4 +66,8 @@ int kmscon_terminal_add_display(struct kmscon_terminal *term,
 void kmscon_terminal_remove_display(struct kmscon_terminal *term,
 				    struct uterm_display *disp);
 
+void kmscon_terminal_wake_up(struct kmscon_terminal *term);
+void kmscon_terminal_sleep(struct kmscon_terminal *term);
+bool kmscon_terminal_is_awake(struct kmscon_terminal *term);
+
 #endif /* KMSCON_TERMINAL_H */

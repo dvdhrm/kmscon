@@ -271,6 +271,7 @@ void kmscon_ui_wake_up(struct kmscon_ui *ui)
 		return;
 
 	ui->awake = true;
+	kmscon_terminal_wake_up(ui->term);
 }
 
 void kmscon_ui_sleep(struct kmscon_ui *ui)
@@ -279,6 +280,7 @@ void kmscon_ui_sleep(struct kmscon_ui *ui)
 		return;
 
 	ui->awake = false;
+	kmscon_terminal_sleep(ui->term);
 }
 
 bool kmscon_ui_is_awake(struct kmscon_ui *ui)

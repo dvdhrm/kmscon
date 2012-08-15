@@ -61,6 +61,7 @@ struct kmscon_terminal {
 	struct ev_eloop *eloop;
 	struct uterm_input *input;
 	bool opened;
+	bool awake;
 
 	struct kmscon_dlist screens;
 	unsigned int min_cols;
@@ -82,6 +83,9 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 	struct kmscon_dlist *iter;
 	struct screen *ent;
 
+	if (!term->awake)
+		return;
+
 	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	term->redraw = false;
 
@@ -98,7 +102,7 @@ static void schedule_redraw(struct kmscon_terminal *term)
 {
 	int ret;
 
-	if (term->redraw)
+	if (term->redraw || !term->awake)
 		return;
 
 	ret = ev_eloop_register_idle_cb(term->eloop, draw_all, term);
@@ -307,7 +311,7 @@ static void input_event(struct uterm_input *input,
 {
 	struct kmscon_terminal *term = data;
 
-	if (!term->opened)
+	if (!term->opened || !term->awake)
 		return;
 
 	if (UTERM_INPUT_HAS_MODS(ev, UTERM_SHIFT_MASK)) {
@@ -486,4 +490,26 @@ void kmscon_terminal_remove_display(struct kmscon_terminal *term,
 		return;
 
 	rm_display(term, disp);
+}
+
+void kmscon_terminal_wake_up(struct kmscon_terminal *term)
+{
+	if (!term || term->awake)
+		return;
+
+	term->awake = true;
+	schedule_redraw(term);
+}
+
+void kmscon_terminal_sleep(struct kmscon_terminal *term)
+{
+	if (!term || !term->awake)
+		return;
+
+	term->awake = false;
+}
+
+bool kmscon_terminal_is_awake(struct kmscon_terminal *term)
+{
+	return term && term->awake;
 }
