@@ -148,21 +148,21 @@ static void seat_new(struct kmscon_app *app,
 		goto err_free;
 	}
 
-	ret = uterm_vt_allocate(app->vtm, &seat->vt, seat->sname, vt_event,
-				seat);
-	if (ret)
-		goto err_name;
-
 	ret = uterm_input_new(&seat->input, app->eloop,
 			      kmscon_conf.xkb_layout,
 			      kmscon_conf.xkb_variant,
 			      kmscon_conf.xkb_options);
 	if (ret)
-		goto err_vt;
+		goto err_name;
+
+	ret = uterm_vt_allocate(app->vtm, &seat->vt, seat->sname,
+				seat->input, vt_event, seat);
+	if (ret)
+		goto err_input;
 
 	ret = kmscon_ui_new(&seat->ui, app->eloop, seat->input);
 	if (ret)
-		goto err_input;
+		goto err_vt;
 
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	kmscon_dlist_link(&app->seats, &seat->list);
@@ -170,10 +170,10 @@ static void seat_new(struct kmscon_app *app,
 	log_info("new seat %s", seat->sname);
 	return;
 
-err_input:
-	uterm_input_unref(seat->input);
 err_vt:
 	uterm_vt_deallocate(seat->vt);
+err_input:
+	uterm_input_unref(seat->input);
 err_name:
 	free(seat->sname);
 err_free:

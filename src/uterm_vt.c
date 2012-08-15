@@ -40,6 +40,7 @@
 #include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
+#include <X11/keysym.h>
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"
@@ -52,6 +53,7 @@ struct uterm_vt {
 	unsigned long ref;
 	struct kmscon_dlist list;
 	struct uterm_vt_master *vtm;
+	struct uterm_input *input;
 	unsigned int mode;
 
 	uterm_vt_cb cb;
@@ -391,6 +393,25 @@ static bool check_vt_support(void)
 		return false;
 }
 
+static void vt_input(struct uterm_input *input,
+		     struct uterm_input_event *ev,
+		     void *data)
+{
+	struct uterm_vt *vt = data;
+
+	if (UTERM_INPUT_HAS_MODS(ev, UTERM_MOD4_MASK | UTERM_CONTROL_MASK)) {
+		if (ev->keysym == XK_F12) {
+			if (vt->active) {
+				log_debug("deactivating fake VT due to user input");
+				vt_call(vt, UTERM_VT_DEACTIVATE);
+			} else {
+				log_debug("activating fake VT due to user input");
+				vt_call(vt, UTERM_VT_ACTIVATE);
+			}
+		}
+	}
+}
+
 static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct uterm_vt *vt = data;
@@ -425,6 +446,7 @@ static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      const char *seat,
+		      struct uterm_input *input,
 		      uterm_vt_cb cb,
 		      void *data)
 {
@@ -464,15 +486,26 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 			goto err_sig2;
 	} else {
 		vt->mode = UTERM_VT_FAKE;
-		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event, vt);
+		vt->input = input;
+
+		ret = uterm_input_register_cb(vt->input, vt_input, vt);
 		if (ret)
 			goto err_sig2;
+
+		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event, vt);
+		if (ret)
+			goto err_input;
+
+		uterm_input_ref(vt->input);
+		uterm_input_wake_up(vt->input);
 	}
 
 	kmscon_dlist_link(&vtm->vts, &vt->list);
 	*out = vt;
 	return 0;
 
+err_input:
+	uterm_input_unregister_cb(vt->input, vt_input, vt);
 err_sig2:
 	ev_eloop_unregister_signal_cb(vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 err_sig1:
@@ -502,6 +535,8 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
 	kmscon_dlist_unlink(&vt->list);
+	uterm_input_sleep(vt->input);
+	uterm_input_unref(vt->input);
 	vt->vtm = NULL;
 	uterm_vt_unref(vt);
 }
