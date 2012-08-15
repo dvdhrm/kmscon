@@ -86,6 +86,7 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 
 	if (action == UTERM_VT_ACTIVATE) {
 		seat->awake = true;
+		kmscon_ui_wake_up(seat->ui);
 		uterm_input_wake_up(seat->input);
 
 		kmscon_dlist_for_each(iter, &seat->videos) {
@@ -99,6 +100,7 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 		}
 
 		uterm_input_sleep(seat->input);
+		kmscon_ui_sleep(seat->ui);
 		seat->awake = false;
 	}
 

@@ -51,6 +51,7 @@ struct kmscon_ui {
 	struct uterm_input *input;
 	struct kmscon_dlist video_list;
 	struct kmscon_terminal *term;
+	bool awake;
 };
 
 static void video_activate(struct ui_video *vid, struct uterm_display *disp)
@@ -167,6 +168,10 @@ static void input_event(struct uterm_input *input,
 			struct uterm_input_event *ev,
 			void *data)
 {
+	struct kmscon_ui *ui = data;
+
+	if (!ui->awake)
+		return;
 }
 
 static void terminal_event(struct kmscon_terminal *term,
@@ -258,4 +263,25 @@ void kmscon_ui_remove_video(struct kmscon_ui *ui, struct uterm_video *video)
 			return;
 		}
 	}
+}
+
+void kmscon_ui_wake_up(struct kmscon_ui *ui)
+{
+	if (!ui || ui->awake)
+		return;
+
+	ui->awake = true;
+}
+
+void kmscon_ui_sleep(struct kmscon_ui *ui)
+{
+	if (!ui || !ui->awake)
+		return;
+
+	ui->awake = false;
+}
+
+bool kmscon_ui_is_awake(struct kmscon_ui *ui)
+{
+	return ui && ui->awake;
 }

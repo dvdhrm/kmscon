@@ -46,4 +46,8 @@ void kmscon_ui_free(struct kmscon_ui *ui);
 void kmscon_ui_add_video(struct kmscon_ui *ui, struct uterm_video *video);
 void kmscon_ui_remove_video(struct kmscon_ui *ui, struct uterm_video *video);
 
+void kmscon_ui_wake_up(struct kmscon_ui *ui);
+void kmscon_ui_sleep(struct kmscon_ui *ui);
+bool kmscon_ui_is_awake(struct kmscon_ui *ui);
+
 #endif /* KMSCON_UI_H */
