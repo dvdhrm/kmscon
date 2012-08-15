@@ -789,7 +789,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	struct cell *cell;
 	struct font_char_attr attr;
 	bool cursor_done = false;
-	int ret;
+	int ret, warned = 0;
 
 	if (!con || !txt)
 		return;
@@ -837,9 +837,12 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 				attr.inverse = !attr.inverse;
 
 			ret = kmscon_text_draw(txt, cell->ch, j, i, &attr);
-			if (ret)
+			if (ret && warned++ < 3) {
 				log_debug("cannot draw glyph at %ux%u via text-renderer",
 					  j, i);
+				if (warned == 3)
+					log_debug("suppressing further warnings during this rendering");
+			}
 		}
 
 		if (k == cur_y + 1 && !cursor_done) {
