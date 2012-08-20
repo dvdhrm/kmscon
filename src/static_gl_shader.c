@@ -66,6 +66,32 @@ void gl_clear_error()
 	} while (err != GL_NO_ERROR);
 }
 
+const char *gl_err_to_str(GLenum err)
+{
+	switch (err) {
+	case GL_NO_ERROR:
+		return "<NO_ERROR>";
+	case GL_INVALID_ENUM:
+		return "<INVALID_ENUM>";
+	case GL_INVALID_VALUE:
+		return "<INVALID_VALUE>";
+	case GL_INVALID_OPERATION:
+		return "<INVALID_OPERATION>";
+#ifdef GL_STACK_OVERFLOW
+	case GL_STACK_OVERFLOW:
+		return "<STACK_OVERFLOW>";
+#endif
+#ifdef GL_STACK_UNDERFLOW
+	case GL_STACK_UNDERFLOW:
+		return "<STACK_UNDERFLOW>";
+#endif
+	case GL_OUT_OF_MEMORY:
+		return "<OUT_OF_MEMORY>";
+	default:
+		return "<unknown>";
+	}
+}
+
 /* return true if there is a pending GL error */
 bool gl_has_error(struct gl_shader *shader)
 {
@@ -73,7 +99,7 @@ bool gl_has_error(struct gl_shader *shader)
 
 	err = glGetError();
 	if (err != GL_NO_ERROR) {
-		llog_error(shader, "GL error %d", err);
+		llog_error(shader, "GL error %d: %s", err, gl_err_to_str(err));
 		return true;
 	}
 

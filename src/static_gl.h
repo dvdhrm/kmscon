@@ -85,5 +85,6 @@ void gl_tex_load(GLuint tex, unsigned int width, unsigned int stride,
 
 void gl_clear_error();
 bool gl_has_error(struct gl_shader *shader);
+const char *gl_err_to_str(GLenum err);
 
 #endif /* GL_H_INCLUDED */
