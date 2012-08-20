@@ -287,7 +287,14 @@ err_fd:
 
 static void real_close(struct uterm_vt *vt)
 {
+	struct vt_mode mode;
+
 	log_debug("closing vt %p", vt);
+
+	memset(&mode, 0, sizeof(mode));
+	mode.mode = VT_AUTO;
+	ioctl(vt->real_fd, VT_SETMODE, &mode);
+
 	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
 	ev_eloop_rm_fd(vt->real_efd);
