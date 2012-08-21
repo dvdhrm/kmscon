@@ -88,6 +88,7 @@ struct glyph {
 struct gltex {
 	struct kmscon_hashtable *glyphs;
 	unsigned int max_tex_size;
+	bool supports_rowlen;
 
 	struct kmscon_dlist atlases;
 
@@ -144,6 +145,7 @@ static int gltex_set(struct kmscon_text *txt)
 				"fgcolor", "bgcolor" };
 	unsigned int sw, sh;
 	GLint s;
+	const char *ext;
 
 	memset(gt, 0, sizeof(*gt));
 	kmscon_dlist_init(&gt->atlases);
@@ -191,6 +193,13 @@ static int gltex_set(struct kmscon_text *txt)
 	gt->max_tex_size = s;
 
 	gl_clear_error();
+
+	ext = (const char*)glGetString(GL_EXTENSIONS);
+	if (ext && strstr((const char*)ext, "GL_EXT_unpack_subimage")) {
+		gt->supports_rowlen = true;
+	} else {
+		log_warning("your GL implementation does not support GL_EXT_unpack_subimage, glyph-rendering may be slower than usual");
+	}
 
 	return 0;
 
@@ -363,8 +372,9 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	struct atlas *atlas;
 	struct glyph *glyph;
 	bool res;
-	int ret;
+	int ret, i;
 	GLenum err;
+	uint8_t *packed_data, *dst, *src;
 
 	res = kmscon_hashtable_find(gt->glyphs, (void**)&glyph,
 				    (void*)(unsigned long)ch);
@@ -394,25 +404,74 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 			goto err_free;
 	}
 
+	/* Funnily, not all OpenGLESv2 implementations support specifying the
+	 * stride of a texture. Therefore, we then need to create a
+	 * temporary image with a stride equal to the image width for loading
+	 * the texture. This may slow down loading new glyphs but doesn't affect
+	 * overall rendering performance. But driver developers should really
+	 * add this! */
+
 	gl_clear_error();
 
 	glBindTexture(GL_TEXTURE_2D, atlas->tex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, GLYPH_STRIDE(glyph));
-	glTexSubImage2D(GL_TEXTURE_2D, 0,
-			FONT_WIDTH(txt) * atlas->fill, 0,
-			GLYPH_WIDTH(glyph),
-			GLYPH_HEIGHT(glyph),
-			GL_ALPHA, GL_UNSIGNED_BYTE,
-			GLYPH_DATA(glyph));
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	if (!gt->supports_rowlen) {
+		if (GLYPH_STRIDE(glyph) == GLYPH_WIDTH(glyph)) {
+			glTexSubImage2D(GL_TEXTURE_2D, 0,
+					FONT_WIDTH(txt) * atlas->fill, 0,
+					GLYPH_WIDTH(glyph),
+					GLYPH_HEIGHT(glyph),
+					GL_ALPHA, GL_UNSIGNED_BYTE,
+					GLYPH_DATA(glyph));
+		} else {
+			packed_data = malloc(GLYPH_WIDTH(glyph) * GLYPH_HEIGHT(glyph));
+			if (!packed_data) {
+				log_error("cannot allocate memory for glyph storage");
+				ret = -ENOMEM;
+				goto err_free;
+			}
+
+			src = GLYPH_DATA(glyph);
+			dst = packed_data;
+			for (i = 0; i < GLYPH_HEIGHT(glyph); ++i) {
+				memcpy(dst, src, GLYPH_WIDTH(glyph));
+				dst += GLYPH_WIDTH(glyph);
+				src += GLYPH_STRIDE(glyph);
+			}
+
+			glTexSubImage2D(GL_TEXTURE_2D, 0,
+					FONT_WIDTH(txt) * atlas->fill, 0,
+					GLYPH_WIDTH(glyph),
+					GLYPH_HEIGHT(glyph),
+					GL_ALPHA, GL_UNSIGNED_BYTE,
+					packed_data);
+			free(packed_data);
+		}
+	} else {
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, GLYPH_STRIDE(glyph));
+		glTexSubImage2D(GL_TEXTURE_2D, 0,
+				FONT_WIDTH(txt) * atlas->fill, 0,
+				GLYPH_WIDTH(glyph),
+				GLYPH_HEIGHT(glyph),
+				GL_ALPHA, GL_UNSIGNED_BYTE,
+				GLYPH_DATA(glyph));
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	}
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+	/* Check for GL-errors
+	 * As OpenGL is a state-machine, we cannot really tell which call failed
+	 * without adding a glGetError() after each call. This is totally
+	 * overkill so let us at least catch the error afterwards.
+	 * We also add a hint to disable OpenGL if this does not work. This
+	 * should _always_ work but OpenGL is kind of a black-box that isn't
+	 * verbose at all and many things can go wrong. */
 
 	err = glGetError();
 	if (err != GL_NO_ERROR) {
 		gl_clear_error();
-		log_warning("cannot load glyph data into OpenGL texture (%d)",
-			    err);
+		log_warning("cannot load glyph data into OpenGL texture (%d: %s); disable the GL-renderer if this does not work reliably",
+			    err, gl_err_to_str(err));
 		ret = -EFAULT;
 		goto err_free;
 	}
