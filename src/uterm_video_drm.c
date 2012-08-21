@@ -969,7 +969,7 @@ static int video_init(struct uterm_video *video, const char *node)
 	}
 
 	ext = eglQueryString(drm->disp, EGL_EXTENSIONS);
-	if (!ext || !strstr(ext, "EGL_KHR_surfaceless_opengl")) {
+	if (!ext || (!strstr(ext, "EGL_KHR_surfaceless_opengl") && !strstr(ext, "EGL_KHR_surfaceless_context"))) {
 		log_err("surfaceless opengl not supported");
 		ret = -EFAULT;
 		goto err_disp;
