@@ -277,6 +277,10 @@ nodist_libkmscon_static_la_SOURCES = \
 	src/static_gl_math.c \
 	src/static_gl_shader.c \
 	src/static_shaders.c
+
+libkmscon_static_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(GLES2_CFLAGS)
 endif
 
 #
