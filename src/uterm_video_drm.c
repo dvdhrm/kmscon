@@ -83,7 +83,11 @@ static int init_rb(struct uterm_display *disp, struct drm_rb *rb)
 		return -EFAULT;
 	}
 
+#if defined(HAVE_DECL_GBM_BO_GET_STRIDE) && HAVE_DECL_GBM_BO_GET_STRIDE
 	stride = gbm_bo_get_stride(rb->bo);
+#else
+	stride = gbm_bo_get_pitch(rb->bo);
+#endif
 	handle = gbm_bo_get_handle(rb->bo).u32;
 
 	/* TODO: how can we choose 24/32 dynamically? */

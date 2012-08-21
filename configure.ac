@@ -362,6 +362,8 @@ AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
 AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
 AM_CONDITIONAL([KMSCON_HAVE_GLES2], [test x$gles2_enabled = xyes])
 
+AC_CHECK_DECLS([gbm_bo_get_stride], [], [], [[#include <gbm.h>]])
+
 #
 # xkbcommon keyboard backend
 # This checks for the xkbcommon library for keyboard handling in uterm. If it is
