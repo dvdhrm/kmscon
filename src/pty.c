@@ -292,7 +292,7 @@ static int send_buf(struct kmscon_pty *pty)
 static void pty_input(struct ev_fd *fd, int mask, void *data)
 {
 	int ret;
-	ssize_t len;
+	ssize_t len, num;
 	struct kmscon_pty *pty = data;
 
 	if (mask & EV_ERR) {
@@ -310,17 +310,21 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 	}
 
 	if (mask & EV_READABLE) {
-		len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
-		if (len > 0) {
-			if (pty->input_cb)
-				pty->input_cb(pty, pty->io_buf, len, pty->data);
-		} else if (len == 0) {
-			log_debug("child closed remote end");
-			goto err;
-		} else if (errno != EWOULDBLOCK) {
-			log_err("cannot read from pty: %m");
-			goto err;
-		}
+		/* use a maximum of 50 steps to avoid staying here forever */
+		num = 50;
+		do {
+			len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
+			if (len > 0) {
+				if (pty->input_cb)
+					pty->input_cb(pty, pty->io_buf, len, pty->data);
+			} else if (len == 0) {
+				log_debug("child closed remote end");
+				goto err;
+			} else if (errno != EWOULDBLOCK) {
+				log_err("cannot read from pty: %m");
+				goto err;
+			}
+		} while (len > 0 && --num);
 	}
 
 	return;
