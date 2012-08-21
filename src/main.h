@@ -79,6 +79,9 @@ struct kmscon_conf_t {
 
 	/* color palette */
 	char *palette;
+
+	/* frame-rate limit */
+	unsigned int fps;
 };
 
 extern struct kmscon_conf_t kmscon_conf;

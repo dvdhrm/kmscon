@@ -67,7 +67,9 @@ struct kmscon_terminal {
 	unsigned int min_cols;
 	unsigned int min_rows;
 
-	bool redraw;
+	unsigned int fps;
+	unsigned int redraw;
+	struct ev_timer *redraw_timer;
 	struct kmscon_console *console;
 	struct kmscon_vte *vte;
 	struct kmscon_pty *pty;
@@ -76,18 +78,14 @@ struct kmscon_terminal {
 	void *data;
 };
 
-static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
+static void redraw(struct kmscon_terminal *term)
 {
-	struct kmscon_terminal *term = data;
 	struct uterm_screen *screen;
 	struct kmscon_dlist *iter;
 	struct screen *ent;
 
 	if (!term->awake)
 		return;
-
-	ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
-	term->redraw = false;
 
 	kmscon_dlist_for_each(iter, &term->screens) {
 		ent = kmscon_dlist_entry(iter, struct screen, list);
@@ -98,18 +96,47 @@ static void draw_all(struct ev_eloop *eloop, void *unused, void *data)
 	}
 }
 
+static void redraw_timer_event(struct ev_timer *timer, uint64_t num, void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	/* When a redraw is scheduled, the redraw-counter is set to the current
+	 * frame-rate. If this counter is full, we know that data changed and we
+	 * need to redraw the terminal. We then decrement the counter until it
+	 * drops to zero. This guarantees that we stay active for 1s without
+	 * a call to ev_timer_enable/disable() which required syscalls which can
+	 * be quite slow.
+	 * If a redraw is schedule in the meantime, the counter is reset to the
+	 * framerate and we have to redraw the screen. If it drops to zero, that
+	 * is, 1s after the last redraw, we disable the timer to stop consuming
+	 * CPU-power.
+	 * TODO: On _really_ slow machines we might want to avoid fps-limits
+	 * and redraw on change. We also should check whether waking up for the
+	 * fps-timeouts for 1s is really faster than calling
+	 * ev_timer_enable/disable() all the time. */
+
+	if (term->redraw-- != term->fps) {
+		if (!term->redraw) {
+			ev_timer_disable(term->redraw_timer);
+			log_debug("disable-timer");
+		}
+		return;
+	}
+
+	log_debug("draw");
+	redraw(term);
+}
+
 static void schedule_redraw(struct kmscon_terminal *term)
 {
-	int ret;
-
-	if (term->redraw || !term->awake)
+	if (!term->awake)
 		return;
 
-	ret = ev_eloop_register_idle_cb(term->eloop, draw_all, term);
-	if (ret)
-		log_warn("cannot schedule redraw");
-	else
-		term->redraw = true;
+	log_debug("schedule");
+	if (!term->redraw)
+		ev_timer_enable(term->redraw_timer);
+	if (term->redraw < term->fps)
+		term->redraw = term->fps;
 }
 
 /*
@@ -354,6 +381,8 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 {
 	struct kmscon_terminal *term;
 	int ret;
+	struct itimerspec spec;
+	unsigned long fps;
 
 	if (!out || !loop || !input)
 		return -EINVAL;
@@ -367,6 +396,19 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->eloop = loop;
 	term->input = input;
 	kmscon_dlist_init(&term->screens);
+
+	if (kmscon_conf.fps) {
+		fps = 1000000000ULL / kmscon_conf.fps;
+		if (fps == 0)
+			fps = 1000000000ULL / 100;
+		else if (fps > 200000000ULL)
+			fps = 200000000ULL;
+	} else {
+		fps = 1000000000ULL / 25;
+	}
+
+	term->fps = 1000000000ULL / fps;
+	log_debug("FPS: %lu TIMER: %lu", term->fps, fps);
 
 	ret = kmscon_console_new(&term->console);
 	if (ret)
@@ -385,6 +427,20 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_pty;
 
+	memset(&spec, 0, sizeof(spec));
+	spec.it_value.tv_nsec = 1;
+	spec.it_interval.tv_nsec = fps;
+
+	ret = ev_timer_new(&term->redraw_timer, &spec, redraw_timer_event,
+			   term, log_llog);
+	if (ret)
+		goto err_input;
+	ev_timer_disable(term->redraw_timer);
+
+	ret = ev_eloop_add_timer(term->eloop, term->redraw_timer);
+	if (ret)
+		goto err_timer;
+
 	ev_eloop_ref(term->eloop);
 	uterm_input_ref(term->input);
 	*out = term;
@@ -392,6 +448,10 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	log_debug("new terminal object %p", term);
 	return 0;
 
+err_timer:
+	ev_timer_unref(term->redraw_timer);
+err_input:
+	uterm_input_unregister_cb(term->input, input_event, term);
 err_pty:
 	kmscon_pty_unref(term->pty);
 err_vte:
@@ -422,12 +482,12 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	log_debug("free terminal object %p", term);
 	kmscon_terminal_close(term);
 	rm_all_screens(term);
+	ev_eloop_rm_timer(term->redraw_timer);
+	ev_timer_unref(term->redraw_timer);
 	uterm_input_unregister_cb(term->input, input_event, term);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
 	kmscon_console_unref(term->console);
-	if (term->redraw)
-		ev_eloop_unregister_idle_cb(term->eloop, draw_all, term);
 	uterm_input_unref(term->input);
 	ev_eloop_unref(term->eloop);
 	free(term);
