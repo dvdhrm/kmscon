@@ -83,7 +83,7 @@ static int init_rb(struct uterm_display *disp, struct drm_rb *rb)
 		return -EFAULT;
 	}
 
-#if defined(HAVE_DECL_GBM_BO_GET_STRIDE) && HAVE_DECL_GBM_BO_GET_STRIDE
+#ifdef HAVE_GBM_BO_GET_STRIDE
 	stride = gbm_bo_get_stride(rb->bo);
 #else
 	stride = gbm_bo_get_pitch(rb->bo);

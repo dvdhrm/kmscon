@@ -362,7 +362,19 @@ AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
 AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
 AM_CONDITIONAL([KMSCON_HAVE_GLES2], [test x$gles2_enabled = xyes])
 
-AC_CHECK_DECLS([gbm_bo_get_stride], [], [], [[#include <gbm.h>]])
+if test x$have_gbm = xyes ; then
+        save_CFLAGS="$CFLAGS"
+        save_LIBS="$LIBS"
+        CFLAGS=$GBM_CFLAGS
+        LIBS=$GBM_LIBS
+        AC_CHECK_LIB([gbm],
+                     [gbm_bo_get_stride],
+                     [AC_DEFINE([HAVE_GBM_BO_GET_STRIDE],
+                                [1],
+                                [Define to 1 if your libgbm provides gbm_bo_get_stride])])
+        CFLAGS="$save_CFLAGS"
+        LIBS="$save_LIBS"
+fi
 
 #
 # xkbcommon keyboard backend
