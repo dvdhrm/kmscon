@@ -118,12 +118,10 @@ static void redraw_timer_event(struct ev_timer *timer, uint64_t num, void *data)
 	if (term->redraw-- != term->fps) {
 		if (!term->redraw) {
 			ev_timer_disable(term->redraw_timer);
-			log_debug("disable-timer");
 		}
 		return;
 	}
 
-	log_debug("draw");
 	redraw(term);
 }
 
@@ -132,7 +130,6 @@ static void schedule_redraw(struct kmscon_terminal *term)
 	if (!term->awake)
 		return;
 
-	log_debug("schedule");
 	if (!term->redraw)
 		ev_timer_enable(term->redraw_timer);
 	if (term->redraw < term->fps)
