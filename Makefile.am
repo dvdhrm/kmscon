@@ -270,6 +270,8 @@ libkmscon_static_la_SOURCES = \
 	src/static_misc.c \
 	external/htable.h \
 	external/htable.c
+libkmscon_static_la_CPPFLAGS = \
+	$(AM_CPPFLAGS)
 
 if KMSCON_HAVE_GLES2
 nodist_libkmscon_static_la_SOURCES = \
@@ -278,8 +280,7 @@ nodist_libkmscon_static_la_SOURCES = \
 	src/static_gl_shader.c \
 	src/static_shaders.c
 
-libkmscon_static_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
+libkmscon_static_la_CPPFLAGS += \
 	$(GLES2_CFLAGS)
 endif
 
