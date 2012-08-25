@@ -34,7 +34,8 @@ check_PROGRAMS = \
 	test_vt \
 	test_input
 noinst_PROGRAMS = \
-	genshader
+	genshader \
+	genunifont
 noinst_LTLIBRARIES = \
 	libkmscon-core.la \
 	libkmscon-static.la
@@ -103,6 +104,25 @@ nodist_genshader_SOURCES = \
 
 src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
 	./genshader$(EXEEXT) src/static_shaders.c $(SHADERS)
+
+#
+# Unifont Generator
+# This generates the unifont sources from raw hex-encoded font data.
+#
+
+UNIFONT = \
+	src/text_font_unifont_data.hex
+
+EXTRA_DIST += \
+	$(UNIFONT)
+CLEANFILES += \
+	src/text_font_unifont_data.c
+
+nodist_genunifont_SOURCES = \
+	src/genunifont.c
+
+src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
+	./genunifont$(EXEEXT) src/text_font_unifont_data.c $(UNIFONT)
 
 #
 # libkmscon-core
