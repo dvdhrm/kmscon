@@ -130,6 +130,12 @@ AC_ARG_ENABLE([xkbcommon],
                               [disable xkbcommon keyboard backend])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to use static unifont backend])
+AC_ARG_ENABLE([unifont],
+              [AS_HELP_STRING([--enable-unifont],
+                              [enable static unifont font backend (GPL)])])
+AC_MSG_RESULT([ok])
+
 AC_MSG_CHECKING([whether to use static 8x16 font backend])
 AC_ARG_ENABLE([f8x16],
               [AS_HELP_STRING([--disable-f8x16],
@@ -403,9 +409,26 @@ AM_CONDITIONAL([UTERM_HAVE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
 
 #
 # Font backends
-# This checks for the 8x16, freetype2 and pango font backends and enables them
-# if requested and available.
+# This checks for the unifont, 8x16, freetype2 and pango font backends and
+# enables them if requested and available.
 #
+# Please note that the Unifont-data is GPL'ed and we compile this statically
+# into our application. I do not consider this a "derivative" but a lawyer may
+# disagree. So please make sure you enable this only if you use the GPL as
+# license for kmscon.
+#
+
+unifont_enabled=no
+if test x$enable_unifont = xyes ; then
+        unifont_enabled=yes
+fi
+
+if test x$unifont_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_UNIFONT], [1],
+                  [Use static unifont backend])
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_UNIFONT], [test x$unifont_enabled = xyes])
 
 f8x16_enabled=no
 if test ! x$enable_f8x16 = xno ; then
@@ -537,6 +560,7 @@ AC_MSG_NOTICE([Build configuration:
 	    OpenGLES2: $gles2_enabled
 
   font backends:
+	      unifont: $unifont_enabled
 	         8x16: $f8x16_enabled
 	    freetype2: $freetype2_enabled
 	        pango: $pango_enabled

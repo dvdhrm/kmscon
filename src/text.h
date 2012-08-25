@@ -180,6 +180,25 @@ void kmscon_text_abort(struct kmscon_text *txt);
 
 /* modularized backends */
 
+#ifdef KMSCON_HAVE_UNIFONT
+
+int kmscon_font_unifont_load(void);
+void kmscon_font_unifont_unload(void);
+
+#else
+
+static inline int kmscon_font_unifont_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_font_unifont_unload(void)
+{
+}
+
+#endif
+
+
 #ifdef KMSCON_HAVE_8X16
 
 int kmscon_font_8x16_load(void);

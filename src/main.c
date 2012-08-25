@@ -567,6 +567,7 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_out;
 
+	kmscon_font_unifont_load();
 	kmscon_font_8x16_load();
 	kmscon_font_pango_load();
 	kmscon_font_freetype2_load();
@@ -606,6 +607,7 @@ int main(int argc, char **argv)
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();
 	kmscon_font_8x16_unload();
+	kmscon_font_unifont_unload();
 	conf_free(options, onum);
 	log_info("exiting");
 
@@ -617,6 +619,7 @@ err_unload:
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();
 	kmscon_font_8x16_unload();
+	kmscon_font_unifont_unload();
 err_out:
 	conf_free(options, onum);
 	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));

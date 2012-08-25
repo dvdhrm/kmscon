@@ -146,6 +146,13 @@ libkmscon_core_la_SOURCES = \
 	src/text.c \
 	src/text_font.c
 
+if KMSCON_HAVE_UNIFONT
+libkmscon_core_la_SOURCES += \
+	src/text_font_unifont.h \
+	src/text_font_unifont.c \
+	src/text_font_unifont_data.c
+endif
+
 if KMSCON_HAVE_8X16
 libkmscon_core_la_SOURCES += \
 	src/text_font_8x16.c

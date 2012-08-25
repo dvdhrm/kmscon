@@ -3,6 +3,7 @@
 This software was written by:
 	David Herrmann <dh.herrmann@googlemail.com>
 	Ran Benita <ran234@gmail.com>
+	Ted Kotz <ted@kotz.us>
 
 = Copyright Notice =
 
@@ -145,3 +146,10 @@ The "solarized" color palettes in vte.c are from:
 	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 	THE SOFTWARE.
+
+The Unifont-Font is from http://unifoundry.com/unifont.html and licensed under
+the terms of the GNU GPL. So if you enable this font backend, then kmscon will
+also be released under the terms of the GNU GPL. Copyrights are:
+
+	Copyright 1998-2008 Roman Czyborra
+	Copyright 1998-2008 Paul Hardy
