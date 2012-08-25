@@ -38,6 +38,7 @@
 #ifndef KMSCON_TEXT_H
 #define KMSCON_TEXT_H
 
+#include <errno.h>
 #include <stdlib.h>
 #include "unicode.h"
 #include "uterm.h"
