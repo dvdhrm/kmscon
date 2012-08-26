@@ -40,7 +40,6 @@
 #include <string.h>
 #include "static_gl.h"
 #include "static_llog.h"
-#include "uterm.h"
 
 #define LLOG_SUBSYSTEM "gl_shader"
 
