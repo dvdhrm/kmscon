@@ -51,6 +51,8 @@ struct kmscon_conf_t {
 	bool use_fbdev;
 	/* use dumb DRM devices */
 	bool dumb;
+	/* render engine */
+	char *render_engine;
 
 	/* input KBD layout */
 	char *xkb_layout;

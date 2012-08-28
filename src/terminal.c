@@ -212,7 +212,9 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	}
 
 	ret = uterm_screen_use(scr->screen);
-	if (!ret)
+	if (kmscon_conf.render_engine)
+		be = kmscon_conf.render_engine;
+	else if (!ret)
 		be = "gltex";
 	else
 		be = NULL;
