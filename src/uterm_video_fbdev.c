@@ -535,18 +535,23 @@ static int display_blend(struct uterm_display *disp,
 	dst = &dst[y * disp->fbdev.stride + x * disp->fbdev.Bpp];
 	src = buf->data;
 
+	/* Division by 256 instead of 255 increases
+	 * speed by like 20% on slower machines.
+	 * Downside is, full white is 254/254/254
+	 * instead of 255/255/255. */
 	if (disp->fbdev.xrgb32) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				r = (fr & 0xff) * src[i] / 255 +
-				    (br & 0xff) * (255 - src[i]) / 255;
-				g = (fg & 0xff) * src[i] / 255 +
-				    (bg & 0xff) * (255 - src[i]) / 255;
-				b = (fb & 0xff) * src[i] / 255 +
-				    (bb & 0xff) * (255 - src[i]) / 255;
-				val  = (r & 0xff) << 16;
-				val |= (g & 0xff) << 8;
-				val |= (b & 0xff) << 0;
+				r = fr * src[i] +
+				    br * (255 - src[i]);
+				r /= 256;
+				g = fg * src[i] +
+				    bg * (255 - src[i]);
+				g /= 256;
+				b = fb * src[i] +
+				    bb * (255 - src[i]);
+				b /= 256;
+				val = (r << 16) | (g << 8) | b;
 				((uint32_t*)dst)[i] = val;
 			}
 			dst += disp->fbdev.stride;

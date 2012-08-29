@@ -459,16 +459,20 @@ static int display_blend(struct uterm_display *disp,
 	if (buf->format == UTERM_FORMAT_GREY) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				r = (fr & 0xff) * src[i] / 255 +
-				    (br & 0xff) * (255 - src[i]) / 255;
-				g = (fg & 0xff) * src[i] / 255 +
-				    (bg & 0xff) * (255 - src[i]) / 255;
-				b = (fb & 0xff) * src[i] / 255 +
-				    (bb & 0xff) * (255 - src[i]) / 255;
-				((uint32_t*)dst)[i] =
-					((r & 0xff) << 16) |
-					((g & 0xff) << 8) |
-					 (b & 0xff);
+				/* Division by 256 instead of 255 increases
+				 * speed by like 20% on slower machines.
+				 * Downside is, full white is 254/254/254
+				 * instead of 255/255/255. */
+				r = fr * src[i] +
+				    br * (255 - src[i]);
+				r /= 256;
+				g = fg * src[i] +
+				    bg * (255 - src[i]);
+				g /= 256;
+				b = fb * src[i] +
+				    bb * (255 - src[i]);
+				b /= 256;
+				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
 			}
 			dst += rb->stride;
 			src += buf->stride;
@@ -514,11 +518,8 @@ static int display_fill(struct uterm_display *disp,
 	dst = &dst[y * rb->stride + x * 4];
 
 	while (height--) {
-		for (i = 0; i < width; ++i) {
-			((uint32_t*)dst)[i] = ((r & 0xff) << 16) |
-					      ((g & 0xff) << 8) |
-					       (b & 0xff);
-		}
+		for (i = 0; i < width; ++i)
+			((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
 		dst += rb->stride;
 	}
 
