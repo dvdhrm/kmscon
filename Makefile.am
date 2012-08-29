@@ -302,6 +302,9 @@ libkmscon_static_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(GLES2_CFLAGS)
 
+libkmscon_static_la_LIBADD = \
+	$(GLES2_LIBS)
+
 if KMSCON_HAVE_GLES2
 nodist_libkmscon_static_la_SOURCES = \
 	src/static_gl.h \
