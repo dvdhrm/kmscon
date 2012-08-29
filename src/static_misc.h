@@ -33,8 +33,9 @@
 #define KMSCON_MISC_H
 
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 /* miscellaneous */
 
@@ -109,6 +110,18 @@ size_t kmscon_array_get_element_size(struct kmscon_array *arr);
 
 #define KMSCON_ARRAY_AT(_arr, _type, _pos) \
 	(&((_type*)kmscon_array_get_array(_arr))[(_pos)])
+
+/* time measurement */
+
+struct kmscon_timer;
+
+int kmscon_timer_new(struct kmscon_timer **out);
+void kmscon_timer_free(struct kmscon_timer *timer);
+
+void kmscon_timer_reset(struct kmscon_timer *timer);
+void kmscon_timer_start(struct kmscon_timer *timer);
+uint64_t kmscon_timer_stop(struct kmscon_timer *timer);
+uint64_t kmscon_timer_elapsed(struct kmscon_timer *timer);
 
 /* double linked list */
 

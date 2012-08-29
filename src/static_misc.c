@@ -32,8 +32,10 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "htable.h"
 #include "static_misc.h"
 
@@ -516,4 +518,95 @@ size_t kmscon_array_get_element_size(struct kmscon_array *arr)
 		return 0;
 
 	return arr->element_size;
+}
+
+struct kmscon_timer {
+	struct timespec start;
+	uint64_t elapsed;
+};
+
+int kmscon_timer_new(struct kmscon_timer **out)
+{
+	struct kmscon_timer *timer;
+
+	if (!out)
+		return -EINVAL;
+
+	timer = malloc(sizeof(*timer));
+	if (!timer)
+		return -ENOMEM;
+	memset(timer, 0, sizeof(*timer));
+	kmscon_timer_reset(timer);
+
+	*out = timer;
+	return 0;
+}
+
+void kmscon_timer_free(struct kmscon_timer *timer)
+{
+	if (!timer)
+		return;
+
+	free(timer);
+}
+
+void kmscon_timer_reset(struct kmscon_timer *timer)
+{
+	if (!timer)
+		return;
+
+	clock_gettime(CLOCK_MONOTONIC, &timer->start);
+	timer->elapsed = 0;
+}
+
+void kmscon_timer_start(struct kmscon_timer *timer)
+{
+	if (!timer)
+		return;
+
+	clock_gettime(CLOCK_MONOTONIC, &timer->start);
+}
+
+uint64_t kmscon_timer_stop(struct kmscon_timer *timer)
+{
+	struct timespec spec;
+	int64_t off, nsec;
+
+	if (!timer)
+		return 0;
+
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+	off = spec.tv_sec - timer->start.tv_sec;
+	nsec = spec.tv_nsec - timer->start.tv_nsec;
+	if (nsec < 0) {
+		--off;
+		nsec += 1000000000ULL;
+	}
+	off *= 1000000;
+	off += nsec / 1000;
+
+	memcpy(&timer->start, &spec, sizeof(spec));
+	timer->elapsed += off;
+	return timer->elapsed;
+}
+
+uint64_t kmscon_timer_elapsed(struct kmscon_timer *timer)
+{
+	struct timespec spec;
+	int64_t off, nsec;
+
+	if (!timer)
+		return 0;
+
+	clock_gettime(CLOCK_MONOTONIC, &spec);
+	off = spec.tv_sec - timer->start.tv_sec;
+	nsec = spec.tv_nsec - timer->start.tv_nsec;
+	if (nsec < 0) {
+		--off;
+		nsec += 1000000000ULL;
+	}
+	off *= 1000000;
+	off += nsec / 1000;
+
+	return timer->elapsed + off;
 }
