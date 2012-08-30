@@ -754,6 +754,26 @@ static int display_blend(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_blendv(struct uterm_display *disp,
+			  const struct uterm_video_blend_req *req, size_t num)
+{
+	int ret;
+	unsigned int i;
+
+	if (!disp || !req)
+		return -EINVAL;
+
+	for (i = 0; i < num; ++i, ++req) {
+		ret = display_blend(disp, req->buf, req->x, req->y,
+				    req->fr, req->fg, req->fb,
+				    req->br, req->bg, req->bb);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int display_fill(struct uterm_display *disp,
 			uint8_t r, uint8_t g, uint8_t b,
 			unsigned int x, unsigned int y,
@@ -1241,6 +1261,7 @@ const struct display_ops drm_display_ops = {
 	.swap = display_swap,
 	.blit = display_blit,
 	.blend = display_blend,
+	.blendv = display_blendv,
 	.fill = display_fill,
 };
 

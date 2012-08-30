@@ -598,6 +598,113 @@ static int display_blend(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_blendv(struct uterm_display *disp,
+			  const struct uterm_video_blend_req *req, size_t num)
+{
+	unsigned int tmp;
+	uint8_t *dst, *src;
+	unsigned int width, height, i, j;
+	unsigned int r, g, b;
+	uint32_t val;
+
+	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
+		return -EINVAL;
+	if (!req || !video_is_awake(disp->video))
+		return -EINVAL;
+
+	for (j = 0; j < num; ++j, ++req) {
+		if (req->buf->format != UTERM_FORMAT_GREY)
+			return -EOPNOTSUPP;
+
+		tmp = req->x + req->buf->width;
+		if (tmp < req->x || req->x >= disp->fbdev.xres)
+			return -EINVAL;
+		if (tmp > disp->fbdev.xres)
+			width = disp->fbdev.xres - req->x;
+		else
+			width = req->buf->width;
+
+		tmp = req->y + req->buf->height;
+		if (tmp < req->y || req->y >= disp->fbdev.yres)
+			return -EINVAL;
+		if (tmp > disp->fbdev.yres)
+			height = disp->fbdev.yres - req->y;
+		else
+			height = req->buf->height;
+
+		if (!(disp->flags & DISPLAY_DBUF) || disp->fbdev.bufid)
+			dst = disp->fbdev.map;
+		else
+			dst = &disp->fbdev.map[disp->fbdev.yres * disp->fbdev.stride];
+		dst = &dst[req->y * disp->fbdev.stride + req->x * disp->fbdev.Bpp];
+		src = req->buf->data;
+
+		/* Division by 256 instead of 255 increases
+		 * speed by like 20% on slower machines.
+		 * Downside is, full white is 254/254/254
+		 * instead of 255/255/255. */
+		if (disp->fbdev.xrgb32) {
+			while (height--) {
+				for (i = 0; i < width; ++i) {
+					r = req->fr * src[i] +
+					    req->br * (255 - src[i]);
+					r /= 256;
+					g = req->fg * src[i] +
+					    req->bg * (255 - src[i]);
+					g /= 256;
+					b = req->fb * src[i] +
+					    req->bb * (255 - src[i]);
+					b /= 256;
+					val = (r << 16) | (g << 8) | b;
+					((uint32_t*)dst)[i] = val;
+				}
+				dst += disp->fbdev.stride;
+				src += req->buf->stride;
+			}
+		} else if (disp->fbdev.Bpp == 2) {
+			while (height--) {
+				for (i = 0; i < width; ++i) {
+					r = req->fr * src[i] +
+					    req->br * (255 - src[i]);
+					r /= 256;
+					g = req->fg * src[i] +
+					    req->bg * (255 - src[i]);
+					g /= 256;
+					b = req->fb * src[i] +
+					    req->bb * (255 - src[i]);
+					b /= 256;
+					val = (r << 16) | (g << 8) | b;
+					((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+				}
+				dst += disp->fbdev.stride;
+				src += req->buf->stride;
+			}
+		} else if (disp->fbdev.Bpp == 4) {
+			while (height--) {
+				for (i = 0; i < width; ++i) {
+					r = req->fr * src[i] +
+					    req->br * (255 - src[i]);
+					r /= 256;
+					g = req->fg * src[i] +
+					    req->bg * (255 - src[i]);
+					g /= 256;
+					b = req->fb * src[i] +
+					    req->bb * (255 - src[i]);
+					b /= 256;
+					val = (r << 16) | (g << 8) | b;
+					((uint32_t*)dst)[i] = xrgb32_to_device(disp, val);
+				}
+				dst += disp->fbdev.stride;
+				src += req->buf->stride;
+			}
+		} else {
+			log_warning("invalid Bpp");
+		}
+	}
+
+	return 0;
+}
+
 static int display_fill(struct uterm_display *disp,
 			uint8_t r, uint8_t g, uint8_t b,
 			unsigned int x, unsigned int y,
@@ -760,6 +867,7 @@ const struct display_ops fbdev_display_ops = {
 	.swap = display_swap,
 	.blit = display_blit,
 	.blend = display_blend,
+	.blendv = display_blendv,
 	.fill = display_fill,
 };
 

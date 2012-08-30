@@ -157,6 +157,16 @@ int uterm_screen_blend(struct uterm_screen *screen,
 			  buf, x, y, fr, fg, fb, br, bg, bb);
 }
 
+int uterm_screen_blendv(struct uterm_screen *screen,
+			const struct uterm_video_blend_req *req, size_t num)
+{
+	if (!screen)
+		return -EINVAL;
+
+	return VIDEO_CALL(screen->disp->ops->blendv, -EOPNOTSUPP,
+			  screen->disp, req, num);
+}
+
 int uterm_screen_fill(struct uterm_screen *screen,
 		      uint8_t r, uint8_t g, uint8_t b,
 		      unsigned int x, unsigned int y,

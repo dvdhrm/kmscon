@@ -484,6 +484,74 @@ static int display_blend(struct uterm_display *disp,
 	return 0;
 }
 
+static int display_blendv(struct uterm_display *disp,
+			  const struct uterm_video_blend_req *req, size_t num)
+{
+	unsigned int tmp;
+	uint8_t *dst, *src;
+	struct dumb_rb *rb;
+	unsigned int width, height, i, j;
+	unsigned int sw, sh;
+	unsigned int r, g, b;
+
+	if (!disp->video || !display_is_online(disp))
+		return -EINVAL;
+	if (!req || !video_is_awake(disp->video))
+		return -EINVAL;
+
+	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	sw = disp->current_mode->dumb.info.hdisplay;
+	sh = disp->current_mode->dumb.info.vdisplay;
+
+	for (j = 0; j < num; ++j, ++req) {
+		if (req->buf->format != UTERM_FORMAT_GREY)
+			return -EOPNOTSUPP;
+
+		tmp = req->x + req->buf->width;
+		if (tmp < req->x || req->x >= sw)
+			return -EINVAL;
+		if (tmp > sw)
+			width = sw - req->x;
+		else
+			width = req->buf->width;
+
+		tmp = req->y + req->buf->height;
+		if (tmp < req->y || req->y >= sh)
+			return -EINVAL;
+		if (tmp > sh)
+			height = sh - req->y;
+		else
+			height = req->buf->height;
+
+		dst = rb->map;
+		dst = &dst[req->y * rb->stride + req->x * 4];
+		src = req->buf->data;
+
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				/* Division by 256 instead of 255 increases
+				 * speed by like 20% on slower machines.
+				 * Downside is, full white is 254/254/254
+				 * instead of 255/255/255. */
+				r = req->fr * src[i] +
+				    req->br * (255 - src[i]);
+				r /= 256;
+				g = req->fg * src[i] +
+				    req->bg * (255 - src[i]);
+				g /= 256;
+				b = req->fb * src[i] +
+				    req->bb * (255 - src[i]);
+				b /= 256;
+				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
+			}
+			dst += rb->stride;
+			src += req->buf->stride;
+		}
+	}
+
+	return 0;
+}
+
 static int display_fill(struct uterm_display *disp,
 			uint8_t r, uint8_t g, uint8_t b,
 			unsigned int x, unsigned int y,
@@ -843,6 +911,7 @@ const struct display_ops dumb_display_ops = {
 	.swap = display_swap,
 	.blit = display_blit,
 	.blend = display_blend,
+	.blendv = display_blendv,
 	.fill = display_fill,
 };
 
