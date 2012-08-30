@@ -122,6 +122,7 @@ struct drm_video {
 	EGLContext *ctx;
 
 	unsigned int sinit;
+	bool supports_rowlen;
 	GLuint tex;
 
 	struct gl_shader *fill_shader;

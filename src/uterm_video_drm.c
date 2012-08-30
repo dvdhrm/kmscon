@@ -488,10 +488,11 @@ static int display_blit(struct uterm_display *disp,
 			const struct uterm_video_buffer *buf,
 			unsigned int x, unsigned int y)
 {
-	unsigned int sw, sh, tmp, width, height;
+	unsigned int sw, sh, tmp, width, height, i;
 	float mat[16];
 	float vertices[6 * 2], texpos[6 * 2];
 	int ret;
+	uint8_t *packed, *src, *dst;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
@@ -565,10 +566,34 @@ static int display_blit(struct uterm_display *disp,
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, disp->video->drm.tex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride / 4);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
-		     GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf->data);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+	if (disp->video->drm.supports_rowlen) {
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride / 4);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
+			     GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf->data);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	} else if (buf->stride == width) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
+			     GL_BGRA_EXT, GL_UNSIGNED_BYTE, buf->data);
+	} else {
+		packed = malloc(width * height);
+		if (!packed)
+			return -ENOMEM;
+
+		src = buf->data;
+		dst = packed;
+		for (i = 0; i < height; ++i) {
+			memcpy(dst, src, width * 4);
+			dst += width * 4;
+			src += buf->stride;
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA_EXT, width, height, 0,
+			     GL_BGRA_EXT, GL_UNSIGNED_BYTE, packed);
+
+		free(packed);
+	}
+
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	glUniform1i(disp->video->drm.uni_blit_tex, 0);
 
@@ -594,10 +619,11 @@ static int display_blend(struct uterm_display *disp,
 			 uint8_t fr, uint8_t fg, uint8_t fb,
 			 uint8_t br, uint8_t bg, uint8_t bb)
 {
-	unsigned int sw, sh, tmp, width, height;
+	unsigned int sw, sh, tmp, width, height, i;
 	float mat[16];
 	float vertices[6 * 2], texpos[6 * 2], fgcol[3], bgcol[3];
 	int ret;
+	uint8_t *packed, *src, *dst;
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
@@ -681,10 +707,34 @@ static int display_blend(struct uterm_display *disp,
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, disp->video->drm.tex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA,
-		     GL_UNSIGNED_BYTE, buf->data);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+	if (disp->video->drm.supports_rowlen) {
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, buf->stride);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0,
+			     GL_ALPHA, GL_UNSIGNED_BYTE, buf->data);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	} else if (buf->stride == width) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0,
+			     GL_ALPHA, GL_UNSIGNED_BYTE, buf->data);
+	} else {
+		packed = malloc(width * height);
+		if (!packed)
+			return -ENOMEM;
+
+		src = buf->data;
+		dst = packed;
+		for (i = 0; i < height; ++i) {
+			memcpy(dst, src, width);
+			dst += width;
+			src += buf->stride;
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0,
+			     GL_ALPHA, GL_UNSIGNED_BYTE, packed);
+
+		free(packed);
+	}
+
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	glUniform1i(disp->video->drm.uni_blend_tex, 0);
 
@@ -990,16 +1040,34 @@ static int video_init(struct uterm_video *video, const char *node)
 		goto err_disp;
 	}
 
+	if (!eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			    drm->ctx)) {
+		log_err("cannot activate egl context");
+		ret = -EFAULT;
+		goto err_ctx;
+	}
+
+	ext = (const char*)glGetString(GL_EXTENSIONS);
+	if (ext && strstr((const char*)ext, "GL_EXT_unpack_subimage"))
+		drm->supports_rowlen = true;
+	else
+		log_warning("your GL implementation does not support GL_EXT_unpack_subimage, rendering may be slower than usual");
+
 	ret = ev_eloop_new_fd(video->eloop, &drm->efd, drm->fd,
 				EV_READABLE, event, video);
 	if (ret)
-		goto err_ctx;
+		goto err_noctx;
 
 	video->flags |= VIDEO_HOTPLUG;
 	log_info("new drm device via %s", node);
 
 	return 0;
 
+err_noctx:
+	eglMakeCurrent(drm->disp,
+		       EGL_NO_SURFACE,
+		       EGL_NO_SURFACE,
+		       EGL_NO_CONTEXT);
 err_ctx:
 	eglDestroyContext(drm->disp, drm->ctx);
 err_disp:
