@@ -26,6 +26,14 @@ console.
     libxkbcommon has no public release, yet, but is available on freedesktop.org.
     Use "--disable-xkbcommon" if you have problems due to compile-errors.
 
+    Building libxkbcommon from Git without root:
+
+      - You can fetch it from Git using: git clone git://anongit.freedesktop.org/xorg/lib/libxkbcommon
+      - You can then ``./autogen.sh && make`` in its directory
+      - You configure kmscon using:
+          PKG_CONFIG_PATH="libxkbcommon/" ./configure --enable-debug --enable-xkbcommon
+        assuming you cloned it into a subfolder of kmscon.
+
     For font handling the following is required:
       - 8x16: The 8x16 font is a static built-in font which does not require
               external dependencies.
