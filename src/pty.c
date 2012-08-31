@@ -43,8 +43,7 @@
 
 #define LOG_SUBSYSTEM "pty"
 
-/* Match N_TTY_BUF_SIZE from the kernel to read as much as we can. */
-#define KMSCON_NREAD 4096
+#define KMSCON_NREAD 16384
 
 struct kmscon_pty {
 	unsigned long ref;
@@ -324,7 +323,10 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 				log_err("cannot read from pty: %m");
 				goto err;
 			}
-		} while (len > 0 && --num);
+		} while (--num && len > 0);
+
+		if (!num)
+			log_debug("cannot read application data fast enough");
 	}
 
 	return;
