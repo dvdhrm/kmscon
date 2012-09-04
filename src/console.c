@@ -415,6 +415,7 @@ err_free:
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
 	free(con->lines);
+	free(con->tab_ruler);
 	free(con);
 	return ret;
 }
