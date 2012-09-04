@@ -160,6 +160,12 @@ AC_ARG_ENABLE([bblit],
                               [disable bblit rendering backend])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to use bbulk rendering backend])
+AC_ARG_ENABLE([bbulk],
+              [AS_HELP_STRING([--disable-bbulk],
+                              [disable bbulk rendering backend])])
+AC_MSG_RESULT([ok])
+
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug],
@@ -497,6 +503,22 @@ fi
 AM_CONDITIONAL([KMSCON_HAVE_BBLIT], [test x$bblit_enabled = xyes])
 
 #
+# BBulk Rendering backend
+#
+
+bbulk_enabled=no
+if test ! x$enable_bbulk = xno ; then
+        bbulk_enabled=yes
+fi
+
+if test x$bbulk_enabled = xyes ; then
+        AC_DEFINE([KMSCON_HAVE_BBULK], [1],
+                  [Use bbulk rendering backend])
+fi
+
+AM_CONDITIONAL([KMSCON_HAVE_BBULK], [test x$bbulk_enabled = xyes])
+
+#
 # OpenGL Texture rendering backend
 # This is not really an option but automatically enabled if OpenGLES2 support
 # was selected.
@@ -567,6 +589,7 @@ AC_MSG_NOTICE([Build configuration:
 
   rendering backends:
 	        bblit: $bblit_enabled
+	        bbulk: $bbulk_enabled
 	        gltex: $gltex_enabled
 
 	Run "make" to start compilation process])

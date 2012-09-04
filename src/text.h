@@ -271,6 +271,24 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
+#ifdef KMSCON_HAVE_BBULK
+
+int kmscon_text_bbulk_load(void);
+void kmscon_text_bbulk_unload(void);
+
+#else
+
+static inline int kmscon_text_bbulk_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_text_bbulk_unload(void)
+{
+}
+
+#endif
+
 #ifdef KMSCON_HAVE_GLES2
 
 int kmscon_text_gltex_load(void);

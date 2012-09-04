@@ -574,6 +574,7 @@ int main(int argc, char **argv)
 	kmscon_font_pango_load();
 	kmscon_font_freetype2_load();
 	kmscon_text_bblit_load();
+	kmscon_text_bbulk_load();
 	kmscon_text_gltex_load();
 
 	memset(&app, 0, sizeof(app));
@@ -605,6 +606,7 @@ int main(int argc, char **argv)
 
 	destroy_app(&app);
 	kmscon_text_gltex_unload();
+	kmscon_text_bbulk_unload();
 	kmscon_text_bblit_unload();
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();
@@ -617,6 +619,7 @@ int main(int argc, char **argv)
 
 err_unload:
 	kmscon_text_gltex_unload();
+	kmscon_text_bbulk_unload();
 	kmscon_text_bblit_unload();
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();

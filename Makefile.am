@@ -173,6 +173,11 @@ libkmscon_core_la_SOURCES += \
 	src/text_bblit.c
 endif
 
+if KMSCON_HAVE_BBULK
+libkmscon_core_la_SOURCES += \
+	src/text_bbulk.c
+endif
+
 if KMSCON_HAVE_GLES2
 libkmscon_core_la_SOURCES += \
 	src/text_gltex.c
