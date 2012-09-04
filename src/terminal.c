@@ -115,6 +115,9 @@ static void redraw_timer_event(struct ev_timer *timer, uint64_t num, void *data)
 	 * fps-timeouts for 1s is really faster than calling
 	 * ev_timer_enable/disable() all the time. */
 
+	if (num > 1)
+		log_debug("CPU is too slow; skipping %llu frames", num - 1);
+
 	if (term->redraw-- != term->fps) {
 		if (!term->redraw) {
 			ev_timer_disable(term->redraw_timer);
