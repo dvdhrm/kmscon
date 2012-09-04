@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "static_dlist.h"
+#include "static_hook.h"
 
 /* ring buffer for arbitrary byte-streams */
 
@@ -49,22 +50,6 @@ bool kmscon_ring_is_empty(struct kmscon_ring *ring);
 int kmscon_ring_write(struct kmscon_ring *ring, const char *val, size_t len);
 const char *kmscon_ring_peek(struct kmscon_ring *ring, size_t *len);
 void kmscon_ring_drop(struct kmscon_ring *ring, size_t len);
-
-/* callback hooks */
-
-struct kmscon_hook;
-typedef void (*kmscon_hook_cb) (void *parent, void *arg, void *data);
-
-int kmscon_hook_new(struct kmscon_hook **out);
-void kmscon_hook_free(struct kmscon_hook *hook);
-unsigned int kmscon_hook_num(struct kmscon_hook *hook);
-int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data);
-void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb, void *data);
-void kmscon_hook_call(struct kmscon_hook *hook, void *parent, void *arg);
-#define kmscon_hook_add_cast(hook, cb, data) \
-	kmscon_hook_add((hook), (kmscon_hook_cb)(cb), (data))
-#define kmscon_hook_rm_cast(hook, cb, data) \
-	kmscon_hook_rm((hook), (kmscon_hook_cb)(cb), (data))
 
 /* hash-tables */
 
