@@ -463,15 +463,25 @@ static int display_blend(struct uterm_display *disp,
 				 * speed by like 20% on slower machines.
 				 * Downside is, full white is 254/254/254
 				 * instead of 255/255/255. */
-				r = fr * src[i] +
-				    br * (255 - src[i]);
-				r /= 256;
-				g = fg * src[i] +
-				    bg * (255 - src[i]);
-				g /= 256;
-				b = fb * src[i] +
-				    bb * (255 - src[i]);
-				b /= 256;
+				if (src[i] == 0) {
+					r = br;
+					g = bg;
+					b = bb;
+				} else if (src[i] == 255) {
+					r = fr;
+					g = fg;
+					b = fb;
+				} else {
+					r = fr * src[i] +
+					    br * (255 - src[i]);
+					r /= 256;
+					g = fg * src[i] +
+					    bg * (255 - src[i]);
+					g /= 256;
+					b = fb * src[i] +
+					    bb * (255 - src[i]);
+					b /= 256;
+				}
 				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
 			}
 			dst += rb->stride;
@@ -533,15 +543,25 @@ static int display_blendv(struct uterm_display *disp,
 				 * speed by like 20% on slower machines.
 				 * Downside is, full white is 254/254/254
 				 * instead of 255/255/255. */
-				r = req->fr * src[i] +
-				    req->br * (255 - src[i]);
-				r /= 256;
-				g = req->fg * src[i] +
-				    req->bg * (255 - src[i]);
-				g /= 256;
-				b = req->fb * src[i] +
-				    req->bb * (255 - src[i]);
-				b /= 256;
+				if (src[i] == 0) {
+					r = req->br;
+					g = req->bg;
+					b = req->bb;
+				} else if (src[i] == 255) {
+					r = req->fr;
+					g = req->fg;
+					b = req->fb;
+				} else {
+					r = req->fr * src[i] +
+					    req->br * (255 - src[i]);
+					r /= 256;
+					g = req->fg * src[i] +
+					    req->bg * (255 - src[i]);
+					g /= 256;
+					b = req->fb * src[i] +
+					    req->bb * (255 - src[i]);
+					b /= 256;
+				}
 				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
 			}
 			dst += rb->stride;

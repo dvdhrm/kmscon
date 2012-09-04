@@ -542,15 +542,25 @@ static int display_blend(struct uterm_display *disp,
 	if (disp->fbdev.xrgb32) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				r = fr * src[i] +
-				    br * (255 - src[i]);
-				r /= 256;
-				g = fg * src[i] +
-				    bg * (255 - src[i]);
-				g /= 256;
-				b = fb * src[i] +
-				    bb * (255 - src[i]);
-				b /= 256;
+				if (src[i] == 0) {
+					r = br;
+					g = bg;
+					b = bb;
+				} else if (src[i] == 255) {
+					r = fr;
+					g = fg;
+					b = fb;
+				} else {
+					r = fr * src[i] +
+					    br * (255 - src[i]);
+					r /= 256;
+					g = fg * src[i] +
+					    bg * (255 - src[i]);
+					g /= 256;
+					b = fb * src[i] +
+					    bb * (255 - src[i]);
+					b /= 256;
+				}
 				val = (r << 16) | (g << 8) | b;
 				((uint32_t*)dst)[i] = val;
 			}
@@ -560,16 +570,28 @@ static int display_blend(struct uterm_display *disp,
 	} else if (disp->fbdev.Bpp == 2) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				r = (fr & 0xff) * src[i] / 255 +
-				    (br & 0xff) * (255 - src[i]) / 255;
-				g = (fg & 0xff) * src[i] / 255 +
-				    (bg & 0xff) * (255 - src[i]) / 255;
-				b = (fb & 0xff) * src[i] / 255 +
-				    (bb & 0xff) * (255 - src[i]) / 255;
-				val  = (r & 0xff) << 16;
-				val |= (g & 0xff) << 8;
-				val |= (b & 0xff) << 0;
-				((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+				if (src[i] == 0) {
+					r = br;
+					g = bg;
+					b = bb;
+				} else if (src[i] == 255) {
+					r = fr;
+					g = fg;
+					b = fb;
+				} else {
+					r = fr * src[i] +
+					    br * (255 - src[i]);
+					r /= 256;
+					g = fg * src[i] +
+					    bg * (255 - src[i]);
+					g /= 256;
+					b = fb * src[i] +
+					    bb * (255 - src[i]);
+					b /= 256;
+				}
+				val = (r << 16) | (g << 8) | b;
+				((uint16_t*)dst)[i] = xrgb32_to_device(disp,
+								       val);
 			}
 			dst += disp->fbdev.stride;
 			src += buf->stride;
@@ -577,16 +599,28 @@ static int display_blend(struct uterm_display *disp,
 	} else if (disp->fbdev.Bpp == 4) {
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				r = (fr & 0xff) * src[i] / 255 +
-				    (br & 0xff) * (255 - src[i]) / 255;
-				g = (fg & 0xff) * src[i] / 255 +
-				    (bg & 0xff) * (255 - src[i]) / 255;
-				b = (fb & 0xff) * src[i] / 255 +
-				    (bb & 0xff) * (255 - src[i]) / 255;
-				val  = (r & 0xff) << 16;
-				val |= (g & 0xff) << 8;
-				val |= (b & 0xff) << 0;
-				((uint32_t*)dst)[i] = xrgb32_to_device(disp, val);
+				if (src[i] == 0) {
+					r = br;
+					g = bg;
+					b = bb;
+				} else if (src[i] == 255) {
+					r = fr;
+					g = fg;
+					b = fb;
+				} else {
+					r = fr * src[i] +
+					    br * (255 - src[i]);
+					r /= 256;
+					g = fg * src[i] +
+					    bg * (255 - src[i]);
+					g /= 256;
+					b = fb * src[i] +
+					    bb * (255 - src[i]);
+					b /= 256;
+				}
+				val = (r << 16) | (g << 8) | b;
+				((uint32_t*)dst)[i] = xrgb32_to_device(disp,
+								       val);
 			}
 			dst += disp->fbdev.stride;
 			src += buf->stride;
@@ -646,15 +680,25 @@ static int display_blendv(struct uterm_display *disp,
 		if (disp->fbdev.xrgb32) {
 			while (height--) {
 				for (i = 0; i < width; ++i) {
-					r = req->fr * src[i] +
-					    req->br * (255 - src[i]);
-					r /= 256;
-					g = req->fg * src[i] +
-					    req->bg * (255 - src[i]);
-					g /= 256;
-					b = req->fb * src[i] +
-					    req->bb * (255 - src[i]);
-					b /= 256;
+					if (src[i] == 0) {
+						r = req->br;
+						g = req->bg;
+						b = req->bb;
+					} else if (src[i] == 255) {
+						r = req->fr;
+						g = req->fg;
+						b = req->fb;
+					} else {
+						r = req->fr * src[i] +
+						    req->br * (255 - src[i]);
+						r /= 256;
+						g = req->fg * src[i] +
+						    req->bg * (255 - src[i]);
+						g /= 256;
+						b = req->fb * src[i] +
+						    req->bb * (255 - src[i]);
+						b /= 256;
+					}
 					val = (r << 16) | (g << 8) | b;
 					((uint32_t*)dst)[i] = val;
 				}
@@ -664,17 +708,28 @@ static int display_blendv(struct uterm_display *disp,
 		} else if (disp->fbdev.Bpp == 2) {
 			while (height--) {
 				for (i = 0; i < width; ++i) {
-					r = req->fr * src[i] +
-					    req->br * (255 - src[i]);
-					r /= 256;
-					g = req->fg * src[i] +
-					    req->bg * (255 - src[i]);
-					g /= 256;
-					b = req->fb * src[i] +
-					    req->bb * (255 - src[i]);
-					b /= 256;
+					if (src[i] == 0) {
+						r = req->br;
+						g = req->bg;
+						b = req->bb;
+					} else if (src[i] == 255) {
+						r = req->fr;
+						g = req->fg;
+						b = req->fb;
+					} else {
+						r = req->fr * src[i] +
+						    req->br * (255 - src[i]);
+						r /= 256;
+						g = req->fg * src[i] +
+						    req->bg * (255 - src[i]);
+						g /= 256;
+						b = req->fb * src[i] +
+						    req->bb * (255 - src[i]);
+						b /= 256;
+					}
 					val = (r << 16) | (g << 8) | b;
-					((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+					((uint16_t*)dst)[i] =
+						xrgb32_to_device(disp, val);
 				}
 				dst += disp->fbdev.stride;
 				src += req->buf->stride;
@@ -682,17 +737,28 @@ static int display_blendv(struct uterm_display *disp,
 		} else if (disp->fbdev.Bpp == 4) {
 			while (height--) {
 				for (i = 0; i < width; ++i) {
-					r = req->fr * src[i] +
-					    req->br * (255 - src[i]);
-					r /= 256;
-					g = req->fg * src[i] +
-					    req->bg * (255 - src[i]);
-					g /= 256;
-					b = req->fb * src[i] +
-					    req->bb * (255 - src[i]);
-					b /= 256;
+					if (src[i] == 0) {
+						r = req->br;
+						g = req->bg;
+						b = req->bb;
+					} else if (src[i] == 255) {
+						r = req->fr;
+						g = req->fg;
+						b = req->fb;
+					} else {
+						r = req->fr * src[i] +
+						    req->br * (255 - src[i]);
+						r /= 256;
+						g = req->fg * src[i] +
+						    req->bg * (255 - src[i]);
+						g /= 256;
+						b = req->fb * src[i] +
+						    req->bb * (255 - src[i]);
+						b /= 256;
+					}
 					val = (r << 16) | (g << 8) | b;
-					((uint32_t*)dst)[i] = xrgb32_to_device(disp, val);
+					((uint32_t*)dst)[i] =
+						xrgb32_to_device(disp, val);
 				}
 				dst += disp->fbdev.stride;
 				src += req->buf->stride;
