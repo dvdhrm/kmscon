@@ -172,8 +172,9 @@
 #include <time.h>
 #include <unistd.h>
 #include "eloop.h"
+#include "static_dlist.h"
+#include "static_hook.h"
 #include "static_llog.h"
-#include "static_misc.h"
 
 #define LLOG_SUBSYSTEM "eloop"
 

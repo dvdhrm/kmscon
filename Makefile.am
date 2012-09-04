@@ -267,6 +267,8 @@ include_HEADERS += \
 #
 
 libeloop_la_SOURCES = \
+	src/static_dlist.h \
+	src/static_hook.h \
 	src/eloop.h \
 	src/eloop.c
 
@@ -280,7 +282,6 @@ libeloop_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(DBUS_CFLAGS)
 libeloop_la_LIBADD = \
-	libkmscon-static.la \
 	$(DBUS_LIBS)
 libeloop_la_LDFLAGS = \
 	-version-info 1:0:0
