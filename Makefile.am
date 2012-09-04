@@ -298,6 +298,7 @@ include_HEADERS += \
 
 libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
+	src/static_dlist.h \
 	src/static_misc.h \
 	src/static_misc.c \
 	external/htable.h \
