@@ -37,6 +37,8 @@
 #include <string.h>
 #include "console.h"
 #include "log.h"
+#include "main.h"
+#include "static_misc.h"
 #include "text.h"
 #include "unicode.h"
 
@@ -58,6 +60,7 @@ struct line {
 struct kmscon_console {
 	size_t ref;
 	unsigned int flags;
+	struct kmscon_timer *timer;
 
 	/* default attributes for new cells */
 	struct font_char_attr def_attr;
@@ -402,20 +405,26 @@ int kmscon_console_new(struct kmscon_console **out)
 	con->def_attr.fg = 255;
 	con->def_attr.fb = 255;
 
-	ret = kmscon_console_resize(con, 80, 24);
+	ret = kmscon_timer_new(&con->timer);
 	if (ret)
 		goto err_free;
+
+	ret = kmscon_console_resize(con, 80, 24);
+	if (ret)
+		goto err_timer;
 
 	log_debug("new console");
 	*out = con;
 
 	return 0;
 
-err_free:
+err_timer:
+	kmscon_timer_free(con->timer);
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
 	free(con->lines);
 	free(con->tab_ruler);
+err_free:
 	free(con);
 	return ret;
 }
@@ -441,6 +450,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 		line_free(con->lines[i]);
 	free(con->lines);
 	free(con->tab_ruler);
+	kmscon_timer_free(con->timer);
 	free(con);
 }
 
@@ -791,6 +801,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	struct font_char_attr attr;
 	bool cursor_done = false;
 	int ret, warned = 0;
+	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
 
 	if (!con || !txt)
 		return;
@@ -802,11 +813,24 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	if (con->cursor_y >= con->size_y)
 		cur_y = con->size_y - 1;
 
+	/* render preparation */
+
+	if (kmscon_conf.render_timing)
+		kmscon_timer_reset(con->timer);
+
 	ret = kmscon_text_prepare(txt);
 	if (ret) {
 		log_warning("cannot prepare text-renderer for rendering");
 		return;
 	}
+
+	if (kmscon_conf.render_timing)
+		time_prep = kmscon_timer_elapsed(con->timer);
+
+	/* push each character into rendering pipeline */
+
+	if (kmscon_conf.render_timing)
+		kmscon_timer_reset(con->timer);
 
 	iter = con->sb_pos;
 	k = 0;
@@ -856,9 +880,23 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 		}
 	}
 
+	if (kmscon_conf.render_timing)
+		time_draw = kmscon_timer_elapsed(con->timer);
+
+	/* perform final rendering steps */
+
+	if (kmscon_conf.render_timing)
+		kmscon_timer_reset(con->timer);
+
 	ret = kmscon_text_render(txt);
 	if (ret)
 		log_warning("cannot render via text-renderer");
+
+	if (kmscon_conf.render_timing) {
+		time_rend = kmscon_timer_elapsed(con->timer);
+		log_debug("timing: prepare: %llu draw: %llu render: %llu",
+			  time_prep, time_draw, time_rend);
+	}
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,

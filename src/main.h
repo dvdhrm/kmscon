@@ -84,6 +84,8 @@ struct kmscon_conf_t {
 
 	/* frame-rate limit */
 	unsigned int fps;
+	/* print rendering engine timing information */
+	bool render_timing;
 };
 
 extern struct kmscon_conf_t kmscon_conf;

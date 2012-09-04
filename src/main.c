@@ -434,6 +434,7 @@ static void print_help()
 		"\t                                    accelerated DRM devices\n"
 		"\t    --fps                   [50]    Limit frame-rate\n"
 		"\t    --render-engine <eng>   [-]     Console renderer\n"
+		"\t    --render-timing         [off]   Print renderer timing information\n"
 		"\n"
 		"Input Device Options:\n"
 		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
@@ -527,6 +528,7 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL(0, "dumb", NULL, &kmscon_conf.dumb, false),
 	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
 	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
+	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
