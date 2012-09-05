@@ -418,6 +418,7 @@ struct kbd_desc_ops {
 	void (*unref) (struct kbd_desc *desc);
 	int (*alloc) (struct kbd_desc *desc, struct kbd_dev **out);
 	void (*keysym_to_string) (uint32_t keysym, char *str, size_t size);
+	int (*string_to_keysym) (const char *n, uint32_t *out);
 };
 
 struct kbd_dev_ops {
@@ -440,6 +441,8 @@ static const bool plain_available = true;
 extern const struct kbd_desc_ops plain_desc_ops;
 extern const struct kbd_dev_ops plain_dev_ops;
 
+extern int plain_string_to_keysym(const char *n, uint32_t *out);
+
 #ifdef UTERM_HAVE_XKBCOMMON
 
 struct uxkb_desc {
@@ -454,6 +457,8 @@ struct uxkb_dev {
 static const bool uxkb_available = true;
 extern const struct kbd_desc_ops uxkb_desc_ops;
 extern const struct kbd_dev_ops uxkb_dev_ops;
+
+extern int uxkb_string_to_keysym(const char *n, uint32_t *out);
 
 #else /* !UTERM_HAVE_XKBCOMMON */
 
@@ -558,6 +563,16 @@ static inline void kbd_desc_keysym_to_string(struct kbd_desc *desc,
 		return;
 
 	return desc->ops->keysym_to_string(keysym, str, size);
+}
+
+static inline int kbd_desc_string_to_keysym(struct kbd_desc *desc,
+					    const char *n,
+					    uint32_t *out)
+{
+	if (!desc)
+		return -EINVAL;
+
+	return desc->ops->string_to_keysym(n, out);
 }
 
 static inline void kbd_dev_ref(struct kbd_dev *dev)

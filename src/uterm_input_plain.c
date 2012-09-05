@@ -430,12 +430,20 @@ static void plain_keysym_to_string(uint32_t keysym, char *str, size_t size)
 	snprintf(str, size, "%#x", keysym);
 }
 
+int plain_string_to_keysym(const char *n, uint32_t *out)
+{
+	/* TODO: we really need to implement this; maybe use a hashtable similar
+	 * to the Xlib? */
+	return -EOPNOTSUPP;
+}
+
 const struct kbd_desc_ops plain_desc_ops = {
 	.init = plain_desc_init,
 	.ref = plain_desc_ref,
 	.unref = plain_desc_unref,
 	.alloc = plain_desc_alloc,
 	.keysym_to_string = plain_keysym_to_string,
+	.string_to_keysym = plain_string_to_keysym,
 };
 
 const struct kbd_dev_ops plain_dev_ops = {

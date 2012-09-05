@@ -488,3 +488,19 @@ void uterm_input_keysym_to_string(struct uterm_input *input,
 
 	kbd_desc_keysym_to_string(input->desc, keysym, str, size);
 }
+
+int uterm_input_string_to_keysym(struct uterm_input *input, const char *n,
+				 uint32_t *out)
+{
+	if (!n || !out)
+		return -EINVAL;
+
+	if (input)
+		return kbd_desc_string_to_keysym(input->desc, n, out);
+
+#ifdef UTERM_HAVE_XKBCOMMON
+	return uxkb_string_to_keysym(n, out);
+#endif
+
+	return plain_string_to_keysym(n, out);
+}

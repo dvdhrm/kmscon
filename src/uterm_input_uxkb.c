@@ -292,12 +292,27 @@ static void uxkb_keysym_to_string(uint32_t keysym, char *str, size_t size)
 	xkb_keysym_get_name(keysym, str, size);
 }
 
+int uxkb_string_to_keysym(const char *n, uint32_t *out)
+{
+	uint32_t keysym;
+
+	/* TODO: fix xkbcommon upstream to be case-insensitive if case-sensitive
+	 * match fails. */
+	sym = xkb_keysym_from_name(n);
+	if (!sym)
+		return -EFAULT;
+
+	*out = sym;
+	return 0;
+}
+
 const struct kbd_desc_ops uxkb_desc_ops = {
 	.init = uxkb_desc_init,
 	.ref = uxkb_desc_ref,
 	.unref = uxkb_desc_unref,
 	.alloc = uxkb_desc_alloc,
 	.keysym_to_string = uxkb_keysym_to_string,
+	.string_to_keysym = uxkb_string_to_keysym,
 };
 
 const struct kbd_dev_ops uxkb_dev_ops = {

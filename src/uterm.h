@@ -332,6 +332,8 @@ bool uterm_input_is_awake(struct uterm_input *input);
 
 void uterm_input_keysym_to_string(struct uterm_input *input,
 				  uint32_t keysym, char *str, size_t size);
+int uterm_input_string_to_keysym(struct uterm_input *input, const char *n,
+				 uint32_t *out);
 
 /*
  * System Monitor
