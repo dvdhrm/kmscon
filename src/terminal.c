@@ -343,24 +343,29 @@ static void input_event(struct uterm_input *input,
 	if (!term->opened || !term->awake)
 		return;
 
-	if (UTERM_INPUT_HAS_MODS(ev, UTERM_SHIFT_MASK)) {
-		if (ev->keysym == XK_Up) {
-			kmscon_console_sb_up(term->console, 1);
-			schedule_redraw(term);
-			return;
-		} else if (ev->keysym == XK_Down) {
-			kmscon_console_sb_down(term->console, 1);
-			schedule_redraw(term);
-			return;
-		} else if (ev->keysym == XK_Prior) {
-			kmscon_console_sb_page_up(term->console, 1);
-			schedule_redraw(term);
-			return;
-		} else if (ev->keysym == XK_Next) {
-			kmscon_console_sb_page_down(term->console, 1);
-			schedule_redraw(term);
-			return;
-		}
+	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_up->mods) &&
+	    ev->keysym == kmscon_conf.grab_scroll_up->keysym) {
+		kmscon_console_sb_up(term->console, 1);
+		schedule_redraw(term);
+		return;
+	}
+	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_down->mods) &&
+	    ev->keysym == kmscon_conf.grab_scroll_down->keysym) {
+		kmscon_console_sb_down(term->console, 1);
+		schedule_redraw(term);
+		return;
+	}
+	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_up->mods) &&
+	    ev->keysym == kmscon_conf.grab_page_up->keysym) {
+		kmscon_console_sb_page_up(term->console, 1);
+		schedule_redraw(term);
+		return;
+	}
+	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_down->mods) &&
+	    ev->keysym == kmscon_conf.grab_page_down->keysym) {
+		kmscon_console_sb_page_down(term->console, 1);
+		schedule_redraw(term);
+		return;
 	}
 
 	if (kmscon_vte_handle_keyboard(term->vte, ev)) {

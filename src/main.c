@@ -441,6 +441,15 @@ static void print_help()
 		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
 		"\n"
+		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
+		"\t                                Shortcut to scroll up\n"
+		"\t    --grab-scroll-down <grab> [<Shift>Down]\n"
+		"\t                                Shortcut to scroll down\n"
+		"\t    --grab-page-up <grab>     [<Shift>Prior]\n"
+		"\t                                Shortcut to scroll page up\n"
+		"\t    --grab-page-down <grab>   [<Shift>Next]\n"
+		"\t                                Shortcut to scroll page down\n"
+		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
 		"\t                              Font engine\n"
@@ -519,6 +528,26 @@ static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 
 static char *def_seats[] = { "seat0", NULL };
 
+static struct uterm_input_grab def_grab_scroll_up = {
+	.mods = UTERM_SHIFT_MASK,
+	.keysym = XK_Up,
+};
+
+static struct uterm_input_grab def_grab_scroll_down = {
+	.mods = UTERM_SHIFT_MASK,
+	.keysym = XK_Down,
+};
+
+static struct uterm_input_grab def_grab_page_up = {
+	.mods = UTERM_SHIFT_MASK,
+	.keysym = XK_Prior,
+};
+
+static struct uterm_input_grab def_grab_page_down = {
+	.mods = UTERM_SHIFT_MASK,
+	.keysym = XK_Next,
+};
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
@@ -534,6 +563,10 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
 	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
 	CONF_OPTION_UINT(0, "sb-size", NULL, &kmscon_conf.sb_size, 1000),
+	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &kmscon_conf.grab_scroll_up, &def_grab_scroll_up),
+	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &kmscon_conf.grab_scroll_down, &def_grab_scroll_down),
+	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &kmscon_conf.grab_page_up, &def_grab_page_up),
+	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &kmscon_conf.grab_page_down, &def_grab_page_down),
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
