@@ -41,6 +41,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <X11/keysym.h>
 #include "eloop.h"
 
 /*
