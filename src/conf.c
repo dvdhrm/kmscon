@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include "conf.h"
 #include "log.h"
+#include "uterm.h"
 
 #define LOG_SUBSYSTEM "config"
 
@@ -136,6 +137,91 @@ void conf_default_string_list(struct conf_option *opt)
 	*(void**)opt->mem = opt->def;
 }
 
+int conf_parse_grab(struct conf_option *opt, bool on, const char *arg)
+{
+	char *buf, *tmp, *start;
+	int ret;
+	struct uterm_input_grab grab, *gnew;
+
+	memset(&grab, 0, sizeof(grab));
+
+	buf = strdup(arg);
+	if (!buf)
+		return -ENOMEM;
+	tmp = buf;
+
+next_mod:
+	if (*tmp == '<') {
+		start = tmp;
+		while (*tmp && *tmp != '>')
+			++tmp;
+
+		if (*tmp != '>') {
+			log_error("missing '>' in grab '%s' near '%s'",
+				  arg, start);
+			goto err_free;
+		}
+
+		*tmp++ = 0;
+		++start;
+		if (!strcasecmp(start, "shift")) {
+			grab.mods |= UTERM_SHIFT_MASK;
+		} else if (!strcasecmp(start, "lock")) {
+			grab.mods |= UTERM_LOCK_MASK;
+		} else if (!strcasecmp(start, "control") ||
+			   !strcasecmp(start, "ctrl")) {
+			grab.mods |= UTERM_CONTROL_MASK;
+		} else if (!strcasecmp(start, "mod1")) {
+			grab.mods |= UTERM_MOD1_MASK;
+		} else if (!strcasecmp(start, "mod2")) {
+			grab.mods |= UTERM_MOD2_MASK;
+		} else if (!strcasecmp(start, "mod3")) {
+			grab.mods |= UTERM_MOD3_MASK;
+		} else if (!strcasecmp(start, "mod4")) {
+			grab.mods |= UTERM_MOD4_MASK;
+		} else if (!strcasecmp(start, "mod5")) {
+			grab.mods |= UTERM_MOD5_MASK;
+		} else {
+			log_error("invalid modifier '%s' in grab '%s'",
+				  start, arg);
+			goto err_free;
+		}
+
+		goto next_mod;
+	}
+
+	if (!*tmp) {
+		log_error("missing key in grab '%s'", arg);
+		goto err_free;
+	}
+
+	ret = uterm_input_string_to_keysym(NULL, tmp, &grab.keysym);
+	if (ret || !grab.keysym) {
+		log_error("invalid key '%s' in grab '%s'", tmp, arg);
+		goto err_free;
+	}
+
+	gnew = malloc(sizeof(*gnew));
+	if (!gnew)
+		goto err_free;
+	memcpy(gnew, &grab, sizeof(*gnew));
+
+	opt->type->free(opt);
+	*(void**)opt->mem = gnew;
+	free(buf);
+
+	return 0;
+
+err_free:
+	free(buf);
+	return -EFAULT;
+}
+
+void conf_default_grab(struct conf_option *opt)
+{
+	*(void**)opt->mem = opt->def;
+}
+
 const struct conf_type conf_bool = {
 	.flags = 0,
 	.parse = conf_parse_bool,
@@ -162,6 +248,13 @@ const struct conf_type conf_string_list = {
 	.parse = conf_parse_string_list,
 	.free = conf_free_value,
 	.set_default = conf_default_string_list,
+};
+
+const struct conf_type conf_grab = {
+	.flags = CONF_HAS_ARG,
+	.parse = conf_parse_grab,
+	.free = conf_free_value,
+	.set_default = conf_default_grab,
 };
 
 /* free all memory that we allocated and reset to initial state */

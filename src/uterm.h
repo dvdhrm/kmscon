@@ -305,6 +305,11 @@ struct uterm_input_event {
 
 #define UTERM_INPUT_HAS_MODS(_ev, _mods) (((_ev)->mods & (_mods)) == (_mods))
 
+struct uterm_input_grab {
+	unsigned int mods;
+	uint32_t keysym;
+};
+
 typedef void (*uterm_input_cb) (struct uterm_input *input,
 				struct uterm_input_event *ev,
 				void *data);
