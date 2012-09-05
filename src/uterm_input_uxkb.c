@@ -298,11 +298,11 @@ int uxkb_string_to_keysym(const char *n, uint32_t *out)
 
 	/* TODO: fix xkbcommon upstream to be case-insensitive if case-sensitive
 	 * match fails. */
-	sym = xkb_keysym_from_name(n);
-	if (!sym)
+	keysym = xkb_keysym_from_name(n);
+	if (!keysym)
 		return -EFAULT;
 
-	*out = sym;
+	*out = keysym;
 	return 0;
 }
 
