@@ -297,7 +297,7 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 
 	memcpy(&face->real_attr, &face->attr, sizeof(face->attr));
 	face->real_attr.height = rec.height;
-	face->real_attr.width = rec.width / num;
+	face->real_attr.width = rec.width / num + 1;
 	face->baseline = PANGO_PIXELS_CEIL(pango_layout_get_baseline(layout));
 	g_object_unref(layout);
 
