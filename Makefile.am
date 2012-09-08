@@ -84,21 +84,21 @@ endif
 #
 
 SHADERS = \
-	src/static_fill.vert \
-	src/static_fill.frag \
-	src/static_blend.vert \
-	src/static_blend.frag \
-	src/static_blit.vert \
-	src/static_blit.frag \
-	src/static_gltex.vert \
-	src/static_gltex.frag
+	$(srcdir)/src/static_fill.vert \
+	$(srcdir)/src/static_fill.frag \
+	$(srcdir)/src/static_blend.vert \
+	$(srcdir)/src/static_blend.frag \
+	$(srcdir)/src/static_blit.vert \
+	$(srcdir)/src/static_blit.frag \
+	$(srcdir)/src/static_gltex.vert \
+	$(srcdir)/src/static_gltex.frag
 
 EXTRA_DIST += \
 	$(SHADERS)
 CLEANFILES += \
 	src/static_shaders.c
 
-nodist_genshader_SOURCES = \
+genshader_SOURCES = \
 	src/genshader.c
 
 src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
@@ -117,7 +117,7 @@ EXTRA_DIST += \
 CLEANFILES += \
 	src/text_font_unifont_data.c
 
-nodist_genunifont_SOURCES = \
+genunifont_SOURCES = \
 	src/genunifont.c
 
 src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
@@ -144,11 +144,12 @@ libkmscon_core_la_SOURCES = \
 	src/text.h \
 	src/text.c \
 	src/text_font.c
+nodist_libkmscon_core_la_SOURCES =
 
 if KMSCON_HAVE_UNIFONT
 libkmscon_core_la_SOURCES += \
-	src/text_font_unifont.h \
-	src/text_font_unifont.c \
+	src/text_font_unifont.c
+nodist_libkmscon_core_la_SOURCES += \
 	src/text_font_unifont_data.c
 endif
 
@@ -305,6 +306,7 @@ libkmscon_static_la_SOURCES = \
 	src/static_misc.c \
 	external/htable.h \
 	external/htable.c
+nodist_libkmscon_static_la_SOURCES =
 
 libkmscon_static_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
@@ -314,10 +316,11 @@ libkmscon_static_la_LIBADD = \
 	$(GLES2_LIBS)
 
 if KMSCON_HAVE_GLES2
-nodist_libkmscon_static_la_SOURCES = \
+libkmscon_static_la_SOURCES += \
 	src/static_gl.h \
 	src/static_gl_math.c \
-	src/static_gl_shader.c \
+	src/static_gl_shader.c
+nodist_libkmscon_static_la_SOURCES += \
 	src/static_shaders.c
 endif
 
