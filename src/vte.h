@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include "console.h"
 #include "unicode.h"
-#include "uterm.h"
 
 /* available character sets */
 
@@ -56,6 +55,8 @@ enum kmscon_vte_keyboard_action {
 	KMSCON_VTE_SEND,
 };
 
+#define KMSCON_VTE_INVALID 0xffffffff
+
 typedef void (*kmscon_vte_write_cb) (struct kmscon_vte *vte,
 				     const char *u8,
 				     size_t len,
@@ -68,7 +69,7 @@ void kmscon_vte_unref(struct kmscon_vte *vte);
 
 void kmscon_vte_reset(struct kmscon_vte *vte);
 void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
-bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
-				const struct uterm_input_event *ev);
+bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
+				unsigned int mods, uint32_t unicode);
 
 #endif /* KMSCON_VTE_H */

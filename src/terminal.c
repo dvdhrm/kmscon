@@ -372,7 +372,8 @@ static void input_event(struct uterm_input *input,
 		return;
 	}
 
-	if (kmscon_vte_handle_keyboard(term->vte, ev)) {
+	if (kmscon_vte_handle_keyboard(term->vte, ev->keysym, ev->mods,
+				       ev->unicode)) {
 		kmscon_console_sb_reset(term->console);
 		schedule_redraw(term);
 	}

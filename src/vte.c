@@ -2096,16 +2096,16 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 	--vte->parse_cnt;
 }
 
-bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
-				const struct uterm_input_event *ev)
+bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
+				unsigned int mods, uint32_t unicode)
 {
 	kmscon_symbol_t sym;
 	char val;
 	size_t len;
 	const char *u8;
 
-	if (UTERM_INPUT_HAS_MODS(ev, UTERM_CONTROL_MASK)) {
-		switch (ev->keysym) {
+	if (mods & UTERM_CONTROL_MASK) {
+		switch (keysym) {
 		case XK_2:
 		case XK_space:
 			vte_write(vte, "\x00", 1);
@@ -2245,7 +2245,7 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 		}
 	}
 
-	switch (ev->keysym) {
+	switch (keysym) {
 		case XK_BackSpace:
 			vte_write(vte, "\x08", 1);
 			return true;
@@ -2515,23 +2515,25 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte,
 			return true;
 	}
 
-	if (ev->unicode != UTERM_INPUT_INVALID) {
+	if (unicode != KMSCON_VTE_INVALID) {
 		if (vte->flags & FLAG_7BIT_MODE) {
-			val = ev->unicode;
-			if (ev->unicode & 0x80) {
-				log_debug("invalid keyboard input in 7bit mode U+%x; mapping to '?'", ev->unicode);
+			val = unicode;
+			if (unicode & 0x80) {
+				log_debug("invalid keyboard input in 7bit mode U+%x; mapping to '?'",
+					  unicode);
 				val = '?';
 			}
 			vte_write(vte, &val, 1);
 		} else if (vte->flags & FLAG_8BIT_MODE) {
-			val = ev->unicode;
-			if (ev->unicode > 0xff) {
-				log_debug("invalid keyboard input in 8bit mode U+%x; mapping to '?'", ev->unicode);
+			val = unicode;
+			if (unicode > 0xff) {
+				log_debug("invalid keyboard input in 8bit mode U+%x; mapping to '?'",
+					  unicode);
 				val = '?';
 			}
 			vte_write_raw(vte, &val, 1);
 		} else {
-			sym = kmscon_symbol_make(ev->unicode);
+			sym = kmscon_symbol_make(unicode);
 			u8 = kmscon_symbol_get_u8(sym, &len);
 			vte_write_raw(vte, u8, len);
 			kmscon_symbol_free_u8(u8);
