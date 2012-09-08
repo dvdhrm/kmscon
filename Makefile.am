@@ -274,6 +274,7 @@ libeloop_la_SOURCES = \
 
 if EV_HAVE_DBUS
 libeloop_la_SOURCES += \
+	external/dbus-common.h \
 	external/dbus-loop.h \
 	external/dbus-loop.c
 endif

@@ -27,8 +27,8 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 
-#include "dbus-loop.h"
-#include "dbus-common.h"
+#include "external/dbus-loop.h"
+#include "external/dbus-common.h"
 
 /* Minimal implementation of the dbus loop which integrates all dbus
  * events into a single epoll fd which we can triviall integrate with
