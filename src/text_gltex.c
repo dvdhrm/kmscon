@@ -522,7 +522,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 
 static int gltex_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
-		      const struct font_char_attr *attr)
+		      const struct kmscon_console_attr *attr)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;

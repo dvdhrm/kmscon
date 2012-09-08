@@ -46,7 +46,7 @@
 
 struct cell {
 	kmscon_symbol_t ch;
-	struct font_char_attr attr;
+	struct kmscon_console_attr attr;
 };
 
 struct line {
@@ -63,7 +63,7 @@ struct kmscon_console {
 	struct kmscon_timer *timer;
 
 	/* default attributes for new cells */
-	struct font_char_attr def_attr;
+	struct kmscon_console_attr def_attr;
 
 	/* current buffer */
 	unsigned int size_x;
@@ -319,7 +319,7 @@ static void console_scroll_down(struct kmscon_console *con, unsigned int num)
 
 static void console_write(struct kmscon_console *con, unsigned int x,
 			  unsigned int y, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr)
+			  const struct kmscon_console_attr *attr)
 {
 	struct line *line;
 
@@ -698,7 +698,7 @@ void kmscon_console_sb_reset(struct kmscon_console *con)
 }
 
 void kmscon_console_set_def_attr(struct kmscon_console *con,
-				 const struct font_char_attr *attr)
+				 const struct kmscon_console_attr *attr)
 {
 	if (!con || !attr)
 		return;
@@ -798,7 +798,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 	unsigned int i, j, k;
 	struct line *iter, *line = NULL;
 	struct cell *cell;
-	struct font_char_attr attr;
+	struct kmscon_console_attr attr;
 	bool cursor_done = false;
 	int ret, warned = 0;
 	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
@@ -900,7 +900,7 @@ void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
 }
 
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr)
+			  const struct kmscon_console_attr *attr)
 {
 	unsigned int last;
 

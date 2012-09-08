@@ -138,7 +138,7 @@ enum parser_action {
 struct vte_saved_state {
 	unsigned int cursor_x;
 	unsigned int cursor_y;
-	struct font_char_attr cattr;
+	struct kmscon_console_attr cattr;
 	kmscon_vte_charset *gl;
 	kmscon_vte_charset *gr;
 	bool wrap_mode;
@@ -160,8 +160,8 @@ struct kmscon_vte {
 	unsigned int csi_flags;
 
 	uint8_t (*palette)[3];
-	struct font_char_attr def_attr;
-	struct font_char_attr cattr;
+	struct kmscon_console_attr def_attr;
+	struct kmscon_console_attr cattr;
 	unsigned int flags;
 
 	kmscon_vte_charset *gl;
@@ -301,7 +301,7 @@ static uint8_t (*get_palette(void))[3]
 	return color_palette;
 }
 
-static void set_fcolor(struct font_char_attr *attr, unsigned int color,
+static void set_fcolor(struct kmscon_console_attr *attr, unsigned int color,
 		       struct kmscon_vte *vte)
 {
 	if (color >= COLOR_NUM)
@@ -312,7 +312,7 @@ static void set_fcolor(struct font_char_attr *attr, unsigned int color,
 	attr->fb = vte->palette[color][2];
 }
 
-static void set_bcolor(struct font_char_attr *attr, unsigned int color,
+static void set_bcolor(struct kmscon_console_attr *attr, unsigned int color,
 		       struct kmscon_vte *vte)
 {
 	if (color >= COLOR_NUM)
@@ -323,16 +323,16 @@ static void set_bcolor(struct font_char_attr *attr, unsigned int color,
 	attr->bb = vte->palette[color][2];
 }
 
-static void copy_fcolor(struct font_char_attr *dest,
-			const struct font_char_attr *src)
+static void copy_fcolor(struct kmscon_console_attr *dest,
+			const struct kmscon_console_attr *src)
 {
 	dest->fr = src->fr;
 	dest->fg = src->fg;
 	dest->fb = src->fb;
 }
 
-static void copy_bcolor(struct font_char_attr *dest,
-			const struct font_char_attr *src)
+static void copy_bcolor(struct kmscon_console_attr *dest,
+			const struct kmscon_console_attr *src)
 {
 	dest->br = src->br;
 	dest->bg = src->bg;

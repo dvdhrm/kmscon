@@ -445,7 +445,7 @@ int kmscon_text_prepare(struct kmscon_text *txt)
  */
 int kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
-		      const struct font_char_attr *attr)
+		      const struct kmscon_console_attr *attr)
 {
 	if (!txt || !txt->rendering)
 		return -EINVAL;

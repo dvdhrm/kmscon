@@ -50,6 +50,19 @@ struct kmscon_console;
 #define KMSCON_CONSOLE_HIDE_CURSOR	0x10
 #define KMSCON_CONSOLE_FIXED_POS	0x20
 
+struct kmscon_console_attr {
+	uint8_t fr;			/* foreground red */
+	uint8_t fg;			/* foreground green */
+	uint8_t fb;			/* foreground blue */
+	uint8_t br;			/* background red */
+	uint8_t bg;			/* background green */
+	uint8_t bb;			/* background blue */
+	unsigned int bold : 1;		/* bold character */
+	unsigned int underline : 1;	/* underlined character */
+	unsigned int inverse : 1;	/* inverse colors */
+	unsigned int protect : 1;	/* cannot be erased */
+};
+
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
 void kmscon_console_unref(struct kmscon_console *con);
@@ -70,7 +83,7 @@ void kmscon_console_sb_page_down(struct kmscon_console *con, unsigned int num);
 void kmscon_console_sb_reset(struct kmscon_console *con);
 
 void kmscon_console_set_def_attr(struct kmscon_console *con,
-				 const struct font_char_attr *attr);
+				 const struct kmscon_console_attr *attr);
 void kmscon_console_reset(struct kmscon_console *con);
 void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags);
 void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags);
@@ -83,10 +96,8 @@ void kmscon_console_set_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_all_tabstops(struct kmscon_console *con);
 
-void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt);
-
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
-			  const struct font_char_attr *attr);
+			  const struct kmscon_console_attr *attr);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_scroll_up(struct kmscon_console *con, unsigned int num);
 void kmscon_console_scroll_down(struct kmscon_console *con, unsigned int num);
@@ -119,5 +130,7 @@ void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con,
 void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con,
 					   bool protect);
 void kmscon_console_erase_screen(struct kmscon_console *con, bool protect);
+
+void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt);
 
 #endif /* KMSCON_CONSOLE_H */
