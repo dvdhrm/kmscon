@@ -205,6 +205,10 @@ void log_llog(const char *file,
 int log_set_file(const char *file);
 void log_print_init(const char *appname);
 
+static inline void log_dummyf(unsigned int sev, const char *format, ...)
+{
+}
+
 /*
  * Default values
  * All helpers automatically pick-up the file, line, func, config and subsystem
@@ -262,7 +266,8 @@ extern const char *LOG_SUBSYSTEM;
 	#define log_debug(format, ...) \
 		log_printf(LOG_DEBUG, (format), ##__VA_ARGS__)
 #else
-	#define log_debug(format, ...)
+	#define log_debug(format, ...) \
+		log_dummyf(LOG_DEBUG, (format), ##__VA_ARGS__)
 #endif
 
 #define log_info(format, ...) \
