@@ -133,6 +133,7 @@ enum parser_action {
 #define FLAG_AUTO_WRAP_MODE			0x00001000 /* Auto line wrap mode */
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
+#define FLAG_BACKGROUND_COLOR_ERASE_MODE	0x00008000 /* Set background color on erase (bce) */
 
 struct vte_saved_state {
 	unsigned int cursor_x;
@@ -365,7 +366,6 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 		goto err_free;
 
 	kmscon_vte_reset(vte);
-	kmscon_console_set_def_attr(vte->con, &vte->def_attr);
 	kmscon_console_erase_screen(vte->con, false);
 
 	log_debug("new vte object");
@@ -500,6 +500,8 @@ static void restore_state(struct kmscon_vte *vte)
 	kmscon_console_move_to(vte->con, vte->saved_state.cursor_x,
 			       vte->saved_state.cursor_y);
 	vte->cattr = vte->saved_state.cattr;
+	if (vte->flags & FLAG_BACKGROUND_COLOR_ERASE_MODE)
+		kmscon_console_set_def_attr(vte->con, &vte->cattr);
 	vte->gl = vte->saved_state.gl;
 	vte->gr = vte->saved_state.gr;
 
@@ -540,6 +542,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags |= FLAG_AUTO_REPEAT_MODE;
 	vte->flags |= FLAG_SEND_RECEIVE_MODE;
 	vte->flags |= FLAG_AUTO_WRAP_MODE;
+	vte->flags |= FLAG_BACKGROUND_COLOR_ERASE_MODE;
 	kmscon_console_reset(vte->con);
 	kmscon_console_set_flags(vte->con, KMSCON_CONSOLE_AUTO_WRAP);
 
@@ -563,16 +566,17 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->cattr.bold = 0;
 	vte->cattr.underline = 0;
 	vte->cattr.inverse = 0;
+	kmscon_console_set_def_attr(vte->con, &vte->def_attr);
 
 	reset_state(vte);
 }
 
 static void hard_reset(struct kmscon_vte *vte)
 {
+	kmscon_vte_reset(vte);
 	kmscon_console_erase_screen(vte->con, false);
 	kmscon_console_clear_sb(vte->con);
 	kmscon_console_move_to(vte->con, 0, 0);
-	kmscon_vte_reset(vte);
 }
 
 static void send_primary_da(struct kmscon_vte *vte)
@@ -1148,6 +1152,9 @@ static void csi_attribute(struct kmscon_vte *vte)
 				  vte->csi_argv[i]);
 		}
 	}
+
+	if (vte->flags & FLAG_BACKGROUND_COLOR_ERASE_MODE)
+		kmscon_console_set_def_attr(vte->con, &vte->cattr);
 }
 
 static void csi_soft_reset(struct kmscon_vte *vte)
