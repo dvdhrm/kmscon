@@ -51,6 +51,8 @@ struct kmscon_console;
 #define KMSCON_CONSOLE_FIXED_POS	0x20
 
 struct kmscon_console_attr {
+	int8_t fccode;			/* foreground color code or <0 for rgb */
+	int8_t bccode;			/* background color code or <0 for rgb */
 	uint8_t fr;			/* foreground red */
 	uint8_t fg;			/* foreground green */
 	uint8_t fb;			/* foreground blue */
