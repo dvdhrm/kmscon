@@ -1,5 +1,38 @@
 = KMSCON Release News =
 
+CHANGES WITH 4:
+	* The "conf" subsystem was modularized so we can use it in other
+	  binaries as well. It is also much easier to add new parameters now.
+
+	* Remove internal dependencies. Several subsystems will be split into
+	  separate libraries (like eloop, uterm, vte+console) so we should avoid
+	  any internal dependencies between these. This shouldn't affect
+	  performance, though.
+
+	* New --seats argument which allows to specify what seats kmscon is
+	  running on.
+
+	* The old vt.[ch] subsystem is now merged into uterm_vt.c and a fake VT
+	  backend was added. This allows to activate/deactivate kmscon via
+	  keyboard shortcuts. This is for debugging only, though.
+
+	* The VTE layer was extended a lot to support more advanced control
+	  sequences and fix several bugs.
+
+	* --dumb now forces kmscon to use non-accelerated rendering
+
+	* The scrollback buffer now works. You can specify keyboard shortcuts
+	  via --grab-* options. Default is: <Shift>Up/Down/Prior/Next
+
+	* GL_EXT_unpack_subimage is not required anymore.
+
+	* _Lots_ of speed improvements in the rendering path.
+
+	* The unifont font backend was added. This is similar to 8x16 but has a
+	  lot more characters.
+
+	* ... and a lot of bugfixes
+
 CHANGES WITH 3: (development release)
 	* VTE support has been improved greatly. vt220 should be supported fully
 	  except for multi-line characters.
