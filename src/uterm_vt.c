@@ -162,7 +162,7 @@ static void real_input(struct ev_fd *fd, int mask, void *data)
 
 static int open_tty(int id, int *tty_fd, int *tty_num)
 {
-	int fd;
+	int fd, err1;
 	char filename[16];
 
 	if (!tty_fd || !tty_num)
@@ -171,10 +171,12 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	if (id < 0) {
 		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
+			err1 = errno;
 			fd = open("/dev/tty1",
 					O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 			if (fd < 0) {
-				log_err("cannot find parent tty");
+				log_err("cannot find parent tty (%d, %d): %m",
+					err1, errno);
 				return -errno;
 			}
 		}
