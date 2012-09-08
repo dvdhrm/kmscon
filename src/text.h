@@ -163,6 +163,12 @@ int kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
 int kmscon_text_render(struct kmscon_text *txt);
 void kmscon_text_abort(struct kmscon_text *txt);
 
+int kmscon_text_prepare_cb(struct kmscon_console *con, void *data);
+int kmscon_text_draw_cb(struct kmscon_console *con, kmscon_symbol_t ch,
+			unsigned int posx, unsigned int posy,
+			const struct kmscon_console_attr *attr, void *data);
+int kmscon_text_render_cb(struct kmscon_console *con, void *data);
+
 /* modularized backends */
 
 #ifdef KMSCON_HAVE_UNIFONT

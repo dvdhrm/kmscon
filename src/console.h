@@ -35,8 +35,8 @@
 #define KMSCON_CONSOLE_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include "text.h"
 #include "unicode.h"
 
 struct kmscon_console;
@@ -62,6 +62,17 @@ struct kmscon_console_attr {
 	unsigned int inverse : 1;	/* inverse colors */
 	unsigned int protect : 1;	/* cannot be erased */
 };
+
+typedef int (*kmscon_console_prepare_cb) (struct kmscon_console *con,
+					  void *data);
+typedef int (*kmscon_console_draw_cb) (struct kmscon_console *con,
+				       kmscon_symbol_t ch,
+				       unsigned int posx,
+				       unsigned int posy,
+				       const struct kmscon_console_attr *attr,
+				       void *data);
+typedef int (*kmscon_console_render_cb) (struct kmscon_console *con,
+					 void *data);
 
 int kmscon_console_new(struct kmscon_console **out);
 void kmscon_console_ref(struct kmscon_console *con);
@@ -131,6 +142,10 @@ void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con,
 					   bool protect);
 void kmscon_console_erase_screen(struct kmscon_console *con, bool protect);
 
-void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt);
+void kmscon_console_draw(struct kmscon_console *con,
+			 kmscon_console_prepare_cb prepare_cb,
+			 kmscon_console_draw_cb draw_cb,
+			 kmscon_console_render_cb render_cb,
+			 void *data);
 
 #endif /* KMSCON_CONSOLE_H */

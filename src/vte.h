@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include "console.h"
 #include "unicode.h"
+#include "uterm.h"
 
 /* available character sets */
 

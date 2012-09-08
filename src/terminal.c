@@ -91,7 +91,11 @@ static void redraw(struct kmscon_terminal *term)
 		ent = kmscon_dlist_entry(iter, struct screen, list);
 		screen = ent->screen;
 
-		kmscon_console_draw(term->console, ent->txt);
+		kmscon_console_draw(term->console,
+				    kmscon_text_prepare_cb,
+				    kmscon_text_draw_cb,
+				    kmscon_text_render_cb,
+				    ent->txt);
 		uterm_screen_swap(screen);
 	}
 }

@@ -39,7 +39,6 @@
 #include "log.h"
 #include "main.h"
 #include "static_misc.h"
-#include "text.h"
 #include "unicode.h"
 
 #define LOG_SUBSYSTEM "console"
@@ -792,113 +791,6 @@ void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
 		con->tab_ruler[i] = false;
 }
 
-void kmscon_console_draw(struct kmscon_console *con, struct kmscon_text *txt)
-{
-	unsigned int cur_x, cur_y;
-	unsigned int i, j, k;
-	struct line *iter, *line = NULL;
-	struct cell *cell;
-	struct kmscon_console_attr attr;
-	bool cursor_done = false;
-	int ret, warned = 0;
-	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
-
-	if (!con || !txt)
-		return;
-
-	cur_x = con->cursor_x;
-	if (con->cursor_x >= con->size_x)
-		cur_x = con->size_x - 1;
-	cur_y = con->cursor_y;
-	if (con->cursor_y >= con->size_y)
-		cur_y = con->size_y - 1;
-
-	/* render preparation */
-
-	if (kmscon_conf.render_timing)
-		kmscon_timer_reset(con->timer);
-
-	ret = kmscon_text_prepare(txt);
-	if (ret) {
-		log_warning("cannot prepare text-renderer for rendering");
-		return;
-	}
-
-	if (kmscon_conf.render_timing)
-		time_prep = kmscon_timer_elapsed(con->timer);
-
-	/* push each character into rendering pipeline */
-
-	if (kmscon_conf.render_timing)
-		kmscon_timer_reset(con->timer);
-
-	iter = con->sb_pos;
-	k = 0;
-	for (i = 0; i < con->size_y; ++i) {
-		if (iter) {
-			line = iter;
-			iter = iter->next;
-		} else {
-			line = con->lines[k];
-			k++;
-		}
-
-		for (j = 0; j < con->size_x; ++j) {
-			cell = &line->cells[j];
-			memcpy(&attr, &cell->attr, sizeof(attr));
-
-			if (k == cur_y + 1 &&
-			    j == cur_x) {
-				cursor_done = true;
-				if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR))
-					attr.inverse = !attr.inverse;
-			}
-
-			/* TODO: do some more sophisticated inverse here. When
-			 * INVERSE mode is set, we should instead just select
-			 * inverse colors instead of switching background and
-			 * foreground */
-			if (con->flags & KMSCON_CONSOLE_INVERSE)
-				attr.inverse = !attr.inverse;
-
-			ret = kmscon_text_draw(txt, cell->ch, j, i, &attr);
-			if (ret && warned++ < 3) {
-				log_debug("cannot draw glyph at %ux%u via text-renderer",
-					  j, i);
-				if (warned == 3)
-					log_debug("suppressing further warnings during this rendering");
-			}
-		}
-
-		if (k == cur_y + 1 && !cursor_done) {
-			cursor_done = true;
-			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
-				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
-					attr.inverse = !attr.inverse;
-				kmscon_text_draw(txt, 0, cur_x, i, &attr);
-			}
-		}
-	}
-
-	if (kmscon_conf.render_timing)
-		time_draw = kmscon_timer_elapsed(con->timer);
-
-	/* perform final rendering steps */
-
-	if (kmscon_conf.render_timing)
-		kmscon_timer_reset(con->timer);
-
-	ret = kmscon_text_render(txt);
-	if (ret)
-		log_warning("cannot render via text-renderer");
-
-	if (kmscon_conf.render_timing) {
-		time_rend = kmscon_timer_elapsed(con->timer);
-		log_debug("timing: prepare: %llu draw: %llu render: %llu",
-			  time_prep, time_draw, time_rend);
-	}
-}
-
 void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
 			  const struct kmscon_console_attr *attr)
 {
@@ -1347,4 +1239,124 @@ void kmscon_console_erase_screen(struct kmscon_console *con, bool protect)
 
 	console_erase_region(con, 0, 0, con->size_x - 1, con->size_y - 1,
 			     protect);
+}
+
+void kmscon_console_draw(struct kmscon_console *con,
+			 kmscon_console_prepare_cb prepare_cb,
+			 kmscon_console_draw_cb draw_cb,
+			 kmscon_console_render_cb render_cb,
+			 void *data)
+{
+	unsigned int cur_x, cur_y;
+	unsigned int i, j, k;
+	struct line *iter, *line = NULL;
+	struct cell *cell;
+	struct kmscon_console_attr attr;
+	bool cursor_done = false;
+	int ret, warned = 0;
+	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
+
+	if (!con || !draw_cb)
+		return;
+
+	cur_x = con->cursor_x;
+	if (con->cursor_x >= con->size_x)
+		cur_x = con->size_x - 1;
+	cur_y = con->cursor_y;
+	if (con->cursor_y >= con->size_y)
+		cur_y = con->size_y - 1;
+
+	/* render preparation */
+
+	if (prepare_cb) {
+		if (kmscon_conf.render_timing)
+			kmscon_timer_reset(con->timer);
+
+		ret = prepare_cb(con, data);
+		if (ret) {
+			log_warning("cannot prepare text-renderer for rendering");
+			return;
+		}
+
+		if (kmscon_conf.render_timing)
+			time_prep = kmscon_timer_elapsed(con->timer);
+	} else {
+		time_prep = 0;
+	}
+
+	/* push each character into rendering pipeline */
+
+	if (kmscon_conf.render_timing)
+		kmscon_timer_reset(con->timer);
+
+	iter = con->sb_pos;
+	k = 0;
+	for (i = 0; i < con->size_y; ++i) {
+		if (iter) {
+			line = iter;
+			iter = iter->next;
+		} else {
+			line = con->lines[k];
+			k++;
+		}
+
+		for (j = 0; j < con->size_x; ++j) {
+			cell = &line->cells[j];
+			memcpy(&attr, &cell->attr, sizeof(attr));
+
+			if (k == cur_y + 1 &&
+			    j == cur_x) {
+				cursor_done = true;
+				if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR))
+					attr.inverse = !attr.inverse;
+			}
+
+			/* TODO: do some more sophisticated inverse here. When
+			 * INVERSE mode is set, we should instead just select
+			 * inverse colors instead of switching background and
+			 * foreground */
+			if (con->flags & KMSCON_CONSOLE_INVERSE)
+				attr.inverse = !attr.inverse;
+
+			ret = draw_cb(con, cell->ch, j, i, &attr, data);
+			if (ret && warned++ < 3) {
+				log_debug("cannot draw glyph at %ux%u via text-renderer",
+					  j, i);
+				if (warned == 3)
+					log_debug("suppressing further warnings during this rendering");
+			}
+		}
+
+		if (k == cur_y + 1 && !cursor_done) {
+			cursor_done = true;
+			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
+				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
+					attr.inverse = !attr.inverse;
+				draw_cb(con, 0, cur_x, i, &attr, data);
+			}
+		}
+	}
+
+	if (kmscon_conf.render_timing)
+		time_draw = kmscon_timer_elapsed(con->timer);
+
+	/* perform final rendering steps */
+
+	if (render_cb) {
+		if (kmscon_conf.render_timing)
+			kmscon_timer_reset(con->timer);
+
+		ret = render_cb(con, data);
+		if (ret)
+			log_warning("cannot render via text-renderer");
+
+		if (kmscon_conf.render_timing)
+			time_rend = kmscon_timer_elapsed(con->timer);
+	} else {
+		time_rend = 0;
+	}
+
+	if (kmscon_conf.render_timing)
+		log_debug("timing: prepare: %llu draw: %llu render: %llu",
+			  time_prep, time_draw, time_rend);
 }

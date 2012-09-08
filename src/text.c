@@ -497,3 +497,20 @@ void kmscon_text_abort(struct kmscon_text *txt)
 		txt->ops->abort(txt);
 	txt->rendering = false;
 }
+
+int kmscon_text_prepare_cb(struct kmscon_console *con, void *data)
+{
+	return kmscon_text_prepare(data);
+}
+
+int kmscon_text_draw_cb(struct kmscon_console *con, kmscon_symbol_t ch,
+			unsigned int posx, unsigned int posy,
+			const struct kmscon_console_attr *attr, void *data)
+{
+	return kmscon_text_draw(data, ch, posx, posy, attr);
+}
+
+int kmscon_text_render_cb(struct kmscon_console *con, void *data)
+{
+	return kmscon_text_render(data);
+}
