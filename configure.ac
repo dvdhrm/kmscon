@@ -33,15 +33,6 @@ LT_PREREQ(2.2)
 LT_INIT
 
 #
-# check for gtk-doc
-# Use weird syntax to make "gtkdocize" happy.
-#
-
-m4_ifdef([GTK_DOC_CHECK],[
-GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
-], [AM_CONDITIONAL([ENABLE_GTK_DOC], false)])
-
-#
 # pkg-config dependencies
 # This unconditionally checks for all dependencies even if they are disabled. We
 # later look whether all required depedencies are met and finish the
@@ -556,7 +547,7 @@ AC_SUBST(FREETYPE2_LIBS)
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
-AC_CONFIG_FILES([Makefile docs/reference/Makefile docs/reference/version.xml])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT([src/genshader.c])
 
 #
