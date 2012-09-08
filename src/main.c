@@ -420,7 +420,7 @@ static void print_help()
 		"\t                              argv to this process. No more options\n"
 		"\t                              after '--' will be parsed so use it at\n"
 		"\t                              the end of the argument string\n"
-		"\t-t, --term <TERM>           [vt220]\n"
+		"\t-t, --term <TERM>           [xterm-256color]\n"
 		"\t                              Value of the TERM environment variable\n"
 		"\t                              for the child process\n"
 		"\t    --palette <name>        [default]\n"
@@ -560,7 +560,7 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
-	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "vt220"),
+	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "xterm-256color"),
 	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
 	CONF_OPTION_UINT(0, "sb-size", NULL, &kmscon_conf.sb_size, 1000),
 	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &kmscon_conf.grab_scroll_up, &def_grab_scroll_up),
