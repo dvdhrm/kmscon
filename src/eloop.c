@@ -205,6 +205,7 @@ struct ev_eloop {
 
 	struct kmscon_dlist sig_list;
 	struct kmscon_hook *idlers;
+	struct kmscon_hook *posts;
 
 	bool dispatching;
 	struct epoll_event *cur_fds;
@@ -760,6 +761,8 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 			loop->cur_fds_size *= 2;
 		}
 	}
+
+	kmscon_hook_call(loop->posts, loop, NULL);
 
 	return 0;
 }
@@ -2167,4 +2170,53 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	kmscon_hook_rm_cast(eloop->idlers, cb, data);
 	if (!kmscon_hook_num(eloop->idlers))
 		ev_eloop_rm_counter(eloop->cnt);
+}
+
+/*
+ * Post-Dispatch Callbacks
+ * A post-dispatch cb is called whenever a single dispatch round is complete.
+ * You should avoid using them and instead not rely on any specific
+ * dispatch-behavior but expect every event to be recieved asynchronously.
+ * However, this hook is useful to integrate other limited APIs into this event
+ * loop if they do not provide proper FD-abstractions.
+ */
+
+/**
+ * ev_eloop_register_post_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This register a new post-cb with the given callback and data. @cb must
+ * not be NULL!.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+			      void *data)
+{
+	if (!eloop)
+		return -EINVAL;
+
+	return kmscon_hook_add_cast(eloop->posts, cb, data);
+}
+
+/**
+ * ev_eloop_unregister_post_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This removes a post-cb. The arguments must be the same as for the
+ * ev_eloop_register_post_cb() call. If two identical callbacks are registered,
+ * then only one is removed. It doesn't matter which one is removed, because
+ * they are identical.
+ */
+void ev_eloop_unregister_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+				 void *data)
+{
+	if (!eloop)
+		return;
+
+	kmscon_hook_rm_cast(eloop->idlers, cb, data);
 }
