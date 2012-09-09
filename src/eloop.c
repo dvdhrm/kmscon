@@ -605,11 +605,15 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	if (ret)
 		goto err_fds;
 
+	ret = kmscon_hook_new(&loop->posts);
+	if (ret)
+		goto err_idlers;
+
 	loop->efd = epoll_create1(EPOLL_CLOEXEC);
 	if (loop->efd < 0) {
 		ret = -errno;
 		llog_error(loop, "cannot create epoll-fd");
-		goto err_idlers;
+		goto err_posts;
 	}
 
 	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop,
@@ -646,6 +650,8 @@ err_fd:
 	ev_fd_unref(loop->fd);
 err_close:
 	close(loop->efd);
+err_posts:
+	kmscon_hook_free(loop->posts);
 err_idlers:
 	kmscon_hook_free(loop->idlers);
 err_fds:
@@ -707,6 +713,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
+	kmscon_hook_free(loop->posts);
 	kmscon_hook_free(loop->idlers);
 	free(loop->cur_fds);
 	free(loop);
