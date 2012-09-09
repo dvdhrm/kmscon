@@ -121,18 +121,32 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 
 #define llog_info(obj, format, ...) \
 	llog_printf((obj), LLOG_INFO, (format), ##__VA_ARGS__)
+#define llog_dinfo(obj, format, ...) \
+	llog_dprintf((obj), LLOG_INFO, (format), ##__VA_ARGS__)
 #define llog_notice(obj, format, ...) \
 	llog_printf((obj), LLOG_NOTICE, (format), ##__VA_ARGS__)
+#define llog_dnotice(obj, format, ...) \
+	llog_dprintf((obj), LLOG_NOTICE, (format), ##__VA_ARGS__)
 #define llog_warning(obj, format, ...) \
 	llog_printf((obj), LLOG_WARNING, (format), ##__VA_ARGS__)
+#define llog_dwarning(obj, format, ...) \
+	llog_dprintf((obj), LLOG_WARNING, (format), ##__VA_ARGS__)
 #define llog_error(obj, format, ...) \
 	llog_printf((obj), LLOG_ERROR, (format), ##__VA_ARGS__)
+#define llog_derror(obj, format, ...) \
+	llog_dprintf((obj), LLOG_ERROR, (format), ##__VA_ARGS__)
 #define llog_critical(obj, format, ...) \
 	llog_printf((obj), LLOG_CRITICAL, (format), ##__VA_ARGS__)
+#define llog_dcritical(obj, format, ...) \
+	llog_dprintf((obj), LLOG_CRITICAL, (format), ##__VA_ARGS__)
 #define llog_alert(obj, format, ...) \
 	llog_printf((obj), LLOG_ALERT, (format), ##__VA_ARGS__)
+#define llog_dalert(obj, format, ...) \
+	llog_dprintf((obj), LLOG_ALERT, (format), ##__VA_ARGS__)
 #define llog_fatal(obj, format, ...) \
 	llog_printf((obj), LLOG_FATAL, (format), ##__VA_ARGS__)
+#define llog_dfatal(obj, format, ...) \
+	llog_dprintf((obj), LLOG_FATAL, (format), ##__VA_ARGS__)
 
 #define llog_dbg llog_debug
 #define llog_warn llog_warning
