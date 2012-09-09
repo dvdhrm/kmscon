@@ -201,7 +201,7 @@ struct ev_eloop {
 	llog_submit_t llog;
 	int efd;
 	struct ev_fd *fd;
-	struct ev_counter *cnt;
+	int idle_fd;
 
 	struct kmscon_dlist sig_list;
 	struct kmscon_hook *idlers;
@@ -496,23 +496,73 @@ static void eloop_event(struct ev_fd *fd, int mask, void *data)
 		llog_warn(eloop, "HUP/ERR on eloop source");
 }
 
-static void eloop_cnt_event(struct ev_counter *cnt, uint64_t num, void *data)
+static int write_eventfd(llog_submit_t llog, int fd, uint64_t val)
 {
-	struct ev_eloop *eloop = data;
 	int ret;
 
-	if (!num) {
-		llog_warning(eloop, "HUP/ERR on eloop idle-counter");
-		return;
+	if (!val)
+		return llog_dEINVAL(llog);
+
+	if (val == 0xffffffffffffffffULL) {
+		llog_dwarning(llog, "increasing counter with invalid value %llu", val);
+		return -EINVAL;;
 	}
 
-	kmscon_hook_call(eloop->idlers, eloop, NULL);
-	if (kmscon_hook_num(eloop->idlers) > 0) {
-		ret = ev_counter_inc(eloop->cnt, 1);
-		if (ret)
-			llog_warning(eloop,
-				     "cannot increase eloop idle-counter");
+	ret = write(fd, &val, sizeof(val));
+	if (ret < 0) {
+		if (errno == EAGAIN)
+			llog_dwarning(llog, "eventfd overflow while writing %llu", val);
+		else
+			llog_dwarning(llog, "eventfd write error (%d): %m", errno);
+		return -EFAULT;
+	} else if (ret != sizeof(val)) {
+		llog_dwarning(llog, "wrote %d bytes instead of 8 to eventdfd", ret);
+		return -EFAULT;
 	}
+
+	return 0;
+}
+
+static void eloop_idle_event(struct ev_eloop *loop, unsigned int mask)
+{
+	int ret;
+	uint64_t val;
+
+	if (mask & (EV_HUP | EV_ERR)) {
+		llog_warning(loop, "HUP/ERR on eventfd");
+		goto err_out;
+	}
+
+	if (!(mask & EV_READABLE))
+		return;
+
+	ret = read(loop->idle_fd, &val, sizeof(val));
+	if (ret < 0) {
+		if (errno != EAGAIN) {
+			llog_warning(loop, "reading eventfd failed (%d): %m",
+				     errno);
+			goto err_out;
+		}
+	} else if (ret == 0) {
+		llog_warning(loop, "EOF on eventfd");
+		goto err_out;
+	} else if (ret != sizeof(val)) {
+		llog_warning(loop, "read %d bytes instead of 8 on eventfd",
+			     ret);
+		goto err_out;
+	} else if (val > 0) {
+		kmscon_hook_call(loop->idlers, loop, NULL);
+		if (kmscon_hook_num(loop->idlers) > 0)
+			write_eventfd(loop->llog, loop->idle_fd, 1);
+	}
+
+	return;
+
+err_out:
+	ret = epoll_ctl(loop->efd, EPOLL_CTL_DEL, loop->idle_fd, NULL);
+	if (ret)
+		llog_warning(loop, "cannot remove fd %d from epollset (%d): %m",
+			     loop->idle_fd, errno);
 }
 
 /**
@@ -529,6 +579,7 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 {
 	struct ev_eloop *loop;
 	int ret;
+	struct epoll_event ep;
 
 	if (!out)
 		return llog_dEINVAL(log);
@@ -566,27 +617,31 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	if (ret)
 		goto err_close;
 
-	ret = ev_counter_new(&loop->cnt, eloop_cnt_event, loop, loop->llog);
-	if (ret)
+	loop->idle_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (loop->idle_fd < 0) {
+		llog_error(loop, "cannot create eventfd (%d): %m", errno);
+		ret = -EFAULT;
 		goto err_fd;
+	}
 
-	/*
-	 * We must never call ev_eloop_add_*() here! We cannot directly add the
-	 * loop->cnt object to our own event loop. Otherwise,
-	 * ev_eloop_add_counter() will take a reference to ourself and hence we
-	 * will own a reference to ourself. Therefore, this eloop object will
-	 * never get freed.
-	 * See ev_eloop_register_*_cb() functions. They add/remove the event
-	 * sources when the first listener is added or when the last listener is
-	 * removed. This also has the side effect that listeners indirectly have
-	 * a reference to the event loop where they are registered which is
-	 * basically what we want anyway.
-	 */
+	memset(&ep, 0, sizeof(ep));
+	ep.events |= EPOLLIN;
+	ep.data.ptr = loop;
+
+	ret = epoll_ctl(loop->efd, EPOLL_CTL_ADD, loop->idle_fd, &ep);
+	if (ret) {
+		llog_warning(loop, "cannot add fd %d to epoll set (%d): %m",
+			     loop->idle_fd, errno);
+		ret = -EFAULT;
+		goto err_idle_fd;
+	}
 
 	llog_debug(loop, "new eloop object %p", loop);
 	*out = loop;
 	return 0;
 
+err_idle_fd:
+	close(loop->idle_fd);
 err_fd:
 	ev_fd_unref(loop->fd);
 err_close:
@@ -626,6 +681,7 @@ void ev_eloop_ref(struct ev_eloop *loop)
 void ev_eloop_unref(struct ev_eloop *loop)
 {
 	struct ev_signal_shared *sig;
+	int ret;
 
 	if (!loop)
 		return;
@@ -643,7 +699,12 @@ void ev_eloop_unref(struct ev_eloop *loop)
 		signal_free(sig);
 	}
 
-	ev_counter_unref(loop->cnt);
+	ret = epoll_ctl(loop->efd, EPOLL_CTL_DEL, loop->idle_fd, NULL);
+	if (ret)
+		llog_warning(loop, "cannot remove fd %d from epollset (%d): %m",
+			     loop->idle_fd, errno);
+	close(loop->idle_fd);
+
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	kmscon_hook_free(loop->idlers);
@@ -674,6 +735,22 @@ void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
 				loop->cur_fds[i].data.ptr = NULL;
 		}
 	}
+}
+
+static unsigned int convert_mask(uint32_t mask)
+{
+	unsigned int res = 0;
+
+	if (mask & EPOLLIN)
+		res |= EV_READABLE;
+	if (mask & EPOLLOUT)
+		res |= EV_WRITEABLE;
+	if (mask & EPOLLERR)
+		res |= EV_ERR;
+	if (mask & EPOLLHUP)
+		res |= EV_HUP;
+
+	return res;
 }
 
 /**
@@ -729,23 +806,20 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	loop->dispatching = true;
 
 	for (i = 0; i < count; ++i) {
-		fd = ep[i].data.ptr;
-		if (!fd || !fd->cb || !fd->enabled)
-			continue;
+		if (ep[i].data.ptr == loop) {
+			mask = convert_mask(ep[i].events);
+			eloop_idle_event(loop, mask);
+		} else {
+			fd = ep[i].data.ptr;
+			if (!fd || !fd->cb || !fd->enabled)
+				continue;
 
-		mask = 0;
-		if (ep[i].events & EPOLLIN)
-			mask |= EV_READABLE;
-		if (ep[i].events & EPOLLOUT)
-			mask |= EV_WRITEABLE;
-		if (ep[i].events & EPOLLERR)
-			mask |= EV_ERR;
-		if (ep[i].events & EPOLLHUP) {
-			mask |= EV_HUP;
-			ev_fd_disable(fd);
+			mask = convert_mask(ep[i].events);
+			if (mask & EV_HUP)
+				ev_fd_disable(fd);
+
+			fd->cb(fd, mask, fd->data);
 		}
-
-		fd->cb(fd, mask, fd->data);
 	}
 
 	loop->dispatching = false;
@@ -1072,7 +1146,7 @@ static void fd_epoll_remove(struct ev_fd *fd)
 
 	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
 	if (ret)
-		llog_warning(fd, "cannto remote fd %d from epoll set (%d): %m",
+		llog_warning(fd, "cannot remove fd %d from epoll set (%d): %m",
 			     fd->fd, errno);
 }
 
@@ -1908,31 +1982,10 @@ void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
  */
 int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 {
-	int ret;
-
 	if (!cnt)
 		return -EINVAL;
-	if (!val)
-		return llog_EINVAL(cnt);
 
-	if (val == 0xffffffffffffffffULL) {
-		llog_warning(cnt, "increasing counter with invalid value %llu", val);
-		return -EINVAL;;
-	}
-
-	ret = write(cnt->fd, &val, sizeof(val));
-	if (ret < 0) {
-		if (errno == EAGAIN)
-			llog_warning(cnt, "eventfd overflow while writing %llu", val);
-		else
-			llog_warning(cnt, "eventfd write error (%d): %m", errno);
-		return -EFAULT;
-	} else if (ret != sizeof(val)) {
-		llog_warning(cnt, "wrote %d bytes instead of 8 to eventdfd", ret);
-		return -EFAULT;
-	}
-
-	return 0;
+	return write_eventfd(cnt->llog, cnt->fd, val);
 }
 
 /**
@@ -2120,31 +2173,19 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data)
 {
 	int ret;
-	bool empty;
 
 	if (!eloop)
 		return -EINVAL;
-
-	empty = !kmscon_hook_num(eloop->idlers);
 
 	ret = kmscon_hook_add_cast(eloop->idlers, cb, data);
 	if (ret)
 		return ret;
 
-	if (empty) {
-		ret = ev_eloop_add_counter(eloop, eloop->cnt);
-		if (ret) {
-			kmscon_hook_rm_cast(eloop->idlers, cb, data);
-			return ret;
-		}
-
-		ret = ev_counter_inc(eloop->cnt, 1);
-		if (ret) {
-			llog_warning(eloop, "cannot increase eloop idle-counter");
-			ev_eloop_rm_counter(eloop->cnt);
-			kmscon_hook_rm_cast(eloop->idlers, cb, data);
-			return ret;
-		}
+	ret = write_eventfd(eloop->llog, eloop->idle_fd, 1);
+	if (ret) {
+		llog_warning(eloop, "cannot increase eloop idle-counter");
+		kmscon_hook_rm_cast(eloop->idlers, cb, data);
+		return ret;
 	}
 
 	return 0;
@@ -2168,8 +2209,6 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 		return;
 
 	kmscon_hook_rm_cast(eloop->idlers, cb, data);
-	if (!kmscon_hook_num(eloop->idlers))
-		ev_eloop_rm_counter(eloop->cnt);
 }
 
 /*
