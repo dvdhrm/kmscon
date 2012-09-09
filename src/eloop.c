@@ -837,6 +837,26 @@ void ev_eloop_exit(struct ev_eloop *loop)
 }
 
 /**
+ * ev_eloop_get_fd:
+ * @loop: Event loop
+ *
+ * Returns a single file descriptor for the whole event-loop. If that FD is
+ * readable, then one of the event-sources is active and you should call
+ * ev_eloop_dispatch(loop, 0); to dispatch these events.
+ * If the fd is not readable, then ev_eloop_dispatch() would sleep as there are
+ * no active events.
+ *
+ * Returns: A file descriptor for the event loop or negative error code
+ */
+int ev_eloop_get_fd(struct ev_eloop *loop)
+{
+	if (!loop)
+		return -EINVAL;
+
+	return loop->efd;
+}
+
+/**
  * ev_eloop_new_eloop:
  * @loop: The parent event-loop where the new event loop is registered
  * @out: Storage for new event loop
