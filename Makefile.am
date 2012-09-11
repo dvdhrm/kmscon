@@ -40,9 +40,7 @@ noinst_PROGRAMS = \
 noinst_LTLIBRARIES = \
 	libkmscon-core.la \
 	libkmscon-static.la
-lib_LTLIBRARIES = \
-	libeloop.la \
-	libuterm.la
+lib_LTLIBRARIES =
 
 #
 # Default CFlags
@@ -75,6 +73,109 @@ AM_CFLAGS += -O2
 else
 AM_CFLAGS += -O0
 endif
+
+#
+# libeloop
+# This library contains the whole event-loop implementation of kmscon. It is
+# compiled into a separate object to allow using it in several other programs.
+#
+
+lib_LTLIBRARIES += \
+	libeloop.la
+
+libeloop_la_SOURCES = \
+	src/static_llog.h \
+	src/static_dlist.h \
+	src/static_hook.h \
+	src/eloop.h \
+	src/eloop.c
+
+if EV_HAVE_DBUS
+libeloop_la_SOURCES += \
+	external/dbus-common.h \
+	external/dbus-loop.h \
+	external/dbus-loop.c
+endif
+
+libeloop_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(DBUS_CFLAGS)
+libeloop_la_LIBADD = \
+	$(DBUS_LIBS)
+libeloop_la_LDFLAGS = \
+	-version-info 1:0:0
+
+include_HEADERS += \
+	src/eloop.h
+
+pkgconfig_DATA += libeloop.pc
+
+#
+# libuterm
+# The uterm library provides helpers to create terminals in user-space. They
+# are not limited to text-based terminals but rather provide graphics contexts
+# so arbitrary output can be displayed. Additionally, they provide VT
+# abstractions and an input layer
+#
+
+lib_LTLIBRARIES += \
+	libuterm.la
+
+libuterm_la_SOURCES = \
+	src/uterm.h \
+	src/uterm_internal.h \
+	src/uterm_video.c \
+	src/uterm_monitor.c \
+	src/uterm_vt.c \
+	src/uterm_input.c \
+	src/uterm_input_plain.c \
+	external/imKStoUCS.h \
+	external/imKStoUCS.c
+
+libuterm_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(SYSTEMD_CFLAGS) \
+	$(DRM_CFLAGS) \
+	$(EGL_CFLAGS) \
+	$(GBM_CFLAGS) \
+	$(GLES2_CFLAGS) \
+	$(UDEV_CFLAGS) \
+	$(XKBCOMMON_CFLAGS)
+libuterm_la_LIBADD = \
+	$(SYSTEMD_LIBS) \
+	$(DRM_LIBS) \
+	$(EGL_LIBS) \
+	$(GBM_LIBS) \
+	$(GLES2_LIBS) \
+	$(UDEV_LIBS) \
+	$(XKBCOMMON_LIBS) \
+	libkmscon-static.la \
+	libeloop.la
+libuterm_la_LDFLAGS = \
+	-version-info 1:0:0
+
+if UTERM_HAVE_FBDEV
+libuterm_la_SOURCES += \
+	src/uterm_video_fbdev.c
+endif
+
+if UTERM_HAVE_DRM
+libuterm_la_SOURCES += \
+	src/uterm_video_drm.c
+endif
+
+if UTERM_HAVE_DUMB
+libuterm_la_SOURCES += \
+	src/uterm_video_dumb.c
+endif
+
+if UTERM_HAVE_XKBCOMMON
+libuterm_la_SOURCES += \
+	src/uterm_input_uxkb.c
+endif
+
+include_HEADERS += \
+	src/uterm.h
 
 #
 # Shaders
@@ -197,102 +298,6 @@ libkmscon_core_la_LIBADD = \
 	-lpthread \
 	libeloop.la \
 	libuterm.la
-
-#
-# libuterm
-# The uterm library provides helpers to creater terminals in user-space. They
-# are not limited to text-based terminals but rather provide graphics contexts
-# so arbitrary output can be displayed. Additionally, they provide VT
-# abstractions and an input layer
-#
-
-libuterm_la_SOURCES = \
-	src/uterm.h \
-	src/uterm_internal.h \
-	src/uterm_video.c \
-	src/uterm_monitor.c \
-	src/uterm_vt.c \
-	src/uterm_input.c \
-	src/uterm_input_plain.c \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c
-
-libuterm_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(SYSTEMD_CFLAGS) \
-	$(DRM_CFLAGS) \
-	$(EGL_CFLAGS) \
-	$(GBM_CFLAGS) \
-	$(GLES2_CFLAGS) \
-	$(UDEV_CFLAGS) \
-	$(XKBCOMMON_CFLAGS)
-libuterm_la_LIBADD = \
-	$(SYSTEMD_LIBS) \
-	$(DRM_LIBS) \
-	$(EGL_LIBS) \
-	$(GBM_LIBS) \
-	$(GLES2_LIBS) \
-	$(UDEV_LIBS) \
-	$(XKBCOMMON_LIBS) \
-	libkmscon-static.la \
-	libeloop.la
-libuterm_la_LDFLAGS = \
-	-version-info 1:0:0
-
-if UTERM_HAVE_FBDEV
-libuterm_la_SOURCES += \
-	src/uterm_video_fbdev.c
-endif
-
-if UTERM_HAVE_DRM
-libuterm_la_SOURCES += \
-	src/uterm_video_drm.c
-endif
-
-if UTERM_HAVE_DUMB
-libuterm_la_SOURCES += \
-	src/uterm_video_dumb.c
-endif
-
-if UTERM_HAVE_XKBCOMMON
-libuterm_la_SOURCES += \
-	src/uterm_input_uxkb.c
-endif
-
-include_HEADERS += \
-	src/uterm.h
-
-#
-# libeloop
-# This library contains the whole event-loop implementation of kmscon. It is
-# compiled into a separate object to allow using it in several other programs.
-#
-
-libeloop_la_SOURCES = \
-	src/static_dlist.h \
-	src/static_hook.h \
-	src/eloop.h \
-	src/eloop.c
-
-if EV_HAVE_DBUS
-libeloop_la_SOURCES += \
-	external/dbus-common.h \
-	external/dbus-loop.h \
-	external/dbus-loop.c
-endif
-
-libeloop_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(DBUS_CFLAGS)
-libeloop_la_LIBADD = \
-	$(DBUS_LIBS)
-libeloop_la_LDFLAGS = \
-	-version-info 1:0:0
-
-include_HEADERS += \
-	src/eloop.h
-
-pkgconfig_DATA += libeloop.pc
 
 #
 # libkmscon-static
