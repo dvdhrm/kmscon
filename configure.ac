@@ -548,7 +548,7 @@ AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
 AC_CONFIG_FILES([Makefile libeloop.pc libuterm.pc])
-AC_OUTPUT([src/genshader.c])
+AC_OUTPUT
 
 #
 # Configuration output
