@@ -177,6 +177,8 @@ endif
 include_HEADERS += \
 	src/uterm.h
 
+pkgconfig_DATA += libuterm.pc
+
 #
 # Shaders
 # As there is no need to modify shaders at run-time, we statically compile them
