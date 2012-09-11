@@ -368,8 +368,8 @@ AM_CONDITIONAL([KMSCON_HAVE_GLES2], [test x$gles2_enabled = xyes])
 if test x$have_gbm = xyes ; then
         save_CFLAGS="$CFLAGS"
         save_LIBS="$LIBS"
-        CFLAGS=$GBM_CFLAGS
-        LIBS=$GBM_LIBS
+        CFLAGS="$CFLAGS $GBM_CFLAGS $DRM_CFLAGS"
+        LIBS="$LIBS $GBM_LIBS $DRM_LIBS"
         AC_CHECK_LIB([gbm],
                      [gbm_bo_get_stride],
                      [AC_DEFINE([HAVE_GBM_BO_GET_STRIDE],
