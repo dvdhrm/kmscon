@@ -231,6 +231,13 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 				 void *data);
 
+/* pre dispatch callbacks */
+
+int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+			     void *data);
+void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+				void *data);
+
 /* post dispatch callbacks */
 
 int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,

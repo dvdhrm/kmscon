@@ -205,6 +205,7 @@ struct ev_eloop {
 
 	struct kmscon_dlist sig_list;
 	struct kmscon_hook *idlers;
+	struct kmscon_hook *pres;
 	struct kmscon_hook *posts;
 
 	bool dispatching;
@@ -605,9 +606,13 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	if (ret)
 		goto err_fds;
 
-	ret = kmscon_hook_new(&loop->posts);
+	ret = kmscon_hook_new(&loop->pres);
 	if (ret)
 		goto err_idlers;
+
+	ret = kmscon_hook_new(&loop->posts);
+	if (ret)
+		goto err_pres;
 
 	loop->efd = epoll_create1(EPOLL_CLOEXEC);
 	if (loop->efd < 0) {
@@ -652,6 +657,8 @@ err_close:
 	close(loop->efd);
 err_posts:
 	kmscon_hook_free(loop->posts);
+err_pres:
+	kmscon_hook_free(loop->pres);
 err_idlers:
 	kmscon_hook_free(loop->idlers);
 err_fds:
@@ -714,6 +721,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
 	kmscon_hook_free(loop->posts);
+	kmscon_hook_free(loop->pres);
 	kmscon_hook_free(loop->idlers);
 	free(loop->cur_fds);
 	free(loop);
@@ -794,6 +802,8 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	}
 
 	loop->dispatching = true;
+
+	kmscon_hook_call(loop->pres, loop, NULL);
 
 	count = epoll_wait(loop->efd,
 			   loop->cur_fds,
@@ -2220,6 +2230,55 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 		return;
 
 	kmscon_hook_rm_cast(eloop->idlers, cb, data);
+}
+
+/*
+ * Pre-Dispatch Callbacks
+ * A pre-dispatch cb is called before a single dispatch round is started.
+ * You should avoid using them and instead not rely on any specific
+ * dispatch-behavior but expect every event to be recieved asynchronously.
+ * However, this hook is useful to integrate other limited APIs into this event
+ * loop if they do not provide proper FD-abstractions.
+ */
+
+/**
+ * ev_eloop_register_pre_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This register a new pre-cb with the given callback and data. @cb must
+ * not be NULL!.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+			     void *data)
+{
+	if (!eloop)
+		return -EINVAL;
+
+	return kmscon_hook_add_cast(eloop->pres, cb, data);
+}
+
+/**
+ * ev_eloop_unregister_pre_cb:
+ * @eloop: event loop
+ * @cb: user-supplied callback
+ * @data: user-supplied data
+ *
+ * This removes a pre-cb. The arguments must be the same as for the
+ * ev_eloop_register_pre_cb() call. If two identical callbacks are registered,
+ * then only one is removed. It doesn't matter which one is removed, because
+ * they are identical.
+ */
+void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
+				void *data)
+{
+	if (!eloop)
+		return;
+
+	kmscon_hook_rm_cast(eloop->pres, cb, data);
 }
 
 /*
