@@ -40,6 +40,7 @@
 #include "static_misc.h"
 #include "uterm.h"
 #include "uterm_internal.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "video"
 
