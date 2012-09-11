@@ -2264,5 +2264,5 @@ void ev_eloop_unregister_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return;
 
-	kmscon_hook_rm_cast(eloop->idlers, cb, data);
+	kmscon_hook_rm_cast(eloop->posts, cb, data);
 }
