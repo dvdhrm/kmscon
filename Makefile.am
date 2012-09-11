@@ -123,7 +123,8 @@ lib_LTLIBRARIES += \
 libuterm_la_SOURCES = \
 	src/uterm.h \
 	src/uterm_keysyms.h \
-	src/uterm_internal.h \
+	src/uterm_input.h \
+	src/uterm_video.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
 	src/uterm_vt.c \
