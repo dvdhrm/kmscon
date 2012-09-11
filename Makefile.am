@@ -122,6 +122,7 @@ lib_LTLIBRARIES += \
 
 libuterm_la_SOURCES = \
 	src/uterm.h \
+	src/uterm_keysyms.h \
 	src/uterm_internal.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
@@ -174,7 +175,8 @@ libuterm_la_SOURCES += \
 endif
 
 include_HEADERS += \
-	src/uterm.h
+	src/uterm.h \
+	src/uterm_keysyms.h
 
 pkgconfig_DATA += libuterm.pc
 

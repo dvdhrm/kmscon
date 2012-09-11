@@ -530,22 +530,22 @@ static char *def_seats[] = { "seat0", NULL };
 
 static struct uterm_input_grab def_grab_scroll_up = {
 	.mods = UTERM_SHIFT_MASK,
-	.keysym = XK_Up,
+	.keysym = XKB_KEY_Up,
 };
 
 static struct uterm_input_grab def_grab_scroll_down = {
 	.mods = UTERM_SHIFT_MASK,
-	.keysym = XK_Down,
+	.keysym = XKB_KEY_Down,
 };
 
 static struct uterm_input_grab def_grab_page_up = {
 	.mods = UTERM_SHIFT_MASK,
-	.keysym = XK_Prior,
+	.keysym = XKB_KEY_Prior,
 };
 
 static struct uterm_input_grab def_grab_page_down = {
 	.mods = UTERM_SHIFT_MASK,
-	.keysym = XK_Next,
+	.keysym = XKB_KEY_Next,
 };
 
 struct conf_option options[] = {

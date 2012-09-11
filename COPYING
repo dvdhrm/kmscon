@@ -154,7 +154,7 @@ also be released under the terms of the GNU GPL. Copyrights are:
 	Copyright 1998-2008 Roman Czyborra
 	Copyright 1998-2008 Paul Hardy
 
-The external/xkbcommon-keysym.h file is copied from libxkbcommon which itself is
+The src/uterm_keysyms.h file is copied from libxkbcommon which itself is
 copied from XKB. It is copyrighted by:
 
 	Copyright 1987, 1994, 1998  The Open Group

@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <X11/keysym.h>
 #include "console.h"
 #include "eloop.h"
 #include "log.h"

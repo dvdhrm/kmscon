@@ -41,7 +41,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <X11/keysym.h>
+#include <uterm_keysyms.h>
 #include "eloop.h"
 
 /*
@@ -299,7 +299,7 @@ enum uterm_input_modifier {
 
 struct uterm_input_event {
 	uint16_t keycode;	/* linux keycode - KEY_* - linux/input.h */
-	uint32_t keysym;	/* X keysym - XK_* - X11/keysym.h */
+	uint32_t keysym;	/* X keysym - XKB_KEY_* - X11/keysym.h */
 	unsigned int mods;	/* active modifiers - uterm_modifier mask */
 	uint32_t unicode;	/* ucs4 unicode value or UTERM_INPUT_INVALID */
 };

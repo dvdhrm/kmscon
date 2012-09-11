@@ -40,7 +40,6 @@
 #include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
-#include <X11/keysym.h>
 #include "eloop.h"
 #include "log.h"
 #include "static_misc.h"
@@ -408,7 +407,7 @@ static void vt_input(struct uterm_input *input,
 	struct uterm_vt *vt = data;
 
 	if (UTERM_INPUT_HAS_MODS(ev, UTERM_MOD4_MASK | UTERM_CONTROL_MASK)) {
-		if (ev->keysym == XK_F12) {
+		if (ev->keysym == XKB_KEY_F12) {
 			if (vt->active) {
 				log_debug("deactivating fake VT due to user input");
 				vt_call(vt, UTERM_VT_DEACTIVATE);

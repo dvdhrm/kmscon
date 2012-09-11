@@ -52,12 +52,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <X11/keysym.h>
 #include "console.h"
 #include "log.h"
 #include "main.h"
 #include "unicode.h"
 #include "vte.h"
+
+/* TODO: Change this to use "xkbcommon-keysyms.h" and add xkbcommon as
+ * build-time dependency. See uterm_keysyms.h for more information. */
+#include "uterm_keysyms.h"
 
 #define LOG_SUBSYSTEM "vte"
 
@@ -2123,411 +2126,411 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 
 	if (mods & UTERM_CONTROL_MASK) {
 		switch (keysym) {
-		case XK_2:
-		case XK_space:
+		case XKB_KEY_2:
+		case XKB_KEY_space:
 			vte_write(vte, "\x00", 1);
 			return true;
-		case XK_a:
-		case XK_A:
+		case XKB_KEY_a:
+		case XKB_KEY_A:
 			vte_write(vte, "\x01", 1);
 			return true;
-		case XK_b:
-		case XK_B:
+		case XKB_KEY_b:
+		case XKB_KEY_B:
 			vte_write(vte, "\x02", 1);
 			return true;
-		case XK_c:
-		case XK_C:
+		case XKB_KEY_c:
+		case XKB_KEY_C:
 			vte_write(vte, "\x03", 1);
 			return true;
-		case XK_d:
-		case XK_D:
+		case XKB_KEY_d:
+		case XKB_KEY_D:
 			vte_write(vte, "\x04", 1);
 			return true;
-		case XK_e:
-		case XK_E:
+		case XKB_KEY_e:
+		case XKB_KEY_E:
 			vte_write(vte, "\x05", 1);
 			return true;
-		case XK_f:
-		case XK_F:
+		case XKB_KEY_f:
+		case XKB_KEY_F:
 			vte_write(vte, "\x06", 1);
 			return true;
-		case XK_g:
-		case XK_G:
+		case XKB_KEY_g:
+		case XKB_KEY_G:
 			vte_write(vte, "\x07", 1);
 			return true;
-		case XK_h:
-		case XK_H:
+		case XKB_KEY_h:
+		case XKB_KEY_H:
 			vte_write(vte, "\x08", 1);
 			return true;
-		case XK_i:
-		case XK_I:
+		case XKB_KEY_i:
+		case XKB_KEY_I:
 			vte_write(vte, "\x09", 1);
 			return true;
-		case XK_j:
-		case XK_J:
+		case XKB_KEY_j:
+		case XKB_KEY_J:
 			vte_write(vte, "\x0a", 1);
 			return true;
-		case XK_k:
-		case XK_K:
+		case XKB_KEY_k:
+		case XKB_KEY_K:
 			vte_write(vte, "\x0b", 1);
 			return true;
-		case XK_l:
-		case XK_L:
+		case XKB_KEY_l:
+		case XKB_KEY_L:
 			vte_write(vte, "\x0c", 1);
 			return true;
-		case XK_m:
-		case XK_M:
+		case XKB_KEY_m:
+		case XKB_KEY_M:
 			vte_write(vte, "\x0d", 1);
 			return true;
-		case XK_n:
-		case XK_N:
+		case XKB_KEY_n:
+		case XKB_KEY_N:
 			vte_write(vte, "\x0e", 1);
 			return true;
-		case XK_o:
-		case XK_O:
+		case XKB_KEY_o:
+		case XKB_KEY_O:
 			vte_write(vte, "\x0f", 1);
 			return true;
-		case XK_p:
-		case XK_P:
+		case XKB_KEY_p:
+		case XKB_KEY_P:
 			vte_write(vte, "\x10", 1);
 			return true;
-		case XK_q:
-		case XK_Q:
+		case XKB_KEY_q:
+		case XKB_KEY_Q:
 			vte_write(vte, "\x11", 1);
 			return true;
-		case XK_r:
-		case XK_R:
+		case XKB_KEY_r:
+		case XKB_KEY_R:
 			vte_write(vte, "\x12", 1);
 			return true;
-		case XK_s:
-		case XK_S:
+		case XKB_KEY_s:
+		case XKB_KEY_S:
 			vte_write(vte, "\x13", 1);
 			return true;
-		case XK_t:
-		case XK_T:
+		case XKB_KEY_t:
+		case XKB_KEY_T:
 			vte_write(vte, "\x14", 1);
 			return true;
-		case XK_u:
-		case XK_U:
+		case XKB_KEY_u:
+		case XKB_KEY_U:
 			vte_write(vte, "\x15", 1);
 			return true;
-		case XK_v:
-		case XK_V:
+		case XKB_KEY_v:
+		case XKB_KEY_V:
 			vte_write(vte, "\x16", 1);
 			return true;
-		case XK_w:
-		case XK_W:
+		case XKB_KEY_w:
+		case XKB_KEY_W:
 			vte_write(vte, "\x17", 1);
 			return true;
-		case XK_x:
-		case XK_X:
+		case XKB_KEY_x:
+		case XKB_KEY_X:
 			vte_write(vte, "\x18", 1);
 			return true;
-		case XK_y:
-		case XK_Y:
+		case XKB_KEY_y:
+		case XKB_KEY_Y:
 			vte_write(vte, "\x19", 1);
 			return true;
-		case XK_z:
-		case XK_Z:
+		case XKB_KEY_z:
+		case XKB_KEY_Z:
 			vte_write(vte, "\x1a", 1);
 			return true;
-		case XK_3:
-		case XK_bracketleft:
-		case XK_braceleft:
+		case XKB_KEY_3:
+		case XKB_KEY_bracketleft:
+		case XKB_KEY_braceleft:
 			vte_write(vte, "\x1b", 1);
 			return true;
-		case XK_4:
-		case XK_backslash:
-		case XK_bar:
+		case XKB_KEY_4:
+		case XKB_KEY_backslash:
+		case XKB_KEY_bar:
 			vte_write(vte, "\x1c", 1);
 			return true;
-		case XK_5:
-		case XK_bracketright:
-		case XK_braceright:
+		case XKB_KEY_5:
+		case XKB_KEY_bracketright:
+		case XKB_KEY_braceright:
 			vte_write(vte, "\x1d", 1);
 			return true;
-		case XK_6:
-		case XK_grave:
-		case XK_asciitilde:
+		case XKB_KEY_6:
+		case XKB_KEY_grave:
+		case XKB_KEY_asciitilde:
 			vte_write(vte, "\x1e", 1);
 			return true;
-		case XK_7:
-		case XK_slash:
-		case XK_question:
+		case XKB_KEY_7:
+		case XKB_KEY_slash:
+		case XKB_KEY_question:
 			vte_write(vte, "\x1f", 1);
 			return true;
-		case XK_8:
+		case XKB_KEY_8:
 			vte_write(vte, "\x7f", 1);
 			return true;
 		}
 	}
 
 	switch (keysym) {
-		case XK_BackSpace:
+		case XKB_KEY_BackSpace:
 			vte_write(vte, "\x08", 1);
 			return true;
-		case XK_Tab:
-		case XK_KP_Tab:
+		case XKB_KEY_Tab:
+		case XKB_KEY_KP_Tab:
 			vte_write(vte, "\x09", 1);
 			return true;
-		case XK_Linefeed:
+		case XKB_KEY_Linefeed:
 			vte_write(vte, "\x0a", 1);
 			return true;
-		case XK_Clear:
+		case XKB_KEY_Clear:
 			vte_write(vte, "\x0b", 1);
 			return true;
-		case XK_Pause:
+		case XKB_KEY_Pause:
 			vte_write(vte, "\x13", 1);
 			return true;
-		case XK_Scroll_Lock:
+		case XKB_KEY_Scroll_Lock:
 			/* TODO: do we need scroll lock impl.? */
 			vte_write(vte, "\x14", 1);
 			return true;
-		case XK_Sys_Req:
+		case XKB_KEY_Sys_Req:
 			vte_write(vte, "\x15", 1);
 			return true;
-		case XK_Escape:
+		case XKB_KEY_Escape:
 			vte_write(vte, "\x1b", 1);
 			return true;
-		case XK_KP_Enter:
+		case XKB_KEY_KP_Enter:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE) {
 				vte_write(vte, "\eOM", 3);
 				return true;
 			}
 			/* fallthrough */
-		case XK_Return:
+		case XKB_KEY_Return:
 			if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
 				vte_write(vte, "\x0d\x0a", 2);
 			else
 				vte_write(vte, "\x0d", 1);
 			return true;
-		case XK_Find:
+		case XKB_KEY_Find:
 			vte_write(vte, "\e[1~", 4);
 			return true;
-		case XK_Insert:
+		case XKB_KEY_Insert:
 			vte_write(vte, "\e[2~", 4);
 			return true;
-		case XK_Delete:
+		case XKB_KEY_Delete:
 			vte_write(vte, "\e[3~", 4);
 			return true;
-		case XK_Select:
+		case XKB_KEY_Select:
 			vte_write(vte, "\e[4~", 4);
 			return true;
-		case XK_Page_Up:
+		case XKB_KEY_Page_Up:
 			vte_write(vte, "\e[5~", 4);
 			return true;
-		case XK_Page_Down:
+		case XKB_KEY_Page_Down:
 			vte_write(vte, "\e[6~", 4);
 			return true;
-		case XK_Up:
+		case XKB_KEY_Up:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOA", 3);
 			else
 				vte_write(vte, "\e[A", 3);
 			return true;
-		case XK_Down:
+		case XKB_KEY_Down:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOB", 3);
 			else
 				vte_write(vte, "\e[B", 3);
 			return true;
-		case XK_Right:
+		case XKB_KEY_Right:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOC", 3);
 			else
 				vte_write(vte, "\e[C", 3);
 			return true;
-		case XK_Left:
+		case XKB_KEY_Left:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOD", 3);
 			else
 				vte_write(vte, "\e[D", 3);
 			return true;
-		case XK_KP_Insert:
-		case XK_KP_0:
+		case XKB_KEY_KP_Insert:
+		case XKB_KEY_KP_0:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOp", 3);
 			else
 				vte_write(vte, "0", 1);
 			return true;
-		case XK_KP_End:
-		case XK_KP_1:
+		case XKB_KEY_KP_End:
+		case XKB_KEY_KP_1:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOq", 3);
 			else
 				vte_write(vte, "1", 1);
 			return true;
-		case XK_KP_Down:
-		case XK_KP_2:
+		case XKB_KEY_KP_Down:
+		case XKB_KEY_KP_2:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOr", 3);
 			else
 				vte_write(vte, "2", 1);
 			return true;
-		case XK_KP_Page_Down:
-		case XK_KP_3:
+		case XKB_KEY_KP_Page_Down:
+		case XKB_KEY_KP_3:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOs", 3);
 			else
 				vte_write(vte, "3", 1);
 			return true;
-		case XK_KP_Left:
-		case XK_KP_4:
+		case XKB_KEY_KP_Left:
+		case XKB_KEY_KP_4:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOt", 3);
 			else
 				vte_write(vte, "4", 1);
 			return true;
-		case XK_KP_Begin:
-		case XK_KP_5:
+		case XKB_KEY_KP_Begin:
+		case XKB_KEY_KP_5:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOu", 3);
 			else
 				vte_write(vte, "5", 1);
 			return true;
-		case XK_KP_Right:
-		case XK_KP_6:
+		case XKB_KEY_KP_Right:
+		case XKB_KEY_KP_6:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOv", 3);
 			else
 				vte_write(vte, "6", 1);
 			return true;
-		case XK_KP_Home:
-		case XK_KP_7:
+		case XKB_KEY_KP_Home:
+		case XKB_KEY_KP_7:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOw", 3);
 			else
 				vte_write(vte, "7", 1);
 			return true;
-		case XK_KP_Up:
-		case XK_KP_8:
+		case XKB_KEY_KP_Up:
+		case XKB_KEY_KP_8:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOx", 3);
 			else
 				vte_write(vte, "8", 1);
 			return true;
-		case XK_KP_Page_Up:
-		case XK_KP_9:
+		case XKB_KEY_KP_Page_Up:
+		case XKB_KEY_KP_9:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOy", 3);
 			else
 				vte_write(vte, "9", 1);
 			return true;
-		case XK_KP_Subtract:
+		case XKB_KEY_KP_Subtract:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOm", 3);
 			else
 				vte_write(vte, "-", 1);
 			return true;
-		case XK_KP_Separator:
+		case XKB_KEY_KP_Separator:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOl", 3);
 			else
 				vte_write(vte, ",", 1);
 			return true;
-		case XK_KP_Delete:
-		case XK_KP_Decimal:
+		case XKB_KEY_KP_Delete:
+		case XKB_KEY_KP_Decimal:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOn", 3);
 			else
 				vte_write(vte, ".", 1);
 			return true;
-		case XK_KP_Equal:
-		case XK_KP_Divide:
+		case XKB_KEY_KP_Equal:
+		case XKB_KEY_KP_Divide:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOj", 3);
 			else
 				vte_write(vte, "/", 1);
 			return true;
-		case XK_KP_Multiply:
+		case XKB_KEY_KP_Multiply:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOo", 3);
 			else
 				vte_write(vte, "*", 1);
 			return true;
-		case XK_KP_Add:
+		case XKB_KEY_KP_Add:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOk", 3);
 			else
 				vte_write(vte, "+", 1);
 			return true;
-		case XK_F1:
-		case XK_KP_F1:
+		case XKB_KEY_F1:
+		case XKB_KEY_KP_F1:
 			vte_write(vte, "\eOP", 3);
 			return true;
-		case XK_F2:
-		case XK_KP_F2:
+		case XKB_KEY_F2:
+		case XKB_KEY_KP_F2:
 			vte_write(vte, "\eOQ", 3);
 			return true;
-		case XK_F3:
-		case XK_KP_F3:
+		case XKB_KEY_F3:
+		case XKB_KEY_KP_F3:
 			vte_write(vte, "\eOR", 3);
 			return true;
-		case XK_F4:
-		case XK_KP_F4:
+		case XKB_KEY_F4:
+		case XKB_KEY_KP_F4:
 			vte_write(vte, "\eOS", 3);
 			return true;
-		case XK_KP_Space:
+		case XKB_KEY_KP_Space:
 			vte_write(vte, " ", 1);
 			return true;
-		case XK_Home:
+		case XKB_KEY_Home:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOH", 3);
 			else
 				vte_write(vte, "\e[H", 3);
 			return true;
-		case XK_End:
+		case XKB_KEY_End:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOF", 3);
 			else
 				vte_write(vte, "\e[F", 3);
 			return true;
-		case XK_F5:
+		case XKB_KEY_F5:
 			vte_write(vte, "\e[15~", 5);
 			return true;
-		case XK_F6:
+		case XKB_KEY_F6:
 			vte_write(vte, "\e[17~", 5);
 			return true;
-		case XK_F7:
+		case XKB_KEY_F7:
 			vte_write(vte, "\e[18~", 5);
 			return true;
-		case XK_F8:
+		case XKB_KEY_F8:
 			vte_write(vte, "\e[19~", 5);
 			return true;
-		case XK_F9:
+		case XKB_KEY_F9:
 			vte_write(vte, "\e[20~", 5);
 			return true;
-		case XK_F10:
+		case XKB_KEY_F10:
 			vte_write(vte, "\e[21~", 5);
 			return true;
-		case XK_F11:
+		case XKB_KEY_F11:
 			vte_write(vte, "\e[23~", 5);
 			return true;
-		case XK_F12:
+		case XKB_KEY_F12:
 			vte_write(vte, "\e[24~", 5);
 			return true;
-		case XK_F13:
+		case XKB_KEY_F13:
 			vte_write(vte, "\e[25~", 5);
 			return true;
-		case XK_F14:
+		case XKB_KEY_F14:
 			vte_write(vte, "\e[26~", 5);
 			return true;
-		case XK_F15:
+		case XKB_KEY_F15:
 			vte_write(vte, "\e[28~", 5);
 			return true;
-		case XK_F16:
+		case XKB_KEY_F16:
 			vte_write(vte, "\e[29~", 5);
 			return true;
-		case XK_F17:
+		case XKB_KEY_F17:
 			vte_write(vte, "\e[31~", 5);
 			return true;
-		case XK_F18:
+		case XKB_KEY_F18:
 			vte_write(vte, "\e[32~", 5);
 			return true;
-		case XK_F19:
+		case XKB_KEY_F19:
 			vte_write(vte, "\e[33~", 5);
 			return true;
-		case XK_F20:
+		case XKB_KEY_F20:
 			vte_write(vte, "\e[34~", 5);
 			return true;
 	}
