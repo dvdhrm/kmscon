@@ -45,45 +45,6 @@
 #include "eloop.h"
 
 /*
- * Virtual Terminals
- * Virtual terminals allow controlling multiple virtual terminals on one real
- * terminal. It is multi-seat capable and fully asynchronous.
- */
-
-struct uterm_input;
-struct uterm_vt;
-struct uterm_vt_master;
-
-enum uterm_vt_action {
-	UTERM_VT_ACTIVATE,
-	UTERM_VT_DEACTIVATE,
-};
-
-enum uterm_vt_mode {
-	UTERM_VT_REAL,
-	UTERM_VT_FAKE,
-	UTERM_VT_DEAD,
-};
-
-typedef int (*uterm_vt_cb) (struct uterm_vt *vt, unsigned int action,
-			    void *data);
-
-int uterm_vt_master_new(struct uterm_vt_master **out,
-			struct ev_eloop *eloop);
-void uterm_vt_master_ref(struct uterm_vt_master *vtm);
-void uterm_vt_master_unref(struct uterm_vt_master *vtm);
-
-int uterm_vt_allocate(struct uterm_vt_master *vt, struct uterm_vt **out,
-		      const char *seat, struct uterm_input *input,
-		      uterm_vt_cb cb, void *data);
-void uterm_vt_deallocate(struct uterm_vt *vt);
-void uterm_vt_ref(struct uterm_vt *vt);
-void uterm_vt_unref(struct uterm_vt *vt);
-
-int uterm_vt_activate(struct uterm_vt *vt);
-int uterm_vt_deactivate(struct uterm_vt *vt);
-
-/*
  * Video Control
  * Linux provides 2 famous ways to access the video hardware: fbdev and drm
  * fbdev is the older one of both and is simply a mmap() of the framebuffer into
@@ -340,6 +301,44 @@ void uterm_input_keysym_to_string(struct uterm_input *input,
 				  uint32_t keysym, char *str, size_t size);
 int uterm_input_string_to_keysym(struct uterm_input *input, const char *n,
 				 uint32_t *out);
+
+/*
+ * Virtual Terminals
+ * Virtual terminals allow controlling multiple virtual terminals on one real
+ * terminal. It is multi-seat capable and fully asynchronous.
+ */
+
+struct uterm_vt;
+struct uterm_vt_master;
+
+enum uterm_vt_action {
+	UTERM_VT_ACTIVATE,
+	UTERM_VT_DEACTIVATE,
+};
+
+enum uterm_vt_mode {
+	UTERM_VT_REAL,
+	UTERM_VT_FAKE,
+	UTERM_VT_DEAD,
+};
+
+typedef int (*uterm_vt_cb) (struct uterm_vt *vt, unsigned int action,
+			    void *data);
+
+int uterm_vt_master_new(struct uterm_vt_master **out,
+			struct ev_eloop *eloop);
+void uterm_vt_master_ref(struct uterm_vt_master *vtm);
+void uterm_vt_master_unref(struct uterm_vt_master *vtm);
+
+int uterm_vt_allocate(struct uterm_vt_master *vt, struct uterm_vt **out,
+		      const char *seat, struct uterm_input *input,
+		      uterm_vt_cb cb, void *data);
+void uterm_vt_deallocate(struct uterm_vt *vt);
+void uterm_vt_ref(struct uterm_vt *vt);
+void uterm_vt_unref(struct uterm_vt *vt);
+
+int uterm_vt_activate(struct uterm_vt *vt);
+int uterm_vt_deactivate(struct uterm_vt *vt);
 
 /*
  * System Monitor
