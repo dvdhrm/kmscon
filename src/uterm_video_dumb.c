@@ -121,7 +121,8 @@ err_buf:
 	dreq.handle = rb->handle;
 	ret = drmIoctl(video->dumb.fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 	if (ret)
-		log_warning("cannot destroy dumb buffer");
+		log_warning("cannot destroy dumb buffer (%d/%d): %m",
+			    ret, errno);
 
 	return ret;
 }
@@ -138,7 +139,8 @@ static void destroy_rb(struct uterm_display *disp, struct dumb_rb *rb)
 	ret = drmIoctl(disp->video->dumb.fd, DRM_IOCTL_MODE_DESTROY_DUMB,
 		       &dreq);
 	if (ret)
-		log_warning("cannot destroy dumb buffer");
+		log_warning("cannot destroy dumb buffer (%d/%d): %m",
+			    ret, errno);
 }
 
 static int find_crtc(struct uterm_video *video, drmModeRes *res,
