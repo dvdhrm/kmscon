@@ -40,7 +40,6 @@
 #include "log.h"
 #include "static_misc.h"
 #include "uterm.h"
-#include "uterm_internal.h"
 
 #ifdef UTERM_HAVE_SYSTEMD
 	#include <systemd/sd-login.h>

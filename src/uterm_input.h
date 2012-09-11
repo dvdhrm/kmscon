@@ -25,24 +25,16 @@
 
 /* Internal definitions */
 
-#ifndef UTERM_INTERNAL_H
-#define UTERM_INTERNAL_H
+#ifndef UTERM_INPUT_H
+#define UTERM_INPUT_H
 
 #include <inttypes.h>
-#include <libudev.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
 #include "static_misc.h"
 #include "uterm.h"
-
-static inline bool input_bit_is_set(const unsigned long *array, int bit)
-{
-	return !!(array[bit / LONG_BIT] & (1LL << (bit % LONG_BIT)));
-}
-
-/* kbd API */
 
 struct kbd_desc;
 struct kbd_dev;
@@ -247,4 +239,9 @@ static inline int kbd_dev_process(struct kbd_dev *dev,
 	return dev->ops->process(dev, key_state, code, out);
 }
 
-#endif /* UTERM_INTERNAL_H */
+static inline bool input_bit_is_set(const unsigned long *array, int bit)
+{
+	return !!(array[bit / LONG_BIT] & (1LL << (bit % LONG_BIT)));
+}
+
+#endif /* UTERM_INPUT_H */

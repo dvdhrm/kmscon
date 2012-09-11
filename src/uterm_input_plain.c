@@ -45,7 +45,7 @@
 #include "imKStoUCS.h"
 #include "log.h"
 #include "uterm.h"
-#include "uterm_internal.h"
+#include "uterm_input.h"
 
 #define LOG_SUBSYSTEM "input_plain"
 

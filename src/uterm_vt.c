@@ -45,7 +45,6 @@
 #include "log.h"
 #include "static_misc.h"
 #include "uterm.h"
-#include "uterm_internal.h"
 
 #define LOG_SUBSYSTEM "vt"
 
