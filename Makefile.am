@@ -12,6 +12,8 @@ EXTRA_DIST = \
 	COPYING \
 	NEWS
 CLEANFILES =
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA =
 
 #
 # Build targets
@@ -289,6 +291,8 @@ libeloop_la_LDFLAGS = \
 
 include_HEADERS += \
 	src/eloop.h
+
+pkgconfig_DATA += libeloop.pc
 
 #
 # libkmscon-static

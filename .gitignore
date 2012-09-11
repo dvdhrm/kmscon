@@ -19,6 +19,7 @@ config.status
 configure
 *.tar.bz2
 libtool
+libeloop.pc
 m4/
 stamp-*
 .deps
