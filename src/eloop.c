@@ -782,7 +782,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
 	struct epoll_event *ep;
 	struct ev_fd *fd;
-	int i, count, mask;
+	int i, count, mask, ret;
 
 	if (!loop)
 		return -EINVAL;
@@ -793,16 +793,20 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		return -EOPNOTSUPP;
 	}
 
+	loop->dispatching = true;
+
 	count = epoll_wait(loop->efd,
 			   loop->cur_fds,
 			   loop->cur_fds_size,
 			   timeout);
 	if (count < 0) {
 		if (errno == EINTR) {
-			return 0;
+			ret = 0;
+			goto out_dispatch;
 		} else {
 			llog_warn(loop, "epoll_wait dispatching failed: %m");
-			return -errno;
+			ret = -errno;
+			goto out_dispatch;
 		}
 	} else if (count > loop->cur_fds_size) {
 		count = loop->cur_fds_size;
@@ -810,7 +814,6 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	ep = loop->cur_fds;
 	loop->cur_fds_cnt = count;
-	loop->dispatching = true;
 
 	for (i = 0; i < count; ++i) {
 		if (ep[i].data.ptr == loop) {
@@ -829,8 +832,6 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		}
 	}
 
-	loop->dispatching = false;
-
 	if (count == loop->cur_fds_size) {
 		ep = realloc(loop->cur_fds, sizeof(struct epoll_event) *
 			     loop->cur_fds_size * 2);
@@ -843,9 +844,12 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		}
 	}
 
-	kmscon_hook_call(loop->posts, loop, NULL);
+	ret = 0;
 
-	return 0;
+out_dispatch:
+	kmscon_hook_call(loop->posts, loop, NULL);
+	loop->dispatching = false;
+	return ret;
 }
 
 /**
