@@ -412,6 +412,41 @@ int uterm_display_swap(struct uterm_display *disp)
 	return VIDEO_CALL(disp->ops->swap, 0, disp);
 }
 
+int uterm_display_fake_blend(struct uterm_display *disp,
+			     const struct uterm_video_buffer *buf,
+			     unsigned int x, unsigned int y,
+			     uint8_t fr, uint8_t fg, uint8_t fb,
+			     uint8_t br, uint8_t bg, uint8_t bb)
+{
+	struct uterm_video_blend_req req;
+
+	if (!disp)
+		return -EINVAL;
+
+	memset(&req, 0, sizeof(req));
+	req.buf = buf;
+	req.x = x;
+	req.y = y;
+	req.fr = fr;
+	req.fg = fg;
+	req.fb = fb;
+	req.br = br;
+	req.bg = bg;
+	req.bb = bb;
+
+	return VIDEO_CALL(disp->ops->fake_blendv, -EOPNOTSUPP, disp, &req, 1);
+}
+
+int uterm_display_fake_blendv(struct uterm_display *disp,
+			      const struct uterm_video_blend_req *req,
+			      size_t num)
+{
+	if (!disp)
+		return -EINVAL;
+
+	return VIDEO_CALL(disp->ops->fake_blendv, -EOPNOTSUPP, disp, req, num);
+}
+
 int uterm_video_new(struct uterm_video **out,
 			struct ev_eloop *eloop,
 			unsigned int type,

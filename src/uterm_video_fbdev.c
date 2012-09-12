@@ -632,8 +632,9 @@ static int display_blend(struct uterm_display *disp,
 	return 0;
 }
 
-static int display_blendv(struct uterm_display *disp,
-			  const struct uterm_video_blend_req *req, size_t num)
+static int display_fake_blendv(struct uterm_display *disp,
+			       const struct uterm_video_blend_req *req,
+			       size_t num)
 {
 	unsigned int tmp;
 	uint8_t *dst, *src;
@@ -933,7 +934,8 @@ const struct display_ops fbdev_display_ops = {
 	.swap = display_swap,
 	.blit = display_blit,
 	.blend = display_blend,
-	.blendv = display_blendv,
+	.blendv = display_fake_blendv,
+	.fake_blendv = display_fake_blendv,
 	.fill = display_fill,
 };
 

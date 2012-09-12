@@ -64,6 +64,9 @@ struct display_ops {
 		      uint8_t br, uint8_t bg, uint8_t bb);
 	int (*blendv) (struct uterm_display *disp,
 		       const struct uterm_video_blend_req *req, size_t num);
+	int (*fake_blendv) (struct uterm_display *disp,
+			    const struct uterm_video_blend_req *req,
+			    size_t num);
 	int (*fill) (struct uterm_display *disp,
 		     uint8_t r, uint8_t g, uint8_t b, unsigned int x,
 		     unsigned int y, unsigned int width, unsigned int height);
