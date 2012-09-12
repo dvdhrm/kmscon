@@ -396,6 +396,22 @@ int uterm_display_get_dpms(const struct uterm_display *disp)
 	return disp->dpms;
 }
 
+int uterm_display_use(struct uterm_display *disp)
+{
+	if (!disp || !display_is_online(disp))
+		return -EINVAL;
+
+	return VIDEO_CALL(disp->ops->use, -EOPNOTSUPP, disp);
+}
+
+int uterm_display_swap(struct uterm_display *disp)
+{
+	if (!disp || !display_is_online(disp))
+		return -EINVAL;
+
+	return VIDEO_CALL(disp->ops->swap, 0, disp);
+}
+
 int uterm_video_new(struct uterm_video **out,
 			struct ev_eloop *eloop,
 			unsigned int type,

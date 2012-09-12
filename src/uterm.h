@@ -214,6 +214,9 @@ void uterm_display_deactivate(struct uterm_display *disp);
 int uterm_display_set_dpms(struct uterm_display *disp, int state);
 int uterm_display_get_dpms(const struct uterm_display *disp);
 
+int uterm_display_use(struct uterm_display *disp);
+int uterm_display_swap(struct uterm_display *disp);
+
 /* video interface */
 
 int uterm_video_new(struct uterm_video **out,
