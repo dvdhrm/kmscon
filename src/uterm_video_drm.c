@@ -328,8 +328,10 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	ret = 0;
 	for (i = 0; i < conn->count_props; ++i) {
 		prop = drmModeGetProperty(disp->video->drm.fd, conn->props[i]);
-		if (!prop)
+		if (!prop) {
+			log_error("cannot get DRM property (%d): %m", errno);
 			continue;
+		}
 
 		if (!strcmp(prop->name, "DPMS")) {
 			ret = drmModeConnectorSetProperty(disp->video->drm.fd,
@@ -884,8 +886,10 @@ static int get_dpms(struct uterm_display *disp, drmModeConnector *conn)
 
 	for (i = 0; i < conn->count_props; ++i) {
 		prop = drmModeGetProperty(disp->video->drm.fd, conn->props[i]);
-		if (!prop)
+		if (!prop) {
+			log_error("cannot get DRM property (%d): %m", errno);
 			continue;
+		}
 
 		if (!strcmp(prop->name, "DPMS")) {
 			switch (conn->prop_values[i]) {
