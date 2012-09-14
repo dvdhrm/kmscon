@@ -100,8 +100,6 @@
  */
 
 #define KMSCON_UCS4_MAXLEN 10
-#define KMSCON_UCS4_MAX 0x7fffffffUL
-#define KMSCON_UCS4_INVALID 0xfffd
 
 const tsm_symbol_t tsm_symbol_default = 0;
 static const char default_u8[] = { 0 };
@@ -118,7 +116,7 @@ static unsigned int hash_ucs4(const void *key)
 	const uint32_t *ucs4 = key;
 
 	i = 0;
-	while (ucs4[i] <= KMSCON_UCS4_MAX) {
+	while (ucs4[i] <= TSM_UCS4_MAX) {
 		val = val * 33 + ucs4[i];
 		++i;
 	}
@@ -136,11 +134,11 @@ static bool cmp_ucs4(const void *a, const void *b)
 	i = 0;
 
 	while (1) {
-		if (v1[i] > KMSCON_UCS4_MAX && v2[i] > KMSCON_UCS4_MAX)
+		if (v1[i] > TSM_UCS4_MAX && v2[i] > TSM_UCS4_MAX)
 			return true;
-		if (v1[i] > KMSCON_UCS4_MAX && v2[i] <= KMSCON_UCS4_MAX)
+		if (v1[i] > TSM_UCS4_MAX && v2[i] <= TSM_UCS4_MAX)
 			return false;
-		if (v1[i] <= KMSCON_UCS4_MAX && v2[i] > KMSCON_UCS4_MAX)
+		if (v1[i] <= TSM_UCS4_MAX && v2[i] > TSM_UCS4_MAX)
 			return false;
 		if (v1[i] != v2[i])
 			return false;
@@ -157,7 +155,7 @@ static int table__init()
 	if (table_symbols)
 		return 0;
 
-	table_next_id = KMSCON_UCS4_MAX + 2;
+	table_next_id = TSM_UCS4_MAX + 2;
 
 	ret = kmscon_array_new(&table_index, sizeof(uint32_t*), 4);
 	if (ret) {
@@ -180,7 +178,7 @@ static int table__init()
 
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
 {
-	if (ucs4 > KMSCON_UCS4_MAX) {
+	if (ucs4 > TSM_UCS4_MAX) {
 		log_warn("invalid ucs4 character");
 		return 0;
 	} else {
@@ -203,7 +201,7 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
 
-	if (*sym <= KMSCON_UCS4_MAX) {
+	if (*sym <= TSM_UCS4_MAX) {
 		if (size)
 			*size = 1;
 		return sym;
@@ -216,7 +214,7 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 	}
 
 	ucs4 = *KMSCON_ARRAY_AT(table_index, uint32_t*,
-				*sym - (KMSCON_UCS4_MAX + 1));
+				*sym - (TSM_UCS4_MAX + 1));
 	if (!ucs4) {
 		if (size)
 			*size = 1;
@@ -225,7 +223,7 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 
 	if (size) {
 		*size = 0;
-		while (ucs4[*size] <= KMSCON_UCS4_MAX)
+		while (ucs4[*size] <= TSM_UCS4_MAX)
 			++*size;
 	}
 
@@ -259,7 +257,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 		goto unlock;
 	}
 
-	if (ucs4 > KMSCON_UCS4_MAX) {
+	if (ucs4 > TSM_UCS4_MAX) {
 		log_warn("invalid ucs4 character");
 		rsym = sym;
 		goto unlock;
@@ -273,7 +271,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 
 	memcpy(buf, ptr, s * sizeof(uint32_t));
 	buf[s++] = ucs4;
-	buf[s++] = KMSCON_UCS4_MAX + 1;
+	buf[s++] = TSM_UCS4_MAX + 1;
 
 	res = kmscon_hashtable_find(table_symbols, &tmp, buf);
 	if (res) {
