@@ -465,7 +465,7 @@ int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char ci)
 uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach)
 {
 	if (!mach || mach->state != TSM_UTF8_ACCEPT)
-		return KMSCON_UCS4_INVALID;
+		return TSM_UCS4_REPLACEMENT;
 
 	return mach->ch;
 }

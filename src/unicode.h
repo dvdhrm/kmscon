@@ -51,6 +51,10 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#define TSM_UCS4_MAX (0x7fffffffUL)
+#define TSM_UCS4_INVALID (TSM_UCS4_MAX + 1)
+#define TSM_UCS4_REPLACEMENT (0xfffdUL)
+
 /* symbols */
 
 typedef uint32_t kmscon_symbol_t;
