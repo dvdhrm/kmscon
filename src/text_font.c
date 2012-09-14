@@ -460,7 +460,7 @@ void kmscon_font_unref(struct kmscon_font *font)
  *
  * Returns: 0 on success, negative error code on failure
  */
-int kmscon_font_render(struct kmscon_font *font, kmscon_symbol_t sym,
+int kmscon_font_render(struct kmscon_font *font, tsm_symbol_t sym,
 		       const struct kmscon_glyph **out)
 {
 	if (!font || !out)

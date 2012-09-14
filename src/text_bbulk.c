@@ -111,7 +111,7 @@ static void bbulk_unset(struct kmscon_text *txt)
 	bb->reqs = NULL;
 }
 
-static int bbulk_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+static int bbulk_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {

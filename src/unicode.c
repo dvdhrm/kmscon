@@ -67,23 +67,23 @@
 
 /*
  * Unicode Symbol Handling
- * The main goal of the kmscon_symbol_* functions is to provide a datatype which
+ * The main goal of the tsm_symbol_* functions is to provide a datatype which
  * can contain the representation of any printable character. This includes all
  * basic Unicode characters but also combined characters.
  * To avoid all the memory management we still represent a character as a single
- * integer value (kmscon_symbol_t) but internally we allocate a string which is
+ * integer value (tsm_symbol_t) but internally we allocate a string which is
  * represented by this value.
  *
- * A kmscon_symbol_t is an integer which represents a single character point.
+ * A tsm_symbol_t is an integer which represents a single character point.
  * For most Unicode characters this is simply the UCS4 representation. In fact,
- * every UCS4 characters is a valid kmscon_symbol_t object.
+ * every UCS4 characters is a valid tsm_symbol_t object.
  * However, Unicode standard allows combining marks. Therefore, some characters
  * consists of more than one Unicode character.
  * A global symbol-table provides all those combined characters as single
  * integers. You simply create a valid base character and append your combining
- * marks and the table will return a new valid kmscon_symbol_t. It is no longer
+ * marks and the table will return a new valid tsm_symbol_t. It is no longer
  * a valid UCS4 value, though. But no memory management is needed as all
- * kmscon_symbol_t objects are simple integers.
+ * tsm_symbol_t objects are simple integers.
  *
  * The symbol table contains two-way
  * references. The Hash Table contains all the symbols with the symbol ucs4
@@ -103,7 +103,7 @@
 #define KMSCON_UCS4_MAX 0x7fffffffUL
 #define KMSCON_UCS4_INVALID 0xfffd
 
-const kmscon_symbol_t kmscon_symbol_default = 0;
+const tsm_symbol_t tsm_symbol_default = 0;
 static const char default_u8[] = { 0 };
 
 static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -178,7 +178,7 @@ static int table__init()
 	return 0;
 }
 
-kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
+tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
 {
 	if (ucs4 > KMSCON_UCS4_MAX) {
 		log_warn("invalid ucs4 character");
@@ -199,7 +199,7 @@ kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4)
  * This always returns a valid value. If an error happens, the default character
  * is returned. If \size is NULL, then the size value is omitted.
  */
-static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
+static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
 
@@ -212,7 +212,7 @@ static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
 	if (table__init()) {
 		if (size)
 			*size = 1;
-		return &kmscon_symbol_default;
+		return &tsm_symbol_default;
 	}
 
 	ucs4 = *KMSCON_ARRAY_AT(table_index, uint32_t*,
@@ -220,7 +220,7 @@ static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
 	if (!ucs4) {
 		if (size)
 			*size = 1;
-		return &kmscon_symbol_default;
+		return &tsm_symbol_default;
 	}
 
 	if (size) {
@@ -232,7 +232,7 @@ static const uint32_t *table__get(kmscon_symbol_t *sym, size_t *size)
 	return ucs4;
 }
 
-const uint32_t *kmscon_symbol_get(kmscon_symbol_t *sym, size_t *size)
+const uint32_t *tsm_symbol_get(tsm_symbol_t *sym, size_t *size)
 {
 	const uint32_t *res;
 
@@ -243,12 +243,12 @@ const uint32_t *kmscon_symbol_get(kmscon_symbol_t *sym, size_t *size)
 	return res;
 }
 
-kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
+tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 {
 	uint32_t buf[KMSCON_UCS4_MAXLEN + 1], nsym, *nval;
 	const uint32_t *ptr;
 	size_t s;
-	kmscon_symbol_t rsym;
+	tsm_symbol_t rsym;
 	void *tmp;
 	bool res;
 
@@ -334,13 +334,13 @@ static size_t ucs4_to_utf8(uint32_t g, char *txt)
 	}
 }
 
-const char *kmscon_symbol_get_u8(kmscon_symbol_t sym, size_t *size)
+const char *tsm_symbol_get_u8(tsm_symbol_t sym, size_t *size)
 {
 	const uint32_t *ucs4;
 	char *val;
 	size_t i, pos, len;
 
-	ucs4 = kmscon_symbol_get(&sym, &len);
+	ucs4 = tsm_symbol_get(&sym, &len);
 	val = malloc(4 * len);
 	if (!val)
 		goto err_out;
@@ -362,7 +362,7 @@ err_out:
 	return default_u8;
 }
 
-void kmscon_symbol_free_u8(const char *s)
+void tsm_symbol_free_u8(const char *s)
 {
 	if (s != default_u8)
 		free((void*)s);

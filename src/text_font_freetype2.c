@@ -138,7 +138,7 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     kmscon_symbol_t ch)
+		     tsm_symbol_t ch)
 {
 	struct kmscon_glyph *glyph;
 	struct glyph *data;
@@ -180,7 +180,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	 * TODO: Fix this by drawing all related characters into a single glyph
 	 * and saving it or simply refer to the pango backend which already does
 	 * that. */
-	val = kmscon_symbol_get(&ch, &len);
+	val = tsm_symbol_get(&ch, &len);
 	if (len > 1 || !*val) {
 		ret = -ERANGE;
 		goto out_glyph;
@@ -549,7 +549,7 @@ static int generate_specials(struct face *face)
 
 	memset(face->empty.buf.data, 0, s);
 
-	ret = get_glyph(face, &g, kmscon_symbol_make('?'));
+	ret = get_glyph(face, &g, tsm_symbol_make('?'));
 	if (ret) {
 		memcpy(&face->inval, &face->empty, sizeof(face->inval));
 	} else {
@@ -564,7 +564,7 @@ static int kmscon_font_freetype2_init(struct kmscon_font *out,
 {
 	struct face *face = NULL;
 	int ret;
-	kmscon_symbol_t ch;
+	tsm_symbol_t ch;
 	unsigned int i, width;
 	struct kmscon_glyph *glyph;
 	struct glyph *data;
@@ -592,7 +592,7 @@ static int kmscon_font_freetype2_init(struct kmscon_font *out,
 	if (face->shrink) {
 		width = 0;
 		for (i = 0x20; i < 0x7f; ++i) {
-			ch = kmscon_symbol_make(i);
+			ch = tsm_symbol_make(i);
 			ret = get_glyph(face, &glyph, ch);
 			if (ret)
 				continue;
@@ -636,7 +636,7 @@ static void kmscon_font_freetype2_destroy(struct kmscon_font *font)
 }
 
 static int kmscon_font_freetype2_render(struct kmscon_font *font,
-					kmscon_symbol_t sym,
+					tsm_symbol_t sym,
 					const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;

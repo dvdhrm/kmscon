@@ -39,7 +39,7 @@
 
 /* available character sets */
 
-typedef kmscon_symbol_t kmscon_vte_charset[96];
+typedef tsm_symbol_t kmscon_vte_charset[96];
 
 extern kmscon_vte_charset kmscon_vte_unicode_lower;
 extern kmscon_vte_charset kmscon_vte_unicode_upper;

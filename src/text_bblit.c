@@ -59,7 +59,7 @@ static int bblit_set(struct kmscon_text *txt)
 	return 0;
 }
 
-static int bblit_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+static int bblit_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {

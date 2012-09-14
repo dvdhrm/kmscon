@@ -109,7 +109,7 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     kmscon_symbol_t ch)
+		     tsm_symbol_t ch)
 {
 	struct kmscon_glyph *glyph;
 	PangoLayout *layout;
@@ -148,9 +148,9 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
 
-	val = kmscon_symbol_get_u8(ch, &len);
+	val = tsm_symbol_get_u8(ch, &len);
 	pango_layout_set_text(layout, val, len);
-	kmscon_symbol_free_u8(val);
+	tsm_symbol_free_u8(val);
 
 	cnt = pango_layout_get_line_count(layout);
 	if (cnt == 0) {
@@ -386,7 +386,7 @@ static void kmscon_font_pango_destroy(struct kmscon_font *font)
 }
 
 static int kmscon_font_pango_render(struct kmscon_font *font,
-				    kmscon_symbol_t sym,
+				    tsm_symbol_t sym,
 				    const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;

@@ -82,13 +82,13 @@ static void kmscon_font_8x16_destroy(struct kmscon_font *font)
 }
 
 static int kmscon_font_8x16_render(struct kmscon_font *font,
-				   kmscon_symbol_t sym,
+				   tsm_symbol_t sym,
 				   const struct kmscon_glyph **out)
 {
 	const uint32_t *val;
 	size_t len;
 
-	val = kmscon_symbol_get(&sym, &len);
+	val = tsm_symbol_get(&sym, &len);
 	if (len > 1 || *val >= 256)
 		return -ERANGE;
 

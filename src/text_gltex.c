@@ -366,7 +366,7 @@ err_free:
 }
 
 static int find_glyph(struct kmscon_text *txt, struct glyph **out,
-		      kmscon_symbol_t ch)
+		      tsm_symbol_t ch)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
@@ -520,7 +520,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 	return 0;
 }
 
-static int gltex_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+static int gltex_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {

@@ -44,15 +44,15 @@
 
 /* symbols */
 
-typedef uint32_t kmscon_symbol_t;
+typedef uint32_t tsm_symbol_t;
 
-extern const kmscon_symbol_t kmscon_symbol_default;
+extern const tsm_symbol_t tsm_symbol_default;
 
-kmscon_symbol_t kmscon_symbol_make(uint32_t ucs4);
-kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4);
-const uint32_t *kmscon_symbol_get(kmscon_symbol_t *sym, size_t *size);
-const char *kmscon_symbol_get_u8(kmscon_symbol_t sym, size_t *size);
-void kmscon_symbol_free_u8(const char *s);
+tsm_symbol_t tsm_symbol_make(uint32_t ucs4);
+tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4);
+const uint32_t *tsm_symbol_get(tsm_symbol_t *sym, size_t *size);
+const char *tsm_symbol_get_u8(tsm_symbol_t sym, size_t *size);
+void tsm_symbol_free_u8(const char *s);
 
 /* utf8 state machine */
 

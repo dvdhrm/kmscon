@@ -482,7 +482,7 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 	vte_write_debug((_vte), (_u8), (_len), true, __FILE__, __LINE__)
 
 /* write to console */
-static void write_console(struct kmscon_vte *vte, kmscon_symbol_t sym)
+static void write_console(struct kmscon_vte *vte, tsm_symbol_t sym)
 {
 	to_rgb(vte, &vte->cattr);
 	kmscon_console_write(vte->con, sym, &vte->cattr);
@@ -1658,7 +1658,7 @@ static uint32_t vte_map(struct kmscon_vte *vte, uint32_t val)
 /* perform parser action */
 static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 {
-	kmscon_symbol_t sym;
+	tsm_symbol_t sym;
 
 	switch (action) {
 		case ACTION_NONE:
@@ -1668,7 +1668,7 @@ static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
 			/* ignore character */
 			break;
 		case ACTION_PRINT:
-			sym = kmscon_symbol_make(vte_map(vte, data));
+			sym = tsm_symbol_make(vte_map(vte, data));
 			write_console(vte, sym);
 			break;
 		case ACTION_EXECUTE:
@@ -2119,7 +2119,7 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 				unsigned int mods, uint32_t unicode)
 {
-	kmscon_symbol_t sym;
+	tsm_symbol_t sym;
 	char val;
 	size_t len;
 	const char *u8;
@@ -2553,10 +2553,10 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			}
 			vte_write_raw(vte, &val, 1);
 		} else {
-			sym = kmscon_symbol_make(unicode);
-			u8 = kmscon_symbol_get_u8(sym, &len);
+			sym = tsm_symbol_make(unicode);
+			u8 = tsm_symbol_get_u8(sym, &len);
 			vte_write_raw(vte, u8, len);
-			kmscon_symbol_free_u8(u8);
+			tsm_symbol_free_u8(u8);
 		}
 		return true;
 	}

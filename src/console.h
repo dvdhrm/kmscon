@@ -68,7 +68,7 @@ struct kmscon_console_attr {
 typedef int (*kmscon_console_prepare_cb) (struct kmscon_console *con,
 					  void *data);
 typedef int (*kmscon_console_draw_cb) (struct kmscon_console *con,
-				       kmscon_symbol_t ch,
+				       tsm_symbol_t ch,
 				       unsigned int posx,
 				       unsigned int posy,
 				       const struct kmscon_console_attr *attr,
@@ -109,7 +109,7 @@ void kmscon_console_set_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_tabstop(struct kmscon_console *con);
 void kmscon_console_reset_all_tabstops(struct kmscon_console *con);
 
-void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
+void kmscon_console_write(struct kmscon_console *con, tsm_symbol_t ch,
 			  const struct kmscon_console_attr *attr);
 void kmscon_console_newline(struct kmscon_console *con);
 void kmscon_console_scroll_up(struct kmscon_console *con, unsigned int num);

@@ -44,7 +44,7 @@
 #define LOG_SUBSYSTEM "console"
 
 struct cell {
-	kmscon_symbol_t ch;
+	tsm_symbol_t ch;
 	struct kmscon_console_attr attr;
 };
 
@@ -317,7 +317,7 @@ static void console_scroll_down(struct kmscon_console *con, unsigned int num)
 }
 
 static void console_write(struct kmscon_console *con, unsigned int x,
-			  unsigned int y, kmscon_symbol_t ch,
+			  unsigned int y, tsm_symbol_t ch,
 			  const struct kmscon_console_attr *attr)
 {
 	struct line *line;
@@ -791,7 +791,7 @@ void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
 		con->tab_ruler[i] = false;
 }
 
-void kmscon_console_write(struct kmscon_console *con, kmscon_symbol_t ch,
+void kmscon_console_write(struct kmscon_console *con, tsm_symbol_t ch,
 			  const struct kmscon_console_attr *attr)
 {
 	unsigned int last;

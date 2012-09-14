@@ -443,7 +443,7 @@ int kmscon_text_prepare(struct kmscon_text *txt)
  *
  * Returns: 0 on success or negative error code if this glyph couldn't be drawn.
  */
-int kmscon_text_draw(struct kmscon_text *txt, kmscon_symbol_t ch,
+int kmscon_text_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {
@@ -503,7 +503,7 @@ int kmscon_text_prepare_cb(struct kmscon_console *con, void *data)
 	return kmscon_text_prepare(data);
 }
 
-int kmscon_text_draw_cb(struct kmscon_console *con, kmscon_symbol_t ch,
+int kmscon_text_draw_cb(struct kmscon_console *con, tsm_symbol_t ch,
 			unsigned int posx, unsigned int posy,
 			const struct kmscon_console_attr *attr, void *data)
 {
