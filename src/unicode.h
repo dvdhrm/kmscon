@@ -41,6 +41,7 @@
 #define TSM_UCS4_MAX (0x7fffffffUL)
 #define TSM_UCS4_INVALID (TSM_UCS4_MAX + 1)
 #define TSM_UCS4_REPLACEMENT (0xfffdUL)
+#define TSM_UCS4_MAXLEN 10
 
 /* symbols */
 

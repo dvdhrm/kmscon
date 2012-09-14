@@ -99,8 +99,6 @@
  * push the new symbol into the symbol table.
  */
 
-#define KMSCON_UCS4_MAXLEN 10
-
 const tsm_symbol_t tsm_symbol_default = 0;
 static const char default_u8[] = { 0 };
 
@@ -243,7 +241,7 @@ const uint32_t *tsm_symbol_get(tsm_symbol_t *sym, size_t *size)
 
 tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 {
-	uint32_t buf[KMSCON_UCS4_MAXLEN + 1], nsym, *nval;
+	uint32_t buf[TSM_UCS4_MAXLEN + 1], nsym, *nval;
 	const uint32_t *ptr;
 	size_t s;
 	tsm_symbol_t rsym;
@@ -264,7 +262,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	}
 
 	ptr = table__get(&sym, &s);
-	if (s >= KMSCON_UCS4_MAXLEN) {
+	if (s >= TSM_UCS4_MAXLEN) {
 		rsym = sym;
 		goto unlock;
 	}
