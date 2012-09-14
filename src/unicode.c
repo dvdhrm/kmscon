@@ -149,16 +149,6 @@ static bool cmp_ucs4(const void *a, const void *b)
 	}
 }
 
-static void table_lock()
-{
-	pthread_mutex_lock(&table_mutex);
-}
-
-static void table_unlock()
-{
-	pthread_mutex_unlock(&table_mutex);
-}
-
 static int table__init()
 {
 	static const uint32_t *val = NULL; /* we need a valid lvalue */
@@ -246,9 +236,9 @@ const uint32_t *kmscon_symbol_get(kmscon_symbol_t *sym, size_t *size)
 {
 	const uint32_t *res;
 
-	table_lock();
+	pthread_mutex_lock(&table_mutex);
 	res = table__get(sym, size);
-	table_unlock();
+	pthread_mutex_unlock(&table_mutex);
 
 	return res;
 }
@@ -262,7 +252,7 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 	void *tmp;
 	bool res;
 
-	table_lock();
+	pthread_mutex_lock(&table_mutex);
 
 	if (table__init()) {
 		rsym = sym;
@@ -306,7 +296,7 @@ kmscon_symbol_t kmscon_symbol_append(kmscon_symbol_t sym, uint32_t ucs4)
 	rsym = nsym;
 
 unlock:
-	table_unlock();
+	pthread_mutex_unlock(&table_mutex);
 	return rsym;
 }
 
