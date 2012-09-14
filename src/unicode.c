@@ -25,7 +25,7 @@
  */
 
 /*
- * This kmscon-utf8-state-machine is based on the wayland-compositor demos:
+ * The tsm-utf8-state-machine is based on the wayland-compositor demos:
  *
  * Copyright © 2008 Kristian Høgsberg
  *
@@ -49,8 +49,43 @@
  */
 
 /*
- * Unicode Handling
- * Main implementation of the symbol datatype. The symbol table contains two-way
+ * Unicode Helpers
+ * This implements several helpers for Unicode/UTF8/UCS4 input and output. See
+ * below for comments on each helper.
+ */
+
+#include <errno.h>
+#include <inttypes.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+#include "log.h"
+#include "static_misc.h"
+#include "unicode.h"
+
+#define LOG_SUBSYSTEM "unicode"
+
+/*
+ * Unicode Symbol Handling
+ * The main goal of the kmscon_symbol_* functions is to provide a datatype which
+ * can contain the representation of any printable character. This includes all
+ * basic Unicode characters but also combined characters.
+ * To avoid all the memory management we still represent a character as a single
+ * integer value (kmscon_symbol_t) but internally we allocate a string which is
+ * represented by this value.
+ *
+ * A kmscon_symbol_t is an integer which represents a single character point.
+ * For most Unicode characters this is simply the UCS4 representation. In fact,
+ * every UCS4 characters is a valid kmscon_symbol_t object.
+ * However, Unicode standard allows combining marks. Therefore, some characters
+ * consists of more than one Unicode character.
+ * A global symbol-table provides all those combined characters as single
+ * integers. You simply create a valid base character and append your combining
+ * marks and the table will return a new valid kmscon_symbol_t. It is no longer
+ * a valid UCS4 value, though. But no memory management is needed as all
+ * kmscon_symbol_t objects are simple integers.
+ *
+ * The symbol table contains two-way
  * references. The Hash Table contains all the symbols with the symbol ucs4
  * string as key and the symbol ID as value.
  * The index array contains the symbol ID as key and a pointer to the ucs4
@@ -63,19 +98,6 @@
  * character is appended to an existing symbol, we create a new ucs4 string and
  * push the new symbol into the symbol table.
  */
-
-/* TODO: Remove the glib dependencies */
-
-#include <errno.h>
-#include <inttypes.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <string.h>
-#include "log.h"
-#include "static_misc.h"
-#include "unicode.h"
-
-#define LOG_SUBSYSTEM "unicode"
 
 #define KMSCON_UCS4_MAXLEN 10
 #define KMSCON_UCS4_MAX 0x7fffffffUL

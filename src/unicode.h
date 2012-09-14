@@ -25,24 +25,9 @@
  */
 
 /*
- * Unicode Handling
- * The main goal of the kmscon_symbol_* functions is to provide a datatype which
- * can contain the representation of any printable character. This includes all
- * basic Unicode characters but also combined characters.
- * To avoid all the memory management we still represent a character as a single
- * integer value (kmscon_symbol_t) but internally we allocate a string which is
- * represented by this value.
- *
- * A kmscon_symbol_t is an integer which represents a single character point.
- * For most Unicode characters this is simply the UCS4 representation. In fact,
- * every UCS4 characters is a valid kmscon_symbol_t object.
- * However, Unicode standard allows combining marks. Therefore, some characters
- * consists of more than one Unicode character.
- * A global symbol-table provides all those combined characters as single
- * integers. You simply create a valid base character and append your combining
- * marks and the table will return a new valid kmscon_symbol_t. It is no longer
- * a valid UCS4 value, though. But no memory management is needed as all
- * kmscon_symbol_t objects are simple integers.
+ * Unicode Helpers
+ * This file provides small helpers to make working with Unicode/UTF8/UCS4 input
+ * and output much easier.
  */
 
 #ifndef KMSCON_UNICODE_H
@@ -50,6 +35,8 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+
+/* UCS4 helpers */
 
 #define TSM_UCS4_MAX (0x7fffffffUL)
 #define TSM_UCS4_INVALID (TSM_UCS4_MAX + 1)
