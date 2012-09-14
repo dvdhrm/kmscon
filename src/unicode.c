@@ -356,14 +356,20 @@ void kmscon_symbol_free_u8(const char *s)
 		free((void*)s);
 }
 
-struct kmscon_utf8_mach {
+/*
+ * UTF8 State Machine
+ * This state machine parses UTF8 and converts it into a stream of Unicode
+ * characters (UCS4 values).
+ */
+
+struct tsm_utf8_mach {
 	int state;
 	uint32_t ch;
 };
 
-int kmscon_utf8_mach_new(struct kmscon_utf8_mach **out)
+int tsm_utf8_mach_new(struct tsm_utf8_mach **out)
 {
-	struct kmscon_utf8_mach *mach;
+	struct tsm_utf8_mach *mach;
 
 	if (!out)
 		return -EINVAL;
@@ -373,13 +379,13 @@ int kmscon_utf8_mach_new(struct kmscon_utf8_mach **out)
 		return -ENOMEM;
 
 	memset(mach, 0, sizeof(*mach));
-	mach->state = KMSCON_UTF8_START;
+	mach->state = TSM_UTF8_START;
 
 	*out = mach;
 	return 0;
 }
 
-void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach)
+void tsm_utf8_mach_free(struct tsm_utf8_mach *mach)
 {
 	if (!mach)
 		return;
@@ -387,87 +393,87 @@ void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach)
 	free(mach);
 }
 
-int kmscon_utf8_mach_feed(struct kmscon_utf8_mach *mach, char ci)
+int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char ci)
 {
 	uint32_t c;
 
 	if (!mach)
-		return KMSCON_UTF8_START;
+		return TSM_UTF8_START;
 
 	c = ci;
 
 	switch (mach->state) {
-	case KMSCON_UTF8_START:
-	case KMSCON_UTF8_ACCEPT:
-	case KMSCON_UTF8_REJECT:
+	case TSM_UTF8_START:
+	case TSM_UTF8_ACCEPT:
+	case TSM_UTF8_REJECT:
 		if (c == 0xC0 || c == 0xC1) {
 			/* overlong encoding for ASCII, reject */
-			mach->state = KMSCON_UTF8_REJECT;
+			mach->state = TSM_UTF8_REJECT;
 		} else if ((c & 0x80) == 0) {
 			/* single byte, accept */
 			mach->ch = c;
-			mach->state = KMSCON_UTF8_ACCEPT;
+			mach->state = TSM_UTF8_ACCEPT;
 		} else if ((c & 0xC0) == 0x80) {
 			/* parser out of sync, ignore byte */
-			mach->state = KMSCON_UTF8_START;
+			mach->state = TSM_UTF8_START;
 		} else if ((c & 0xE0) == 0xC0) {
 			/* start of two byte sequence */
 			mach->ch = (c & 0x1F) << 6;
-			mach->state = KMSCON_UTF8_EXPECT1;
+			mach->state = TSM_UTF8_EXPECT1;
 		} else if ((c & 0xF0) == 0xE0) {
 			/* start of three byte sequence */
 			mach->ch = (c & 0x0F) << 12;
-			mach->state = KMSCON_UTF8_EXPECT2;
+			mach->state = TSM_UTF8_EXPECT2;
 		} else if ((c & 0xF8) == 0xF0) {
 			/* start of four byte sequence */
 			mach->ch = (c & 0x07) << 18;
-			mach->state = KMSCON_UTF8_EXPECT3;
+			mach->state = TSM_UTF8_EXPECT3;
 		} else {
 			/* overlong encoding, reject */
-			mach->state = KMSCON_UTF8_REJECT;
+			mach->state = TSM_UTF8_REJECT;
 		}
 		break;
-	case KMSCON_UTF8_EXPECT3:
+	case TSM_UTF8_EXPECT3:
 		mach->ch |= (c & 0x3F) << 12;
 		if ((c & 0xC0) == 0x80)
-			mach->state = KMSCON_UTF8_EXPECT2;
+			mach->state = TSM_UTF8_EXPECT2;
 		else
-			mach->state = KMSCON_UTF8_REJECT;
+			mach->state = TSM_UTF8_REJECT;
 		break;
-	case KMSCON_UTF8_EXPECT2:
+	case TSM_UTF8_EXPECT2:
 		mach->ch |= (c & 0x3F) << 6;
 		if ((c & 0xC0) == 0x80)
-			mach->state = KMSCON_UTF8_EXPECT1;
+			mach->state = TSM_UTF8_EXPECT1;
 		else
-			mach->state = KMSCON_UTF8_REJECT;
+			mach->state = TSM_UTF8_REJECT;
 		break;
-	case KMSCON_UTF8_EXPECT1:
+	case TSM_UTF8_EXPECT1:
 		mach->ch |= c & 0x3F;
 		if ((c & 0xC0) == 0x80)
-			mach->state = KMSCON_UTF8_ACCEPT;
+			mach->state = TSM_UTF8_ACCEPT;
 		else
-			mach->state = KMSCON_UTF8_REJECT;
+			mach->state = TSM_UTF8_REJECT;
 		break;
 	default:
-		mach->state = KMSCON_UTF8_REJECT;
+		mach->state = TSM_UTF8_REJECT;
 		break;
 	}
 
 	return mach->state;
 }
 
-uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach)
+uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach)
 {
-	if (!mach || mach->state != KMSCON_UTF8_ACCEPT)
+	if (!mach || mach->state != TSM_UTF8_ACCEPT)
 		return KMSCON_UCS4_INVALID;
 
 	return mach->ch;
 }
 
-void kmscon_utf8_mach_reset(struct kmscon_utf8_mach *mach)
+void tsm_utf8_mach_reset(struct tsm_utf8_mach *mach)
 {
 	if (!mach)
 		return;
 
-	mach->state = KMSCON_UTF8_START;
+	mach->state = TSM_UTF8_START;
 }

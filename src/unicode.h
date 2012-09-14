@@ -65,22 +65,22 @@ void kmscon_symbol_free_u8(const char *s);
 
 /* utf8 state machine */
 
-struct kmscon_utf8_mach;
+struct tsm_utf8_mach;
 
-enum kmscon_utf8_mach_state {
-	KMSCON_UTF8_START,
-	KMSCON_UTF8_ACCEPT,
-	KMSCON_UTF8_REJECT,
-	KMSCON_UTF8_EXPECT1,
-	KMSCON_UTF8_EXPECT2,
-	KMSCON_UTF8_EXPECT3,
+enum tsm_utf8_mach_state {
+	TSM_UTF8_START,
+	TSM_UTF8_ACCEPT,
+	TSM_UTF8_REJECT,
+	TSM_UTF8_EXPECT1,
+	TSM_UTF8_EXPECT2,
+	TSM_UTF8_EXPECT3,
 };
 
-int kmscon_utf8_mach_new(struct kmscon_utf8_mach **out);
-void kmscon_utf8_mach_free(struct kmscon_utf8_mach *mach);
+int tsm_utf8_mach_new(struct tsm_utf8_mach **out);
+void tsm_utf8_mach_free(struct tsm_utf8_mach *mach);
 
-int kmscon_utf8_mach_feed(struct kmscon_utf8_mach *mach, char c);
-uint32_t kmscon_utf8_mach_get(struct kmscon_utf8_mach *mach);
-void kmscon_utf8_mach_reset(struct kmscon_utf8_mach *mach);
+int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char c);
+uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach);
+void tsm_utf8_mach_reset(struct tsm_utf8_mach *mach);
 
 #endif /* KMSCON_UNICODE_H */

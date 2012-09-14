@@ -154,7 +154,7 @@ struct kmscon_vte {
 	kmscon_vte_write_cb write_cb;
 	void *data;
 
-	struct kmscon_utf8_mach *mach;
+	struct tsm_utf8_mach *mach;
 	unsigned long parse_cnt;
 
 	unsigned int state;
@@ -381,7 +381,7 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 	vte->def_attr.bccode = COLOR_BACKGROUND;
 	to_rgb(vte, &vte->def_attr);
 
-	ret = kmscon_utf8_mach_new(&vte->mach);
+	ret = tsm_utf8_mach_new(&vte->mach);
 	if (ret)
 		goto err_free;
 
@@ -416,7 +416,7 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 
 	log_debug("destroying vte object");
 	kmscon_console_unref(vte->con);
-	kmscon_utf8_mach_free(vte->mach);
+	tsm_utf8_mach_free(vte->mach);
 	free(vte);
 }
 
@@ -568,7 +568,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	kmscon_console_reset(vte->con);
 	kmscon_console_set_flags(vte->con, KMSCON_CONSOLE_AUTO_WRAP);
 
-	kmscon_utf8_mach_reset(vte->mach);
+	tsm_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
 	vte->gl = &kmscon_vte_unicode_lower;
 	vte->gr = &kmscon_vte_unicode_upper;
@@ -2105,10 +2105,10 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 		} else if (vte->flags & FLAG_8BIT_MODE) {
 			parse_data(vte, u8[i]);
 		} else {
-			state = kmscon_utf8_mach_feed(vte->mach, u8[i]);
-			if (state == KMSCON_UTF8_ACCEPT ||
-			    state == KMSCON_UTF8_REJECT) {
-				ucs4 = kmscon_utf8_mach_get(vte->mach);
+			state = tsm_utf8_mach_feed(vte->mach, u8[i]);
+			if (state == TSM_UTF8_ACCEPT ||
+			    state == TSM_UTF8_REJECT) {
+				ucs4 = tsm_utf8_mach_get(vte->mach);
 				parse_data(vte, ucs4);
 			}
 		}
