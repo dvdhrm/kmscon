@@ -64,12 +64,12 @@
 #define LOG_SUBSYSTEM "text_font"
 
 struct font_backend {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	const struct kmscon_font_ops *ops;
 };
 
 static pthread_mutex_t font_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct kmscon_dlist font__list = KMSCON_DLIST_INIT(font__list);
+static struct shl_dlist font__list = SHL_DLIST_INIT(font__list);
 
 static void font_lock()
 {
@@ -164,7 +164,7 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
  */
 int kmscon_font_register(const struct kmscon_font_ops *ops)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct font_backend *be;
 	int ret;
 
@@ -175,8 +175,8 @@ int kmscon_font_register(const struct kmscon_font_ops *ops)
 
 	font_lock();
 
-	kmscon_dlist_for_each(iter, &font__list) {
-		be = kmscon_dlist_entry(iter, struct font_backend, list);
+	shl_dlist_for_each(iter, &font__list) {
+		be = shl_dlist_entry(iter, struct font_backend, list);
 		if (!strcmp(be->ops->name, ops->name)) {
 			log_error("registering already available font backend %s",
 				  ops->name);
@@ -194,7 +194,7 @@ int kmscon_font_register(const struct kmscon_font_ops *ops)
 
 	memset(be, 0, sizeof(*be));
 	be->ops = ops;
-	kmscon_dlist_link(&font__list, &be->list);
+	shl_dlist_link(&font__list, &be->list);
 
 	ret = 0;
 
@@ -212,7 +212,7 @@ out_unlock:
  */
 void kmscon_font_unregister(const char *name)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct font_backend *be;
 
 	if (!name)
@@ -222,12 +222,12 @@ void kmscon_font_unregister(const char *name)
 
 	font_lock();
 
-	kmscon_dlist_for_each(iter, &font__list) {
-		be = kmscon_dlist_entry(iter, struct font_backend, list);
+	shl_dlist_for_each(iter, &font__list) {
+		be = shl_dlist_entry(iter, struct font_backend, list);
 		if (strcmp(name, be->ops->name))
 			continue;
 
-		kmscon_dlist_unlink(&be->list);
+		shl_dlist_unlink(&be->list);
 		break;
 	}
 
@@ -322,7 +322,7 @@ int kmscon_font_find(struct kmscon_font **out,
 		     const char *backend)
 {
 	struct kmscon_font *font;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct font_backend *be, *def;
 	int ret;
 
@@ -336,19 +336,19 @@ int kmscon_font_find(struct kmscon_font **out,
 		  attr->bold, attr->italic, attr->height,
 		  attr->width);
 
-	if (kmscon_dlist_empty(&font__list)) {
+	if (shl_dlist_empty(&font__list)) {
 		log_error("no font backend available");
 		ret = -EFAULT;
 	} else {
 		ret = 0;
-		def = kmscon_dlist_entry(font__list.prev,
+		def = shl_dlist_entry(font__list.prev,
 					 struct font_backend,
 					 list);
 		if (!backend) {
 			be = def;
 		} else {
-			kmscon_dlist_for_each(iter, &font__list) {
-				be = kmscon_dlist_entry(iter,
+			shl_dlist_for_each(iter, &font__list) {
+				be = shl_dlist_entry(iter,
 							struct font_backend,
 							list);
 				if (!strcmp(backend, be->ops->name))

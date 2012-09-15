@@ -46,11 +46,11 @@ struct kmscon_app {
 
 	struct uterm_vt_master *vtm;
 	struct uterm_monitor *mon;
-	struct kmscon_dlist seats;
+	struct shl_dlist seats;
 };
 
 struct kmscon_seat {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct kmscon_app *app;
 
 	struct uterm_monitor_seat *useat;
@@ -60,11 +60,11 @@ struct kmscon_seat {
 	struct uterm_vt *vt;
 	struct uterm_input *input;
 	struct kmscon_ui *ui;
-	struct kmscon_dlist videos;
+	struct shl_dlist videos;
 };
 
 struct kmscon_video {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_monitor_dev *vdev;
 	struct uterm_video *video;
 };
@@ -81,22 +81,22 @@ static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 {
 	struct kmscon_seat *seat = data;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct kmscon_video *vid;
 
 	if (action == UTERM_VT_ACTIVATE) {
 		seat->awake = true;
 		uterm_input_wake_up(seat->input);
 
-		kmscon_dlist_for_each(iter, &seat->videos) {
-			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+		shl_dlist_for_each(iter, &seat->videos) {
+			vid = shl_dlist_entry(iter, struct kmscon_video, list);
 			uterm_video_wake_up(vid->video);
 		}
 		kmscon_ui_wake_up(seat->ui);
 	} else if (action == UTERM_VT_DEACTIVATE) {
 		kmscon_ui_sleep(seat->ui);
-		kmscon_dlist_for_each(iter, &seat->videos) {
-			vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+		shl_dlist_for_each(iter, &seat->videos) {
+			vid = shl_dlist_entry(iter, struct kmscon_video, list);
 			uterm_video_sleep(vid->video);
 		}
 
@@ -140,7 +140,7 @@ static void seat_new(struct kmscon_app *app,
 	memset(seat, 0, sizeof(*seat));
 	seat->app = app;
 	seat->useat = useat;
-	kmscon_dlist_init(&seat->videos);
+	shl_dlist_init(&seat->videos);
 
 	seat->sname = strdup(sname);
 	if (!seat->sname) {
@@ -165,7 +165,7 @@ static void seat_new(struct kmscon_app *app,
 		goto err_vt;
 
 	uterm_monitor_set_seat_data(seat->useat, seat);
-	kmscon_dlist_link(&app->seats, &seat->list);
+	shl_dlist_link(&app->seats, &seat->list);
 
 	log_info("new seat %s", seat->sname);
 	return;
@@ -184,7 +184,7 @@ static void seat_free(struct kmscon_seat *seat)
 {
 	log_info("free seat %s", seat->sname);
 
-	kmscon_dlist_unlink(&seat->list);
+	shl_dlist_unlink(&seat->list);
 	uterm_monitor_set_seat_data(seat->useat, NULL);
 	kmscon_ui_free(seat->ui);
 	uterm_input_unref(seat->input);
@@ -234,7 +234,7 @@ static void seat_add_video(struct kmscon_seat *seat,
 	kmscon_ui_add_video(seat->ui, vid->video);
 	if (seat->awake)
 		uterm_video_wake_up(vid->video);
-	kmscon_dlist_link(&seat->videos, &vid->list);
+	shl_dlist_link(&seat->videos, &vid->list);
 
 	log_debug("new graphics device on seat %s", seat->sname);
 	return;
@@ -248,11 +248,11 @@ err_free:
 static void seat_rm_video(struct kmscon_seat *seat,
 			  struct uterm_monitor_dev *dev)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct kmscon_video *vid;
 
-	kmscon_dlist_for_each(iter, &seat->videos) {
-		vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+	shl_dlist_for_each(iter, &seat->videos) {
+		vid = shl_dlist_entry(iter, struct kmscon_video, list);
 		if (vid->vdev != dev)
 			continue;
 
@@ -260,7 +260,7 @@ static void seat_rm_video(struct kmscon_seat *seat,
 
 		kmscon_ui_remove_video(seat->ui, vid->video);
 		uterm_video_unref(vid->video);
-		kmscon_dlist_unlink(&vid->list);
+		shl_dlist_unlink(&vid->list);
 		free(vid);
 
 		break;
@@ -270,11 +270,11 @@ static void seat_rm_video(struct kmscon_seat *seat,
 static void seat_hotplug_video(struct kmscon_seat *seat,
 			       struct uterm_monitor_dev *dev)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct kmscon_video *vid;
 
-	kmscon_dlist_for_each(iter, &seat->videos) {
-		vid = kmscon_dlist_entry(iter, struct kmscon_video, list);
+	shl_dlist_for_each(iter, &seat->videos) {
+		vid = shl_dlist_entry(iter, struct kmscon_video, list);
 		if (vid->vdev != dev)
 			continue;
 
@@ -364,7 +364,7 @@ static int setup_app(struct kmscon_app *app)
 	if (ret)
 		goto err_app;
 
-	kmscon_dlist_init(&app->seats);
+	shl_dlist_init(&app->seats);
 
 	ret = uterm_monitor_new(&app->mon, app->eloop, monitor_event, app);
 	if (ret)

@@ -55,7 +55,7 @@
 #define LOG_SUBSYSTEM "text_gltex"
 
 struct atlas {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 
 	GLuint tex;
 	unsigned int height;
@@ -90,7 +90,7 @@ struct gltex {
 	unsigned int max_tex_size;
 	bool supports_rowlen;
 
-	struct kmscon_dlist atlases;
+	struct shl_dlist atlases;
 
 	GLfloat advance_x;
 	GLfloat advance_y;
@@ -148,7 +148,7 @@ static int gltex_set(struct kmscon_text *txt)
 	const char *ext;
 
 	memset(gt, 0, sizeof(*gt));
-	kmscon_dlist_init(&gt->atlases);
+	shl_dlist_init(&gt->atlases);
 
 	ret = kmscon_hashtable_new(&gt->glyphs, kmscon_direct_hash,
 				   kmscon_direct_equal, NULL,
@@ -214,7 +214,7 @@ static void gltex_unset(struct kmscon_text *txt)
 {
 	struct gltex *gt = txt->data;
 	int ret;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct atlas *atlas;
 	bool gl = true;
 
@@ -226,10 +226,10 @@ static void gltex_unset(struct kmscon_text *txt)
 
 	kmscon_hashtable_free(gt->glyphs);
 
-	while (!kmscon_dlist_empty(&gt->atlases)) {
+	while (!shl_dlist_empty(&gt->atlases)) {
 		iter = gt->atlases.next;
-		kmscon_dlist_unlink(iter);
-		atlas = kmscon_dlist_entry(iter, struct atlas, list);
+		shl_dlist_unlink(iter);
+		atlas = shl_dlist_entry(iter, struct atlas, list);
 
 		free(atlas->cache_pos);
 		free(atlas->cache_texpos);
@@ -271,8 +271,8 @@ static struct atlas *get_atlas(struct kmscon_text *txt)
 	GLenum err;
 
 	/* check whether the last added atlas has still room for one glyph */
-	if (!kmscon_dlist_empty(&gt->atlases)) {
-		atlas = kmscon_dlist_entry(gt->atlases.next, struct atlas,
+	if (!shl_dlist_empty(&gt->atlases)) {
+		atlas = shl_dlist_entry(gt->atlases.next, struct atlas,
 					   list);
 		if (atlas->fill < atlas->count)
 			return atlas;
@@ -350,7 +350,7 @@ try_next:
 	atlas->advance_htex = 1.0 / atlas->width * FONT_WIDTH(txt);
 	atlas->advance_vtex = 1.0 / atlas->height * FONT_HEIGHT(txt);
 
-	kmscon_dlist_link(&gt->atlases, &atlas->list);
+	shl_dlist_link(&gt->atlases, &atlas->list);
 	return atlas;
 
 err_mem:
@@ -497,7 +497,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	unsigned int sw, sh;
 	int ret;
 
@@ -505,8 +505,8 @@ static int gltex_prepare(struct kmscon_text *txt)
 	if (ret)
 		return ret;
 
-	kmscon_dlist_for_each(iter, &gt->atlases) {
-		atlas = kmscon_dlist_entry(iter, struct atlas, list);
+	shl_dlist_for_each(iter, &gt->atlases) {
+		atlas = shl_dlist_entry(iter, struct atlas, list);
 
 		atlas->cache_num = 0;
 	}
@@ -605,7 +605,7 @@ static int gltex_render(struct kmscon_text *txt)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	float mat[16];
 
 	gl_clear_error();
@@ -626,8 +626,8 @@ static int gltex_render(struct kmscon_text *txt)
 	glActiveTexture(GL_TEXTURE0);
 	glUniform1i(gt->uni_atlas, 0);
 
-	kmscon_dlist_for_each(iter, &gt->atlases) {
-		atlas = kmscon_dlist_entry(iter, struct atlas, list);
+	shl_dlist_for_each(iter, &gt->atlases) {
+		atlas = shl_dlist_entry(iter, struct atlas, list);
 		if (!atlas->cache_num)
 			continue;
 

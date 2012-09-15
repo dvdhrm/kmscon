@@ -203,7 +203,7 @@ struct ev_eloop {
 	struct ev_fd *fd;
 	int idle_fd;
 
-	struct kmscon_dlist sig_list;
+	struct shl_dlist sig_list;
 	struct kmscon_hook *idlers;
 	struct kmscon_hook *pres;
 	struct kmscon_hook *posts;
@@ -295,7 +295,7 @@ struct ev_counter {
  * are called if the signal is catched.
  */
 struct ev_signal_shared {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 
 	struct ev_fd *fd;
 	int signum;
@@ -417,7 +417,7 @@ static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 		goto err_sig;
 
 	pthread_sigmask(SIG_BLOCK, &mask, NULL);
-	kmscon_dlist_link(&loop->sig_list, &sig->list);
+	shl_dlist_link(&loop->sig_list, &sig->list);
 
 	*out = sig;
 	return 0;
@@ -447,7 +447,7 @@ static void signal_free(struct ev_signal_shared *sig)
 	if (!sig)
 		return;
 
-	kmscon_dlist_unlink(&sig->list);
+	shl_dlist_unlink(&sig->list);
 	fd = sig->fd->fd;
 	ev_eloop_rm_fd(sig->fd);
 	close(fd);
@@ -592,7 +592,7 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	memset(loop, 0, sizeof(*loop));
 	loop->ref = 1;
 	loop->llog = log;
-	kmscon_dlist_init(&loop->sig_list);
+	shl_dlist_init(&loop->sig_list);
 
 	loop->cur_fds_size = 32;
 	loop->cur_fds = malloc(sizeof(struct epoll_event) *
@@ -706,7 +706,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	llog_debug(loop, "free eloop object %p", loop);
 
 	while (loop->sig_list.next != &loop->sig_list) {
-		sig = kmscon_dlist_entry(loop->sig_list.next,
+		sig = shl_dlist_entry(loop->sig_list.next,
 					struct ev_signal_shared,
 					list);
 		signal_free(sig);
@@ -2116,15 +2116,15 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 {
 	struct ev_signal_shared *sig = NULL;
 	int ret;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 
 	if (!loop)
 		return -EINVAL;
 	if (signum < 0 || !cb)
 		return llog_EINVAL(loop);
 
-	kmscon_dlist_for_each(iter, &loop->sig_list) {
-		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
+	shl_dlist_for_each(iter, &loop->sig_list) {
+		sig = shl_dlist_entry(iter, struct ev_signal_shared, list);
 		if (sig->signum == signum)
 			break;
 		sig = NULL;
@@ -2155,13 +2155,13 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 					ev_signal_shared_cb cb, void *data)
 {
 	struct ev_signal_shared *sig;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 
 	if (!loop)
 		return;
 
-	kmscon_dlist_for_each(iter, &loop->sig_list) {
-		sig = kmscon_dlist_entry(iter, struct ev_signal_shared, list);
+	shl_dlist_for_each(iter, &loop->sig_list) {
+		sig = shl_dlist_entry(iter, struct ev_signal_shared, list);
 		if (sig->signum == signum) {
 			kmscon_hook_rm_cast(sig->hook, cb, data);
 			if (!kmscon_hook_num(sig->hook))

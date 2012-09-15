@@ -41,7 +41,7 @@
 #define LOG_SUBSYSTEM "ui"
 
 struct ui_video {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct kmscon_ui *ui;
 	struct uterm_video *video;
 };
@@ -49,7 +49,7 @@ struct ui_video {
 struct kmscon_ui {
 	struct ev_eloop *eloop;
 	struct uterm_input *input;
-	struct kmscon_dlist video_list;
+	struct shl_dlist video_list;
 	struct kmscon_terminal *term;
 	bool awake;
 };
@@ -101,12 +101,12 @@ static void video_event(struct uterm_video *video,
 
 static void video_new(struct kmscon_ui *ui, struct uterm_video *video)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct ui_video *vid;
 	int ret;
 
-	kmscon_dlist_for_each(iter, &ui->video_list) {
-		vid = kmscon_dlist_entry(iter, struct ui_video, list);
+	shl_dlist_for_each(iter, &ui->video_list) {
+		vid = shl_dlist_entry(iter, struct ui_video, list);
 		if (vid->video == video)
 			return;
 	}
@@ -124,7 +124,7 @@ static void video_new(struct kmscon_ui *ui, struct uterm_video *video)
 	if (ret)
 		goto err_free;
 
-	kmscon_dlist_link(&ui->video_list, &vid->list);
+	shl_dlist_link(&ui->video_list, &vid->list);
 	uterm_video_ref(vid->video);
 
 	return;
@@ -139,7 +139,7 @@ static void video_free(struct ui_video *vid)
 	struct kmscon_ui *ui = vid->ui;
 
 	log_debug("removing video device");
-	kmscon_dlist_unlink(&vid->list);
+	shl_dlist_unlink(&vid->list);
 
 	disp = uterm_video_get_displays(vid->video);
 	while (disp) {
@@ -156,10 +156,10 @@ static void video_free(struct ui_video *vid)
 static void video_free_all(struct kmscon_ui *ui)
 {
 	struct ui_video *vid;
-	struct kmscon_dlist *iter, *tmp;
+	struct shl_dlist *iter, *tmp;
 
-	kmscon_dlist_for_each_safe(iter, tmp, &ui->video_list) {
-		vid = kmscon_dlist_entry(iter, struct ui_video, list);
+	shl_dlist_for_each_safe(iter, tmp, &ui->video_list) {
+		vid = shl_dlist_entry(iter, struct ui_video, list);
 		video_free(vid);
 	}
 }
@@ -198,7 +198,7 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	memset(ui, 0, sizeof(*ui));
 	ui->eloop = eloop;
 	ui->input = input;
-	kmscon_dlist_init(&ui->video_list);
+	shl_dlist_init(&ui->video_list);
 
 	ret = kmscon_terminal_new(&ui->term, eloop, ui->input);
 	if (ret)
@@ -251,13 +251,13 @@ void kmscon_ui_add_video(struct kmscon_ui *ui, struct uterm_video *video)
 void kmscon_ui_remove_video(struct kmscon_ui *ui, struct uterm_video *video)
 {
 	struct ui_video *vid;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 
 	if (!ui || !video)
 		return;
 
-	kmscon_dlist_for_each(iter, &ui->video_list) {
-		vid = kmscon_dlist_entry(iter, struct ui_video, list);
+	shl_dlist_for_each(iter, &ui->video_list) {
+		vid = shl_dlist_entry(iter, struct ui_video, list);
 		if (vid->video == video) {
 			video_free(vid);
 			return;

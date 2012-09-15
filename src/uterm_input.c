@@ -53,7 +53,7 @@ enum device_feature {
 };
 
 struct uterm_input_dev {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_input *input;
 
 	unsigned int features;
@@ -71,7 +71,7 @@ struct uterm_input {
 	struct kmscon_hook *hook;
 	struct kbd_desc *desc;
 
-	struct kmscon_dlist devices;
+	struct shl_dlist devices;
 };
 
 static void input_free_dev(struct uterm_input_dev *dev);
@@ -210,7 +210,7 @@ static void input_new_dev(struct uterm_input *input,
 	}
 
 	log_debug("new device %s", node);
-	kmscon_dlist_link(&input->devices, &dev->list);
+	shl_dlist_link(&input->devices, &dev->list);
 	return;
 
 err_kbd:
@@ -225,7 +225,7 @@ static void input_free_dev(struct uterm_input_dev *dev)
 {
 	log_debug("free device %s", dev->node);
 	input_sleep_dev(dev);
-	kmscon_dlist_unlink(&dev->list);
+	shl_dlist_unlink(&dev->list);
 	kbd_dev_unref(dev->kbd);
 	free(dev->node);
 	free(dev);
@@ -249,7 +249,7 @@ int uterm_input_new(struct uterm_input **out,
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->eloop = eloop;
-	kmscon_dlist_init(&input->devices);
+	shl_dlist_init(&input->devices);
 
 	ret = kmscon_hook_new(&input->hook);
 	if (ret)
@@ -303,7 +303,7 @@ void uterm_input_unref(struct uterm_input *input)
 	log_debug("free object %p", input);
 
 	while (input->devices.next != &input->devices) {
-		dev = kmscon_dlist_entry(input->devices.next,
+		dev = shl_dlist_entry(input->devices.next,
 					struct uterm_input_dev,
 					list);
 		input_free_dev(dev);
@@ -384,14 +384,14 @@ void uterm_input_add_dev(struct uterm_input *input, const char *node)
 
 void uterm_input_remove_dev(struct uterm_input *input, const char *node)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct uterm_input_dev *dev;
 
 	if (!input || !node)
 		return;
 
-	kmscon_dlist_for_each(iter, &input->devices) {
-		dev = kmscon_dlist_entry(iter,
+	shl_dlist_for_each(iter, &input->devices) {
+		dev = shl_dlist_entry(iter,
 					struct uterm_input_dev,
 					list);
 		if (!strcmp(dev->node, node)) {
@@ -423,7 +423,7 @@ void uterm_input_unregister_cb(struct uterm_input *input,
 
 void uterm_input_sleep(struct uterm_input *input)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct uterm_input_dev *dev;
 
 	if (!input)
@@ -435,8 +435,8 @@ void uterm_input_sleep(struct uterm_input *input)
 
 	log_debug("going to sleep");
 
-	kmscon_dlist_for_each(iter, &input->devices) {
-		dev = kmscon_dlist_entry(iter,
+	shl_dlist_for_each(iter, &input->devices) {
+		dev = shl_dlist_entry(iter,
 					struct uterm_input_dev,
 					list);
 		input_sleep_dev(dev);
@@ -445,7 +445,7 @@ void uterm_input_sleep(struct uterm_input *input)
 
 void uterm_input_wake_up(struct uterm_input *input)
 {
-	struct kmscon_dlist *iter, *tmp;
+	struct shl_dlist *iter, *tmp;
 	struct uterm_input_dev *dev;
 	int ret;
 
@@ -458,8 +458,8 @@ void uterm_input_wake_up(struct uterm_input *input)
 
 	log_debug("wakeing up");
 
-	kmscon_dlist_for_each_safe(iter, tmp, &input->devices) {
-		dev = kmscon_dlist_entry(iter,
+	shl_dlist_for_each_safe(iter, tmp, &input->devices) {
+		dev = shl_dlist_entry(iter,
 					struct uterm_input_dev,
 					list);
 		ret = input_wake_up_dev(dev);

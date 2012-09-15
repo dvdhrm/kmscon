@@ -59,7 +59,7 @@ struct glyph {
 
 struct face {
 	unsigned long ref;
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 
 	bool shrink;
 	struct kmscon_font_attr attr;
@@ -76,7 +76,7 @@ struct face {
 static pthread_mutex_t manager_mutex = PTHREAD_MUTEX_INITIALIZER;
 static unsigned long manager__refcnt;
 static FT_Library manager__lib;
-static struct kmscon_dlist manager__list = KMSCON_DLIST_INIT(manager__list);
+static struct shl_dlist manager__list = SHL_DLIST_INIT(manager__list);
 
 static void manager_lock()
 {
@@ -297,7 +297,7 @@ static void free_glyph(void *data)
 
 static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct face *face, *f;
 	FcPattern *pat, *mat;
 	FcResult res;
@@ -316,8 +316,8 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 	if (!attr->width)
 		attr->width = attr->height;
 
-	kmscon_dlist_for_each(iter, &manager__list) {
-		face = kmscon_dlist_entry(iter, struct face, list);
+	shl_dlist_for_each(iter, &manager__list) {
+		face = shl_dlist_entry(iter, struct face, list);
 		if (kmscon_font_attr_match(&face->attr, attr)) {
 			++face->ref;
 			*out = face;
@@ -485,8 +485,8 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 
 	/* The real metrics probably differ from the requested metrics so try
 	 * again to find a suitable cached font. */
-	kmscon_dlist_for_each(iter, &manager__list) {
-		f = kmscon_dlist_entry(iter, struct face, list);
+	shl_dlist_for_each(iter, &manager__list) {
+		f = shl_dlist_entry(iter, struct face, list);
 		if (kmscon_font_attr_match(&f->real_attr, &face->real_attr)) {
 			++f->ref;
 			*out = f;
@@ -495,7 +495,7 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 		}
 	}
 
-	kmscon_dlist_link(&manager__list, &face->list);
+	shl_dlist_link(&manager__list, &face->list);
 	*out = face;
 	ret = 0;
 	goto out_unlock;
@@ -520,7 +520,7 @@ static void manager_put_face(struct face *face)
 	manager_lock();
 
 	if (!--face->ref) {
-		kmscon_dlist_unlink(&face->list);
+		shl_dlist_unlink(&face->list);
 		kmscon_hashtable_free(face->glyphs);
 		pthread_mutex_destroy(&face->glyph_lock);
 		FT_Done_Face(face->face);

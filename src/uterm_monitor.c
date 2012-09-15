@@ -48,7 +48,7 @@
 #define LOG_SUBSYSTEM "monitor"
 
 struct uterm_monitor_dev {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_monitor_seat *seat;
 	unsigned int type;
 	char *node;
@@ -56,11 +56,11 @@ struct uterm_monitor_dev {
 };
 
 struct uterm_monitor_seat {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_monitor *mon;
 	char *name;
 	void *data;
-	struct kmscon_dlist devices;
+	struct shl_dlist devices;
 };
 
 struct uterm_monitor {
@@ -78,7 +78,7 @@ struct uterm_monitor {
 	struct udev_monitor *umon;
 	struct ev_fd *umon_fd;
 
-	struct kmscon_dlist seats;
+	struct shl_dlist seats;
 };
 
 static void monitor_new_seat(struct uterm_monitor *mon, const char *name);
@@ -90,7 +90,7 @@ static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
 	char **seats;
 	int num, i;
-	struct kmscon_dlist *iter, *tmp;
+	struct shl_dlist *iter, *tmp;
 	struct uterm_monitor_seat *seat;
 
 	num = sd_get_seats(&seats);
@@ -100,8 +100,8 @@ static void monitor_refresh_seats(struct uterm_monitor *mon)
 	}
 
 	/* Remove all seats that are no longer present */
-	kmscon_dlist_for_each_safe(iter, tmp, &mon->seats) {
-		seat = kmscon_dlist_entry(iter, struct uterm_monitor_seat,
+	shl_dlist_for_each_safe(iter, tmp, &mon->seats) {
+		seat = shl_dlist_entry(iter, struct uterm_monitor_seat,
 						list);
 		for (i = 0; i < num; ++i) {
 			if (!strcmp(seats[i], seat->name))
@@ -185,7 +185,7 @@ static void monitor_sd_deinit(struct uterm_monitor *mon)
 
 static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
-	if (kmscon_dlist_empty(&mon->seats))
+	if (shl_dlist_empty(&mon->seats))
 		monitor_new_seat(mon, "seat0");
 }
 
@@ -222,7 +222,7 @@ static void seat_new_dev(struct uterm_monitor_seat *seat,
 	if (!dev->node)
 		goto err_free;
 
-	kmscon_dlist_link(&seat->devices, &dev->list);
+	shl_dlist_link(&seat->devices, &dev->list);
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = UTERM_MONITOR_NEW_DEV;
@@ -248,7 +248,7 @@ static void seat_free_dev(struct uterm_monitor_dev *dev)
 
 	log_debug("free device %s on %s", dev->node, dev->seat->name);
 
-	kmscon_dlist_unlink(&dev->list);
+	shl_dlist_unlink(&dev->list);
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = UTERM_MONITOR_FREE_DEV;
@@ -269,7 +269,7 @@ static struct uterm_monitor_dev *monitor_find_dev(struct uterm_monitor *mon,
 						struct udev_device *dev)
 {
 	const char *node;
-	struct kmscon_dlist *iter, *iter2;
+	struct shl_dlist *iter, *iter2;
 	struct uterm_monitor_seat *seat;
 	struct uterm_monitor_dev *sdev;
 
@@ -277,11 +277,11 @@ static struct uterm_monitor_dev *monitor_find_dev(struct uterm_monitor *mon,
 	if (!node)
 		return NULL;
 
-	kmscon_dlist_for_each(iter, &mon->seats) {
-		seat = kmscon_dlist_entry(iter, struct uterm_monitor_seat,
+	shl_dlist_for_each(iter, &mon->seats) {
+		seat = shl_dlist_entry(iter, struct uterm_monitor_seat,
 						list);
-		kmscon_dlist_for_each(iter2, &seat->devices) {
-			sdev = kmscon_dlist_entry(iter2,
+		shl_dlist_for_each(iter2, &seat->devices) {
+			sdev = shl_dlist_entry(iter2,
 						struct uterm_monitor_dev,
 						list);
 			if (!strcmp(node, sdev->node))
@@ -302,13 +302,13 @@ static void monitor_new_seat(struct uterm_monitor *mon, const char *name)
 		return;
 	memset(seat, 0, sizeof(*seat));
 	seat->mon = mon;
-	kmscon_dlist_init(&seat->devices);
+	shl_dlist_init(&seat->devices);
 
 	seat->name = strdup(name);
 	if (!seat->name)
 		goto err_free;
 
-	kmscon_dlist_link(&mon->seats, &seat->list);
+	shl_dlist_link(&mon->seats, &seat->list);
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = UTERM_MONITOR_NEW_SEAT;
@@ -332,13 +332,13 @@ static void monitor_free_seat(struct uterm_monitor_seat *seat)
 	log_debug("free seat %s", seat->name);
 
 	while (seat->devices.next != &seat->devices) {
-		dev = kmscon_dlist_entry(seat->devices.next,
+		dev = shl_dlist_entry(seat->devices.next,
 						struct uterm_monitor_dev,
 						list);
 		seat_free_dev(dev);
 	}
 
-	kmscon_dlist_unlink(&seat->list);
+	shl_dlist_unlink(&seat->list);
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = UTERM_MONITOR_FREE_SEAT;
@@ -393,7 +393,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 				struct udev_device *dev)
 {
 	const char *sname, *subs, *node, *name, *sysname;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct uterm_monitor_seat *seat;
 	unsigned int type;
 	int id;
@@ -478,8 +478,8 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		sname = "seat0";
 
 	/* find correct seat */
-	kmscon_dlist_for_each(iter, &mon->seats) {
-		seat = kmscon_dlist_entry(iter, struct uterm_monitor_seat,
+	shl_dlist_for_each(iter, &mon->seats) {
+		seat = shl_dlist_entry(iter, struct uterm_monitor_seat,
 						list);
 		if (!strcmp(sname, seat->name))
 			break;
@@ -611,7 +611,7 @@ int uterm_monitor_new(struct uterm_monitor **out,
 	mon->eloop = eloop;
 	mon->cb = cb;
 	mon->data = data;
-	kmscon_dlist_init(&mon->seats);
+	shl_dlist_init(&mon->seats);
 
 	ret = monitor_sd_init(mon);
 	if (ret)
@@ -724,7 +724,7 @@ void uterm_monitor_unref(struct uterm_monitor *mon)
 		return;
 
 	while (mon->seats.next != &mon->seats) {
-		seat = kmscon_dlist_entry(mon->seats.next,
+		seat = shl_dlist_entry(mon->seats.next,
 						struct uterm_monitor_seat,
 						list);
 		monitor_free_seat(seat);

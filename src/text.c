@@ -43,12 +43,12 @@
 #define LOG_SUBSYSTEM "text"
 
 struct text_backend {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	const struct kmscon_text_ops *ops;
 };
 
 static pthread_mutex_t text_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct kmscon_dlist text__list = KMSCON_DLIST_INIT(text__list);
+static struct shl_dlist text__list = SHL_DLIST_INIT(text__list);
 
 static void text_lock()
 {
@@ -76,7 +76,7 @@ static void text_unlock()
  */
 int kmscon_text_register(const struct kmscon_text_ops *ops)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct text_backend *be;
 	int ret;
 
@@ -87,8 +87,8 @@ int kmscon_text_register(const struct kmscon_text_ops *ops)
 
 	text_lock();
 
-	kmscon_dlist_for_each(iter, &text__list) {
-		be = kmscon_dlist_entry(iter, struct text_backend, list);
+	shl_dlist_for_each(iter, &text__list) {
+		be = shl_dlist_entry(iter, struct text_backend, list);
 		if (!strcmp(be->ops->name, ops->name)) {
 			log_error("registering already available backend %s",
 				  ops->name);
@@ -106,7 +106,7 @@ int kmscon_text_register(const struct kmscon_text_ops *ops)
 
 	memset(be, 0, sizeof(*be));
 	be->ops = ops;
-	kmscon_dlist_link(&text__list, &be->list);
+	shl_dlist_link(&text__list, &be->list);
 
 	ret = 0;
 
@@ -124,7 +124,7 @@ out_unlock:
  */
 void kmscon_text_unregister(const char *name)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct text_backend *be;
 
 	if (!name)
@@ -134,12 +134,12 @@ void kmscon_text_unregister(const char *name)
 
 	text_lock();
 
-	kmscon_dlist_for_each(iter, &text__list) {
-		be = kmscon_dlist_entry(iter, struct text_backend, list);
+	shl_dlist_for_each(iter, &text__list) {
+		be = shl_dlist_entry(iter, struct text_backend, list);
 		if (strcmp(name, be->ops->name))
 			continue;
 
-		kmscon_dlist_unlink(&be->list);
+		shl_dlist_unlink(&be->list);
 		break;
 	}
 
@@ -166,7 +166,7 @@ int kmscon_text_new(struct kmscon_text **out,
 		    const char *backend)
 {
 	struct kmscon_text *text;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct text_backend *be, *def;
 	int ret;
 
@@ -175,19 +175,19 @@ int kmscon_text_new(struct kmscon_text **out,
 
 	text_lock();
 
-	if (kmscon_dlist_empty(&text__list)) {
+	if (shl_dlist_empty(&text__list)) {
 		log_error("no text backend available");
 		ret = -EFAULT;
 	} else {
 		ret = 0;
-		def = kmscon_dlist_entry(text__list.prev,
+		def = shl_dlist_entry(text__list.prev,
 					 struct text_backend,
 					 list);
 		if (!backend) {
 			be = def;
 		} else {
-			kmscon_dlist_for_each(iter, &text__list) {
-				be = kmscon_dlist_entry(iter,
+			shl_dlist_for_each(iter, &text__list) {
+				be = shl_dlist_entry(iter,
 							struct text_backend,
 							list);
 				if (!strcmp(backend, be->ops->name))

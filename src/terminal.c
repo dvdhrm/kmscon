@@ -48,7 +48,7 @@
 #define LOG_SUBSYSTEM "terminal"
 
 struct screen {
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_display *disp;
 	struct uterm_screen *screen;
 	struct kmscon_font *font;
@@ -62,7 +62,7 @@ struct kmscon_terminal {
 	bool opened;
 	bool awake;
 
-	struct kmscon_dlist screens;
+	struct shl_dlist screens;
 	unsigned int min_cols;
 	unsigned int min_rows;
 
@@ -80,14 +80,14 @@ struct kmscon_terminal {
 static void redraw(struct kmscon_terminal *term)
 {
 	struct uterm_screen *screen;
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct screen *ent;
 
 	if (!term->awake)
 		return;
 
-	kmscon_dlist_for_each(iter, &term->screens) {
-		ent = kmscon_dlist_entry(iter, struct screen, list);
+	shl_dlist_for_each(iter, &term->screens) {
+		ent = shl_dlist_entry(iter, struct screen, list);
 		screen = ent->screen;
 
 		kmscon_console_draw(term->console,
@@ -180,7 +180,7 @@ static void terminal_resize(struct kmscon_terminal *term,
 
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct screen *scr;
 	int ret;
 	unsigned int cols, rows;
@@ -191,8 +191,8 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	strncpy(attr.name, kmscon_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
 	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
 
-	kmscon_dlist_for_each(iter, &term->screens) {
-		scr = kmscon_dlist_entry(iter, struct screen, list);
+	shl_dlist_for_each(iter, &term->screens) {
+		scr = shl_dlist_entry(iter, struct screen, list);
 		if (scr->disp == disp)
 			return 0;
 	}
@@ -241,7 +241,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	rows = kmscon_text_get_rows(scr->txt);
 	terminal_resize(term, cols, rows, false, true);
 
-	kmscon_dlist_link(&term->screens, &scr->list);
+	shl_dlist_link(&term->screens, &scr->list);
 
 	log_debug("added display %p to terminal %p", disp, term);
 	schedule_redraw(term);
@@ -262,11 +262,11 @@ err_free:
 static void free_screen(struct kmscon_terminal *term, struct screen *scr,
 			bool update)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct screen *ent;
 
 	log_debug("destroying terminal screen %p", scr);
-	kmscon_dlist_unlink(&scr->list);
+	shl_dlist_unlink(&scr->list);
 	kmscon_text_unref(scr->txt);
 	kmscon_font_unref(scr->font);
 	uterm_screen_unref(scr->screen);
@@ -278,8 +278,8 @@ static void free_screen(struct kmscon_terminal *term, struct screen *scr,
 
 	term->min_cols = 0;
 	term->min_rows = 0;
-	kmscon_dlist_for_each(iter, &term->screens) {
-		ent = kmscon_dlist_entry(iter, struct screen, list);
+	shl_dlist_for_each(iter, &term->screens) {
+		ent = shl_dlist_entry(iter, struct screen, list);
 		terminal_resize(term,
 				kmscon_text_get_cols(ent->txt),
 				kmscon_text_get_rows(ent->txt),
@@ -291,11 +291,11 @@ static void free_screen(struct kmscon_terminal *term, struct screen *scr,
 
 static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct screen *scr;
 
-	kmscon_dlist_for_each(iter, &term->screens) {
-		scr = kmscon_dlist_entry(iter, struct screen, list);
+	shl_dlist_for_each(iter, &term->screens) {
+		scr = shl_dlist_entry(iter, struct screen, list);
 		if (scr->disp == disp)
 			break;
 	}
@@ -305,17 +305,17 @@ static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
 
 	log_debug("removed display %p from terminal %p", disp, term);
 	free_screen(term, scr, true);
-	if (kmscon_dlist_empty(&term->screens) && term->cb)
+	if (shl_dlist_empty(&term->screens) && term->cb)
 		term->cb(term, KMSCON_TERMINAL_NO_DISPLAY, term->data);
 }
 
 static void rm_all_screens(struct kmscon_terminal *term)
 {
-	struct kmscon_dlist *iter;
+	struct shl_dlist *iter;
 	struct screen *scr;
 
 	while ((iter = term->screens.next) != &term->screens) {
-		scr = kmscon_dlist_entry(iter, struct screen, list);
+		scr = shl_dlist_entry(iter, struct screen, list);
 		free_screen(term, scr, false);
 	}
 
@@ -406,7 +406,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->ref = 1;
 	term->eloop = loop;
 	term->input = input;
-	kmscon_dlist_init(&term->screens);
+	shl_dlist_init(&term->screens);
 
 	if (kmscon_conf.fps) {
 		fps = 1000000000ULL / kmscon_conf.fps;

@@ -49,7 +49,7 @@
 
 struct uterm_vt {
 	unsigned long ref;
-	struct kmscon_dlist list;
+	struct shl_dlist list;
 	struct uterm_vt_master *vtm;
 	struct uterm_input *input;
 	unsigned int mode;
@@ -72,7 +72,7 @@ struct uterm_vt_master {
 	struct ev_eloop *eloop;
 
 	bool vt_support;
-	struct kmscon_dlist vts;
+	struct shl_dlist vts;
 };
 
 static int vt_call(struct uterm_vt *vt, unsigned int event)
@@ -507,7 +507,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		uterm_input_wake_up(vt->input);
 	}
 
-	kmscon_dlist_link(&vtm->vts, &vt->list);
+	shl_dlist_link(&vtm->vts, &vt->list);
 	*out = vt;
 	return 0;
 
@@ -541,7 +541,7 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	}
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
-	kmscon_dlist_unlink(&vt->list);
+	shl_dlist_unlink(&vt->list);
 	uterm_input_sleep(vt->input);
 	uterm_input_unref(vt->input);
 	vt->vtm = NULL;
@@ -601,7 +601,7 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 	memset(vtm, 0, sizeof(*vtm));
 	vtm->ref = 1;
 	vtm->eloop = eloop;
-	kmscon_dlist_init(&vtm->vts);
+	shl_dlist_init(&vtm->vts);
 	vtm->vt_support = check_vt_support();
 
 	ev_eloop_ref(vtm->eloop);
@@ -625,7 +625,7 @@ void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 		return;
 
 	while (vtm->vts.next != &vtm->vts) {
-		vt = kmscon_dlist_entry(vtm->vts.next,
+		vt = shl_dlist_entry(vtm->vts.next,
 					struct uterm_vt,
 					list);
 		uterm_vt_deallocate(vt);
