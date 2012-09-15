@@ -109,4 +109,4 @@ static inline bool shl_dlist_empty(struct shl_dlist *head)
 	for (iter = (head)->next, tmp = iter->next; iter != (head); \
 		iter = tmp, tmp = iter->next)
 
-#endif /* SHL_STATIC_DLIST_H */
+#endif /* SHL_DLIST_H */

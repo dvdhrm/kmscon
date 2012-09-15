@@ -38,6 +38,7 @@
 #include "log.h"
 #include "main.h"
 #include "pty.h"
+#include "shl_dlist.h"
 #include "static_misc.h"
 #include "terminal.h"
 #include "text.h"

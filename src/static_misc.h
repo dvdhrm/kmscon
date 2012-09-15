@@ -36,7 +36,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "static_dlist.h"
 #include "static_hook.h"
 
 /* ring buffer for arbitrary byte-streams */

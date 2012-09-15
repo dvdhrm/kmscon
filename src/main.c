@@ -35,6 +35,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "main.h"
+#include "shl_dlist.h"
 #include "static_misc.h"
 #include "text.h"
 #include "ui.h"

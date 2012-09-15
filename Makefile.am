@@ -83,8 +83,8 @@ lib_LTLIBRARIES += \
 	libeloop.la
 
 libeloop_la_SOURCES = \
+	src/shl_dlist.h \
 	src/static_llog.h \
-	src/static_dlist.h \
 	src/static_hook.h \
 	src/eloop.h \
 	src/eloop.c
@@ -121,6 +121,7 @@ lib_LTLIBRARIES += \
 	libuterm.la
 
 libuterm_la_SOURCES = \
+	src/shl_dlist.h \
 	src/uterm.h \
 	src/uterm_keysyms.h \
 	src/uterm_input.h \
@@ -238,6 +239,7 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 #
 
 libkmscon_core_la_SOURCES = \
+	src/shl_dlist.h \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -313,7 +315,6 @@ libkmscon_core_la_LIBADD = \
 
 libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
-	src/static_dlist.h \
 	src/static_hook.h \
 	src/static_misc.h \
 	src/static_misc.c \
@@ -344,7 +345,9 @@ endif
 # built as part of kmscon.
 #
 
-kmscon_SOURCES = src/main.c
+kmscon_SOURCES = \
+	src/shl_dlist.h \
+	src/main.c
 kmscon_LDADD = \
 	libuterm.la \
 	libeloop.la \
