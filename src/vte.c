@@ -137,6 +137,7 @@ enum parser_action {
 #define FLAG_AUTO_REPEAT_MODE			0x00002000 /* Auto repeat key press; TODO: implement */
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
 #define FLAG_BACKGROUND_COLOR_ERASE_MODE	0x00008000 /* Set background color on erase (bce) */
+#define FLAG_PREPEND_ESCAPE			0x00010000 /* Prepend escape character to next output */
 
 struct vte_saved_state {
 	unsigned int cursor_x;
@@ -470,10 +471,17 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 #endif
 
 	/* in local echo mode, directly parse the data again */
-	if (!vte->parse_cnt && !(vte->flags & FLAG_SEND_RECEIVE_MODE))
+	if (!vte->parse_cnt && !(vte->flags & FLAG_SEND_RECEIVE_MODE)) {
+		if (vte->flags & FLAG_PREPEND_ESCAPE)
+			kmscon_vte_input(vte, "\e", 1);
 		kmscon_vte_input(vte, u8, len);
+	}
 
+	if (vte->flags & FLAG_PREPEND_ESCAPE)
+		vte->write_cb(vte, "\e", 1, vte->data);
 	vte->write_cb(vte, u8, len, vte->data);
+
+	vte->flags &= ~FLAG_PREPEND_ESCAPE;
 }
 
 #define vte_write(_vte, _u8, _len) \
@@ -2124,6 +2132,16 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 	size_t len;
 	const char *u8;
 
+	/* MOD1 (mostly labeled 'Alt') prepends an escape character to every
+	 * input that is sent by a key.
+	 * TODO: Transform this huge handler into a lookup table to save a lot
+	 * of code and make such modifiers easier to implement.
+	 * Also check whether altSendsEscape should be the default (xterm
+	 * disables this by default, why?) and whether we should implement the
+	 * fallback shifting that xterm does. */
+	if (mods & UTERM_MOD1_MASK)
+		vte->flags |= FLAG_PREPEND_ESCAPE;
+
 	if (mods & UTERM_CONTROL_MASK) {
 		switch (keysym) {
 		case XKB_KEY_2:
@@ -2561,5 +2579,6 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 		return true;
 	}
 
+	vte->flags &= ~FLAG_PREPEND_ESCAPE;
 	return false;
 }
