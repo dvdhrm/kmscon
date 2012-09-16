@@ -38,18 +38,6 @@
 #include <stdlib.h>
 #include "static_hook.h"
 
-/* ring buffer for arbitrary byte-streams */
-
-struct kmscon_ring;
-
-int kmscon_ring_new(struct kmscon_ring **out);
-void kmscon_ring_free(struct kmscon_ring *ring);
-bool kmscon_ring_is_empty(struct kmscon_ring *ring);
-
-int kmscon_ring_write(struct kmscon_ring *ring, const char *val, size_t len);
-const char *kmscon_ring_peek(struct kmscon_ring *ring, size_t *len);
-void kmscon_ring_drop(struct kmscon_ring *ring, size_t len);
-
 /* time measurement */
 
 struct kmscon_timer;

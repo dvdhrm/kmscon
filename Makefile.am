@@ -87,6 +87,8 @@ SHL_HASHTABLE = \
 	src/shl_hashtable.h \
 	external/htable.h \
 	external/htable.c
+SHL_RING = \
+	src/shl_ring.h
 
 #
 # libeloop
@@ -257,6 +259,7 @@ libkmscon_core_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_ARRAY) \
 	$(SHL_HASHTABLE) \
+	$(SHL_RING) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \

@@ -38,8 +38,8 @@
 #include "eloop.h"
 #include "log.h"
 #include "main.h"
-#include "static_misc.h"
 #include "pty.h"
+#include "shl_ring.h"
 
 #define LOG_SUBSYSTEM "pty"
 
@@ -52,7 +52,7 @@ struct kmscon_pty {
 	int fd;
 	pid_t child;
 	struct ev_fd *efd;
-	struct kmscon_ring *msgbuf;
+	struct shl_ring *msgbuf;
 	char io_buf[KMSCON_NREAD];
 
 	kmscon_pty_input_cb input_cb;
@@ -79,7 +79,7 @@ int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
 	pty->input_cb = input_cb;
 	pty->data = data;
 
-	ret = kmscon_ring_new(&pty->msgbuf);
+	ret = shl_ring_new(&pty->msgbuf);
 	if (ret)
 		goto err_free;
 
@@ -108,7 +108,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	log_debug("free pty object");
 	kmscon_pty_close(pty);
-	kmscon_ring_free(pty->msgbuf);
+	shl_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
 	free(pty);
 }
@@ -268,10 +268,10 @@ static int send_buf(struct kmscon_pty *pty)
 	size_t len;
 	int ret;
 
-	while ((buf = kmscon_ring_peek(pty->msgbuf, &len))) {
+	while ((buf = shl_ring_peek(pty->msgbuf, &len))) {
 		ret = write(pty->fd, buf, len);
 		if (ret > 0) {
-			kmscon_ring_drop(pty->msgbuf, ret);
+			shl_ring_drop(pty->msgbuf, ret);
 			continue;
 		}
 
@@ -408,7 +408,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 	if (!pty || !pty_is_open(pty) || !u8 || !len)
 		return -EINVAL;
 
-	if (!kmscon_ring_is_empty(pty->msgbuf))
+	if (!shl_ring_is_empty(pty->msgbuf))
 		goto buf;
 
 	ret = write(pty->fd, u8, len);
@@ -427,7 +427,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 	ev_fd_update(pty->efd, EV_READABLE | EV_WRITEABLE);
 
 buf:
-	ret = kmscon_ring_write(pty->msgbuf, u8, len);
+	ret = shl_ring_write(pty->msgbuf, u8, len);
 	if (ret)
 		log_warn("cannot allocate buffer; dropping output");
 
