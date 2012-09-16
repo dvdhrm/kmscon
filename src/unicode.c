@@ -61,6 +61,7 @@
 #include <string.h>
 #include "log.h"
 #include "shl_array.h"
+#include "shl_hashtable.h"
 #include "static_misc.h"
 #include "unicode.h"
 
@@ -106,7 +107,7 @@ static const char default_u8[] = { 0 };
 static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t table_next_id;
 static struct shl_array *table_index;
-static struct kmscon_hashtable *table_symbols;
+static struct shl_hashtable *table_symbols;
 
 static unsigned int hash_ucs4(const void *key)
 {
@@ -165,7 +166,7 @@ static int table__init()
 	/* first entry is not used so add dummy */
 	shl_array_push(table_index, &val);
 
-	ret = kmscon_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
+	ret = shl_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
 					free, NULL);
 	if (ret) {
 		shl_array_free(table_index);
@@ -272,7 +273,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	buf[s++] = ucs4;
 	buf[s++] = TSM_UCS4_MAX + 1;
 
-	res = kmscon_hashtable_find(table_symbols, &tmp, buf);
+	res = shl_hashtable_find(table_symbols, &tmp, buf);
 	if (res) {
 		rsym = (uint32_t)(long)tmp;
 		goto unlock;
@@ -288,7 +289,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 
 	memcpy(nval, buf, s * sizeof(uint32_t));
 	nsym = table_next_id++;
-	kmscon_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
+	shl_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
 	shl_array_push(table_index, &nval);
 	rsym = nsym;
 

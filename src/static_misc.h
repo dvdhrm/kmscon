@@ -50,27 +50,6 @@ int kmscon_ring_write(struct kmscon_ring *ring, const char *val, size_t len);
 const char *kmscon_ring_peek(struct kmscon_ring *ring, size_t *len);
 void kmscon_ring_drop(struct kmscon_ring *ring, size_t len);
 
-/* hash-tables */
-
-struct kmscon_hashtable;
-
-typedef unsigned int (*kmscon_hash_cb) (const void *data);
-typedef bool (*kmscon_equal_cb) (const void *data1, const void *data2);
-typedef void (*kmscon_free_cb) (void *data);
-
-unsigned int kmscon_direct_hash(const void *data);
-bool kmscon_direct_equal(const void *data1, const void *data2);
-
-int kmscon_hashtable_new(struct kmscon_hashtable **out,
-				kmscon_hash_cb hash_cb,
-				kmscon_equal_cb equal_cb,
-				kmscon_free_cb free_key,
-				kmscon_free_cb free_value);
-void kmscon_hashtable_free(struct kmscon_hashtable *tbl);
-int kmscon_hashtable_insert(struct kmscon_hashtable *tbl, void *key,
-				void *data);
-bool kmscon_hashtable_find(struct kmscon_hashtable *tbl, void **out, void *key);
-
 /* time measurement */
 
 struct kmscon_timer;

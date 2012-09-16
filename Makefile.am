@@ -83,6 +83,10 @@ SHL_DLIST = \
 	src/shl_dlist.h
 SHL_ARRAY = \
 	src/shl_array.h
+SHL_HASHTABLE = \
+	src/shl_hashtable.h \
+	external/htable.h \
+	external/htable.c
 
 #
 # libeloop
@@ -252,6 +256,7 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 libkmscon_core_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_ARRAY) \
+	$(SHL_HASHTABLE) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -329,9 +334,7 @@ libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
 	src/static_hook.h \
 	src/static_misc.h \
-	src/static_misc.c \
-	external/htable.h \
-	external/htable.c
+	src/static_misc.c
 nodist_libkmscon_static_la_SOURCES =
 
 libkmscon_static_la_CPPFLAGS = \

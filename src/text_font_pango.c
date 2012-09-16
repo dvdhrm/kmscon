@@ -53,6 +53,7 @@
 #include <string.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_hashtable.h"
 #include "static_misc.h"
 #include "text.h"
 #include "unicode.h"
@@ -69,7 +70,7 @@ struct face {
 	unsigned int baseline;
 	PangoContext *ctx;
 	pthread_mutex_t glyph_lock;
-	struct kmscon_hashtable *glyphs;
+	struct shl_hashtable *glyphs;
 };
 
 static pthread_mutex_t manager_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -123,7 +124,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	int ret;
 
 	pthread_mutex_lock(&face->glyph_lock);
-	res = kmscon_hashtable_find(face->glyphs, (void**)&glyph,
+	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
 				    (void*)(long)ch);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (res) {
@@ -190,7 +191,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	pango_ft2_render_layout_line(&bitmap, line, -rec.x, -rec.y);
 
 	pthread_mutex_lock(&face->glyph_lock);
-	ret = kmscon_hashtable_insert(face->glyphs, (void*)(long)ch, glyph);
+	ret = shl_hashtable_insert(face->glyphs, (void*)(long)ch, glyph);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (ret) {
 		log_error("cannot add glyph to hashtable");
@@ -261,8 +262,8 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 		goto err_free;
 	}
 
-	ret = kmscon_hashtable_new(&face->glyphs, kmscon_direct_hash,
-				   kmscon_direct_equal, NULL, free_glyph);
+	ret = shl_hashtable_new(&face->glyphs, shl_direct_hash,
+				shl_direct_equal, NULL, free_glyph);
 	if (ret) {
 		log_error("cannot allocate hashtable");
 		goto err_lock;
@@ -328,7 +329,7 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 
 err_face:
 	g_object_unref(face->ctx);
-	kmscon_hashtable_free(face->glyphs);
+	shl_hashtable_free(face->glyphs);
 err_lock:
 	pthread_mutex_destroy(&face->glyph_lock);
 err_free:
@@ -346,7 +347,7 @@ static void manager_put_face(struct face *face)
 
 	if (!--face->ref) {
 		shl_dlist_unlink(&face->list);
-		kmscon_hashtable_free(face->glyphs);
+		shl_hashtable_free(face->glyphs);
 		pthread_mutex_destroy(&face->glyph_lock);
 		g_object_unref(face->ctx);
 		free(face);

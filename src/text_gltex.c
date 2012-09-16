@@ -47,6 +47,7 @@
 #include <string.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_hashtable.h"
 #include "static_gl.h"
 #include "static_misc.h"
 #include "text.h"
@@ -87,7 +88,7 @@ struct glyph {
 #define GLYPH_DATA(gly) ((gly)->glyph->buf.data)
 
 struct gltex {
-	struct kmscon_hashtable *glyphs;
+	struct shl_hashtable *glyphs;
 	unsigned int max_tex_size;
 	bool supports_rowlen;
 
@@ -151,9 +152,9 @@ static int gltex_set(struct kmscon_text *txt)
 	memset(gt, 0, sizeof(*gt));
 	shl_dlist_init(&gt->atlases);
 
-	ret = kmscon_hashtable_new(&gt->glyphs, kmscon_direct_hash,
-				   kmscon_direct_equal, NULL,
-				   free_glyph);
+	ret = shl_hashtable_new(&gt->glyphs, shl_direct_hash,
+				shl_direct_equal, NULL,
+				free_glyph);
 	if (ret)
 		return ret;
 
@@ -207,7 +208,7 @@ static int gltex_set(struct kmscon_text *txt)
 err_shader:
 	gl_shader_unref(gt->shader);
 err_htable:
-	kmscon_hashtable_free(gt->glyphs);
+	shl_hashtable_free(gt->glyphs);
 	return ret;
 }
 
@@ -225,7 +226,7 @@ static void gltex_unset(struct kmscon_text *txt)
 		log_warning("cannot activate OpenGL-CTX during destruction");
 	}
 
-	kmscon_hashtable_free(gt->glyphs);
+	shl_hashtable_free(gt->glyphs);
 
 	while (!shl_dlist_empty(&gt->atlases)) {
 		iter = gt->atlases.next;
@@ -377,7 +378,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	GLenum err;
 	uint8_t *packed_data, *dst, *src;
 
-	res = kmscon_hashtable_find(gt->glyphs, (void**)&glyph,
+	res = shl_hashtable_find(gt->glyphs, (void**)&glyph,
 				    (void*)(unsigned long)ch);
 	if (res) {
 		*out = glyph;
@@ -480,7 +481,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	glyph->atlas = atlas;
 	glyph->texoff = atlas->fill;
 
-	ret = kmscon_hashtable_insert(gt->glyphs, (void*)(long)ch, glyph);
+	ret = shl_hashtable_insert(gt->glyphs, (void*)(long)ch, glyph);
 	if (ret)
 		goto err_free;
 
