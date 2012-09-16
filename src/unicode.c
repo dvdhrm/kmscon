@@ -60,6 +60,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "log.h"
+#include "shl_array.h"
 #include "static_misc.h"
 #include "unicode.h"
 
@@ -104,7 +105,7 @@ static const char default_u8[] = { 0 };
 
 static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t table_next_id;
-static struct kmscon_array *table_index;
+static struct shl_array *table_index;
 static struct kmscon_hashtable *table_symbols;
 
 static unsigned int hash_ucs4(const void *key)
@@ -155,19 +156,19 @@ static int table__init()
 
 	table_next_id = TSM_UCS4_MAX + 2;
 
-	ret = kmscon_array_new(&table_index, sizeof(uint32_t*), 4);
+	ret = shl_array_new(&table_index, sizeof(uint32_t*), 4);
 	if (ret) {
 		log_err("cannot allocate table-index");
 		return ret;
 	}
 
 	/* first entry is not used so add dummy */
-	kmscon_array_push(table_index, &val);
+	shl_array_push(table_index, &val);
 
 	ret = kmscon_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
 					free, NULL);
 	if (ret) {
-		kmscon_array_free(table_index);
+		shl_array_free(table_index);
 		return -ENOMEM;
 	}
 
@@ -211,8 +212,8 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 		return &tsm_symbol_default;
 	}
 
-	ucs4 = *KMSCON_ARRAY_AT(table_index, uint32_t*,
-				*sym - (TSM_UCS4_MAX + 1));
+	ucs4 = *SHL_ARRAY_AT(table_index, uint32_t*,
+			     *sym - (TSM_UCS4_MAX + 1));
 	if (!ucs4) {
 		if (size)
 			*size = 1;
@@ -288,7 +289,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	memcpy(nval, buf, s * sizeof(uint32_t));
 	nsym = table_next_id++;
 	kmscon_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
-	kmscon_array_push(table_index, &nval);
+	shl_array_push(table_index, &nval);
 	rsym = nsym;
 
 unlock:

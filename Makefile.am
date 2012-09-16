@@ -74,6 +74,17 @@ AM_CFLAGS += -O0
 endif
 
 #
+# SHL - Static Helper Library
+# The SHL subsystem contains several small code pieces used all over kmscon and
+# other applications.
+#
+
+SHL_DLIST = \
+	src/shl_dlist.h
+SHL_ARRAY = \
+	src/shl_array.h
+
+#
 # libeloop
 # This library contains the whole event-loop implementation of kmscon. It is
 # compiled into a separate object to allow using it in several other programs.
@@ -83,7 +94,7 @@ lib_LTLIBRARIES += \
 	libeloop.la
 
 libeloop_la_SOURCES = \
-	src/shl_dlist.h \
+	$(SHL_DLIST) \
 	src/static_llog.h \
 	src/static_hook.h \
 	src/eloop.h \
@@ -121,7 +132,7 @@ lib_LTLIBRARIES += \
 	libuterm.la
 
 libuterm_la_SOURCES = \
-	src/shl_dlist.h \
+	$(SHL_DLIST) \
 	src/uterm.h \
 	src/uterm_keysyms.h \
 	src/uterm_input.h \
@@ -239,7 +250,8 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 #
 
 libkmscon_core_la_SOURCES = \
-	src/shl_dlist.h \
+	$(SHL_DLIST) \
+	$(SHL_ARRAY) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -346,7 +358,7 @@ endif
 #
 
 kmscon_SOURCES = \
-	src/shl_dlist.h \
+	$(SHL_DLIST) \
 	src/main.c
 kmscon_LDADD = \
 	libuterm.la \
