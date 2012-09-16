@@ -39,7 +39,6 @@
 #include <xf86drmMode.h>
 #include "eloop.h"
 #include "log.h"
-#include "static_misc.h"
 #include "uterm.h"
 #include "uterm_video.h"
 

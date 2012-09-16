@@ -38,7 +38,7 @@
 #include "console.h"
 #include "log.h"
 #include "main.h"
-#include "static_misc.h"
+#include "shl_timer.h"
 #include "unicode.h"
 
 #define LOG_SUBSYSTEM "console"
@@ -59,7 +59,7 @@ struct line {
 struct kmscon_console {
 	size_t ref;
 	unsigned int flags;
-	struct kmscon_timer *timer;
+	struct shl_timer *timer;
 
 	/* default attributes for new cells */
 	struct kmscon_console_attr def_attr;
@@ -404,7 +404,7 @@ int kmscon_console_new(struct kmscon_console **out)
 	con->def_attr.fg = 255;
 	con->def_attr.fb = 255;
 
-	ret = kmscon_timer_new(&con->timer);
+	ret = shl_timer_new(&con->timer);
 	if (ret)
 		goto err_free;
 
@@ -418,7 +418,7 @@ int kmscon_console_new(struct kmscon_console **out)
 	return 0;
 
 err_timer:
-	kmscon_timer_free(con->timer);
+	shl_timer_free(con->timer);
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
 	free(con->lines);
@@ -449,7 +449,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 		line_free(con->lines[i]);
 	free(con->lines);
 	free(con->tab_ruler);
-	kmscon_timer_free(con->timer);
+	shl_timer_free(con->timer);
 	free(con);
 }
 
@@ -1270,7 +1270,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 
 	if (prepare_cb) {
 		if (kmscon_conf.render_timing)
-			kmscon_timer_reset(con->timer);
+			shl_timer_reset(con->timer);
 
 		ret = prepare_cb(con, data);
 		if (ret) {
@@ -1279,7 +1279,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 		}
 
 		if (kmscon_conf.render_timing)
-			time_prep = kmscon_timer_elapsed(con->timer);
+			time_prep = shl_timer_elapsed(con->timer);
 	} else {
 		time_prep = 0;
 	}
@@ -1287,7 +1287,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 	/* push each character into rendering pipeline */
 
 	if (kmscon_conf.render_timing)
-		kmscon_timer_reset(con->timer);
+		shl_timer_reset(con->timer);
 
 	iter = con->sb_pos;
 	k = 0;
@@ -1338,20 +1338,20 @@ void kmscon_console_draw(struct kmscon_console *con,
 	}
 
 	if (kmscon_conf.render_timing)
-		time_draw = kmscon_timer_elapsed(con->timer);
+		time_draw = shl_timer_elapsed(con->timer);
 
 	/* perform final rendering steps */
 
 	if (render_cb) {
 		if (kmscon_conf.render_timing)
-			kmscon_timer_reset(con->timer);
+			shl_timer_reset(con->timer);
 
 		ret = render_cb(con, data);
 		if (ret)
 			log_warning("cannot render via text-renderer");
 
 		if (kmscon_conf.render_timing)
-			time_rend = kmscon_timer_elapsed(con->timer);
+			time_rend = shl_timer_elapsed(con->timer);
 	} else {
 		time_rend = 0;
 	}

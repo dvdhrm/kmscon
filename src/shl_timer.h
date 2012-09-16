@@ -1,5 +1,5 @@
 /*
- * kmscon - Miscellaneous Helpers
+ * shl - Timers
  *
  * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,51 +25,25 @@
  */
 
 /*
- * Miscellaneous Helpers
- * Rings: Rings are used to buffer a byte-stream of data. It works like a FIFO
- * queue but in-memory.
+ * Timers
  */
+
+#ifndef SHL_TIMER_H
+#define SHL_TIMER_H
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include "htable.h"
-#include "static_misc.h"
 
-struct kmscon_timer {
+struct shl_timer {
 	struct timespec start;
 	uint64_t elapsed;
 };
 
-int kmscon_timer_new(struct kmscon_timer **out)
-{
-	struct kmscon_timer *timer;
-
-	if (!out)
-		return -EINVAL;
-
-	timer = malloc(sizeof(*timer));
-	if (!timer)
-		return -ENOMEM;
-	memset(timer, 0, sizeof(*timer));
-	kmscon_timer_reset(timer);
-
-	*out = timer;
-	return 0;
-}
-
-void kmscon_timer_free(struct kmscon_timer *timer)
-{
-	if (!timer)
-		return;
-
-	free(timer);
-}
-
-void kmscon_timer_reset(struct kmscon_timer *timer)
+static inline void shl_timer_reset(struct shl_timer *timer)
 {
 	if (!timer)
 		return;
@@ -78,7 +52,32 @@ void kmscon_timer_reset(struct kmscon_timer *timer)
 	timer->elapsed = 0;
 }
 
-void kmscon_timer_start(struct kmscon_timer *timer)
+static inline int shl_timer_new(struct shl_timer **out)
+{
+	struct shl_timer *timer;
+
+	if (!out)
+		return -EINVAL;
+
+	timer = malloc(sizeof(*timer));
+	if (!timer)
+		return -ENOMEM;
+	memset(timer, 0, sizeof(*timer));
+	shl_timer_reset(timer);
+
+	*out = timer;
+	return 0;
+}
+
+static inline void shl_timer_free(struct shl_timer *timer)
+{
+	if (!timer)
+		return;
+
+	free(timer);
+}
+
+static inline void shl_timer_start(struct shl_timer *timer)
 {
 	if (!timer)
 		return;
@@ -86,7 +85,7 @@ void kmscon_timer_start(struct kmscon_timer *timer)
 	clock_gettime(CLOCK_MONOTONIC, &timer->start);
 }
 
-uint64_t kmscon_timer_stop(struct kmscon_timer *timer)
+static inline uint64_t shl_timer_stop(struct shl_timer *timer)
 {
 	struct timespec spec;
 	int64_t off, nsec;
@@ -109,7 +108,7 @@ uint64_t kmscon_timer_stop(struct kmscon_timer *timer)
 	return timer->elapsed;
 }
 
-uint64_t kmscon_timer_elapsed(struct kmscon_timer *timer)
+static inline uint64_t shl_timer_elapsed(struct shl_timer *timer)
 {
 	struct timespec spec;
 	int64_t off, nsec;
@@ -129,3 +128,5 @@ uint64_t kmscon_timer_elapsed(struct kmscon_timer *timer)
 
 	return timer->elapsed + off;
 }
+
+#endif /* SHL_TIMER_H */

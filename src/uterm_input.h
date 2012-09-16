@@ -33,7 +33,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
-#include "static_misc.h"
 #include "uterm.h"
 
 struct kbd_desc;

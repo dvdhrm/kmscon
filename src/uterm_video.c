@@ -37,7 +37,7 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
-#include "static_misc.h"
+#include "static_hook.h"
 #include "uterm.h"
 #include "uterm_video.h"
 

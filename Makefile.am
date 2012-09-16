@@ -89,6 +89,8 @@ SHL_HASHTABLE = \
 	external/htable.c
 SHL_RING = \
 	src/shl_ring.h
+SHL_TIMER = \
+	src/shl_timer.h
 
 #
 # libeloop
@@ -260,6 +262,7 @@ libkmscon_core_la_SOURCES = \
 	$(SHL_ARRAY) \
 	$(SHL_HASHTABLE) \
 	$(SHL_RING) \
+	$(SHL_TIMER) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -335,9 +338,7 @@ libkmscon_core_la_LIBADD = \
 
 libkmscon_static_la_SOURCES = \
 	src/static_llog.h \
-	src/static_hook.h \
-	src/static_misc.h \
-	src/static_misc.c
+	src/static_hook.h
 nodist_libkmscon_static_la_SOURCES =
 
 libkmscon_static_la_CPPFLAGS = \

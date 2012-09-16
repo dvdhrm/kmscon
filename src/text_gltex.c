@@ -49,7 +49,6 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "static_gl.h"
-#include "static_misc.h"
 #include "text.h"
 #include "unicode.h"
 #include "uterm.h"

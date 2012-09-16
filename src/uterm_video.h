@@ -33,7 +33,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
-#include "static_misc.h"
+#include "static_hook.h"
 #include "uterm.h"
 
 /* backend-operations */

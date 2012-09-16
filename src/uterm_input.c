@@ -39,7 +39,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"
-#include "static_misc.h"
+#include "static_hook.h"
 #include "uterm.h"
 #include "uterm_input.h"
 

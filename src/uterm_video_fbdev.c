@@ -37,7 +37,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "log.h"
-#include "static_misc.h"
 #include "uterm.h"
 #include "uterm_video.h"
 

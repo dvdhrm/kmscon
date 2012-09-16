@@ -34,7 +34,6 @@
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"
-#include "static_misc.h"
 #include "terminal.h"
 #include "ui.h"
 #include "uterm.h"
