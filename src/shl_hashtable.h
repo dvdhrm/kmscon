@@ -149,6 +149,27 @@ static inline int shl_hashtable_insert(struct shl_hashtable *tbl, void *key,
 	return 0;
 }
 
+static inline void shl_hashtable_remove(struct shl_hashtable *tbl, void *key)
+{
+	struct htable_iter i;
+	struct shl_hashentry *entry;
+	size_t hash;
+
+	if (!tbl)
+		return;
+
+	hash = tbl->hash_cb(key);
+
+	for (entry = htable_firstval(&tbl->tbl, &i, hash);
+	     entry;
+	     entry = htable_nextval(&tbl->tbl, &i, hash)) {
+		if (tbl->equal_cb(key, entry->key)) {
+			htable_delval(&tbl->tbl, &i);
+			return;
+		}
+	}
+}
+
 static inline bool shl_hashtable_find(struct shl_hashtable *tbl, void **out,
 				      void *key)
 {
