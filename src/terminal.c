@@ -41,8 +41,8 @@
 #include "terminal.h"
 #include "text.h"
 #include "tsm_screen.h"
+#include "tsm_vte.h"
 #include "uterm.h"
-#include "vte.h"
 
 #define LOG_SUBSYSTEM "terminal"
 

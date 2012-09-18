@@ -27,7 +27,7 @@
 /*
  * Virtual Terminal Emulator
  * This is the VT implementation. It is written from scratch. It uses the
- * console subsystem as output and is tightly bound to it. It supports
+ * screen state-machine as output and is tightly bound to it. It supports
  * functionality from vt100 up to vt500 series. It doesn't implement an
  * explicitly selected terminal but tries to support the most important commands
  * to be compatible with existing implementations. However, full vt102
@@ -57,7 +57,7 @@
 #include "main.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
-#include "vte.h"
+#include "tsm_vte.h"
 
 #define LOG_SUBSYSTEM "vte"
 

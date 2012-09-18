@@ -1,5 +1,5 @@
 /*
- * kmscon - VT Emulator
+ * TSM - VT Emulator
  *
  * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
  *
@@ -66,12 +66,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "log.h"
-#include "tsm_unicode.h"
-#include "vte.h"
-
-#define LOG_SUBSYSTEM "vte"
+#include "tsm_vte.h"
 
 /*
  * Lower Unicode character set. This maps the characters to the basic ASCII

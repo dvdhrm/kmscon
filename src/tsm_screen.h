@@ -35,6 +35,7 @@
 #define TSM_SCREEN_H
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "tsm_unicode.h"
