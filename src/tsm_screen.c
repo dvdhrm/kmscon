@@ -35,13 +35,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "log.h"
 #include "shl_llog.h"
 #include "shl_timer.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
 
-#define LOG_SUBSYSTEM "tsm_screen"
+#define LLOG_SUBSYSTEM "tsm_screen"
 
 struct cell {
 	tsm_symbol_t ch;
@@ -325,7 +324,7 @@ static void screen_write(struct tsm_screen *con, unsigned int x,
 	struct line *line;
 
 	if (x >= con->size_x || y >= con->size_y) {
-		log_warn("writing beyond buffer boundary");
+		llog_warn(con, "writing beyond buffer boundary");
 		return;
 	}
 
@@ -415,7 +414,7 @@ int tsm_screen_new(struct tsm_screen **out, tsm_log_t log)
 	if (ret)
 		goto err_timer;
 
-	log_debug("new screen");
+	llog_debug(con, "new screen");
 	*out = con;
 
 	return 0;
@@ -446,7 +445,7 @@ void tsm_screen_unref(struct tsm_screen *con)
 	if (!con || !con->ref || --con->ref)
 		return;
 
-	log_debug("destroying screen");
+	llog_debug(con, "destroying screen");
 
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
@@ -1303,7 +1302,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 		ret = prepare_cb(con, data);
 		if (ret) {
-			log_warning("cannot prepare text-renderer for rendering");
+			llog_warning(con,
+				     "cannot prepare text-renderer for rendering");
 			return;
 		}
 
@@ -1353,10 +1353,12 @@ void tsm_screen_draw(struct tsm_screen *con,
 			ret = draw_cb(con, cell->ch, ch, len, j, i, &attr,
 				      data);
 			if (ret && warned++ < 3) {
-				log_debug("cannot draw glyph at %ux%u via text-renderer",
-					  j, i);
+				llog_debug(con,
+					   "cannot draw glyph at %ux%u via text-renderer",
+					   j, i);
 				if (warned == 3)
-					log_debug("suppressing further warnings during this rendering");
+					llog_debug(con,
+						   "suppressing further warnings during this rendering round");
 			}
 		}
 
@@ -1381,7 +1383,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 		ret = render_cb(con, data);
 		if (ret)
-			log_warning("cannot render via text-renderer");
+			llog_warning(con,
+				     "cannot render via text-renderer");
 
 		if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 			time_rend = shl_timer_elapsed(con->timer);
@@ -1390,6 +1393,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 	}
 
 	if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
-		log_debug("timing: prepare: %llu draw: %llu render: %llu",
-			  time_prep, time_draw, time_rend);
+		llog_debug(con,
+			   "timing: sum: %llu prepare: %llu draw: %llu render: %llu",
+			   time_prep + time_draw + time_rend,
+			   time_prep, time_draw, time_rend);
 }
