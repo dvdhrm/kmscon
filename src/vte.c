@@ -52,15 +52,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include "console.h"
 #include "log.h"
 #include "main.h"
 #include "tsm_unicode.h"
 #include "vte.h"
-
-/* TODO: Change this to use "xkbcommon-keysyms.h" and add xkbcommon as
- * build-time dependency. See uterm_keysyms.h for more information. */
-#include "uterm_keysyms.h"
 
 #define LOG_SUBSYSTEM "vte"
 

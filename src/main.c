@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/signalfd.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"

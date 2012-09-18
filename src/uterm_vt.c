@@ -40,6 +40,7 @@
 #include <sys/signalfd.h>
 #include <termios.h>
 #include <unistd.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"

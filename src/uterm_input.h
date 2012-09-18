@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
 #include "uterm.h"
 

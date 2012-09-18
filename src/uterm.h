@@ -41,7 +41,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <uterm_keysyms.h>
 #include "eloop.h"
 
 /*

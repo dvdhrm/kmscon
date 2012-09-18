@@ -2,7 +2,7 @@
  * COPIED FROM XKBCOMMON
  *
  * xkbcommon did not have a public stable release, yet. Therefore, many
- * distributions do not ship it and uterm can be built without it. However, we
+ * distributions do not ship it and kmscon can be built without it. However, we
  * still want to use the keysyms so we ship a copy of it.
  *
  * When xkbcommon sees a public stable release, we will add a build-time
