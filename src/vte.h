@@ -34,7 +34,7 @@
 #define KMSCON_VTE_H
 
 #include <stdlib.h>
-#include "console.h"
+#include "tsm_screen.h"
 #include "tsm_unicode.h"
 
 /* available character sets */

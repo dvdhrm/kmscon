@@ -40,7 +40,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include "console.h"
+#include "tsm_screen.h"
 #include "uterm.h"
 
 /* fonts */

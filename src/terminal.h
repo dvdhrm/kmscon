@@ -34,8 +34,8 @@
 #define KMSCON_TERMINAL_H
 
 #include <stdlib.h>
-#include "console.h"
 #include "eloop.h"
+#include "tsm_screen.h"
 #include "uterm.h"
 
 struct kmscon_terminal;

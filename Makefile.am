@@ -276,7 +276,7 @@ libkmscon_core_la_SOURCES = \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
-	src/console.c src/console.h \
+	src/tsm_screen.c src/tsm_screen.h \
 	src/tsm_unicode.c src/tsm_unicode.h \
 	src/log.c src/log.h \
 	src/vte.c src/vte.h \

@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "console.h"
 #include "eloop.h"
 #include "log.h"
 #include "main.h"
@@ -41,6 +40,7 @@
 #include "shl_dlist.h"
 #include "terminal.h"
 #include "text.h"
+#include "tsm_screen.h"
 #include "uterm.h"
 #include "vte.h"
 

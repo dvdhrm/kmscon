@@ -53,9 +53,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
-#include "console.h"
 #include "log.h"
 #include "main.h"
+#include "tsm_screen.h"
 #include "tsm_unicode.h"
 #include "vte.h"
 

@@ -35,10 +35,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "console.h"
 #include "log.h"
 #include "main.h"
 #include "shl_timer.h"
+#include "tsm_screen.h"
 #include "tsm_unicode.h"
 
 #define LOG_SUBSYSTEM "tsm_screen"
