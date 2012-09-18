@@ -38,7 +38,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include "static_llog.h"
+#include "shl_llog.h"
 
 /*
  * Math Helpers

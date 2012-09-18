@@ -91,6 +91,8 @@ SHL_RING = \
 	src/shl_ring.h
 SHL_TIMER = \
 	src/shl_timer.h
+SHL_LLOG = \
+	src/shl_llog.h
 
 #
 # libeloop
@@ -103,6 +105,7 @@ lib_LTLIBRARIES += \
 
 libeloop_la_SOURCES = \
 	$(SHL_DLIST) \
+	$(SHL_LLOG) \
 	src/static_llog.h \
 	src/static_hook.h \
 	src/eloop.h \

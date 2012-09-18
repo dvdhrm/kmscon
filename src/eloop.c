@@ -173,8 +173,8 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "shl_dlist.h"
+#include "shl_llog.h"
 #include "static_hook.h"
-#include "static_llog.h"
 
 #define LLOG_SUBSYSTEM "eloop"
 

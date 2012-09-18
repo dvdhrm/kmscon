@@ -45,8 +45,8 @@
  *   args: Argument array
  */
 
-#ifndef LLOG_H_INCLUDED
-#define LLOG_H_INCLUDED
+#ifndef SHL_LLOG_H_INCLUDED
+#define SHL_LLOG_H_INCLUDED
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -192,4 +192,4 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 #define llog_vdENOMEM(obj) \
 	((void)llog_dENOMEM(obj))
 
-#endif /* LLOG_H_INCLUDED */
+#endif /* SHL_LLOG_H_INCLUDED */

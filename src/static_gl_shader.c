@@ -38,8 +38,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "shl_llog.h"
 #include "static_gl.h"
-#include "static_llog.h"
 
 #define LLOG_SUBSYSTEM "gl_shader"
 
