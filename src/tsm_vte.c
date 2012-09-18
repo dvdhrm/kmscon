@@ -146,7 +146,7 @@ struct vte_saved_state {
 	bool origin_mode;
 };
 
-struct kmscon_vte {
+struct tsm_vte {
 	unsigned long ref;
 	struct tsm_screen *con;
 	tsm_vte_write_cb write_cb;
@@ -310,7 +310,7 @@ static uint8_t (*get_palette(void))[3]
  * be called before passing the attribute to the console layer so the console
  * layer can always work with RGB values and does not have to care for color
  * codes. */
-static void to_rgb(struct kmscon_vte *vte, struct tsm_screen_attr *attr)
+static void to_rgb(struct tsm_vte *vte, struct tsm_screen_attr *attr)
 {
 	int8_t code;
 
@@ -356,10 +356,10 @@ static void copy_bcolor(struct tsm_screen_attr *dest,
 	dest->bb = src->bb;
 }
 
-int tsm_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
+int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 		   tsm_vte_write_cb write_cb, void *data)
 {
-	struct kmscon_vte *vte;
+	struct tsm_vte *vte;
 	int ret;
 
 	if (!out || !con || !write_cb)
@@ -396,7 +396,7 @@ err_free:
 	return ret;
 }
 
-void tsm_vte_ref(struct kmscon_vte *vte)
+void tsm_vte_ref(struct tsm_vte *vte)
 {
 	if (!vte)
 		return;
@@ -404,7 +404,7 @@ void tsm_vte_ref(struct kmscon_vte *vte)
 	vte->ref++;
 }
 
-void tsm_vte_unref(struct kmscon_vte *vte)
+void tsm_vte_unref(struct tsm_vte *vte)
 {
 	if (!vte || !vte->ref)
 		return;
@@ -450,7 +450,7 @@ void tsm_vte_unref(struct kmscon_vte *vte)
  * here. Anyway, only few applications rely on local echo so we can safely
  * ignore this.
  */
-static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
+static void vte_write_debug(struct tsm_vte *vte, const char *u8, size_t len,
 			    bool raw, const char *file, int line)
 {
 #ifdef KMSCON_ENABLE_DEBUG
@@ -487,13 +487,13 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 	vte_write_debug((_vte), (_u8), (_len), true, __FILE__, __LINE__)
 
 /* write to console */
-static void write_console(struct kmscon_vte *vte, tsm_symbol_t sym)
+static void write_console(struct tsm_vte *vte, tsm_symbol_t sym)
 {
 	to_rgb(vte, &vte->cattr);
 	tsm_screen_write(vte->con, sym, &vte->cattr);
 }
 
-static void reset_state(struct kmscon_vte *vte)
+static void reset_state(struct tsm_vte *vte)
 {
 	vte->saved_state.cursor_x = 0;
 	vte->saved_state.cursor_y = 0;
@@ -510,7 +510,7 @@ static void reset_state(struct kmscon_vte *vte)
 	vte->saved_state.cattr.protect = 0;
 }
 
-static void save_state(struct kmscon_vte *vte)
+static void save_state(struct tsm_vte *vte)
 {
 	vte->saved_state.cursor_x = tsm_screen_get_cursor_x(vte->con);
 	vte->saved_state.cursor_y = tsm_screen_get_cursor_y(vte->con);
@@ -521,7 +521,7 @@ static void save_state(struct kmscon_vte *vte)
 	vte->saved_state.origin_mode = vte->flags & FLAG_ORIGIN_MODE;
 }
 
-static void restore_state(struct kmscon_vte *vte)
+static void restore_state(struct tsm_vte *vte)
 {
 	tsm_screen_move_to(vte->con, vte->saved_state.cursor_x,
 			       vte->saved_state.cursor_y);
@@ -555,7 +555,7 @@ static void restore_state(struct kmscon_vte *vte)
  * same state as when the VTE was created. This does not affect the console,
  * though.
  */
-void tsm_vte_reset(struct kmscon_vte *vte)
+void tsm_vte_reset(struct tsm_vte *vte)
 {
 	if (!vte)
 		return;
@@ -587,7 +587,7 @@ void tsm_vte_reset(struct kmscon_vte *vte)
 	reset_state(vte);
 }
 
-static void hard_reset(struct kmscon_vte *vte)
+static void hard_reset(struct tsm_vte *vte)
 {
 	tsm_vte_reset(vte);
 	tsm_screen_erase_screen(vte->con, false);
@@ -595,13 +595,13 @@ static void hard_reset(struct kmscon_vte *vte)
 	tsm_screen_move_to(vte->con, 0, 0);
 }
 
-static void send_primary_da(struct kmscon_vte *vte)
+static void send_primary_da(struct tsm_vte *vte)
 {
 	vte_write(vte, "\e[?60;1;6;9;15c", 17);
 }
 
 /* execute control character (C0 or C1) */
-static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
+static void do_execute(struct tsm_vte *vte, uint32_t ctrl)
 {
 	switch (ctrl) {
 	case 0x00: /* NUL */
@@ -708,7 +708,7 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 	}
 }
 
-static void do_clear(struct kmscon_vte *vte)
+static void do_clear(struct tsm_vte *vte)
 {
 	int i;
 
@@ -718,7 +718,7 @@ static void do_clear(struct kmscon_vte *vte)
 	vte->csi_flags = 0;
 }
 
-static void do_collect(struct kmscon_vte *vte, uint32_t data)
+static void do_collect(struct tsm_vte *vte, uint32_t data)
 {
 	switch (data) {
 	case '!':
@@ -757,7 +757,7 @@ static void do_collect(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
-static void do_param(struct kmscon_vte *vte, uint32_t data)
+static void do_param(struct tsm_vte *vte, uint32_t data)
 {
 	int new;
 
@@ -784,7 +784,7 @@ static void do_param(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
-static bool set_charset(struct kmscon_vte *vte, tsm_vte_charset *set)
+static bool set_charset(struct tsm_vte *vte, tsm_vte_charset *set)
 {
 	if (vte->csi_flags & CSI_POPEN)
 		vte->g0 = set;
@@ -800,7 +800,7 @@ static bool set_charset(struct kmscon_vte *vte, tsm_vte_charset *set)
 	return true;
 }
 
-static void do_esc(struct kmscon_vte *vte, uint32_t data)
+static void do_esc(struct tsm_vte *vte, uint32_t data)
 {
 	switch (data) {
 	case 'B': /* map ASCII into G0-G3 */
@@ -975,7 +975,7 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
-static void csi_attribute(struct kmscon_vte *vte)
+static void csi_attribute(struct tsm_vte *vte)
 {
 	static const uint8_t bval[6] = { 0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff };
 	unsigned int i, code;
@@ -1178,12 +1178,12 @@ static void csi_attribute(struct kmscon_vte *vte)
 		tsm_screen_set_def_attr(vte->con, &vte->cattr);
 }
 
-static void csi_soft_reset(struct kmscon_vte *vte)
+static void csi_soft_reset(struct tsm_vte *vte)
 {
 	tsm_vte_reset(vte);
 }
 
-static void csi_compat_mode(struct kmscon_vte *vte)
+static void csi_compat_mode(struct tsm_vte *vte)
 {
 	/* always perform soft reset */
 	csi_soft_reset(vte);
@@ -1224,7 +1224,7 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 	}
 }
 
-static inline void set_reset_flag(struct kmscon_vte *vte, bool set,
+static inline void set_reset_flag(struct tsm_vte *vte, bool set,
 				  unsigned int flag)
 {
 	if (set)
@@ -1233,7 +1233,7 @@ static inline void set_reset_flag(struct kmscon_vte *vte, bool set,
 		vte->flags &= ~flag;
 }
 
-static void csi_mode(struct kmscon_vte *vte, bool set)
+static void csi_mode(struct tsm_vte *vte, bool set)
 {
 	unsigned int i;
 
@@ -1366,7 +1366,7 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 	}
 }
 
-static void csi_dev_attr(struct kmscon_vte *vte)
+static void csi_dev_attr(struct tsm_vte *vte)
 {
 	if (vte->csi_argc <= 1 && vte->csi_argv[0] <= 0) {
 		if (vte->csi_flags == 0) {
@@ -1382,7 +1382,7 @@ static void csi_dev_attr(struct kmscon_vte *vte)
 		  vte->csi_argv[0], vte->csi_argv[1], vte->csi_argv[2]);
 }
 
-static void csi_dsr(struct kmscon_vte *vte)
+static void csi_dsr(struct tsm_vte *vte)
 {
 	char buf[64];
 	unsigned int x, y, len;
@@ -1400,7 +1400,7 @@ static void csi_dsr(struct kmscon_vte *vte)
 	}
 }
 
-static void do_csi(struct kmscon_vte *vte, uint32_t data)
+static void do_csi(struct tsm_vte *vte, uint32_t data)
 {
 	int num, x, y, upper, lower;
 	bool protect;
@@ -1631,7 +1631,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 }
 
 /* map a character according to current GL and GR maps */
-static uint32_t vte_map(struct kmscon_vte *vte, uint32_t val)
+static uint32_t vte_map(struct tsm_vte *vte, uint32_t val)
 {
 	/* 32, 127, 160 and 255 map to identity like all values >255 */
 	switch (val) {
@@ -1657,7 +1657,7 @@ static uint32_t vte_map(struct kmscon_vte *vte, uint32_t val)
 }
 
 /* perform parser action */
-static void do_action(struct kmscon_vte *vte, uint32_t data, int action)
+static void do_action(struct tsm_vte *vte, uint32_t data, int action)
 {
 	tsm_symbol_t sym;
 
@@ -1725,7 +1725,7 @@ static const int exit_action[] = {
 };
 
 /* perform state transision and dispatch related actions */
-static void do_trans(struct kmscon_vte *vte, uint32_t data, int state, int act)
+static void do_trans(struct tsm_vte *vte, uint32_t data, int state, int act)
 {
 	if (state != STATE_NONE) {
 		/* A state transition occurs. Perform exit-action,
@@ -1747,7 +1747,7 @@ static void do_trans(struct kmscon_vte *vte, uint32_t data, int state, int act)
  * This parses the new input character \data. It performs state transition and
  * calls the right callbacks for each action.
  */
-static void parse_data(struct kmscon_vte *vte, uint32_t raw)
+static void parse_data(struct tsm_vte *vte, uint32_t raw)
 {
 	/* events that may occur in any state */
 	switch (raw) {
@@ -2089,7 +2089,7 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 	log_warn("unhandled input %u in state %d", raw, vte->state);
 }
 
-void tsm_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
+void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
 {
 	int state;
 	uint32_t ucs4;
@@ -2119,8 +2119,8 @@ void tsm_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 	--vte->parse_cnt;
 }
 
-bool tsm_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
-				unsigned int mods, uint32_t unicode)
+bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
+			     unsigned int mods, uint32_t unicode)
 {
 	char val, u8[4];
 	size_t len;

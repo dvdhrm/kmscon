@@ -48,7 +48,7 @@ extern tsm_vte_charset tsm_vte_dec_special_graphics;
 
 /* virtual terminal emulator */
 
-struct kmscon_vte;
+struct tsm_vte;
 
 enum tsm_vte_keyboard_action {
 	tsm_vte_DROP,
@@ -57,19 +57,19 @@ enum tsm_vte_keyboard_action {
 
 #define TSM_VTE_INVALID 0xffffffff
 
-typedef void (*tsm_vte_write_cb) (struct kmscon_vte *vte,
-				     const char *u8,
-				     size_t len,
-				     void *data);
+typedef void (*tsm_vte_write_cb) (struct tsm_vte *vte,
+				  const char *u8,
+				  size_t len,
+				  void *data);
 
-int tsm_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
-		   tsm_vte_write_cb write_cb, void *data);
-void tsm_vte_ref(struct kmscon_vte *vte);
-void tsm_vte_unref(struct kmscon_vte *vte);
+int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
+		tsm_vte_write_cb write_cb, void *data);
+void tsm_vte_ref(struct tsm_vte *vte);
+void tsm_vte_unref(struct tsm_vte *vte);
 
-void tsm_vte_reset(struct kmscon_vte *vte);
-void tsm_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
-bool tsm_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
-				unsigned int mods, uint32_t unicode);
+void tsm_vte_reset(struct tsm_vte *vte);
+void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len);
+bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
+			     unsigned int mods, uint32_t unicode);
 
 #endif /* TSM_VTE_H */

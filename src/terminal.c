@@ -69,7 +69,7 @@ struct kmscon_terminal {
 	unsigned int redraw;
 	struct ev_timer *redraw_timer;
 	struct tsm_screen *console;
-	struct kmscon_vte *vte;
+	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
 
 	kmscon_terminal_event_cb cb;
@@ -381,7 +381,7 @@ static void input_event(struct uterm_input *input,
 	}
 }
 
-static void write_event(struct kmscon_vte *vte, const char *u8, size_t len,
+static void write_event(struct tsm_vte *vte, const char *u8, size_t len,
 			void *data)
 {
 	struct kmscon_terminal *term = data;
