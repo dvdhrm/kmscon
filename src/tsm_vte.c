@@ -53,12 +53,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
-#include "log.h"
+#include "shl_llog.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
 #include "tsm_vte.h"
 
-#define LOG_SUBSYSTEM "vte"
+#define LLOG_SUBSYSTEM "tsm_vte"
 
 /* Input parser states */
 enum parser_state {
@@ -147,6 +147,7 @@ struct vte_saved_state {
 
 struct tsm_vte {
 	unsigned long ref;
+	tsm_log_t llog;
 	struct tsm_screen *con;
 	tsm_vte_write_cb write_cb;
 	void *data;
@@ -357,7 +358,8 @@ static void copy_bcolor(struct tsm_screen_attr *dest,
 }
 
 int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
-		   tsm_vte_write_cb write_cb, void *data)
+		tsm_vte_write_cb write_cb, void *data,
+		tsm_log_t log)
 {
 	struct tsm_vte *vte;
 	int ret;
@@ -371,6 +373,7 @@ int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
+	vte->llog = log;
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;
@@ -386,7 +389,7 @@ int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 	tsm_vte_reset(vte);
 	tsm_screen_erase_screen(vte->con, false);
 
-	log_debug("new vte object");
+	llog_debug(vte, "new vte object");
 	tsm_screen_ref(vte->con);
 	*out = vte;
 	return 0;
@@ -412,7 +415,7 @@ void tsm_vte_unref(struct tsm_vte *vte)
 	if (--vte->ref)
 		return;
 
-	log_debug("destroying vte object");
+	llog_debug(vte, "destroying vte object");
 	tsm_screen_unref(vte->con);
 	tsm_utf8_mach_free(vte->mach);
 	free(vte);
@@ -490,8 +493,8 @@ static void vte_write_debug(struct tsm_vte *vte, const char *u8, size_t len,
 	if (!raw) {
 		for (i = 0; i < len; ++i) {
 			if (u8[i] & 0x80)
-				log_warning("sending 8bit character inline to client in %s:%d",
-					    file, line);
+				llog_warning(vte, "sending 8bit character inline to client in %s:%d",
+					     file, line);
 		}
 	}
 #endif
@@ -733,7 +736,7 @@ static void do_execute(struct tsm_vte *vte, uint32_t ctrl)
 		/* nothing to do here */
 		break;
 	default:
-		log_warn("unhandled control char %u", ctrl);
+		llog_warn(vte, "unhandled control char %u", ctrl);
 	}
 }
 
@@ -922,7 +925,7 @@ static void do_esc(struct tsm_vte *vte, uint32_t data)
 
 	/* everything below is only valid without CSI flags */
 	if (vte->csi_flags) {
-		log_debug("unhandled escape seq %u", data);
+		llog_debug(vte, "unhandled escape seq %u", data);
 		return;
 	}
 
@@ -1000,7 +1003,7 @@ static void do_esc(struct tsm_vte *vte, uint32_t data)
 		restore_state(vte);
 		break;
 	default:
-		log_debug("unhandled escape seq %u", data);
+		llog_debug(vte, "unhandled escape seq %u", data);
 	}
 }
 
@@ -1151,7 +1154,7 @@ static void csi_attribute(struct tsm_vte *vte)
 			if (i + 2 >= vte->csi_argc ||
 			    vte->csi_argv[i + 1] != 5 ||
 			    vte->csi_argv[i + 2] < 0) {
-				log_debug("invalid 256color SGR");
+				llog_debug(vte, "invalid 256color SGR");
 				break;
 			}
 
@@ -1197,8 +1200,8 @@ static void csi_attribute(struct tsm_vte *vte)
 			i += 2;
 			break;
 		default:
-			log_debug("unhandled SGR attr %i",
-				  vte->csi_argv[i]);
+			llog_debug(vte, "unhandled SGR attr %i",
+				   vte->csi_argv[i]);
 		}
 	}
 
@@ -1248,8 +1251,8 @@ static void csi_compat_mode(struct tsm_vte *vte)
 		vte->gl = &tsm_vte_unicode_lower;
 		vte->gr = &tsm_vte_dec_supplemental_graphics;
 	} else {
-		log_debug("unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
-			  vte->csi_argv[0]);
+		llog_debug(vte, "unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
+			   vte->csi_argv[0]);
 	}
 }
 
@@ -1294,8 +1297,8 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 					       FLAG_LINE_FEED_NEW_LINE_MODE);
 				continue;
 			default:
-				log_debug("unknown non-DEC (Re)Set-Mode %d",
-					  vte->csi_argv[i]);
+				llog_debug(vte, "unknown non-DEC (Re)Set-Mode %d",
+					   vte->csi_argv[i]);
 				continue;
 			}
 		}
@@ -1388,8 +1391,8 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
 			continue;
 		default:
-			log_debug("unknown DEC %set-Mode %d",
-				  set?"S":"Res", vte->csi_argv[i]);
+			llog_debug(vte, "unknown DEC %set-Mode %d",
+				   set?"S":"Res", vte->csi_argv[i]);
 			continue;
 		}
 	}
@@ -1407,8 +1410,8 @@ static void csi_dev_attr(struct tsm_vte *vte)
 		}
 	}
 
-	log_debug("unhandled DA: %x %d %d %d...", vte->csi_flags,
-		  vte->csi_argv[0], vte->csi_argv[1], vte->csi_argv[2]);
+	llog_debug(vte, "unhandled DA: %x %d %d %d...", vte->csi_flags,
+		   vte->csi_argv[0], vte->csi_argv[1], vte->csi_argv[2]);
 }
 
 static void csi_dsr(struct tsm_vte *vte)
@@ -1517,8 +1520,8 @@ static void do_csi(struct tsm_vte *vte, uint32_t data)
 		else if (vte->csi_argv[0] == 2)
 			tsm_screen_erase_screen(vte->con, protect);
 		else
-			log_debug("unknown parameter to CSI-J: %d",
-				  vte->csi_argv[0]);
+			llog_debug(vte, "unknown parameter to CSI-J: %d",
+				   vte->csi_argv[0]);
 		break;
 	case 'K':
 		if (vte->csi_flags & CSI_WHAT)
@@ -1533,8 +1536,8 @@ static void do_csi(struct tsm_vte *vte, uint32_t data)
 		else if (vte->csi_argv[0] == 2)
 			tsm_screen_erase_current_line(vte->con, protect);
 		else
-			log_debug("unknown parameter to CSI-K: %d",
-				  vte->csi_argv[0]);
+			llog_debug(vte, "unknown parameter to CSI-K: %d",
+				   vte->csi_argv[0]);
 		break;
 	case 'X': /* ECH */
 		/* erase characters */
@@ -1606,7 +1609,7 @@ static void do_csi(struct tsm_vte *vte, uint32_t data)
 		else if (num == 3)
 			tsm_screen_reset_all_tabstops(vte->con);
 		else
-			log_debug("invalid parameter %d to TBC CSI", num);
+			llog_debug(vte, "invalid parameter %d to TBC CSI", num);
 		break;
 	case '@': /* ICH */
 		/* insert characters */
@@ -1655,7 +1658,7 @@ static void do_csi(struct tsm_vte *vte, uint32_t data)
 		tsm_screen_scroll_down(vte->con, num);
 		break;
 	default:
-		log_debug("unhandled CSI sequence %c", data);
+		llog_debug(vte, "unhandled CSI sequence %c", data);
 	}
 }
 
@@ -1732,7 +1735,7 @@ static void do_action(struct tsm_vte *vte, uint32_t data, int action)
 		case ACTION_OSC_END:
 			break;
 		default:
-			log_warn("invalid action %d", action);
+			llog_warn(vte, "invalid action %d", action);
 	}
 }
 
@@ -2115,7 +2118,7 @@ static void parse_data(struct tsm_vte *vte, uint32_t raw)
 		return;
 	}
 
-	log_warn("unhandled input %u in state %d", raw, vte->state);
+	llog_warn(vte, "unhandled input %u in state %d", raw, vte->state);
 }
 
 void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
@@ -2131,8 +2134,8 @@ void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
 	for (i = 0; i < len; ++i) {
 		if (vte->flags & FLAG_7BIT_MODE) {
 			if (u8[i] & 0x80)
-				log_debug("receiving 8bit character U+%d from pty while in 7bit mode",
-					  (int)u8[i]);
+				llog_debug(vte, "receiving 8bit character U+%d from pty while in 7bit mode",
+					   (int)u8[i]);
 			parse_data(vte, u8[i] & 0x7f);
 		} else if (vte->flags & FLAG_8BIT_MODE) {
 			parse_data(vte, u8[i]);
@@ -2630,16 +2633,16 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		if (vte->flags & FLAG_7BIT_MODE) {
 			val = unicode;
 			if (unicode & 0x80) {
-				log_debug("invalid keyboard input in 7bit mode U+%x; mapping to '?'",
-					  unicode);
+				llog_debug(vte, "invalid keyboard input in 7bit mode U+%x; mapping to '?'",
+					   unicode);
 				val = '?';
 			}
 			vte_write(vte, &val, 1);
 		} else if (vte->flags & FLAG_8BIT_MODE) {
 			val = unicode;
 			if (unicode > 0xff) {
-				log_debug("invalid keyboard input in 8bit mode U+%x; mapping to '?'",
-					  unicode);
+				llog_debug(vte, "invalid keyboard input in 8bit mode U+%x; mapping to '?'",
+					   unicode);
 				val = '?';
 			}
 			vte_write_raw(vte, &val, 1);

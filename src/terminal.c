@@ -432,7 +432,8 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		tsm_screen_set_opts(term->console,
 				    TSM_SCREEN_OPT_RENDER_TIMING);
 
-	ret = tsm_vte_new(&term->vte, term->console, write_event, term);
+	ret = tsm_vte_new(&term->vte, term->console, write_event, term,
+			  log_llog);
 	if (ret)
 		goto err_con;
 	tsm_vte_set_palette(term->vte, kmscon_conf.palette);
