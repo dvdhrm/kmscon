@@ -547,7 +547,7 @@ AC_SUBST(FREETYPE2_LIBS)
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
-AC_CONFIG_FILES([Makefile libeloop.pc libuterm.pc])
+AC_CONFIG_FILES([Makefile libeloop.pc libtsm.pc libuterm.pc])
 AC_OUTPUT
 
 #

@@ -19,6 +19,7 @@ configure
 *.tar.bz2
 libtool
 libeloop.pc
+libtsm.pc
 libuterm.pc
 m4/
 stamp-*

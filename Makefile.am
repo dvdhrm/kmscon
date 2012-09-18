@@ -131,6 +131,42 @@ include_HEADERS += \
 pkgconfig_DATA += libeloop.pc
 
 #
+# libtsm
+# The Terminal-emulator State Machine is a library that implements the whole VTE
+# layer and everything related to it. It has no external dependencies so it can
+# be used to implement any kind of terminal emulator or debugger.
+#
+
+lib_LTLIBRARIES += \
+	libtsm.la
+
+libtsm_la_SOURCES = \
+	$(SHL_LLOG) \
+	$(SHL_TIMER) \
+	$(SHL_ARRAY) \
+	$(SHL_HASHTABLE) \
+	src/tsm_screen.h \
+	src/tsm_screen.c \
+	src/tsm_unicode.h \
+	src/tsm_unicode.c \
+	src/tsm_vte.h \
+	src/tsm_vte.c \
+	src/tsm_vte_charsets.c
+
+libtsm_la_CPPFLAGS = \
+	$(AM_CPPFLAGS)
+libtsm_la_LDFLAGS = \
+	-version-info 1:0:0
+
+include_HEADERS += \
+	src/tsm_screen.h \
+	src/tsm_unicode.h \
+	src/tsm_vte.h
+
+pkgconfig_DATA += \
+	libtsm.pc
+
+#
 # libuterm
 # The uterm library provides helpers to create terminals in user-space. They
 # are not limited to text-based terminals but rather provide graphics contexts
@@ -274,10 +310,6 @@ libkmscon_core_la_SOURCES = \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
-	src/tsm_screen.c src/tsm_screen.h \
-	src/tsm_unicode.c src/tsm_unicode.h \
-	src/tsm_vte.c src/tsm_vte.h \
-	src/tsm_vte_charsets.c \
 	src/log.c src/log.h \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
@@ -339,6 +371,7 @@ libkmscon_core_la_LIBADD = \
 	$(FREETYPE2_LIBS) \
 	-lpthread \
 	libeloop.la \
+	libtsm.la \
 	libuterm.la
 
 #
