@@ -294,6 +294,44 @@ unlock:
 	return rsym;
 }
 
+const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
+			      tsm_symbol_t sym, size_t *size)
+{
+	const uint32_t *ucs4;
+	char *val;
+	size_t i, pos, len;
+
+	if (!tbl)
+		tbl = &tsm_symbol_table_default;
+
+	ucs4 = tsm_symbol_get(tbl, &sym, &len);
+	val = malloc(4 * len);
+	if (!val)
+		goto err_out;
+
+	pos = 0;
+	for (i = 0; i < len; ++i)
+		pos += tsm_ucs4_to_utf8(ucs4[i], &val[pos]);
+
+	if (!pos)
+		goto err_out;
+
+	if (size)
+		*size = pos;
+	return val;
+
+err_out:
+	if (size)
+		*size = sizeof(default_u8);
+	return default_u8;
+}
+
+void tsm_symbol_free_u8(const char *s)
+{
+	if (s != default_u8)
+		free((void*)s);
+}
+
 /*
  * Convert UCS4 character to UTF-8. This creates one of:
  *   0xxxxxxx
@@ -302,8 +340,14 @@ unlock:
  *   11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
  * This is based on the same function from "terminology" from the Enlightenment
  * project. See COPYING for more information.
+ *
+ * @txt must point to a 4 byte-buffer. A number between 0 and 4 is returned and
+ * indicates how long the written UTF8 string is.
+ *
+ * Please note @g is a real UCS4 code and not a tsm_symbol_t object!
  */
-static size_t ucs4_to_utf8(uint32_t g, char *txt)
+
+size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 {
 	if (g < (1 << 7)) {
 		txt[0] = g & 0x7f;
@@ -326,44 +370,6 @@ static size_t ucs4_to_utf8(uint32_t g, char *txt)
 	} else {
 		return 0;
 	}
-}
-
-const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
-			      tsm_symbol_t sym, size_t *size)
-{
-	const uint32_t *ucs4;
-	char *val;
-	size_t i, pos, len;
-
-	if (!tbl)
-		tbl = &tsm_symbol_table_default;
-
-	ucs4 = tsm_symbol_get(tbl, &sym, &len);
-	val = malloc(4 * len);
-	if (!val)
-		goto err_out;
-
-	pos = 0;
-	for (i = 0; i < len; ++i)
-		pos += ucs4_to_utf8(ucs4[i], &val[pos]);
-
-	if (!pos)
-		goto err_out;
-
-	if (size)
-		*size = pos;
-	return val;
-
-err_out:
-	if (size)
-		*size = sizeof(default_u8);
-	return default_u8;
-}
-
-void tsm_symbol_free_u8(const char *s)
-{
-	if (s != default_u8)
-		free((void*)s);
 }
 
 /*

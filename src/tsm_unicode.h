@@ -59,6 +59,10 @@ const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
 			      tsm_symbol_t sym, size_t *size);
 void tsm_symbol_free_u8(const char *s);
 
+/* ucs4 to utf8 converter */
+
+size_t tsm_ucs4_to_utf8(uint32_t ucs4, char *out);
+
 /* utf8 state machine */
 
 struct tsm_utf8_mach;
