@@ -1,5 +1,5 @@
 /*
- * kmscon - Unicode Handling
+ * TSM - Unicode Handling
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011-2012 University of Tuebingen

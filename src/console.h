@@ -1,5 +1,5 @@
 /*
- * kmscon - Screen Management
+ * TSM - Screen Management
  *
  * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
