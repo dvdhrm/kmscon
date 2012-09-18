@@ -39,9 +39,30 @@
 #include <stdlib.h>
 #include "tsm_unicode.h"
 
+/* screen objects */
+
 struct tsm_screen;
 
-/* screen objects */
+/**
+ * tsm_log_t:
+ * @file: Source code file where the log message originated or NULL
+ * @line: Line number in source code or 0
+ * @func: C function name or NULL
+ * @subs: Subsystem where the message came from or NULL
+ * @sev: Kernel-style severity between 0=FATAL and 7=DEBUG
+ * @format: printf-formatted message
+ * @args: arguments for printf-style @format
+ *
+ * This is the type of a logging callback function. You can always pass NULL
+ * instead of such a function to disable logging.
+ */
+typedef void (*tsm_log_t) (const char *file,
+			   int line,
+			   const char *func,
+			   const char *subs,
+			   unsigned int sev,
+			   const char *format,
+			   va_list args);
 
 #define TSM_SCREEN_INSERT_MODE	0x01
 #define TSM_SCREEN_AUTO_WRAP	0x02
@@ -78,7 +99,7 @@ typedef int (*tsm_screen_draw_cb) (struct tsm_screen *con,
 typedef int (*tsm_screen_render_cb) (struct tsm_screen *con,
 				     void *data);
 
-int tsm_screen_new(struct tsm_screen **out);
+int tsm_screen_new(struct tsm_screen **out, tsm_log_t log);
 void tsm_screen_ref(struct tsm_screen *con);
 void tsm_screen_unref(struct tsm_screen *con);
 

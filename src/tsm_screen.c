@@ -37,6 +37,7 @@
 #include <string.h>
 #include "log.h"
 #include "main.h"
+#include "shl_llog.h"
 #include "shl_timer.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
@@ -58,6 +59,7 @@ struct line {
 
 struct tsm_screen {
 	size_t ref;
+	llog_submit_t llog;
 	unsigned int flags;
 	struct shl_timer *timer;
 
@@ -385,7 +387,7 @@ static inline unsigned int to_abs_y(struct tsm_screen *con, unsigned int y)
 	return con->margin_top + y;
 }
 
-int tsm_screen_new(struct tsm_screen **out)
+int tsm_screen_new(struct tsm_screen **out, tsm_log_t log)
 {
 	struct tsm_screen *con;
 	int ret;
@@ -400,6 +402,7 @@ int tsm_screen_new(struct tsm_screen **out)
 
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
+	con->llog = log;
 	con->def_attr.fr = 255;
 	con->def_attr.fg = 255;
 	con->def_attr.fb = 255;

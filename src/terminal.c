@@ -421,7 +421,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->fps = 1000000000ULL / fps;
 	log_debug("FPS: %lu TIMER: %lu", term->fps, fps);
 
-	ret = tsm_screen_new(&term->console);
+	ret = tsm_screen_new(&term->console, log_llog);
 	if (ret)
 		goto err_free;
 	tsm_screen_set_max_sb(term->console, kmscon_conf.sb_size);
