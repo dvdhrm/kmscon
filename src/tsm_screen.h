@@ -103,6 +103,10 @@ int tsm_screen_new(struct tsm_screen **out, tsm_log_t log);
 void tsm_screen_ref(struct tsm_screen *con);
 void tsm_screen_unref(struct tsm_screen *con);
 
+void tsm_screen_set_opts(struct tsm_screen *scr, unsigned int opts);
+void tsm_screen_reset_opts(struct tsm_screen *scr, unsigned int opts);
+unsigned int tsm_screen_get_opts(struct tsm_screen *scr);
+
 unsigned int tsm_screen_get_width(struct tsm_screen *con);
 unsigned int tsm_screen_get_height(struct tsm_screen *con);
 int tsm_screen_resize(struct tsm_screen *con, unsigned int x,

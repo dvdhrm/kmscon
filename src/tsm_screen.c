@@ -60,6 +60,7 @@ struct line {
 struct tsm_screen {
 	size_t ref;
 	llog_submit_t llog;
+	unsigned int opts;
 	unsigned int flags;
 	struct shl_timer *timer;
 
@@ -454,6 +455,30 @@ void tsm_screen_unref(struct tsm_screen *con)
 	free(con->tab_ruler);
 	shl_timer_free(con->timer);
 	free(con);
+}
+
+void tsm_screen_set_opts(struct tsm_screen *scr, unsigned int opts)
+{
+	if (!scr || !opts)
+		return;
+
+	scr->opts |= opts;
+}
+
+void tsm_screen_reset_opts(struct tsm_screen *scr, unsigned int opts)
+{
+	if (!scr || !opts)
+		return;
+
+	scr->opts &= ~opts;
+}
+
+unsigned int tsm_screen_get_opts(struct tsm_screen *scr)
+{
+	if (!scr)
+		return 0;
+
+	return scr->opts;
 }
 
 unsigned int tsm_screen_get_width(struct tsm_screen *con)
