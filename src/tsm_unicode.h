@@ -66,6 +66,7 @@ void tsm_symbol_free_u8(const char *s);
 /* ucs4 to utf8 converter */
 
 size_t tsm_ucs4_to_utf8(uint32_t ucs4, char *out);
+char *tsm_ucs4_to_utf8_alloc(const uint32_t *ucs4, size_t len, size_t *len_out);
 
 /* utf8 state machine */
 

@@ -397,6 +397,29 @@ size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 	}
 }
 
+char *tsm_ucs4_to_utf8_alloc(const uint32_t *ucs4, size_t len, size_t *len_out)
+{
+	char *val;
+	size_t i, pos;
+
+	val = malloc(4 * len);
+	if (!val)
+		return NULL;
+
+	pos = 0;
+	for (i = 0; i < len; ++i)
+		pos += tsm_ucs4_to_utf8(ucs4[i], &val[pos]);
+
+	if (!pos) {
+		free(val);
+		return NULL;
+	}
+
+	if (len_out)
+		*len_out = pos;
+	return val;
+}
+
 /*
  * UTF8 State Machine
  * This state machine parses UTF8 and converts it into a stream of Unicode
