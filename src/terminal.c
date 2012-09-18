@@ -41,7 +41,6 @@
 #include "shl_dlist.h"
 #include "terminal.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 #include "vte.h"
 
