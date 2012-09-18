@@ -87,6 +87,8 @@ struct kmscon_conf_t {
 	unsigned int font_size;
 	/* font name */
 	char *font_name;
+	/* font ppi (overrides per monitor PPI) */
+	unsigned int font_ppi;
 
 	/* color palette */
 	char *palette;

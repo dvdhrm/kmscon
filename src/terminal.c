@@ -187,6 +187,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 	const char *be;
 
+	attr.ppi = kmscon_conf.font_ppi;
 	attr.points = kmscon_conf.font_size;
 	strncpy(attr.name, kmscon_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
 	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;

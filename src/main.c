@@ -456,7 +456,9 @@ static void print_help()
 		"\t    --font-size <points>    [15]\n"
 		"\t                              Font size in points\n"
 		"\t    --font-name <name>      [monospace]\n"
-		"\t                              Font name\n",
+		"\t                              Font name\n"
+		"\t    --font-dpi <dpi>        [96]\n"
+		"\t                              Force DPI value for all fonts\n",
 		"kmscon");
 	/*
 	 * 80 char line:
@@ -573,6 +575,7 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 15),
 	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),
+	CONF_OPTION_UINT(0, "font-dpi", NULL, &kmscon_conf.font_ppi, 96),
 	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
 };
 
