@@ -50,11 +50,6 @@ extern tsm_vte_charset tsm_vte_dec_special_graphics;
 
 struct tsm_vte;
 
-enum tsm_vte_keyboard_action {
-	tsm_vte_DROP,
-	tsm_vte_SEND,
-};
-
 #define TSM_VTE_INVALID 0xffffffff
 
 typedef void (*tsm_vte_write_cb) (struct tsm_vte *vte,
