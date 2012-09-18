@@ -2061,7 +2061,8 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 		return;
 	case STATE_OSC_STRING:
 		switch (raw) {
-		case 0x00 ... 0x17:
+		case 0x00 ... 0x06:
+		case 0x08 ... 0x17:
 		case 0x19:
 		case 0x1c ... 0x1f:
 			do_trans(vte, raw, STATE_NONE, ACTION_IGNORE);
@@ -2069,6 +2070,7 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 		case 0x20 ... 0x7f:
 			do_trans(vte, raw, STATE_NONE, ACTION_OSC_COLLECT);
 			return;
+		case 0x07:
 		case 0x9c:
 			do_trans(vte, raw, STATE_GROUND, ACTION_NONE);
 			return;
