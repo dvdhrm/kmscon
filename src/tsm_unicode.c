@@ -59,12 +59,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include "log.h"
 #include "shl_array.h"
 #include "shl_hashtable.h"
 #include "tsm_unicode.h"
-
-#define LOG_SUBSYSTEM "unicode"
 
 /*
  * Unicode Symbol Handling
@@ -157,10 +154,8 @@ static int table__init()
 	table_next_id = TSM_UCS4_MAX + 2;
 
 	ret = shl_array_new(&table_index, sizeof(uint32_t*), 4);
-	if (ret) {
-		log_err("cannot allocate table-index");
+	if (ret)
 		return ret;
-	}
 
 	/* first entry is not used so add dummy */
 	shl_array_push(table_index, &val);
@@ -177,12 +172,10 @@ static int table__init()
 
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
 {
-	if (ucs4 > TSM_UCS4_MAX) {
-		log_warn("invalid ucs4 character");
+	if (ucs4 > TSM_UCS4_MAX)
 		return 0;
-	} else {
+	else
 		return ucs4;
-	}
 }
 
 /*
@@ -257,7 +250,6 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	}
 
 	if (ucs4 > TSM_UCS4_MAX) {
-		log_warn("invalid ucs4 character");
 		rsym = sym;
 		goto unlock;
 	}
@@ -277,8 +269,6 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 		rsym = (uint32_t)(long)tmp;
 		goto unlock;
 	}
-
-	log_debug("adding new composed symbol");
 
 	nval = malloc(sizeof(uint32_t) * s);
 	if (!nval) {
