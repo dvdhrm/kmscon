@@ -1,0 +1,9 @@
+[Unit]
+Description=KMS System Console
+Documentation=man:kmscon(1)
+
+[Service]
+ExecStart=/usr/bin/kmscon -l /bin/login
+
+[Install]
+WantedBy=multi-user.target
