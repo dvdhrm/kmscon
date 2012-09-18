@@ -149,7 +149,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
 
-	val = tsm_symbol_get_u8(ch, &len);
+	val = tsm_symbol_get_u8(NULL, ch, &len);
 	pango_layout_set_text(layout, val, len);
 	tsm_symbol_free_u8(val);
 

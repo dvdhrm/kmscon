@@ -56,7 +56,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include "shl_array.h"
@@ -100,10 +99,14 @@
 const tsm_symbol_t tsm_symbol_default = 0;
 static const char default_u8[] = { 0 };
 
-static pthread_mutex_t table_mutex = PTHREAD_MUTEX_INITIALIZER;
-static uint32_t table_next_id;
-static struct shl_array *table_index;
-static struct shl_hashtable *table_symbols;
+struct tsm_symbol_table {
+	uint32_t next_id;
+	struct shl_array *index;
+	struct shl_hashtable *symbols;
+};
+
+/* TODO: remove the default context */
+static struct tsm_symbol_table tsm_symbol_table_default;
 
 static unsigned int hash_ucs4(const void *key)
 {
@@ -143,27 +146,27 @@ static bool cmp_ucs4(const void *a, const void *b)
 	}
 }
 
-static int table__init()
+static int table__init(struct tsm_symbol_table *tbl)
 {
 	static const uint32_t *val = NULL; /* we need a valid lvalue */
 	int ret;
 
-	if (table_symbols)
+	if (tbl->symbols)
 		return 0;
 
-	table_next_id = TSM_UCS4_MAX + 2;
+	tbl->next_id = TSM_UCS4_MAX + 2;
 
-	ret = shl_array_new(&table_index, sizeof(uint32_t*), 4);
+	ret = shl_array_new(&tbl->index, sizeof(uint32_t*), 4);
 	if (ret)
 		return ret;
 
 	/* first entry is not used so add dummy */
-	shl_array_push(table_index, &val);
+	shl_array_push(tbl->index, &val);
 
-	ret = shl_hashtable_new(&table_symbols, hash_ucs4, cmp_ucs4,
-					free, NULL);
+	ret = shl_hashtable_new(&tbl->symbols, hash_ucs4, cmp_ucs4,
+				free, NULL);
 	if (ret) {
-		shl_array_free(table_index);
+		shl_array_free(tbl->index);
 		return -ENOMEM;
 	}
 
@@ -189,7 +192,8 @@ tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
  * This always returns a valid value. If an error happens, the default character
  * is returned. If \size is NULL, then the size value is omitted.
  */
-static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
+static const uint32_t *table__get(struct tsm_symbol_table *tbl,
+				  tsm_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
 
@@ -199,13 +203,13 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 		return sym;
 	}
 
-	if (table__init()) {
+	if (table__init(tbl)) {
 		if (size)
 			*size = 1;
 		return &tsm_symbol_default;
 	}
 
-	ucs4 = *SHL_ARRAY_AT(table_index, uint32_t*,
+	ucs4 = *SHL_ARRAY_AT(tbl->index, uint32_t*,
 			     *sym - (TSM_UCS4_MAX + 1));
 	if (!ucs4) {
 		if (size)
@@ -222,18 +226,21 @@ static const uint32_t *table__get(tsm_symbol_t *sym, size_t *size)
 	return ucs4;
 }
 
-const uint32_t *tsm_symbol_get(tsm_symbol_t *sym, size_t *size)
+const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
+			       tsm_symbol_t *sym, size_t *size)
 {
 	const uint32_t *res;
 
-	pthread_mutex_lock(&table_mutex);
-	res = table__get(sym, size);
-	pthread_mutex_unlock(&table_mutex);
+	if (!tbl)
+		tbl = &tsm_symbol_table_default;
+
+	res = table__get(tbl, sym, size);
 
 	return res;
 }
 
-tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
+tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
+			       tsm_symbol_t sym, uint32_t ucs4)
 {
 	uint32_t buf[TSM_UCS4_MAXLEN + 1], nsym, *nval;
 	const uint32_t *ptr;
@@ -242,9 +249,10 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	void *tmp;
 	bool res;
 
-	pthread_mutex_lock(&table_mutex);
+	if (!tbl)
+		tbl = &tsm_symbol_table_default;
 
-	if (table__init()) {
+	if (table__init(tbl)) {
 		rsym = sym;
 		goto unlock;
 	}
@@ -254,7 +262,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 		goto unlock;
 	}
 
-	ptr = table__get(&sym, &s);
+	ptr = table__get(tbl, &sym, &s);
 	if (s >= TSM_UCS4_MAXLEN) {
 		rsym = sym;
 		goto unlock;
@@ -264,7 +272,7 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	buf[s++] = ucs4;
 	buf[s++] = TSM_UCS4_MAX + 1;
 
-	res = shl_hashtable_find(table_symbols, &tmp, buf);
+	res = shl_hashtable_find(tbl->symbols, &tmp, buf);
 	if (res) {
 		rsym = (uint32_t)(long)tmp;
 		goto unlock;
@@ -277,13 +285,12 @@ tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4)
 	}
 
 	memcpy(nval, buf, s * sizeof(uint32_t));
-	nsym = table_next_id++;
-	shl_hashtable_insert(table_symbols, nval, (void*)(long)nsym);
-	shl_array_push(table_index, &nval);
+	nsym = tbl->next_id++;
+	shl_hashtable_insert(tbl->symbols, nval, (void*)(long)nsym);
+	shl_array_push(tbl->index, &nval);
 	rsym = nsym;
 
 unlock:
-	pthread_mutex_unlock(&table_mutex);
 	return rsym;
 }
 
@@ -321,13 +328,17 @@ static size_t ucs4_to_utf8(uint32_t g, char *txt)
 	}
 }
 
-const char *tsm_symbol_get_u8(tsm_symbol_t sym, size_t *size)
+const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
+			      tsm_symbol_t sym, size_t *size)
 {
 	const uint32_t *ucs4;
 	char *val;
 	size_t i, pos, len;
 
-	ucs4 = tsm_symbol_get(&sym, &len);
+	if (!tbl)
+		tbl = &tsm_symbol_table_default;
+
+	ucs4 = tsm_symbol_get(tbl, &sym, &len);
 	val = malloc(4 * len);
 	if (!val)
 		goto err_out;

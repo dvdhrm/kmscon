@@ -84,7 +84,7 @@ static int kmscon_font_unifont_render(struct kmscon_font *font,
 	const uint32_t *val;
 	size_t len;
 
-	val = tsm_symbol_get(&sym, &len);
+	val = tsm_symbol_get(NULL, &sym, &len);
 	if (len > 1 || *val >= kmscon_text_font_unifont_data_hex_len)
 		return -ERANGE;
 

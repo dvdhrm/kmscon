@@ -88,7 +88,7 @@ static int kmscon_font_8x16_render(struct kmscon_font *font,
 	const uint32_t *val;
 	size_t len;
 
-	val = tsm_symbol_get(&sym, &len);
+	val = tsm_symbol_get(NULL, &sym, &len);
 	if (len > 1 || *val >= 256)
 		return -ERANGE;
 

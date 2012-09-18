@@ -45,14 +45,18 @@
 
 /* symbols */
 
+struct tsm_symbol_table;
 typedef uint32_t tsm_symbol_t;
 
 extern const tsm_symbol_t tsm_symbol_default;
 
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4);
-tsm_symbol_t tsm_symbol_append(tsm_symbol_t sym, uint32_t ucs4);
-const uint32_t *tsm_symbol_get(tsm_symbol_t *sym, size_t *size);
-const char *tsm_symbol_get_u8(tsm_symbol_t sym, size_t *size);
+tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
+			       tsm_symbol_t sym, uint32_t ucs4);
+const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
+			       tsm_symbol_t *sym, size_t *size);
+const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
+			      tsm_symbol_t sym, size_t *size);
 void tsm_symbol_free_u8(const char *s);
 
 /* utf8 state machine */

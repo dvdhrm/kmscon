@@ -2625,7 +2625,7 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			vte_write_raw(vte, &val, 1);
 		} else {
 			sym = tsm_symbol_make(unicode);
-			u8 = tsm_symbol_get_u8(sym, &len);
+			u8 = tsm_symbol_get_u8(NULL, sym, &len);
 			vte_write_raw(vte, u8, len);
 			tsm_symbol_free_u8(u8);
 		}

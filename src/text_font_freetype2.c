@@ -181,7 +181,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	 * TODO: Fix this by drawing all related characters into a single glyph
 	 * and saving it or simply refer to the pango backend which already does
 	 * that. */
-	val = tsm_symbol_get(&ch, &len);
+	val = tsm_symbol_get(NULL, &ch, &len);
 	if (len > 1 || !*val) {
 		ret = -ERANGE;
 		goto out_glyph;
