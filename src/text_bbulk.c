@@ -112,7 +112,7 @@ static void bbulk_unset(struct kmscon_text *txt)
 static int bbulk_draw(struct kmscon_text *txt,
 		      uint32_t id, const uint32_t *ch, size_t len,
 		      unsigned int posx, unsigned int posy,
-		      const struct kmscon_console_attr *attr)
+		      const struct tsm_screen_attr *attr)
 {
 	struct bbulk *bb = txt->data;
 	const struct kmscon_glyph *glyph;

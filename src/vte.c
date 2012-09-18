@@ -139,7 +139,7 @@ enum parser_action {
 struct vte_saved_state {
 	unsigned int cursor_x;
 	unsigned int cursor_y;
-	struct kmscon_console_attr cattr;
+	struct tsm_screen_attr cattr;
 	kmscon_vte_charset *gl;
 	kmscon_vte_charset *gr;
 	bool wrap_mode;
@@ -148,7 +148,7 @@ struct vte_saved_state {
 
 struct kmscon_vte {
 	unsigned long ref;
-	struct kmscon_console *con;
+	struct tsm_screen *con;
 	kmscon_vte_write_cb write_cb;
 	void *data;
 
@@ -161,8 +161,8 @@ struct kmscon_vte {
 	unsigned int csi_flags;
 
 	uint8_t (*palette)[3];
-	struct kmscon_console_attr def_attr;
-	struct kmscon_console_attr cattr;
+	struct tsm_screen_attr def_attr;
+	struct tsm_screen_attr cattr;
 	unsigned int flags;
 
 	kmscon_vte_charset *gl;
@@ -310,7 +310,7 @@ static uint8_t (*get_palette(void))[3]
  * be called before passing the attribute to the console layer so the console
  * layer can always work with RGB values and does not have to care for color
  * codes. */
-static void to_rgb(struct kmscon_vte *vte, struct kmscon_console_attr *attr)
+static void to_rgb(struct kmscon_vte *vte, struct tsm_screen_attr *attr)
 {
 	int8_t code;
 
@@ -338,8 +338,8 @@ static void to_rgb(struct kmscon_vte *vte, struct kmscon_console_attr *attr)
 	}
 }
 
-static void copy_fcolor(struct kmscon_console_attr *dest,
-			const struct kmscon_console_attr *src)
+static void copy_fcolor(struct tsm_screen_attr *dest,
+			const struct tsm_screen_attr *src)
 {
 	dest->fccode = src->fccode;
 	dest->fr = src->fr;
@@ -347,8 +347,8 @@ static void copy_fcolor(struct kmscon_console_attr *dest,
 	dest->fb = src->fb;
 }
 
-static void copy_bcolor(struct kmscon_console_attr *dest,
-			const struct kmscon_console_attr *src)
+static void copy_bcolor(struct tsm_screen_attr *dest,
+			const struct tsm_screen_attr *src)
 {
 	dest->bccode = src->bccode;
 	dest->br = src->br;
@@ -356,7 +356,7 @@ static void copy_bcolor(struct kmscon_console_attr *dest,
 	dest->bb = src->bb;
 }
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
+int kmscon_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
 		   kmscon_vte_write_cb write_cb, void *data)
 {
 	struct kmscon_vte *vte;
@@ -384,10 +384,10 @@ int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
 		goto err_free;
 
 	kmscon_vte_reset(vte);
-	kmscon_console_erase_screen(vte->con, false);
+	tsm_screen_erase_screen(vte->con, false);
 
 	log_debug("new vte object");
-	kmscon_console_ref(vte->con);
+	tsm_screen_ref(vte->con);
 	*out = vte;
 	return 0;
 
@@ -413,7 +413,7 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
 		return;
 
 	log_debug("destroying vte object");
-	kmscon_console_unref(vte->con);
+	tsm_screen_unref(vte->con);
 	tsm_utf8_mach_free(vte->mach);
 	free(vte);
 }
@@ -490,7 +490,7 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 static void write_console(struct kmscon_vte *vte, tsm_symbol_t sym)
 {
 	to_rgb(vte, &vte->cattr);
-	kmscon_console_write(vte->con, sym, &vte->cattr);
+	tsm_screen_write(vte->con, sym, &vte->cattr);
 }
 
 static void reset_state(struct kmscon_vte *vte)
@@ -512,8 +512,8 @@ static void reset_state(struct kmscon_vte *vte)
 
 static void save_state(struct kmscon_vte *vte)
 {
-	vte->saved_state.cursor_x = kmscon_console_get_cursor_x(vte->con);
-	vte->saved_state.cursor_y = kmscon_console_get_cursor_y(vte->con);
+	vte->saved_state.cursor_x = tsm_screen_get_cursor_x(vte->con);
+	vte->saved_state.cursor_y = tsm_screen_get_cursor_y(vte->con);
 	vte->saved_state.cattr = vte->cattr;
 	vte->saved_state.gl = vte->gl;
 	vte->saved_state.gr = vte->gr;
@@ -523,33 +523,29 @@ static void save_state(struct kmscon_vte *vte)
 
 static void restore_state(struct kmscon_vte *vte)
 {
-	kmscon_console_move_to(vte->con, vte->saved_state.cursor_x,
+	tsm_screen_move_to(vte->con, vte->saved_state.cursor_x,
 			       vte->saved_state.cursor_y);
 	vte->cattr = vte->saved_state.cattr;
 	to_rgb(vte, &vte->cattr);
 	if (vte->flags & FLAG_BACKGROUND_COLOR_ERASE_MODE)
-		kmscon_console_set_def_attr(vte->con, &vte->cattr);
+		tsm_screen_set_def_attr(vte->con, &vte->cattr);
 	vte->gl = vte->saved_state.gl;
 	vte->gr = vte->saved_state.gr;
 
 	if (vte->saved_state.wrap_mode) {
 		vte->flags |= FLAG_AUTO_WRAP_MODE;
-		kmscon_console_set_flags(vte->con,
-					 KMSCON_CONSOLE_AUTO_WRAP);
+		tsm_screen_set_flags(vte->con, TSM_SCREEN_AUTO_WRAP);
 	} else {
 		vte->flags &= ~FLAG_AUTO_WRAP_MODE;
-		kmscon_console_reset_flags(vte->con,
-					   KMSCON_CONSOLE_AUTO_WRAP);
+		tsm_screen_reset_flags(vte->con, TSM_SCREEN_AUTO_WRAP);
 	}
 
 	if (vte->saved_state.origin_mode) {
 		vte->flags |= FLAG_ORIGIN_MODE;
-		kmscon_console_set_flags(vte->con,
-					 KMSCON_CONSOLE_REL_ORIGIN);
+		tsm_screen_set_flags(vte->con, TSM_SCREEN_REL_ORIGIN);
 	} else {
 		vte->flags &= ~FLAG_ORIGIN_MODE;
-		kmscon_console_reset_flags(vte->con,
-					   KMSCON_CONSOLE_REL_ORIGIN);
+		tsm_screen_reset_flags(vte->con, TSM_SCREEN_REL_ORIGIN);
 	}
 }
 
@@ -570,8 +566,8 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 	vte->flags |= FLAG_SEND_RECEIVE_MODE;
 	vte->flags |= FLAG_AUTO_WRAP_MODE;
 	vte->flags |= FLAG_BACKGROUND_COLOR_ERASE_MODE;
-	kmscon_console_reset(vte->con);
-	kmscon_console_set_flags(vte->con, KMSCON_CONSOLE_AUTO_WRAP);
+	tsm_screen_reset(vte->con);
+	tsm_screen_set_flags(vte->con, TSM_SCREEN_AUTO_WRAP);
 
 	tsm_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
@@ -586,7 +582,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 
 	memcpy(&vte->cattr, &vte->def_attr, sizeof(vte->cattr));
 	to_rgb(vte, &vte->cattr);
-	kmscon_console_set_def_attr(vte->con, &vte->def_attr);
+	tsm_screen_set_def_attr(vte->con, &vte->def_attr);
 
 	reset_state(vte);
 }
@@ -594,9 +590,9 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 static void hard_reset(struct kmscon_vte *vte)
 {
 	kmscon_vte_reset(vte);
-	kmscon_console_erase_screen(vte->con, false);
-	kmscon_console_clear_sb(vte->con);
-	kmscon_console_move_to(vte->con, 0, 0);
+	tsm_screen_erase_screen(vte->con, false);
+	tsm_screen_clear_sb(vte->con);
+	tsm_screen_move_to(vte->con, 0, 0);
 }
 
 static void send_primary_da(struct kmscon_vte *vte)
@@ -625,24 +621,24 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x08: /* BS */
 		/* Move cursor one position left */
-		kmscon_console_move_left(vte->con, 1);
+		tsm_screen_move_left(vte->con, 1);
 		break;
 	case 0x09: /* HT */
 		/* Move to next tab stop or end of line */
-		kmscon_console_tab_right(vte->con, 1);
+		tsm_screen_tab_right(vte->con, 1);
 		break;
 	case 0x0a: /* LF */
 	case 0x0b: /* VT */
 	case 0x0c: /* FF */
 		/* Line feed or newline (CR/NL mode) */
 		if (vte->flags & FLAG_LINE_FEED_NEW_LINE_MODE)
-			kmscon_console_newline(vte->con);
+			tsm_screen_newline(vte->con);
 		else
-			kmscon_console_move_down(vte->con, 1, true);
+			tsm_screen_move_down(vte->con, 1, true);
 		break;
 	case 0x0d: /* CR */
 		/* Move cursor to left margin */
-		kmscon_console_move_line_home(vte->con);
+		tsm_screen_move_line_home(vte->con);
 		break;
 	case 0x0e: /* SO */
 		/* Map G1 character set into GL */
@@ -677,19 +673,19 @@ static void do_execute(struct kmscon_vte *vte, uint32_t ctrl)
 		break;
 	case 0x84: /* IND */
 		/* Move down one row, perform scroll-up if needed */
-		kmscon_console_move_down(vte->con, 1, true);
+		tsm_screen_move_down(vte->con, 1, true);
 		break;
 	case 0x85: /* NEL */
 		/* CR/NL with scroll-up if needed */
-		kmscon_console_newline(vte->con);
+		tsm_screen_newline(vte->con);
 		break;
 	case 0x88: /* HTS */
 		/* Set tab stop at current position */
-		kmscon_console_set_tabstop(vte->con);
+		tsm_screen_set_tabstop(vte->con);
 		break;
 	case 0x8d: /* RI */
 		/* Move up one row, perform scroll-down if needed */
-		kmscon_console_move_up(vte->con, 1, true);
+		tsm_screen_move_up(vte->con, 1, true);
 		break;
 	case 0x8e: /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
@@ -904,19 +900,19 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 	switch (data) {
 	case 'D': /* IND */
 		/* Move down one row, perform scroll-up if needed */
-		kmscon_console_move_down(vte->con, 1, true);
+		tsm_screen_move_down(vte->con, 1, true);
 		break;
 	case 'E': /* NEL */
 		/* CR/NL with scroll-up if needed */
-		kmscon_console_newline(vte->con);
+		tsm_screen_newline(vte->con);
 		break;
 	case 'H': /* HTS */
 		/* Set tab stop at current position */
-		kmscon_console_set_tabstop(vte->con);
+		tsm_screen_set_tabstop(vte->con);
 		break;
 	case 'M': /* RI */
 		/* Move up one row, perform scroll-down if needed */
-		kmscon_console_move_up(vte->con, 1, true);
+		tsm_screen_move_up(vte->con, 1, true);
 		break;
 	case 'N': /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
@@ -1179,7 +1175,7 @@ static void csi_attribute(struct kmscon_vte *vte)
 
 	to_rgb(vte, &vte->cattr);
 	if (vte->flags & FLAG_BACKGROUND_COLOR_ERASE_MODE)
-		kmscon_console_set_def_attr(vte->con, &vte->cattr);
+		tsm_screen_set_def_attr(vte->con, &vte->cattr);
 }
 
 static void csi_soft_reset(struct kmscon_vte *vte)
@@ -1254,11 +1250,11 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 				set_reset_flag(vte, set,
 					       FLAG_INSERT_REPLACE_MODE);
 				if (set)
-					kmscon_console_set_flags(vte->con,
-						KMSCON_CONSOLE_INSERT_MODE);
+					tsm_screen_set_flags(vte->con,
+						TSM_SCREEN_INSERT_MODE);
 				else
-					kmscon_console_reset_flags(vte->con,
-						KMSCON_CONSOLE_INSERT_MODE);
+					tsm_screen_reset_flags(vte->con,
+						TSM_SCREEN_INSERT_MODE);
 				continue;
 			case 12: /* SRM */
 				set_reset_flag(vte, set,
@@ -1312,29 +1308,29 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 		case 5: /* DECSCNM */
 			set_reset_flag(vte, set, FLAG_INVERSE_SCREEN_MODE);
 			if (set)
-				kmscon_console_set_flags(vte->con,
-						KMSCON_CONSOLE_INVERSE);
+				tsm_screen_set_flags(vte->con,
+						TSM_SCREEN_INVERSE);
 			else
-				kmscon_console_reset_flags(vte->con,
-						KMSCON_CONSOLE_INVERSE);
+				tsm_screen_reset_flags(vte->con,
+						TSM_SCREEN_INVERSE);
 			continue;
 		case 6: /* DECOM */
 			set_reset_flag(vte, set, FLAG_ORIGIN_MODE);
 			if (set)
-				kmscon_console_set_flags(vte->con,
-						KMSCON_CONSOLE_REL_ORIGIN);
+				tsm_screen_set_flags(vte->con,
+						TSM_SCREEN_REL_ORIGIN);
 			else
-				kmscon_console_reset_flags(vte->con,
-						KMSCON_CONSOLE_REL_ORIGIN);
+				tsm_screen_reset_flags(vte->con,
+						TSM_SCREEN_REL_ORIGIN);
 			continue;
 		case 7: /* DECAWN */
 			set_reset_flag(vte, set, FLAG_AUTO_WRAP_MODE);
 			if (set)
-				kmscon_console_set_flags(vte->con,
-						KMSCON_CONSOLE_AUTO_WRAP);
+				tsm_screen_set_flags(vte->con,
+						TSM_SCREEN_AUTO_WRAP);
 			else
-				kmscon_console_reset_flags(vte->con,
-						KMSCON_CONSOLE_AUTO_WRAP);
+				tsm_screen_reset_flags(vte->con,
+						TSM_SCREEN_AUTO_WRAP);
 			continue;
 		case 8: /* DECARM */
 			set_reset_flag(vte, set, FLAG_AUTO_REPEAT_MODE);
@@ -1353,11 +1349,11 @@ static void csi_mode(struct kmscon_vte *vte, bool set)
 		case 25: /* DECTCEM */
 			set_reset_flag(vte, set, FLAG_TEXT_CURSOR_MODE);
 			if (set)
-				kmscon_console_reset_flags(vte->con,
-						KMSCON_CONSOLE_HIDE_CURSOR);
+				tsm_screen_reset_flags(vte->con,
+						TSM_SCREEN_HIDE_CURSOR);
 			else
-				kmscon_console_set_flags(vte->con,
-						KMSCON_CONSOLE_HIDE_CURSOR);
+				tsm_screen_set_flags(vte->con,
+						TSM_SCREEN_HIDE_CURSOR);
 			continue;
 		case 42: /* DECNRCM */
 			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
@@ -1394,8 +1390,8 @@ static void csi_dsr(struct kmscon_vte *vte)
 	if (vte->csi_argv[0] == 5) {
 		vte_write(vte, "\e[0n", 4);
 	} else if (vte->csi_argv[0] == 6) {
-		x = kmscon_console_get_cursor_x(vte->con);
-		y = kmscon_console_get_cursor_y(vte->con);
+		x = tsm_screen_get_cursor_x(vte->con);
+		y = tsm_screen_get_cursor_y(vte->con);
 		len = snprintf(buf, sizeof(buf), "\e[%u;%uR", x, y);
 		if (len >= sizeof(buf))
 			vte_write(vte, "\e[0;0R", 6);
@@ -1418,45 +1414,45 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_move_up(vte->con, num, false);
+		tsm_screen_move_up(vte->con, num, false);
 		break;
 	case 'B': /* CUD */
 		/* move cursor down */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_move_down(vte->con, num, false);
+		tsm_screen_move_down(vte->con, num, false);
 		break;
 	case 'C': /* CUF */
 		/* move cursor forward */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_move_right(vte->con, num);
+		tsm_screen_move_right(vte->con, num);
 		break;
 	case 'D': /* CUB */
 		/* move cursor backward */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_move_left(vte->con, num);
+		tsm_screen_move_left(vte->con, num);
 		break;
 	case 'd': /* VPA */
 		/* Vertical Line Position Absolute */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		x = kmscon_console_get_cursor_x(vte->con);
-		kmscon_console_move_to(vte->con, x, num - 1);
+		x = tsm_screen_get_cursor_x(vte->con);
+		tsm_screen_move_to(vte->con, x, num - 1);
 		break;
 	case 'e': /* VPR */
 		/* Vertical Line Position Relative */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		x = kmscon_console_get_cursor_x(vte->con);
-		y = kmscon_console_get_cursor_y(vte->con);
-		kmscon_console_move_to(vte->con, x, y + num);
+		x = tsm_screen_get_cursor_x(vte->con);
+		y = tsm_screen_get_cursor_y(vte->con);
+		tsm_screen_move_to(vte->con, x, y + num);
 		break;
 	case 'H': /* CUP */
 	case 'f': /* HVP */
@@ -1467,15 +1463,15 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		y = vte->csi_argv[1];
 		if (y <= 0)
 			y = 1;
-		kmscon_console_move_to(vte->con, y - 1, x - 1);
+		tsm_screen_move_to(vte->con, y - 1, x - 1);
 		break;
 	case 'G': /* CHA */
 		/* Cursor Character Absolute */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		y = kmscon_console_get_cursor_y(vte->con);
-		kmscon_console_move_to(vte->con, num - 1, y);
+		y = tsm_screen_get_cursor_y(vte->con);
+		tsm_screen_move_to(vte->con, num - 1, y);
 		break;
 	case 'J':
 		if (vte->csi_flags & CSI_WHAT)
@@ -1484,13 +1480,13 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			protect = false;
 
 		if (vte->csi_argv[0] <= 0)
-			kmscon_console_erase_cursor_to_screen(vte->con,
+			tsm_screen_erase_cursor_to_screen(vte->con,
 							      protect);
 		else if (vte->csi_argv[0] == 1)
-			kmscon_console_erase_screen_to_cursor(vte->con,
+			tsm_screen_erase_screen_to_cursor(vte->con,
 							      protect);
 		else if (vte->csi_argv[0] == 2)
-			kmscon_console_erase_screen(vte->con, protect);
+			tsm_screen_erase_screen(vte->con, protect);
 		else
 			log_debug("unknown parameter to CSI-J: %d",
 				  vte->csi_argv[0]);
@@ -1502,11 +1498,11 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 			protect = false;
 
 		if (vte->csi_argv[0] <= 0)
-			kmscon_console_erase_cursor_to_end(vte->con, protect);
+			tsm_screen_erase_cursor_to_end(vte->con, protect);
 		else if (vte->csi_argv[0] == 1)
-			kmscon_console_erase_home_to_cursor(vte->con, protect);
+			tsm_screen_erase_home_to_cursor(vte->con, protect);
 		else if (vte->csi_argv[0] == 2)
-			kmscon_console_erase_current_line(vte->con, protect);
+			tsm_screen_erase_current_line(vte->con, protect);
 		else
 			log_debug("unknown parameter to CSI-K: %d",
 				  vte->csi_argv[0]);
@@ -1516,7 +1512,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_erase_chars(vte->con, num);
+		tsm_screen_erase_chars(vte->con, num);
 		break;
 	case 'm':
 		csi_attribute(vte);
@@ -1553,7 +1549,7 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		lower = vte->csi_argv[1];
 		if (lower < 0)
 			lower = 0;
-		kmscon_console_set_margins(vte->con, upper, lower);
+		tsm_screen_set_margins(vte->con, upper, lower);
 		break;
 	case 'c': /* DA */
 		/* device attributes */
@@ -1564,22 +1560,22 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_insert_lines(vte->con, num);
+		tsm_screen_insert_lines(vte->con, num);
 		break;
 	case 'M': /* DL */
 		/* delete lines */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_delete_lines(vte->con, num);
+		tsm_screen_delete_lines(vte->con, num);
 		break;
 	case 'g': /* TBC */
 		/* tabulation clear */
 		num = vte->csi_argv[0];
 		if (num <= 0)
-			kmscon_console_reset_tabstop(vte->con);
+			tsm_screen_reset_tabstop(vte->con);
 		else if (num == 3)
-			kmscon_console_reset_all_tabstops(vte->con);
+			tsm_screen_reset_all_tabstops(vte->con);
 		else
 			log_debug("invalid parameter %d to TBC CSI", num);
 		break;
@@ -1588,28 +1584,28 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_insert_chars(vte->con, num);
+		tsm_screen_insert_chars(vte->con, num);
 		break;
 	case 'P': /* DCH */
 		/* delete characters */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_delete_chars(vte->con, num);
+		tsm_screen_delete_chars(vte->con, num);
 		break;
 	case 'Z': /* CBT */
 		/* cursor horizontal backwards tab */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_tab_left(vte->con, num);
+		tsm_screen_tab_left(vte->con, num);
 		break;
 	case 'I': /* CHT */
 		/* cursor horizontal forward tab */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_tab_right(vte->con, num);
+		tsm_screen_tab_right(vte->con, num);
 		break;
 	case 'n': /* DSR */
 		/* device status reports */
@@ -1620,14 +1616,14 @@ static void do_csi(struct kmscon_vte *vte, uint32_t data)
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_scroll_up(vte->con, num);
+		tsm_screen_scroll_up(vte->con, num);
 		break;
 	case 'T': /* SD */
 		/* scroll down */
 		num = vte->csi_argv[0];
 		if (num <= 0)
 			num = 1;
-		kmscon_console_scroll_down(vte->con, num);
+		tsm_screen_scroll_down(vte->con, num);
 		break;
 	default:
 		log_debug("unhandled CSI sequence %c", data);

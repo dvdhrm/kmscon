@@ -448,7 +448,7 @@ int kmscon_text_prepare(struct kmscon_text *txt)
 int kmscon_text_draw(struct kmscon_text *txt,
 		     uint32_t id, const uint32_t *ch, size_t len,
 		     unsigned int posx, unsigned int posy,
-		     const struct kmscon_console_attr *attr)
+		     const struct tsm_screen_attr *attr)
 {
 	if (!txt || !txt->rendering)
 		return -EINVAL;
@@ -501,20 +501,20 @@ void kmscon_text_abort(struct kmscon_text *txt)
 	txt->rendering = false;
 }
 
-int kmscon_text_prepare_cb(struct kmscon_console *con, void *data)
+int kmscon_text_prepare_cb(struct tsm_screen *con, void *data)
 {
 	return kmscon_text_prepare(data);
 }
 
-int kmscon_text_draw_cb(struct kmscon_console *con,
+int kmscon_text_draw_cb(struct tsm_screen *con,
 			uint32_t id, const uint32_t *ch, size_t len,
 			unsigned int posx, unsigned int posy,
-			const struct kmscon_console_attr *attr, void *data)
+			const struct tsm_screen_attr *attr, void *data)
 {
 	return kmscon_text_draw(data, id, ch, len, posx, posy, attr);
 }
 
-int kmscon_text_render_cb(struct kmscon_console *con, void *data)
+int kmscon_text_render_cb(struct tsm_screen *con, void *data)
 {
 	return kmscon_text_render(data);
 }

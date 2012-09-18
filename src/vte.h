@@ -62,7 +62,7 @@ typedef void (*kmscon_vte_write_cb) (struct kmscon_vte *vte,
 				     size_t len,
 				     void *data);
 
-int kmscon_vte_new(struct kmscon_vte **out, struct kmscon_console *con,
+int kmscon_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
 		   kmscon_vte_write_cb write_cb, void *data);
 void kmscon_vte_ref(struct kmscon_vte *vte);
 void kmscon_vte_unref(struct kmscon_vte *vte);

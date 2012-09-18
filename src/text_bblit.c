@@ -60,7 +60,7 @@ static int bblit_set(struct kmscon_text *txt)
 static int bblit_draw(struct kmscon_text *txt,
 		      uint32_t id, const uint32_t *ch, size_t len,
 		      unsigned int posx, unsigned int posy,
-		      const struct kmscon_console_attr *attr)
+		      const struct tsm_screen_attr *attr)
 {
 	const struct kmscon_glyph *glyph;
 	int ret;

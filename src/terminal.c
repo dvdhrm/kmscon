@@ -68,7 +68,7 @@ struct kmscon_terminal {
 	unsigned int fps;
 	unsigned int redraw;
 	struct ev_timer *redraw_timer;
-	struct kmscon_console *console;
+	struct tsm_screen *console;
 	struct kmscon_vte *vte;
 	struct kmscon_pty *pty;
 
@@ -89,7 +89,7 @@ static void redraw(struct kmscon_terminal *term)
 		ent = shl_dlist_entry(iter, struct screen, list);
 		screen = ent->screen;
 
-		kmscon_console_draw(term->console,
+		tsm_screen_draw(term->console,
 				    kmscon_text_prepare_cb,
 				    kmscon_text_draw_cb,
 				    kmscon_text_render_cb,
@@ -173,7 +173,7 @@ static void terminal_resize(struct kmscon_terminal *term,
 		return;
 
 	/* shrinking always succeeds */
-	kmscon_console_resize(term->console, term->min_cols, term->min_rows);
+	tsm_screen_resize(term->console, term->min_cols, term->min_rows);
 	kmscon_pty_resize(term->pty, term->min_cols, term->min_rows);
 }
 
@@ -348,32 +348,32 @@ static void input_event(struct uterm_input *input,
 
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_up->mods) &&
 	    ev->keysym == kmscon_conf.grab_scroll_up->keysym) {
-		kmscon_console_sb_up(term->console, 1);
+		tsm_screen_sb_up(term->console, 1);
 		schedule_redraw(term);
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_down->mods) &&
 	    ev->keysym == kmscon_conf.grab_scroll_down->keysym) {
-		kmscon_console_sb_down(term->console, 1);
+		tsm_screen_sb_down(term->console, 1);
 		schedule_redraw(term);
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_up->mods) &&
 	    ev->keysym == kmscon_conf.grab_page_up->keysym) {
-		kmscon_console_sb_page_up(term->console, 1);
+		tsm_screen_sb_page_up(term->console, 1);
 		schedule_redraw(term);
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_down->mods) &&
 	    ev->keysym == kmscon_conf.grab_page_down->keysym) {
-		kmscon_console_sb_page_down(term->console, 1);
+		tsm_screen_sb_page_down(term->console, 1);
 		schedule_redraw(term);
 		return;
 	}
 
 	if (kmscon_vte_handle_keyboard(term->vte, ev->keysym, ev->mods,
 				       ev->unicode)) {
-		kmscon_console_sb_reset(term->console);
+		tsm_screen_sb_reset(term->console);
 		schedule_redraw(term);
 	}
 }
@@ -421,10 +421,10 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	term->fps = 1000000000ULL / fps;
 	log_debug("FPS: %lu TIMER: %lu", term->fps, fps);
 
-	ret = kmscon_console_new(&term->console);
+	ret = tsm_screen_new(&term->console);
 	if (ret)
 		goto err_free;
-	kmscon_console_set_max_sb(term->console, kmscon_conf.sb_size);
+	tsm_screen_set_max_sb(term->console, kmscon_conf.sb_size);
 
 	ret = kmscon_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)
@@ -468,7 +468,7 @@ err_pty:
 err_vte:
 	kmscon_vte_unref(term->vte);
 err_con:
-	kmscon_console_unref(term->console);
+	tsm_screen_unref(term->console);
 err_free:
 	free(term);
 	return ret;
@@ -498,7 +498,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	uterm_input_unregister_cb(term->input, input_event, term);
 	kmscon_pty_unref(term->pty);
 	kmscon_vte_unref(term->vte);
-	kmscon_console_unref(term->console);
+	tsm_screen_unref(term->console);
 	uterm_input_unref(term->input);
 	ev_eloop_unref(term->eloop);
 	free(term);
@@ -514,8 +514,8 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 		return -EINVAL;
 
 	kmscon_pty_close(term->pty);
-	width = kmscon_console_get_width(term->console);
-	height = kmscon_console_get_height(term->console);
+	width = tsm_screen_get_width(term->console);
+	height = tsm_screen_get_height(term->console);
 	ret = kmscon_pty_open(term->pty, width, height);
 	if (ret)
 		return ret;

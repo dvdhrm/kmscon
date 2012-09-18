@@ -1,5 +1,5 @@
 /*
- * kmscon - Console Management
+ * kmscon - Screen Management
  *
  * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -25,8 +25,8 @@
  */
 
 /*
- * Console Management
- * This provides the console drawing and manipulation functions. It does not
+ * Screen Management
+ * This provides the screen drawing and manipulation functions. It does not
  * provide the terminal emulation. It is just an abstraction layer to draw text
  * to a framebuffer as used by terminals and consoles.
  */
@@ -41,11 +41,11 @@
 #include "shl_timer.h"
 #include "tsm_unicode.h"
 
-#define LOG_SUBSYSTEM "console"
+#define LOG_SUBSYSTEM "tsm_screen"
 
 struct cell {
 	tsm_symbol_t ch;
-	struct kmscon_console_attr attr;
+	struct tsm_screen_attr attr;
 };
 
 struct line {
@@ -56,13 +56,13 @@ struct line {
 	struct cell *cells;
 };
 
-struct kmscon_console {
+struct tsm_screen {
 	size_t ref;
 	unsigned int flags;
 	struct shl_timer *timer;
 
 	/* default attributes for new cells */
-	struct kmscon_console_attr def_attr;
+	struct tsm_screen_attr def_attr;
 
 	/* current buffer */
 	unsigned int size_x;
@@ -87,13 +87,13 @@ struct kmscon_console {
 	bool *tab_ruler;
 };
 
-static void cell_init(struct kmscon_console *con, struct cell *cell)
+static void cell_init(struct tsm_screen *con, struct cell *cell)
 {
 	cell->ch = 0;
 	memcpy(&cell->attr, &con->def_attr, sizeof(cell->attr));
 }
 
-static int line_new(struct kmscon_console *con, struct line **out,
+static int line_new(struct tsm_screen *con, struct line **out,
 		    unsigned int width)
 {
 	struct line *line;
@@ -128,7 +128,7 @@ static void line_free(struct line *line)
 	free(line);
 }
 
-static int line_resize(struct kmscon_console *con, struct line *line,
+static int line_resize(struct tsm_screen *con, struct line *line,
 		       unsigned int width)
 {
 	struct cell *tmp;
@@ -154,7 +154,7 @@ static int line_resize(struct kmscon_console *con, struct line *line,
 }
 
 /* This links the given line into the scrollback-buffer */
-static void link_to_scrollback(struct kmscon_console *con, struct line *line)
+static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 {
 	struct line *tmp;
 
@@ -185,7 +185,7 @@ static void link_to_scrollback(struct kmscon_console *con, struct line *line)
 		 * next inserted line, which can be "line", too. */
 		if (con->sb_pos) {
 			if (con->sb_pos == tmp ||
-			    !(con->flags & KMSCON_CONSOLE_FIXED_POS)) {
+			    !(con->flags & TSM_SCREEN_FIXED_POS)) {
 				if (con->sb_pos->next)
 					con->sb_pos = con->sb_pos->next;
 				else
@@ -206,7 +206,7 @@ static void link_to_scrollback(struct kmscon_console *con, struct line *line)
 }
 
 /* Unlinks last line from the scrollback buffer, Returns NULL if it is empty */
-static struct line *get_from_scrollback(struct kmscon_console *con)
+static struct line *get_from_scrollback(struct tsm_screen *con)
 {
 	struct line *line;
 
@@ -223,7 +223,7 @@ static struct line *get_from_scrollback(struct kmscon_console *con)
 
 	/* correctly move the current position if it is set in the sb */
 	if (con->sb_pos) {
-		if (con->flags & KMSCON_CONSOLE_FIXED_POS ||
+		if (con->flags & TSM_SCREEN_FIXED_POS ||
 		    !con->sb_pos->prev) {
 			if (con->sb_pos == line)
 				con->sb_pos = NULL;
@@ -237,7 +237,7 @@ static struct line *get_from_scrollback(struct kmscon_console *con)
 	return line;
 }
 
-static void console_scroll_up(struct kmscon_console *con, unsigned int num)
+static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j, max;
 	int ret;
@@ -255,8 +255,8 @@ static void console_scroll_up(struct kmscon_console *con, unsigned int num)
 	 * 128 seems to be a sane limit that should never be reached but should
 	 * also be small enough so we do not get stack overflows. */
 	if (num > 128) {
-		console_scroll_up(con, 128);
-		return console_scroll_up(con, num - 128);
+		screen_scroll_up(con, 128);
+		return screen_scroll_up(con, num - 128);
 	}
 	struct line *cache[num];
 
@@ -282,7 +282,7 @@ static void console_scroll_up(struct kmscon_console *con, unsigned int num)
 	       cache, num * sizeof(struct line*));
 }
 
-static void console_scroll_down(struct kmscon_console *con, unsigned int num)
+static void screen_scroll_down(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j, max;
 
@@ -293,10 +293,10 @@ static void console_scroll_down(struct kmscon_console *con, unsigned int num)
 	if (num > max)
 		num = max;
 
-	/* see console_scroll_up() for an explanation */
+	/* see screen_scroll_up() for an explanation */
 	if (num > 128) {
-		console_scroll_down(con, 128);
-		return console_scroll_down(con, num - 128);
+		screen_scroll_down(con, 128);
+		return screen_scroll_down(con, num - 128);
 	}
 	struct line *cache[num];
 
@@ -316,9 +316,9 @@ static void console_scroll_down(struct kmscon_console *con, unsigned int num)
 	       cache, num * sizeof(struct line*));
 }
 
-static void console_write(struct kmscon_console *con, unsigned int x,
+static void screen_write(struct tsm_screen *con, unsigned int x,
 			  unsigned int y, tsm_symbol_t ch,
-			  const struct kmscon_console_attr *attr)
+			  const struct tsm_screen_attr *attr)
 {
 	struct line *line;
 
@@ -329,14 +329,14 @@ static void console_write(struct kmscon_console *con, unsigned int x,
 
 	line = con->lines[y];
 
-	if ((con->flags & KMSCON_CONSOLE_INSERT_MODE) && x < (con->size_x - 1))
+	if ((con->flags & TSM_SCREEN_INSERT_MODE) && x < (con->size_x - 1))
 		memmove(&line->cells[x + 1], &line->cells[x],
 			sizeof(struct cell) * (con->size_x - 1 - x));
 	line->cells[x].ch = ch;
 	memcpy(&line->cells[x].attr, attr, sizeof(*attr));
 }
 
-static void console_erase_region(struct kmscon_console *con,
+static void screen_erase_region(struct tsm_screen *con,
 				 unsigned int x_from,
 				 unsigned int y_from,
 				 unsigned int x_to,
@@ -372,22 +372,22 @@ static void console_erase_region(struct kmscon_console *con,
 	}
 }
 
-static inline unsigned int to_abs_x(struct kmscon_console *con, unsigned int x)
+static inline unsigned int to_abs_x(struct tsm_screen *con, unsigned int x)
 {
 	return x;
 }
 
-static inline unsigned int to_abs_y(struct kmscon_console *con, unsigned int y)
+static inline unsigned int to_abs_y(struct tsm_screen *con, unsigned int y)
 {
-	if (!(con->flags & KMSCON_CONSOLE_REL_ORIGIN))
+	if (!(con->flags & TSM_SCREEN_REL_ORIGIN))
 		return y;
 
 	return con->margin_top + y;
 }
 
-int kmscon_console_new(struct kmscon_console **out)
+int tsm_screen_new(struct tsm_screen **out)
 {
-	struct kmscon_console *con;
+	struct tsm_screen *con;
 	int ret;
 	unsigned int i;
 
@@ -408,11 +408,11 @@ int kmscon_console_new(struct kmscon_console **out)
 	if (ret)
 		goto err_free;
 
-	ret = kmscon_console_resize(con, 80, 24);
+	ret = tsm_screen_resize(con, 80, 24);
 	if (ret)
 		goto err_timer;
 
-	log_debug("new console");
+	log_debug("new screen");
 	*out = con;
 
 	return 0;
@@ -428,7 +428,7 @@ err_free:
 	return ret;
 }
 
-void kmscon_console_ref(struct kmscon_console *con)
+void tsm_screen_ref(struct tsm_screen *con)
 {
 	if (!con)
 		return;
@@ -436,14 +436,14 @@ void kmscon_console_ref(struct kmscon_console *con)
 	++con->ref;
 }
 
-void kmscon_console_unref(struct kmscon_console *con)
+void tsm_screen_unref(struct tsm_screen *con)
 {
 	unsigned int i;
 
 	if (!con || !con->ref || --con->ref)
 		return;
 
-	log_debug("destroying console");
+	log_debug("destroying screen");
 
 	for (i = 0; i < con->line_num; ++i)
 		line_free(con->lines[i]);
@@ -453,7 +453,7 @@ void kmscon_console_unref(struct kmscon_console *con)
 	free(con);
 }
 
-unsigned int kmscon_console_get_width(struct kmscon_console *con)
+unsigned int tsm_screen_get_width(struct tsm_screen *con)
 {
 	if (!con)
 		return 0;
@@ -461,7 +461,7 @@ unsigned int kmscon_console_get_width(struct kmscon_console *con)
 	return con->size_x;
 }
 
-unsigned int kmscon_console_get_height(struct kmscon_console *con)
+unsigned int tsm_screen_get_height(struct tsm_screen *con)
 {
 	if (!con)
 		return 0;
@@ -469,7 +469,7 @@ unsigned int kmscon_console_get_height(struct kmscon_console *con)
 	return con->size_y;
 }
 
-int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
+int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 			  unsigned int y)
 {
 	struct line **cache;
@@ -483,9 +483,9 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	if (con->size_x == x && con->size_y == y)
 		return 0;
 
-	/* First make sure the line buffer is big enough for our new console.
+	/* First make sure the line buffer is big enough for our new screen.
 	 * That is, allocate all new lines and make sure each line has enough
-	 * cells to hold the new console or the current console. If we fail, we
+	 * cells to hold the new screen or the current screen. If we fail, we
 	 * can safely return -ENOMEM and the buffer is still valid. We must
 	 * allocate the new lines to at least the same size as the current
 	 * lines. Otherwise, if this function fails in later turns, we will have
@@ -509,7 +509,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 		}
 	}
 
-	/* Resize all lines in the buffer if we increase console width. This
+	/* Resize all lines in the buffer if we increase screen width. This
 	 * will guarantee that all lines are big enough so we can resize the
 	 * buffer without reallocating them later. */
 	if (x > con->size_x) {
@@ -536,9 +536,9 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	con->margin_top = 0;
 	con->margin_bottom = con->size_y - 1;
 
-	/* scroll buffer if console height shrinks */
+	/* scroll buffer if screen height shrinks */
 	if (con->size_y != 0 && y < con->size_y)
-		console_scroll_up(con, con->size_y - y);
+		screen_scroll_up(con, con->size_y - y);
 
 	/* reset tabs */
 	for (i = 0; i < x; ++i) {
@@ -561,7 +561,7 @@ int kmscon_console_resize(struct kmscon_console *con, unsigned int x,
 	return 0;
 }
 
-int kmscon_console_set_margins(struct kmscon_console *con,
+int tsm_screen_set_margins(struct tsm_screen *con,
 			       unsigned int top, unsigned int bottom)
 {
 	unsigned int upper, lower;
@@ -589,7 +589,7 @@ int kmscon_console_set_margins(struct kmscon_console *con,
 }
 
 /* set maximum scrollback buffer size */
-void kmscon_console_set_max_sb(struct kmscon_console *con,
+void tsm_screen_set_max_sb(struct tsm_screen *con,
 			       unsigned int max)
 {
 	struct line *line;
@@ -618,7 +618,7 @@ void kmscon_console_set_max_sb(struct kmscon_console *con,
 }
 
 /* clear scrollback buffer */
-void kmscon_console_clear_sb(struct kmscon_console *con)
+void tsm_screen_clear_sb(struct tsm_screen *con)
 {
 	struct line *iter, *tmp;
 
@@ -637,7 +637,7 @@ void kmscon_console_clear_sb(struct kmscon_console *con)
 	con->sb_pos = NULL;
 }
 
-void kmscon_console_sb_up(struct kmscon_console *con, unsigned int num)
+void tsm_screen_sb_up(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
@@ -656,7 +656,7 @@ void kmscon_console_sb_up(struct kmscon_console *con, unsigned int num)
 	}
 }
 
-void kmscon_console_sb_down(struct kmscon_console *con, unsigned int num)
+void tsm_screen_sb_down(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
@@ -672,23 +672,23 @@ void kmscon_console_sb_down(struct kmscon_console *con, unsigned int num)
 	}
 }
 
-void kmscon_console_sb_page_up(struct kmscon_console *con, unsigned int num)
+void tsm_screen_sb_page_up(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
 
-	kmscon_console_sb_up(con, num * con->size_y);
+	tsm_screen_sb_up(con, num * con->size_y);
 }
 
-void kmscon_console_sb_page_down(struct kmscon_console *con, unsigned int num)
+void tsm_screen_sb_page_down(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
 
-	kmscon_console_sb_down(con, num * con->size_y);
+	tsm_screen_sb_down(con, num * con->size_y);
 }
 
-void kmscon_console_sb_reset(struct kmscon_console *con)
+void tsm_screen_sb_reset(struct tsm_screen *con)
 {
 	if (!con)
 		return;
@@ -696,8 +696,8 @@ void kmscon_console_sb_reset(struct kmscon_console *con)
 	con->sb_pos = NULL;
 }
 
-void kmscon_console_set_def_attr(struct kmscon_console *con,
-				 const struct kmscon_console_attr *attr)
+void tsm_screen_set_def_attr(struct tsm_screen *con,
+				 const struct tsm_screen_attr *attr)
 {
 	if (!con || !attr)
 		return;
@@ -705,7 +705,7 @@ void kmscon_console_set_def_attr(struct kmscon_console *con,
 	memcpy(&con->def_attr, attr, sizeof(*attr));
 }
 
-void kmscon_console_reset(struct kmscon_console *con)
+void tsm_screen_reset(struct tsm_screen *con)
 {
 	unsigned int i;
 
@@ -724,7 +724,7 @@ void kmscon_console_reset(struct kmscon_console *con)
 	}
 }
 
-void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags)
+void tsm_screen_set_flags(struct tsm_screen *con, unsigned int flags)
 {
 	if (!con || !flags)
 		return;
@@ -732,7 +732,7 @@ void kmscon_console_set_flags(struct kmscon_console *con, unsigned int flags)
 	con->flags |= flags;
 }
 
-void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags)
+void tsm_screen_reset_flags(struct tsm_screen *con, unsigned int flags)
 {
 	if (!con || !flags)
 		return;
@@ -740,7 +740,7 @@ void kmscon_console_reset_flags(struct kmscon_console *con, unsigned int flags)
 	con->flags &= ~flags;
 }
 
-unsigned int kmscon_console_get_flags(struct kmscon_console *con)
+unsigned int tsm_screen_get_flags(struct tsm_screen *con)
 {
 	if (!con)
 		return 0;
@@ -748,7 +748,7 @@ unsigned int kmscon_console_get_flags(struct kmscon_console *con)
 	return con->flags;
 }
 
-unsigned int kmscon_console_get_cursor_x(struct kmscon_console *con)
+unsigned int tsm_screen_get_cursor_x(struct tsm_screen *con)
 {
 	if (!con)
 		return 0;
@@ -756,7 +756,7 @@ unsigned int kmscon_console_get_cursor_x(struct kmscon_console *con)
 	return con->cursor_x;
 }
 
-unsigned int kmscon_console_get_cursor_y(struct kmscon_console *con)
+unsigned int tsm_screen_get_cursor_y(struct tsm_screen *con)
 {
 	if (!con)
 		return 0;
@@ -764,7 +764,7 @@ unsigned int kmscon_console_get_cursor_y(struct kmscon_console *con)
 	return con->cursor_y;
 }
 
-void kmscon_console_set_tabstop(struct kmscon_console *con)
+void tsm_screen_set_tabstop(struct tsm_screen *con)
 {
 	if (!con || con->cursor_x >= con->size_x)
 		return;
@@ -772,7 +772,7 @@ void kmscon_console_set_tabstop(struct kmscon_console *con)
 	con->tab_ruler[con->cursor_x] = true;
 }
 
-void kmscon_console_reset_tabstop(struct kmscon_console *con)
+void tsm_screen_reset_tabstop(struct tsm_screen *con)
 {
 	if (!con || con->cursor_x >= con->size_x)
 		return;
@@ -780,7 +780,7 @@ void kmscon_console_reset_tabstop(struct kmscon_console *con)
 	con->tab_ruler[con->cursor_x] = false;
 }
 
-void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
+void tsm_screen_reset_all_tabstops(struct tsm_screen *con)
 {
 	unsigned int i;
 
@@ -791,8 +791,8 @@ void kmscon_console_reset_all_tabstops(struct kmscon_console *con)
 		con->tab_ruler[i] = false;
 }
 
-void kmscon_console_write(struct kmscon_console *con, tsm_symbol_t ch,
-			  const struct kmscon_console_attr *attr)
+void tsm_screen_write(struct tsm_screen *con, tsm_symbol_t ch,
+			  const struct tsm_screen_attr *attr)
 {
 	unsigned int last;
 
@@ -806,7 +806,7 @@ void kmscon_console_write(struct kmscon_console *con, tsm_symbol_t ch,
 		last = con->size_y - 1;
 
 	if (con->cursor_x >= con->size_x) {
-		if (con->flags & KMSCON_CONSOLE_AUTO_WRAP) {
+		if (con->flags & TSM_SCREEN_AUTO_WRAP) {
 			con->cursor_x = 0;
 			++con->cursor_y;
 		} else {
@@ -816,39 +816,39 @@ void kmscon_console_write(struct kmscon_console *con, tsm_symbol_t ch,
 
 	if (con->cursor_y > last) {
 		con->cursor_y = last;
-		console_scroll_up(con, 1);
+		screen_scroll_up(con, 1);
 	}
 
-	console_write(con, con->cursor_x, con->cursor_y, ch, attr);
+	screen_write(con, con->cursor_x, con->cursor_y, ch, attr);
 	++con->cursor_x;
 }
 
-void kmscon_console_newline(struct kmscon_console *con)
+void tsm_screen_newline(struct tsm_screen *con)
 {
 	if (!con)
 		return;
 
-	kmscon_console_move_down(con, 1, true);
-	kmscon_console_move_line_home(con);
+	tsm_screen_move_down(con, 1, true);
+	tsm_screen_move_line_home(con);
 }
 
-void kmscon_console_scroll_up(struct kmscon_console *con, unsigned int num)
+void tsm_screen_scroll_up(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
 
-	console_scroll_up(con, num);
+	screen_scroll_up(con, num);
 }
 
-void kmscon_console_scroll_down(struct kmscon_console *con, unsigned int num)
+void tsm_screen_scroll_down(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
 
-	console_scroll_down(con, num);
+	screen_scroll_down(con, num);
 }
 
-void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
+void tsm_screen_move_to(struct tsm_screen *con, unsigned int x,
 			    unsigned int y)
 {
 	unsigned int last;
@@ -856,7 +856,7 @@ void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 	if (!con)
 		return;
 
-	if (con->flags & KMSCON_CONSOLE_REL_ORIGIN)
+	if (con->flags & TSM_SCREEN_REL_ORIGIN)
 		last = con->margin_bottom;
 	else
 		last = con->size_y - 1;
@@ -870,7 +870,7 @@ void kmscon_console_move_to(struct kmscon_console *con, unsigned int x,
 		con->cursor_y = last;
 }
 
-void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
+void tsm_screen_move_up(struct tsm_screen *con, unsigned int num,
 			    bool scroll)
 {
 	unsigned int diff, size;
@@ -887,14 +887,14 @@ void kmscon_console_move_up(struct kmscon_console *con, unsigned int num,
 	if (num > diff) {
 		num -= diff;
 		if (scroll)
-			console_scroll_down(con, num);
+			screen_scroll_down(con, num);
 		con->cursor_y = size;
 	} else {
 		con->cursor_y -= num;
 	}
 }
 
-void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
+void tsm_screen_move_down(struct tsm_screen *con, unsigned int num,
 			      bool scroll)
 {
 	unsigned int diff, size;
@@ -911,14 +911,14 @@ void kmscon_console_move_down(struct kmscon_console *con, unsigned int num,
 	if (num > diff) {
 		num -= diff;
 		if (scroll)
-			console_scroll_up(con, num);
+			screen_scroll_up(con, num);
 		con->cursor_y = size - 1;
 	} else {
 		con->cursor_y += num;
 	}
 }
 
-void kmscon_console_move_left(struct kmscon_console *con, unsigned int num)
+void tsm_screen_move_left(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
@@ -935,7 +935,7 @@ void kmscon_console_move_left(struct kmscon_console *con, unsigned int num)
 		con->cursor_x -= num;
 }
 
-void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
+void tsm_screen_move_right(struct tsm_screen *con, unsigned int num)
 {
 	if (!con || !num)
 		return;
@@ -949,7 +949,7 @@ void kmscon_console_move_right(struct kmscon_console *con, unsigned int num)
 		con->cursor_x += num;
 }
 
-void kmscon_console_move_line_end(struct kmscon_console *con)
+void tsm_screen_move_line_end(struct tsm_screen *con)
 {
 	if (!con)
 		return;
@@ -957,7 +957,7 @@ void kmscon_console_move_line_end(struct kmscon_console *con)
 	con->cursor_x = con->size_x - 1;
 }
 
-void kmscon_console_move_line_home(struct kmscon_console *con)
+void tsm_screen_move_line_home(struct tsm_screen *con)
 {
 	if (!con)
 		return;
@@ -965,7 +965,7 @@ void kmscon_console_move_line_home(struct kmscon_console *con)
 	con->cursor_x = 0;
 }
 
-void kmscon_console_tab_right(struct kmscon_console *con, unsigned int num)
+void tsm_screen_tab_right(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j;
 
@@ -988,7 +988,7 @@ void kmscon_console_tab_right(struct kmscon_console *con, unsigned int num)
 		con->cursor_x = con->size_x - 1;
 }
 
-void kmscon_console_tab_left(struct kmscon_console *con, unsigned int num)
+void tsm_screen_tab_left(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i;
 	int j;
@@ -1010,7 +1010,7 @@ void kmscon_console_tab_left(struct kmscon_console *con, unsigned int num)
 	}
 }
 
-void kmscon_console_insert_lines(struct kmscon_console *con, unsigned int num)
+void tsm_screen_insert_lines(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j, max;
 
@@ -1045,7 +1045,7 @@ void kmscon_console_insert_lines(struct kmscon_console *con, unsigned int num)
 	con->cursor_x = 0;
 }
 
-void kmscon_console_delete_lines(struct kmscon_console *con, unsigned int num)
+void tsm_screen_delete_lines(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j, max;
 
@@ -1080,7 +1080,7 @@ void kmscon_console_delete_lines(struct kmscon_console *con, unsigned int num)
 	con->cursor_x = 0;
 }
 
-void kmscon_console_insert_chars(struct kmscon_console *con, unsigned int num)
+void tsm_screen_insert_chars(struct tsm_screen *con, unsigned int num)
 {
 	struct cell *cells;
 	unsigned int max, mv, i;
@@ -1109,7 +1109,7 @@ void kmscon_console_insert_chars(struct kmscon_console *con, unsigned int num)
 	}
 }
 
-void kmscon_console_delete_chars(struct kmscon_console *con, unsigned int num)
+void tsm_screen_delete_chars(struct tsm_screen *con, unsigned int num)
 {
 	struct cell *cells;
 	unsigned int max, mv, i;
@@ -1138,7 +1138,7 @@ void kmscon_console_delete_chars(struct kmscon_console *con, unsigned int num)
 	}
 }
 
-void kmscon_console_erase_cursor(struct kmscon_console *con)
+void tsm_screen_erase_cursor(struct tsm_screen *con)
 {
 	unsigned int x;
 
@@ -1150,10 +1150,10 @@ void kmscon_console_erase_cursor(struct kmscon_console *con)
 	else
 		x = con->cursor_x;
 
-	console_erase_region(con, x, con->cursor_y, x, con->cursor_y, false);
+	screen_erase_region(con, x, con->cursor_y, x, con->cursor_y, false);
 }
 
-void kmscon_console_erase_chars(struct kmscon_console *con, unsigned int num)
+void tsm_screen_erase_chars(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int x;
 
@@ -1165,11 +1165,11 @@ void kmscon_console_erase_chars(struct kmscon_console *con, unsigned int num)
 	else
 		x = con->cursor_x;
 
-	console_erase_region(con, x, con->cursor_y, x + num - 1, con->cursor_y,
+	screen_erase_region(con, x, con->cursor_y, x + num - 1, con->cursor_y,
 			     false);
 }
 
-void kmscon_console_erase_cursor_to_end(struct kmscon_console *con,
+void tsm_screen_erase_cursor_to_end(struct tsm_screen *con,
 				        bool protect)
 {
 	unsigned int x;
@@ -1182,40 +1182,40 @@ void kmscon_console_erase_cursor_to_end(struct kmscon_console *con,
 	else
 		x = con->cursor_x;
 
-	console_erase_region(con, x, con->cursor_y, con->size_x - 1,
+	screen_erase_region(con, x, con->cursor_y, con->size_x - 1,
 			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_home_to_cursor(struct kmscon_console *con,
+void tsm_screen_erase_home_to_cursor(struct tsm_screen *con,
 					 bool protect)
 {
 	if (!con)
 		return;
 
-	console_erase_region(con, 0, con->cursor_y, con->cursor_x,
+	screen_erase_region(con, 0, con->cursor_y, con->cursor_x,
 			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_current_line(struct kmscon_console *con,
+void tsm_screen_erase_current_line(struct tsm_screen *con,
 				       bool protect)
 {
 	if (!con)
 		return;
 
-	console_erase_region(con, 0, con->cursor_y, con->size_x - 1,
+	screen_erase_region(con, 0, con->cursor_y, con->size_x - 1,
 			     con->cursor_y, protect);
 }
 
-void kmscon_console_erase_screen_to_cursor(struct kmscon_console *con,
+void tsm_screen_erase_screen_to_cursor(struct tsm_screen *con,
 					   bool protect)
 {
 	if (!con)
 		return;
 
-	console_erase_region(con, 0, 0, con->cursor_x, con->cursor_y, protect);
+	screen_erase_region(con, 0, 0, con->cursor_x, con->cursor_y, protect);
 }
 
-void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con,
+void tsm_screen_erase_cursor_to_screen(struct tsm_screen *con,
 					   bool protect)
 {
 	unsigned int x;
@@ -1228,30 +1228,30 @@ void kmscon_console_erase_cursor_to_screen(struct kmscon_console *con,
 	else
 		x = con->cursor_x;
 
-	console_erase_region(con, x, con->cursor_y, con->size_x - 1,
+	screen_erase_region(con, x, con->cursor_y, con->size_x - 1,
 			     con->size_y - 1, protect);
 }
 
-void kmscon_console_erase_screen(struct kmscon_console *con, bool protect)
+void tsm_screen_erase_screen(struct tsm_screen *con, bool protect)
 {
 	if (!con)
 		return;
 
-	console_erase_region(con, 0, 0, con->size_x - 1, con->size_y - 1,
+	screen_erase_region(con, 0, 0, con->size_x - 1, con->size_y - 1,
 			     protect);
 }
 
-void kmscon_console_draw(struct kmscon_console *con,
-			 kmscon_console_prepare_cb prepare_cb,
-			 kmscon_console_draw_cb draw_cb,
-			 kmscon_console_render_cb render_cb,
+void tsm_screen_draw(struct tsm_screen *con,
+			 tsm_screen_prepare_cb prepare_cb,
+			 tsm_screen_draw_cb draw_cb,
+			 tsm_screen_render_cb render_cb,
 			 void *data)
 {
 	unsigned int cur_x, cur_y;
 	unsigned int i, j, k;
 	struct line *iter, *line = NULL;
 	struct cell *cell;
-	struct kmscon_console_attr attr;
+	struct tsm_screen_attr attr;
 	bool cursor_done = false;
 	int ret, warned = 0;
 	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
@@ -1309,7 +1309,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 			if (k == cur_y + 1 &&
 			    j == cur_x) {
 				cursor_done = true;
-				if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR))
+				if (!(con->flags & TSM_SCREEN_HIDE_CURSOR))
 					attr.inverse = !attr.inverse;
 			}
 
@@ -1317,7 +1317,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 			 * INVERSE mode is set, we should instead just select
 			 * inverse colors instead of switching background and
 			 * foreground */
-			if (con->flags & KMSCON_CONSOLE_INVERSE)
+			if (con->flags & TSM_SCREEN_INVERSE)
 				attr.inverse = !attr.inverse;
 
 			ch = tsm_symbol_get(NULL, &cell->ch, &len);
@@ -1335,8 +1335,8 @@ void kmscon_console_draw(struct kmscon_console *con,
 
 		if (k == cur_y + 1 && !cursor_done) {
 			cursor_done = true;
-			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
-				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
+			if (!(con->flags & TSM_SCREEN_HIDE_CURSOR)) {
+				if (!(con->flags & TSM_SCREEN_INVERSE))
 					attr.inverse = !attr.inverse;
 				draw_cb(con, 0, NULL, 0, cur_x, i, &attr, data);
 			}
