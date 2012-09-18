@@ -59,13 +59,13 @@ struct kmscon_pty {
 	void *data;
 };
 
-int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
-				kmscon_pty_input_cb input_cb, void *data)
+int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
+		   void *data)
 {
 	struct kmscon_pty *pty;
 	int ret;
 
-	if (!out || !loop || !input_cb)
+	if (!out || !input_cb)
 		return -EINVAL;
 
 	pty = malloc(sizeof(*pty));
@@ -75,19 +75,23 @@ int kmscon_pty_new(struct kmscon_pty **out, struct ev_eloop *loop,
 	memset(pty, 0, sizeof(*pty));
 	pty->fd = -1;
 	pty->ref = 1;
-	pty->eloop = loop;
 	pty->input_cb = input_cb;
 	pty->data = data;
 
-	ret = shl_ring_new(&pty->msgbuf);
+	ret = ev_eloop_new(&pty->eloop, log_llog);
 	if (ret)
 		goto err_free;
 
+	ret = shl_ring_new(&pty->msgbuf);
+	if (ret)
+		goto err_eloop;
+
 	log_debug("new pty object");
-	ev_eloop_ref(pty->eloop);
 	*out = pty;
 	return 0;
 
+err_eloop:
+	ev_eloop_unref(pty->eloop);
 err_free:
 	free(pty);
 	return ret;
@@ -111,6 +115,22 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 	shl_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
 	free(pty);
+}
+
+int kmscon_pty_get_fd(struct kmscon_pty *pty)
+{
+	if (!pty)
+		return -EINVAL;
+
+	return ev_eloop_get_fd(pty->eloop);
+}
+
+void kmscon_pty_dispatch(struct kmscon_pty *pty)
+{
+	if (!pty)
+		return;
+
+	ev_eloop_dispatch(pty->eloop, 0);
 }
 
 static bool pty_is_open(struct kmscon_pty *pty)

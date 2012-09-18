@@ -71,6 +71,7 @@ struct kmscon_terminal {
 	struct tsm_screen *console;
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
+	struct ev_fd *ptyfd;
 
 	kmscon_terminal_event_cb cb;
 	void *data;
@@ -340,6 +341,13 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	}
 }
 
+static void pty_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	kmscon_pty_dispatch(term->pty);
+}
+
 static void input_event(struct uterm_input *input,
 			struct uterm_input_event *ev,
 			void *data)
@@ -438,13 +446,19 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		goto err_con;
 	tsm_vte_set_palette(term->vte, kmscon_conf.palette);
 
-	ret = kmscon_pty_new(&term->pty, term->eloop, pty_input, term);
+	ret = kmscon_pty_new(&term->pty, pty_input, term);
 	if (ret)
 		goto err_vte;
 
-	ret = uterm_input_register_cb(term->input, input_event, term);
+	ret = ev_eloop_new_fd(term->eloop, &term->ptyfd,
+			      kmscon_pty_get_fd(term->pty),
+			      EV_READABLE, pty_event, term);
 	if (ret)
 		goto err_pty;
+
+	ret = uterm_input_register_cb(term->input, input_event, term);
+	if (ret)
+		goto err_ptyfd;
 
 	memset(&spec, 0, sizeof(spec));
 	spec.it_value.tv_nsec = 1;
@@ -471,6 +485,8 @@ err_timer:
 	ev_timer_unref(term->redraw_timer);
 err_input:
 	uterm_input_unregister_cb(term->input, input_event, term);
+err_ptyfd:
+	ev_eloop_rm_fd(term->ptyfd);
 err_pty:
 	kmscon_pty_unref(term->pty);
 err_vte:
@@ -504,6 +520,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	ev_eloop_rm_timer(term->redraw_timer);
 	ev_timer_unref(term->redraw_timer);
 	uterm_input_unregister_cb(term->input, input_event, term);
+	ev_eloop_rm_fd(term->ptyfd);
 	kmscon_pty_unref(term->pty);
 	tsm_vte_unref(term->vte);
 	tsm_screen_unref(term->console);
