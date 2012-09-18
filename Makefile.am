@@ -145,7 +145,6 @@ libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_HOOK) \
 	src/uterm.h \
-	src/uterm_keysyms.h \
 	src/uterm_input.h \
 	src/uterm_video.h \
 	src/uterm_video.c \
@@ -205,8 +204,7 @@ libuterm_la_SOURCES += \
 endif
 
 include_HEADERS += \
-	src/uterm.h \
-	src/uterm_keysyms.h
+	src/uterm.h
 
 pkgconfig_DATA += libuterm.pc
 
