@@ -435,6 +435,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	ret = tsm_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)
 		goto err_con;
+	tsm_vte_set_palette(term->vte, kmscon_conf.palette);
 
 	ret = kmscon_pty_new(&term->pty, term->eloop, pty_input, term);
 	if (ret)

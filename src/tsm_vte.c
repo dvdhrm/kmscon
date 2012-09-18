@@ -54,10 +54,10 @@
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "log.h"
-#include "main.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
 #include "tsm_vte.h"
+#include "uterm.h"
 
 #define LOG_SUBSYSTEM "vte"
 
@@ -151,6 +151,7 @@ struct tsm_vte {
 	struct tsm_screen *con;
 	tsm_vte_write_cb write_cb;
 	void *data;
+	char *palette_name;
 
 	struct tsm_utf8_mach *mach;
 	unsigned long parse_cnt;
@@ -287,16 +288,16 @@ static uint8_t color_palette_solarized_white[COLOR_NUM][3] = {
 	[COLOR_BACKGROUND]    = { 238, 232, 213 }, /* light grey */
 };
 
-static uint8_t (*get_palette(void))[3]
+static uint8_t (*get_palette(struct tsm_vte *vte))[3]
 {
-	if (!kmscon_conf.palette)
+	if (!vte->palette_name)
 		return color_palette;
 
-	if (!strcmp(kmscon_conf.palette, "solarized"))
+	if (!strcmp(vte->palette_name, "solarized"))
 		return color_palette_solarized;
-	if (!strcmp(kmscon_conf.palette, "solarized-black"))
+	if (!strcmp(vte->palette_name, "solarized-black"))
 		return color_palette_solarized_black;
-	if (!strcmp(kmscon_conf.palette, "solarized-white"))
+	if (!strcmp(vte->palette_name, "solarized-white"))
 		return color_palette_solarized_white;
 
 	return color_palette;
@@ -374,7 +375,7 @@ int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;
-	vte->palette = get_palette();
+	vte->palette = get_palette(vte);
 	vte->def_attr.fccode = COLOR_FOREGROUND;
 	vte->def_attr.bccode = COLOR_BACKGROUND;
 	to_rgb(vte, &vte->def_attr);
@@ -416,6 +417,35 @@ void tsm_vte_unref(struct tsm_vte *vte)
 	tsm_screen_unref(vte->con);
 	tsm_utf8_mach_free(vte->mach);
 	free(vte);
+}
+
+int tsm_vte_set_palette(struct tsm_vte *vte, const char *palette)
+{
+	char *tmp = NULL;
+
+	if (!vte)
+		return -EINVAL;
+
+	if (palette) {
+		tmp = strdup(palette);
+		if (!tmp)
+			return -ENOMEM;
+	}
+
+	free(vte->palette_name);
+	vte->palette_name = tmp;
+
+	vte->palette = get_palette(vte);
+	vte->def_attr.fccode = COLOR_FOREGROUND;
+	vte->def_attr.bccode = COLOR_BACKGROUND;
+
+	to_rgb(vte, &vte->def_attr);
+	memcpy(&vte->cattr, &vte->def_attr, sizeof(vte->cattr));
+
+	tsm_screen_set_def_attr(vte->con, &vte->def_attr);
+	tsm_screen_erase_screen(vte->con, false);
+
+	return 0;
 }
 
 /*
