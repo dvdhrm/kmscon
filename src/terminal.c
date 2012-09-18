@@ -135,8 +135,11 @@ static void schedule_redraw(struct kmscon_terminal *term)
 	if (!term->awake)
 		return;
 
-	if (!term->redraw)
+	if (!term->redraw) {
 		ev_timer_enable(term->redraw_timer);
+		ev_timer_drain(term->redraw_timer, NULL);
+	}
+
 	if (term->redraw < term->fps)
 		term->redraw = term->fps;
 }
