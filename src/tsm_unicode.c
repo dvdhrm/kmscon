@@ -97,7 +97,6 @@
  */
 
 const tsm_symbol_t tsm_symbol_default = 0;
-static const char default_u8[] = { 0 };
 
 struct tsm_symbol_table {
 	unsigned long ref;
@@ -320,41 +319,6 @@ err_id:
 	--tbl->next_id;
 	free(nval);
 	return sym;
-}
-
-const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
-			      tsm_symbol_t sym, size_t *size)
-{
-	const uint32_t *ucs4;
-	char *val;
-	size_t i, pos, len;
-
-	ucs4 = tsm_symbol_get(tbl, &sym, &len);
-	val = malloc(4 * len);
-	if (!val)
-		goto err_out;
-
-	pos = 0;
-	for (i = 0; i < len; ++i)
-		pos += tsm_ucs4_to_utf8(ucs4[i], &val[pos]);
-
-	if (!pos)
-		goto err_out;
-
-	if (size)
-		*size = pos;
-	return val;
-
-err_out:
-	if (size)
-		*size = sizeof(default_u8);
-	return default_u8;
-}
-
-void tsm_symbol_free_u8(const char *s)
-{
-	if (s != default_u8)
-		free((void*)s);
 }
 
 /*

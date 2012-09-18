@@ -2126,10 +2126,8 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 				unsigned int mods, uint32_t unicode)
 {
-	tsm_symbol_t sym;
-	char val;
+	char val, u8[4];
 	size_t len;
-	const char *u8;
 
 	/* MOD1 (mostly labeled 'Alt') prepends an escape character to every
 	 * input that is sent by a key.
@@ -2621,10 +2619,8 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			}
 			vte_write_raw(vte, &val, 1);
 		} else {
-			sym = tsm_symbol_make(unicode);
-			u8 = tsm_symbol_get_u8(NULL, sym, &len);
+			len = tsm_ucs4_to_utf8(tsm_symbol_make(unicode), u8);
 			vte_write_raw(vte, u8, len);
-			tsm_symbol_free_u8(u8);
 		}
 		return true;
 	}
