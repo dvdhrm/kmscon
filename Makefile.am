@@ -23,7 +23,6 @@ pkgconfig_DATA =
 # test_vt: Test program for the VT subsystem
 # test_input: Test program for the input subsystem
 # libkmscon-core: Static core library for kmscon and test programs
-# libkmscon-static: Static library for all subsystems
 # genshader: Program used to convert shaders into C-source files
 #
 
@@ -37,8 +36,7 @@ noinst_PROGRAMS = \
 	genshader \
 	genunifont
 noinst_LTLIBRARIES = \
-	libkmscon-core.la \
-	libkmscon-static.la
+	libkmscon-core.la
 lib_LTLIBRARIES =
 
 #
@@ -109,8 +107,6 @@ libeloop_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_LLOG) \
 	$(SHL_HOOK) \
-	src/static_llog.h \
-	src/static_hook.h \
 	src/eloop.h \
 	src/eloop.c
 
@@ -159,6 +155,7 @@ libuterm_la_SOURCES = \
 	src/uterm_input_plain.c \
 	external/imKStoUCS.h \
 	external/imKStoUCS.c
+nodist_libuterm_la_SOURCES =
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
@@ -177,7 +174,6 @@ libuterm_la_LIBADD = \
 	$(GLES2_LIBS) \
 	$(UDEV_LIBS) \
 	$(XKBCOMMON_LIBS) \
-	libkmscon-static.la \
 	libeloop.la
 libuterm_la_LDFLAGS = \
 	-version-info 1:0:0
@@ -190,6 +186,12 @@ endif
 if UTERM_HAVE_DRM
 libuterm_la_SOURCES += \
 	src/uterm_video_drm.c
+libuterm_la_SOURCES += \
+	src/static_gl.h \
+	src/static_gl_math.c \
+	src/static_gl_shader.c
+nodist_libuterm_la_SOURCES += \
+	src/static_shaders.c
 endif
 
 if UTERM_HAVE_DUMB
@@ -320,7 +322,12 @@ endif
 
 if KMSCON_HAVE_GLES2
 libkmscon_core_la_SOURCES += \
-	src/text_gltex.c
+	src/text_gltex.c \
+	src/static_gl.h \
+	src/static_gl_math.c \
+	src/static_gl_shader.c
+nodist_libkmscon_core_la_SOURCES += \
+	src/static_shaders.c
 endif
 
 libkmscon_core_la_CPPFLAGS = \
@@ -337,33 +344,6 @@ libkmscon_core_la_LIBADD = \
 	libuterm.la
 
 #
-# libkmscon-static
-# This static library contains all small helpers that are used in several other
-# libraries and programs that are part of kmscon. To avoid putting these small
-# pieces into a library and thus having to keep backwards compatibility, we
-# simply link them statically into all other libraries/programs.
-#
-
-libkmscon_static_la_SOURCES =
-nodist_libkmscon_static_la_SOURCES =
-
-libkmscon_static_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(GLES2_CFLAGS)
-
-libkmscon_static_la_LIBADD = \
-	$(GLES2_LIBS)
-
-if KMSCON_HAVE_GLES2
-libkmscon_static_la_SOURCES += \
-	src/static_gl.h \
-	src/static_gl_math.c \
-	src/static_gl_shader.c
-nodist_libkmscon_static_la_SOURCES += \
-	src/static_shaders.c
-endif
-
-#
 # Binaries
 # These are the sources for the main binaries and test programs. They mostly
 # consists of a single source file only and include all the libraries that are
@@ -376,8 +356,7 @@ kmscon_SOURCES = \
 kmscon_LDADD = \
 	libuterm.la \
 	libeloop.la \
-	libkmscon-core.la \
-	libkmscon-static.la
+	libkmscon-core.la
 
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
