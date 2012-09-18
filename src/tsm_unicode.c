@@ -298,10 +298,28 @@ tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 		return sym;
 
 	memcpy(nval, buf, s * sizeof(uint32_t));
-	nsym = tbl->next_id++;
-	shl_hashtable_insert(tbl->symbols, nval, (void*)(long)nsym);
-	shl_array_push(tbl->index, &nval);
+	nsym = tbl->next_id + 1;
+	/* Out of IDs; we actually have 2 Billion IDs so this seems
+	 * very unlikely but lets be safe here */
+	if (nsym <= tbl->next_id++)
+		goto err_id;
+
+	ret = shl_hashtable_insert(tbl->symbols, nval, (void*)(long)nsym);
+	if (ret)
+		goto err_id;
+
+	ret = shl_array_push(tbl->index, &nval);
+	if (ret)
+		goto err_symbol;
+
 	return nsym;
+
+err_symbol:
+	shl_hashtable_remove(tbl->symbols, nval);
+err_id:
+	--tbl->next_id;
+	free(nval);
+	return sym;
 }
 
 const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
