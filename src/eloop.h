@@ -190,6 +190,7 @@ bool ev_timer_is_enabled(struct ev_timer *timer);
 bool ev_timer_is_bound(struct ev_timer *timer);
 void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data);
 int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec);
+int ev_timer_drain(struct ev_timer *timer, uint64_t *expirations);
 
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 			const struct itimerspec *spec, ev_timer_cb cb,

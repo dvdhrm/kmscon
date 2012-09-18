@@ -1443,44 +1443,63 @@ void ev_eloop_rm_fd(struct ev_fd *fd)
  * real precision depends on the operating-system and hardware.
  */
 
+static int timer_drain(struct ev_timer *timer, uint64_t *out)
+{
+	int len;
+	uint64_t expirations;
+
+	if (out)
+		*out = 0;
+
+	len = read(timer->fd, &expirations, sizeof(expirations));
+	if (len < 0) {
+		if (errno == EAGAIN) {
+			return 0;
+		} else {
+			llog_warning(timer, "cannot read timerfd (%d): %m",
+				     errno);
+			return errno;
+		}
+	} else if (len == 0) {
+		llog_warning(timer, "EOF on timer source");
+		return -EFAULT;
+	} else if (len != sizeof(expirations)) {
+		llog_warn(timer, "invalid size %d read on timerfd", len);
+		return -EFAULT;
+	} else {
+		if (out)
+			*out = expirations;
+		return 0;
+	}
+}
+
 static void timer_cb(struct ev_fd *fd, int mask, void *data)
 {
 	struct ev_timer *timer = data;
 	uint64_t expirations;
-	int len;
+	int ret;
 
 	if (mask & (EV_HUP | EV_ERR)) {
 		llog_warn(fd, "HUP/ERR on timer source");
-		if (timer->cb)
-			timer->cb(timer, 0, timer->data);
-		return;
+		goto err_cb;
 	}
 
 	if (mask & EV_READABLE) {
-		len = read(timer->fd, &expirations, sizeof(expirations));
-		if (len < 0) {
-			if (errno != EAGAIN) {
-				llog_warning(fd, "cannot read timerfd (%d): %m",
-					    errno);
-				ev_timer_disable(timer);
-				if (timer->cb)
-					timer->cb(timer, 0, timer->data);
-			}
-		} else if (len == 0) {
-			llog_warning(fd, "EOF on timer source");
-			ev_timer_disable(timer);
-			if (timer->cb)
-				timer->cb(timer, 0, timer->data);
-		} else if (len != sizeof(expirations)) {
-			llog_warn(fd, "invalid size %d read on timerfd", len);
-			ev_timer_disable(timer);
-			if (timer->cb)
-				timer->cb(timer, 0, timer->data);
-		} else if (expirations > 0) {
+		ret = timer_drain(timer, &expirations);
+		if (ret)
+			goto err_cb;
+		if (expirations > 0) {
 			if (timer->cb)
 				timer->cb(timer, expirations, timer->data);
 		}
 	}
+
+	return;
+
+err_cb:
+	ev_timer_disable(timer);
+	if (timer->cb)
+		timer->cb(timer, 0, timer->data);
 }
 
 /**
@@ -1685,6 +1704,27 @@ int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 	}
 
 	return 0;
+}
+
+/**
+ * ev_timer_drain:
+ * @timer: valid timer object
+ * @expirations: destination to save result or NULL
+ *
+ * This reads the current expiration-count from the timer object @timer and
+ * saves it in @expirations (if it is non-NULL). This can be used to clear the
+ * timer after an idle-period or similar.
+ * Note that the timer_cb() callback function automatically calls this before
+ * calling the user-supplied callback.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int ev_timer_drain(struct ev_timer *timer, uint64_t *expirations)
+{
+	if (!timer)
+		return -EINVAL;
+
+	return timer_drain(timer, expirations);
 }
 
 /**
