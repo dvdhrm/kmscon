@@ -37,7 +37,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "unicode.h"
+#include "tsm_unicode.h"
 
 struct kmscon_console;
 

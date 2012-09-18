@@ -48,7 +48,7 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "text.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font_freetype2"

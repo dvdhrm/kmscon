@@ -62,7 +62,7 @@
 #include "log.h"
 #include "shl_array.h"
 #include "shl_hashtable.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 
 #define LOG_SUBSYSTEM "unicode"
 

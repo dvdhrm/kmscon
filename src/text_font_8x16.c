@@ -49,7 +49,7 @@
 #include <string.h>
 #include "log.h"
 #include "text.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font_8x16"

@@ -55,7 +55,7 @@
 #include "console.h"
 #include "log.h"
 #include "main.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 #include "vte.h"
 
 /* TODO: Change this to use "xkbcommon-keysyms.h" and add xkbcommon as

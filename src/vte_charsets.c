@@ -68,7 +68,7 @@
 #include <string.h>
 
 #include "log.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 #include "vte.h"
 
 #define LOG_SUBSYSTEM "vte"

@@ -39,7 +39,7 @@
 #include "log.h"
 #include "main.h"
 #include "shl_timer.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 
 #define LOG_SUBSYSTEM "console"
 

@@ -35,7 +35,7 @@
 
 #include <stdlib.h>
 #include "console.h"
-#include "unicode.h"
+#include "tsm_unicode.h"
 
 /* available character sets */
 
