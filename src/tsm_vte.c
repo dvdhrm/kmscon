@@ -57,7 +57,6 @@
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
 #include "tsm_vte.h"
-#include "uterm.h"
 
 #define LOG_SUBSYSTEM "vte"
 
@@ -2162,10 +2161,10 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 	 * Also check whether altSendsEscape should be the default (xterm
 	 * disables this by default, why?) and whether we should implement the
 	 * fallback shifting that xterm does. */
-	if (mods & UTERM_MOD1_MASK)
+	if (mods & TSM_MOD1_MASK)
 		vte->flags |= FLAG_PREPEND_ESCAPE;
 
-	if (mods & UTERM_CONTROL_MASK) {
+	if (mods & TSM_CONTROL_MASK) {
 		switch (keysym) {
 		case XKB_KEY_2:
 		case XKB_KEY_space:
@@ -2524,103 +2523,103 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			return true;
 		case XKB_KEY_F4:
 		case XKB_KEY_KP_F4:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[1;2S", 6);
 			else
 				vte_write(vte, "\eOS", 3);
 			return true;
 		case XKB_KEY_F5:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[15;2~", 7);
 			else
 				vte_write(vte, "\e[15~", 5);
 			return true;
 		case XKB_KEY_F6:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[17;2~", 7);
 			else
 				vte_write(vte, "\e[17~", 5);
 			return true;
 		case XKB_KEY_F7:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[18;2~", 7);
 			else
 				vte_write(vte, "\e[18~", 5);
 			return true;
 		case XKB_KEY_F8:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[19;2~", 7);
 			else
 				vte_write(vte, "\e[19~", 5);
 			return true;
 		case XKB_KEY_F9:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[20;2~", 7);
 			else
 				vte_write(vte, "\e[20~", 5);
 			return true;
 		case XKB_KEY_F10:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[21;2~", 7);
 			else
 				vte_write(vte, "\e[21~", 5);
 			return true;
 		case XKB_KEY_F11:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[23;2~", 7);
 			else
 				vte_write(vte, "\e[23~", 5);
 			return true;
 		case XKB_KEY_F12:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[24;2~", 7);
 			else
 				vte_write(vte, "\e[24~", 5);
 			return true;
 		case XKB_KEY_F13:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[25;2~", 7);
 			else
 				vte_write(vte, "\e[25~", 5);
 			return true;
 		case XKB_KEY_F14:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[26;2~", 7);
 			else
 				vte_write(vte, "\e[26~", 5);
 			return true;
 		case XKB_KEY_F15:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[28;2~", 7);
 			else
 				vte_write(vte, "\e[28~", 5);
 			return true;
 		case XKB_KEY_F16:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[29;2~", 7);
 			else
 				vte_write(vte, "\e[29~", 5);
 			return true;
 		case XKB_KEY_F17:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[31;2~", 7);
 			else
 				vte_write(vte, "\e[31~", 5);
 			return true;
 		case XKB_KEY_F18:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[32;2~", 7);
 			else
 				vte_write(vte, "\e[32~", 5);
 			return true;
 		case XKB_KEY_F19:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[33;2~", 7);
 			else
 				vte_write(vte, "\e[33~", 5);
 			return true;
 		case XKB_KEY_F20:
-			if (mods & UTERM_SHIFT_MASK)
+			if (mods & TSM_SHIFT_MASK)
 				vte_write(vte, "\e[34;2~", 7);
 			else
 				vte_write(vte, "\e[34~", 5);

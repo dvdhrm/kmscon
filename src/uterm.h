@@ -256,6 +256,7 @@ void uterm_video_poll(struct uterm_video *video);
 
 struct uterm_input;
 
+/* keep in sync with tsm_vte_modified */
 enum uterm_input_modifier {
 	UTERM_SHIFT_MASK	= (1 << 0),
 	UTERM_LOCK_MASK		= (1 << 1),
