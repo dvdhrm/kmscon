@@ -2474,6 +2474,21 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			else
 				vte_write(vte, "+", 1);
 			return true;
+		case XKB_KEY_Home:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				vte_write(vte, "\eOH", 3);
+			else
+				vte_write(vte, "\e[H", 3);
+			return true;
+		case XKB_KEY_End:
+			if (vte->flags & FLAG_CURSOR_KEY_MODE)
+				vte_write(vte, "\eOF", 3);
+			else
+				vte_write(vte, "\e[F", 3);
+			return true;
+		case XKB_KEY_KP_Space:
+			vte_write(vte, " ", 1);
+			return true;
 		case XKB_KEY_F1:
 		case XKB_KEY_KP_F1:
 			vte_write(vte, "\eOP", 3);
@@ -2488,70 +2503,106 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			return true;
 		case XKB_KEY_F4:
 		case XKB_KEY_KP_F4:
-			vte_write(vte, "\eOS", 3);
-			return true;
-		case XKB_KEY_KP_Space:
-			vte_write(vte, " ", 1);
-			return true;
-		case XKB_KEY_Home:
-			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				vte_write(vte, "\eOH", 3);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[1;2S", 6);
 			else
-				vte_write(vte, "\e[H", 3);
-			return true;
-		case XKB_KEY_End:
-			if (vte->flags & FLAG_CURSOR_KEY_MODE)
-				vte_write(vte, "\eOF", 3);
-			else
-				vte_write(vte, "\e[F", 3);
+				vte_write(vte, "\eOS", 3);
 			return true;
 		case XKB_KEY_F5:
-			vte_write(vte, "\e[15~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[15;2~", 7);
+			else
+				vte_write(vte, "\e[15~", 5);
 			return true;
 		case XKB_KEY_F6:
-			vte_write(vte, "\e[17~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[17;2~", 7);
+			else
+				vte_write(vte, "\e[17~", 5);
 			return true;
 		case XKB_KEY_F7:
-			vte_write(vte, "\e[18~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[18;2~", 7);
+			else
+				vte_write(vte, "\e[18~", 5);
 			return true;
 		case XKB_KEY_F8:
-			vte_write(vte, "\e[19~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[19;2~", 7);
+			else
+				vte_write(vte, "\e[19~", 5);
 			return true;
 		case XKB_KEY_F9:
-			vte_write(vte, "\e[20~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[20;2~", 7);
+			else
+				vte_write(vte, "\e[20~", 5);
 			return true;
 		case XKB_KEY_F10:
-			vte_write(vte, "\e[21~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[21;2~", 7);
+			else
+				vte_write(vte, "\e[21~", 5);
 			return true;
 		case XKB_KEY_F11:
-			vte_write(vte, "\e[23~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[23;2~", 7);
+			else
+				vte_write(vte, "\e[23~", 5);
 			return true;
 		case XKB_KEY_F12:
-			vte_write(vte, "\e[24~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[24;2~", 7);
+			else
+				vte_write(vte, "\e[24~", 5);
 			return true;
 		case XKB_KEY_F13:
-			vte_write(vte, "\e[25~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[25;2~", 7);
+			else
+				vte_write(vte, "\e[25~", 5);
 			return true;
 		case XKB_KEY_F14:
-			vte_write(vte, "\e[26~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[26;2~", 7);
+			else
+				vte_write(vte, "\e[26~", 5);
 			return true;
 		case XKB_KEY_F15:
-			vte_write(vte, "\e[28~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[28;2~", 7);
+			else
+				vte_write(vte, "\e[28~", 5);
 			return true;
 		case XKB_KEY_F16:
-			vte_write(vte, "\e[29~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[29;2~", 7);
+			else
+				vte_write(vte, "\e[29~", 5);
 			return true;
 		case XKB_KEY_F17:
-			vte_write(vte, "\e[31~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[31;2~", 7);
+			else
+				vte_write(vte, "\e[31~", 5);
 			return true;
 		case XKB_KEY_F18:
-			vte_write(vte, "\e[32~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[32;2~", 7);
+			else
+				vte_write(vte, "\e[32~", 5);
 			return true;
 		case XKB_KEY_F19:
-			vte_write(vte, "\e[33~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[33;2~", 7);
+			else
+				vte_write(vte, "\e[33~", 5);
 			return true;
 		case XKB_KEY_F20:
-			vte_write(vte, "\e[34~", 5);
+			if (mods & UTERM_SHIFT_MASK)
+				vte_write(vte, "\e[34;2~", 7);
+			else
+				vte_write(vte, "\e[34~", 5);
 			return true;
 	}
 
