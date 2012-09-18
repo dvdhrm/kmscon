@@ -1,5 +1,5 @@
 /*
- * kmscon - VT Emulator
+ * TSM - VT Emulator
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -140,8 +140,8 @@ struct vte_saved_state {
 	unsigned int cursor_x;
 	unsigned int cursor_y;
 	struct tsm_screen_attr cattr;
-	kmscon_vte_charset *gl;
-	kmscon_vte_charset *gr;
+	tsm_vte_charset *gl;
+	tsm_vte_charset *gr;
 	bool wrap_mode;
 	bool origin_mode;
 };
@@ -149,7 +149,7 @@ struct vte_saved_state {
 struct kmscon_vte {
 	unsigned long ref;
 	struct tsm_screen *con;
-	kmscon_vte_write_cb write_cb;
+	tsm_vte_write_cb write_cb;
 	void *data;
 
 	struct tsm_utf8_mach *mach;
@@ -165,14 +165,14 @@ struct kmscon_vte {
 	struct tsm_screen_attr cattr;
 	unsigned int flags;
 
-	kmscon_vte_charset *gl;
-	kmscon_vte_charset *gr;
-	kmscon_vte_charset *glt;
-	kmscon_vte_charset *grt;
-	kmscon_vte_charset *g0;
-	kmscon_vte_charset *g1;
-	kmscon_vte_charset *g2;
-	kmscon_vte_charset *g3;
+	tsm_vte_charset *gl;
+	tsm_vte_charset *gr;
+	tsm_vte_charset *glt;
+	tsm_vte_charset *grt;
+	tsm_vte_charset *g0;
+	tsm_vte_charset *g1;
+	tsm_vte_charset *g2;
+	tsm_vte_charset *g3;
 
 	struct vte_saved_state saved_state;
 };
@@ -356,8 +356,8 @@ static void copy_bcolor(struct tsm_screen_attr *dest,
 	dest->bb = src->bb;
 }
 
-int kmscon_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
-		   kmscon_vte_write_cb write_cb, void *data)
+int tsm_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
+		   tsm_vte_write_cb write_cb, void *data)
 {
 	struct kmscon_vte *vte;
 	int ret;
@@ -383,7 +383,7 @@ int kmscon_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
 	if (ret)
 		goto err_free;
 
-	kmscon_vte_reset(vte);
+	tsm_vte_reset(vte);
 	tsm_screen_erase_screen(vte->con, false);
 
 	log_debug("new vte object");
@@ -396,7 +396,7 @@ err_free:
 	return ret;
 }
 
-void kmscon_vte_ref(struct kmscon_vte *vte)
+void tsm_vte_ref(struct kmscon_vte *vte)
 {
 	if (!vte)
 		return;
@@ -404,7 +404,7 @@ void kmscon_vte_ref(struct kmscon_vte *vte)
 	vte->ref++;
 }
 
-void kmscon_vte_unref(struct kmscon_vte *vte)
+void tsm_vte_unref(struct kmscon_vte *vte)
 {
 	if (!vte || !vte->ref)
 		return;
@@ -439,9 +439,9 @@ void kmscon_vte_unref(struct kmscon_vte *vte)
  *
  * If SEND_RECEIVE_MODE is off (that is, local echo is on) we have to send all
  * data directly to ourself again. However, we must avoid recursion when
- * kmscon_vte_input() itself calls vte_write*(), therefore, we increase the
- * PARSER counter when entering kmscon_vte_input() and reset it when leaving it
- * so we never echo data that origins from kmscon_vte_input().
+ * tsm_vte_input() itself calls vte_write*(), therefore, we increase the
+ * PARSER counter when entering tsm_vte_input() and reset it when leaving it
+ * so we never echo data that origins from tsm_vte_input().
  * But note that SEND_RECEIVE_MODE is inherently broken for escape sequences
  * that request answers. That is, if we send a request to the client that awaits
  * a response and parse that request via local echo ourself, then we will also
@@ -470,8 +470,8 @@ static void vte_write_debug(struct kmscon_vte *vte, const char *u8, size_t len,
 	/* in local echo mode, directly parse the data again */
 	if (!vte->parse_cnt && !(vte->flags & FLAG_SEND_RECEIVE_MODE)) {
 		if (vte->flags & FLAG_PREPEND_ESCAPE)
-			kmscon_vte_input(vte, "\e", 1);
-		kmscon_vte_input(vte, u8, len);
+			tsm_vte_input(vte, "\e", 1);
+		tsm_vte_input(vte, u8, len);
 	}
 
 	if (vte->flags & FLAG_PREPEND_ESCAPE)
@@ -499,8 +499,8 @@ static void reset_state(struct kmscon_vte *vte)
 	vte->saved_state.cursor_y = 0;
 	vte->saved_state.origin_mode = false;
 	vte->saved_state.wrap_mode = true;
-	vte->saved_state.gl = &kmscon_vte_unicode_lower;
-	vte->saved_state.gr = &kmscon_vte_unicode_upper;
+	vte->saved_state.gl = &tsm_vte_unicode_lower;
+	vte->saved_state.gr = &tsm_vte_unicode_upper;
 
 	copy_fcolor(&vte->saved_state.cattr, &vte->def_attr);
 	copy_bcolor(&vte->saved_state.cattr, &vte->def_attr);
@@ -555,7 +555,7 @@ static void restore_state(struct kmscon_vte *vte)
  * same state as when the VTE was created. This does not affect the console,
  * though.
  */
-void kmscon_vte_reset(struct kmscon_vte *vte)
+void tsm_vte_reset(struct kmscon_vte *vte)
 {
 	if (!vte)
 		return;
@@ -571,14 +571,14 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 
 	tsm_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
-	vte->gl = &kmscon_vte_unicode_lower;
-	vte->gr = &kmscon_vte_unicode_upper;
+	vte->gl = &tsm_vte_unicode_lower;
+	vte->gr = &tsm_vte_unicode_upper;
 	vte->glt = NULL;
 	vte->grt = NULL;
-	vte->g0 = &kmscon_vte_unicode_lower;
-	vte->g1 = &kmscon_vte_unicode_upper;
-	vte->g2 = &kmscon_vte_unicode_lower;
-	vte->g3 = &kmscon_vte_unicode_upper;
+	vte->g0 = &tsm_vte_unicode_lower;
+	vte->g1 = &tsm_vte_unicode_upper;
+	vte->g2 = &tsm_vte_unicode_lower;
+	vte->g3 = &tsm_vte_unicode_upper;
 
 	memcpy(&vte->cattr, &vte->def_attr, sizeof(vte->cattr));
 	to_rgb(vte, &vte->cattr);
@@ -589,7 +589,7 @@ void kmscon_vte_reset(struct kmscon_vte *vte)
 
 static void hard_reset(struct kmscon_vte *vte)
 {
-	kmscon_vte_reset(vte);
+	tsm_vte_reset(vte);
 	tsm_screen_erase_screen(vte->con, false);
 	tsm_screen_clear_sb(vte->con);
 	tsm_screen_move_to(vte->con, 0, 0);
@@ -784,7 +784,7 @@ static void do_param(struct kmscon_vte *vte, uint32_t data)
 	}
 }
 
-static bool set_charset(struct kmscon_vte *vte, kmscon_vte_charset *set)
+static bool set_charset(struct kmscon_vte *vte, tsm_vte_charset *set)
 {
 	if (vte->csi_flags & CSI_POPEN)
 		vte->g0 = set;
@@ -804,73 +804,73 @@ static void do_esc(struct kmscon_vte *vte, uint32_t data)
 {
 	switch (data) {
 	case 'B': /* map ASCII into G0-G3 */
-		if (set_charset(vte, &kmscon_vte_unicode_lower))
+		if (set_charset(vte, &tsm_vte_unicode_lower))
 			return;
 		break;
 	case '<': /* map DEC supplemental into G0-G3 */
-		if (set_charset(vte, &kmscon_vte_dec_supplemental_graphics))
+		if (set_charset(vte, &tsm_vte_dec_supplemental_graphics))
 			return;
 		break;
 	case '0': /* map DEC special into G0-G3 */
-		if (set_charset(vte, &kmscon_vte_dec_special_graphics))
+		if (set_charset(vte, &tsm_vte_dec_special_graphics))
 			return;
 		break;
 	case 'A': /* map British into G0-G3 */
 		/* TODO: create British charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case '4': /* map Dutch into G0-G3 */
 		/* TODO: create Dutch charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'C':
 	case '5': /* map Finnish into G0-G3 */
 		/* TODO: create Finnish charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'R': /* map French into G0-G3 */
 		/* TODO: create French charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'Q': /* map French-Canadian into G0-G3 */
 		/* TODO: create French-Canadian charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'K': /* map German into G0-G3 */
 		/* TODO: create German charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'Y': /* map Italian into G0-G3 */
 		/* TODO: create Italian charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'E':
 	case '6': /* map Norwegian/Danish into G0-G3 */
 		/* TODO: create Norwegian/Danish charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'Z': /* map Spanish into G0-G3 */
 		/* TODO: create Spanish charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'H':
 	case '7': /* map Swedish into G0-G3 */
 		/* TODO: create Swedish charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case '=': /* map Swiss into G0-G3 */
 		/* TODO: create Swiss charset from DEC */
-		if (set_charset(vte, &kmscon_vte_unicode_upper))
+		if (set_charset(vte, &tsm_vte_unicode_upper))
 			return;
 		break;
 	case 'F':
@@ -1180,7 +1180,7 @@ static void csi_attribute(struct kmscon_vte *vte)
 
 static void csi_soft_reset(struct kmscon_vte *vte)
 {
-	kmscon_vte_reset(vte);
+	tsm_vte_reset(vte);
 }
 
 static void csi_compat_mode(struct kmscon_vte *vte)
@@ -1196,8 +1196,8 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 		 * However, we enable 7bit mode to avoid
 		 * character-table problems */
 		vte->flags |= FLAG_7BIT_MODE;
-		vte->gl = &kmscon_vte_unicode_lower;
-		vte->gr = &kmscon_vte_dec_supplemental_graphics;
+		vte->gl = &tsm_vte_unicode_lower;
+		vte->gr = &tsm_vte_dec_supplemental_graphics;
 	} else if (vte->csi_argv[0] == 62 ||
 		   vte->csi_argv[0] == 63 ||
 		   vte->csi_argv[0] == 64) {
@@ -1216,8 +1216,8 @@ static void csi_compat_mode(struct kmscon_vte *vte)
 			vte->flags |= FLAG_USE_C1;
 
 		vte->flags |= FLAG_8BIT_MODE;
-		vte->gl = &kmscon_vte_unicode_lower;
-		vte->gr = &kmscon_vte_dec_supplemental_graphics;
+		vte->gl = &tsm_vte_unicode_lower;
+		vte->gr = &tsm_vte_dec_supplemental_graphics;
 	} else {
 		log_debug("unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
 			  vte->csi_argv[0]);
@@ -2089,7 +2089,7 @@ static void parse_data(struct kmscon_vte *vte, uint32_t raw)
 	log_warn("unhandled input %u in state %d", raw, vte->state);
 }
 
-void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
+void tsm_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 {
 	int state;
 	uint32_t ucs4;
@@ -2119,7 +2119,7 @@ void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len)
 	--vte->parse_cnt;
 }
 
-bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
+bool tsm_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 				unsigned int mods, uint32_t unicode)
 {
 	char val, u8[4];
@@ -2597,7 +2597,7 @@ bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 			return true;
 	}
 
-	if (unicode != KMSCON_VTE_INVALID) {
+	if (unicode != TSM_VTE_INVALID) {
 		if (vte->flags & FLAG_7BIT_MODE) {
 			val = unicode;
 			if (unicode & 0x80) {

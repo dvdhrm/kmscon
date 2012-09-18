@@ -78,7 +78,7 @@
  * characters 33-126. These are all graphics characters defined in ASCII. The
  * first an last entry are never used so we can safely set them to anything.
  */
-kmscon_vte_charset kmscon_vte_unicode_lower = {
+tsm_vte_charset tsm_vte_unicode_lower = {
 	[0] = 0,
 	[1] = 33,
 	[2] = 34,
@@ -184,7 +184,7 @@ kmscon_vte_charset kmscon_vte_unicode_lower = {
  * for the definitions of each symbol. Again, the first an last entry are never
  * used so set them to 0.
  */
-kmscon_vte_charset kmscon_vte_unicode_upper = {
+tsm_vte_charset tsm_vte_unicode_upper = {
 	[0] = 0,
 	[1] = 161,
 	[2] = 162,
@@ -292,7 +292,7 @@ kmscon_vte_charset kmscon_vte_unicode_upper = {
  * This is very similar to unicode_upper, however, few symbols differ so do not
  * mix them up!
  */
-kmscon_vte_charset kmscon_vte_dec_supplemental_graphics = {
+tsm_vte_charset tsm_vte_dec_supplemental_graphics = {
 	[0] = 0,
 	[1] = 161,
 	[2] = 162,
@@ -401,7 +401,7 @@ kmscon_vte_charset kmscon_vte_dec_supplemental_graphics = {
  * commonly used for ASCII drawings. It depends on the Unicode Standard 3.2 for
  * the extended horizontal scan-line characters 3, 5, 7, and 9.
  */
-kmscon_vte_charset kmscon_vte_dec_special_graphics = {
+tsm_vte_charset tsm_vte_dec_special_graphics = {
 	[0] = 0,
 	[1] = 33,
 	[2] = 34,

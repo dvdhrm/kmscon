@@ -335,7 +335,7 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 		if (term->cb)
 			term->cb(term, KMSCON_TERMINAL_HUP, term->data);
 	} else {
-		kmscon_vte_input(term->vte, u8, len);
+		tsm_vte_input(term->vte, u8, len);
 		schedule_redraw(term);
 	}
 }
@@ -374,7 +374,7 @@ static void input_event(struct uterm_input *input,
 		return;
 	}
 
-	if (kmscon_vte_handle_keyboard(term->vte, ev->keysym, ev->mods,
+	if (tsm_vte_handle_keyboard(term->vte, ev->keysym, ev->mods,
 				       ev->unicode)) {
 		tsm_screen_sb_reset(term->console);
 		schedule_redraw(term);
@@ -432,7 +432,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		tsm_screen_set_opts(term->console,
 				    TSM_SCREEN_OPT_RENDER_TIMING);
 
-	ret = kmscon_vte_new(&term->vte, term->console, write_event, term);
+	ret = tsm_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)
 		goto err_con;
 
@@ -472,7 +472,7 @@ err_input:
 err_pty:
 	kmscon_pty_unref(term->pty);
 err_vte:
-	kmscon_vte_unref(term->vte);
+	tsm_vte_unref(term->vte);
 err_con:
 	tsm_screen_unref(term->console);
 err_free:
@@ -503,7 +503,7 @@ void kmscon_terminal_unref(struct kmscon_terminal *term)
 	ev_timer_unref(term->redraw_timer);
 	uterm_input_unregister_cb(term->input, input_event, term);
 	kmscon_pty_unref(term->pty);
-	kmscon_vte_unref(term->vte);
+	tsm_vte_unref(term->vte);
 	tsm_screen_unref(term->console);
 	uterm_input_unref(term->input);
 	ev_eloop_unref(term->eloop);

@@ -1,5 +1,5 @@
 /*
- * kmscon - VT Emulator
+ * TSM - VT Emulator
  *
  * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -27,11 +27,11 @@
 /*
  * Virtual Terminal Emulator
  * This is a vt100 implementation. It is written from scratch. It uses the
- * console subsystem as output and is tightly bound to it.
+ * screen state-machine as output and is tightly bound to it.
  */
 
-#ifndef KMSCON_VTE_H
-#define KMSCON_VTE_H
+#ifndef TSM_VTE_H
+#define TSM_VTE_H
 
 #include <stdlib.h>
 #include "tsm_screen.h"
@@ -39,37 +39,37 @@
 
 /* available character sets */
 
-typedef tsm_symbol_t kmscon_vte_charset[96];
+typedef tsm_symbol_t tsm_vte_charset[96];
 
-extern kmscon_vte_charset kmscon_vte_unicode_lower;
-extern kmscon_vte_charset kmscon_vte_unicode_upper;
-extern kmscon_vte_charset kmscon_vte_dec_supplemental_graphics;
-extern kmscon_vte_charset kmscon_vte_dec_special_graphics;
+extern tsm_vte_charset tsm_vte_unicode_lower;
+extern tsm_vte_charset tsm_vte_unicode_upper;
+extern tsm_vte_charset tsm_vte_dec_supplemental_graphics;
+extern tsm_vte_charset tsm_vte_dec_special_graphics;
 
 /* virtual terminal emulator */
 
 struct kmscon_vte;
 
-enum kmscon_vte_keyboard_action {
-	KMSCON_VTE_DROP,
-	KMSCON_VTE_SEND,
+enum tsm_vte_keyboard_action {
+	tsm_vte_DROP,
+	tsm_vte_SEND,
 };
 
-#define KMSCON_VTE_INVALID 0xffffffff
+#define TSM_VTE_INVALID 0xffffffff
 
-typedef void (*kmscon_vte_write_cb) (struct kmscon_vte *vte,
+typedef void (*tsm_vte_write_cb) (struct kmscon_vte *vte,
 				     const char *u8,
 				     size_t len,
 				     void *data);
 
-int kmscon_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
-		   kmscon_vte_write_cb write_cb, void *data);
-void kmscon_vte_ref(struct kmscon_vte *vte);
-void kmscon_vte_unref(struct kmscon_vte *vte);
+int tsm_vte_new(struct kmscon_vte **out, struct tsm_screen *con,
+		   tsm_vte_write_cb write_cb, void *data);
+void tsm_vte_ref(struct kmscon_vte *vte);
+void tsm_vte_unref(struct kmscon_vte *vte);
 
-void kmscon_vte_reset(struct kmscon_vte *vte);
-void kmscon_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
-bool kmscon_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
+void tsm_vte_reset(struct kmscon_vte *vte);
+void tsm_vte_input(struct kmscon_vte *vte, const char *u8, size_t len);
+bool tsm_vte_handle_keyboard(struct kmscon_vte *vte, uint32_t keysym,
 				unsigned int mods, uint32_t unicode);
 
-#endif /* KMSCON_VTE_H */
+#endif /* TSM_VTE_H */
