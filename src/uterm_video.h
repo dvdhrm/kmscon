@@ -33,7 +33,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
-#include "static_hook.h"
+#include "shl_hook.h"
 #include "uterm.h"
 
 /* backend-operations */
@@ -372,7 +372,7 @@ struct uterm_video {
 	struct ev_eloop *eloop;
 
 	struct uterm_display *displays;
-	struct kmscon_hook *hook;
+	struct shl_hook *hook;
 
 	const struct video_ops *ops;
 	union {
@@ -392,7 +392,7 @@ static inline bool video_need_hotplug(const struct uterm_video *video)
 	return video->flags & VIDEO_HOTPLUG;
 }
 
-#define VIDEO_CB(vid, disp, act) kmscon_hook_call((vid)->hook, (vid), \
+#define VIDEO_CB(vid, disp, act) shl_hook_call((vid)->hook, (vid), \
 		&(struct uterm_video_hotplug){ \
 			.display = (disp), \
 			.action = (act), \

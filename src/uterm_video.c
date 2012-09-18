@@ -37,7 +37,7 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
-#include "static_hook.h"
+#include "shl_hook.h"
 #include "uterm.h"
 #include "uterm_video.h"
 
@@ -494,7 +494,7 @@ int uterm_video_new(struct uterm_video **out,
 	video->ops = ops;
 	video->eloop = eloop;
 
-	ret = kmscon_hook_new(&video->hook);
+	ret = shl_hook_new(&video->hook);
 	if (ret)
 		goto err_free;
 
@@ -508,7 +508,7 @@ int uterm_video_new(struct uterm_video **out,
 	return 0;
 
 err_hook:
-	kmscon_hook_free(video->hook);
+	shl_hook_free(video->hook);
 err_free:
 	free(video);
 	return ret;
@@ -539,7 +539,7 @@ void uterm_video_unref(struct uterm_video *video)
 		uterm_display_unref(disp);
 	}
 
-	kmscon_hook_free(video->hook);
+	shl_hook_free(video->hook);
 	ev_eloop_unref(video->eloop);
 	free(video);
 }
@@ -574,7 +574,7 @@ int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
 	if (!video || !cb)
 		return -EINVAL;
 
-	return kmscon_hook_add_cast(video->hook, cb, data);
+	return shl_hook_add_cast(video->hook, cb, data);
 }
 
 void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
@@ -583,7 +583,7 @@ void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,
 	if (!video || !cb)
 		return;
 
-	kmscon_hook_rm_cast(video->hook, cb, data);
+	shl_hook_rm_cast(video->hook, cb, data);
 }
 
 void uterm_video_sleep(struct uterm_video *video)

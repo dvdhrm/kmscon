@@ -93,6 +93,8 @@ SHL_TIMER = \
 	src/shl_timer.h
 SHL_LLOG = \
 	src/shl_llog.h
+SHL_HOOK = \
+	src/shl_hook.h
 
 #
 # libeloop
@@ -106,6 +108,7 @@ lib_LTLIBRARIES += \
 libeloop_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_LLOG) \
+	$(SHL_HOOK) \
 	src/static_llog.h \
 	src/static_hook.h \
 	src/eloop.h \
@@ -144,6 +147,7 @@ lib_LTLIBRARIES += \
 
 libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
+	$(SHL_HOOK) \
 	src/uterm.h \
 	src/uterm_keysyms.h \
 	src/uterm_input.h \
@@ -266,6 +270,7 @@ libkmscon_core_la_SOURCES = \
 	$(SHL_HASHTABLE) \
 	$(SHL_RING) \
 	$(SHL_TIMER) \
+	$(SHL_HOOK) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -339,9 +344,7 @@ libkmscon_core_la_LIBADD = \
 # simply link them statically into all other libraries/programs.
 #
 
-libkmscon_static_la_SOURCES = \
-	src/static_llog.h \
-	src/static_hook.h
+libkmscon_static_la_SOURCES =
 nodist_libkmscon_static_la_SOURCES =
 
 libkmscon_static_la_CPPFLAGS = \

@@ -1,5 +1,5 @@
 /*
- * kmscon - Hook Handling
+ * shl - Hook Handling
  *
  * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
@@ -28,8 +28,8 @@
  * Simply hook-implementation
  */
 
-#ifndef KMSCON_STATIC_HOOK_H
-#define KMSCON_STATIC_HOOK_H
+#ifndef SHL_HOOK_H
+#define SHL_HOOK_H
 
 #include <errno.h>
 #include <stdbool.h>
@@ -38,30 +38,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct kmscon_hook;
-struct kmscon_hook_entry;
-typedef void (*kmscon_hook_cb) (void *parent, void *arg, void *data);
+struct shl_hook;
+struct shl_hook_entry;
+typedef void (*shl_hook_cb) (void *parent, void *arg, void *data);
 
-#define kmscon_hook_add_cast(hook, cb, data) \
-	kmscon_hook_add((hook), (kmscon_hook_cb)(cb), (data))
-#define kmscon_hook_rm_cast(hook, cb, data) \
-	kmscon_hook_rm((hook), (kmscon_hook_cb)(cb), (data))
+#define shl_hook_add_cast(hook, cb, data) \
+	shl_hook_add((hook), (shl_hook_cb)(cb), (data))
+#define shl_hook_rm_cast(hook, cb, data) \
+	shl_hook_rm((hook), (shl_hook_cb)(cb), (data))
 
-struct kmscon_hook_entry {
-	struct kmscon_hook_entry *next;
-	kmscon_hook_cb cb;
+struct shl_hook_entry {
+	struct shl_hook_entry *next;
+	shl_hook_cb cb;
 	void *data;
 };
 
-struct kmscon_hook {
+struct shl_hook {
 	unsigned int num;
-	struct kmscon_hook_entry *entries;
-	struct kmscon_hook_entry *cur_entry;
+	struct shl_hook_entry *entries;
+	struct shl_hook_entry *cur_entry;
 };
 
-static inline int kmscon_hook_new(struct kmscon_hook **out)
+static inline int shl_hook_new(struct shl_hook **out)
 {
-	struct kmscon_hook *hook;
+	struct shl_hook *hook;
 
 	if (!out)
 		return -EINVAL;
@@ -75,9 +75,9 @@ static inline int kmscon_hook_new(struct kmscon_hook **out)
 	return 0;
 }
 
-static inline void kmscon_hook_free(struct kmscon_hook *hook)
+static inline void shl_hook_free(struct shl_hook *hook)
 {
-	struct kmscon_hook_entry *entry;
+	struct shl_hook_entry *entry;
 
 	if (!hook)
 		return;
@@ -90,7 +90,7 @@ static inline void kmscon_hook_free(struct kmscon_hook *hook)
 	free(hook);
 }
 
-static inline unsigned int kmscon_hook_num(struct kmscon_hook *hook)
+static inline unsigned int shl_hook_num(struct shl_hook *hook)
 {
 	if (!hook)
 		return 0;
@@ -98,10 +98,10 @@ static inline unsigned int kmscon_hook_num(struct kmscon_hook *hook)
 	return hook->num;
 }
 
-static inline int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb,
+static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
 				  void *data)
 {
-	struct kmscon_hook_entry *entry;
+	struct shl_hook_entry *entry;
 
 	if (!hook || !cb)
 		return -EINVAL;
@@ -119,10 +119,10 @@ static inline int kmscon_hook_add(struct kmscon_hook *hook, kmscon_hook_cb cb,
 	return 0;
 }
 
-static inline void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb,
+static inline void shl_hook_rm(struct shl_hook *hook, shl_hook_cb cb,
 				  void *data)
 {
-	struct kmscon_hook_entry *entry, *tmp;
+	struct shl_hook_entry *entry, *tmp;
 
 	if (!hook || !cb || !hook->entries)
 		return;
@@ -148,7 +148,7 @@ static inline void kmscon_hook_rm(struct kmscon_hook *hook, kmscon_hook_cb cb,
 	}
 }
 
-static inline void kmscon_hook_call(struct kmscon_hook *hook, void *parent,
+static inline void shl_hook_call(struct shl_hook *hook, void *parent,
 				    void *arg)
 {
 	if (!hook)
@@ -162,4 +162,4 @@ static inline void kmscon_hook_call(struct kmscon_hook *hook, void *parent,
 	}
 }
 
-#endif /* KMSCON_STATIC_HOOK_H */
+#endif /* SHL_HOOK_H */

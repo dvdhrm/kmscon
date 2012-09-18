@@ -173,8 +173,8 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "shl_dlist.h"
+#include "shl_hook.h"
 #include "shl_llog.h"
-#include "static_hook.h"
 
 #define LLOG_SUBSYSTEM "eloop"
 
@@ -204,9 +204,9 @@ struct ev_eloop {
 	int idle_fd;
 
 	struct shl_dlist sig_list;
-	struct kmscon_hook *idlers;
-	struct kmscon_hook *pres;
-	struct kmscon_hook *posts;
+	struct shl_hook *idlers;
+	struct shl_hook *pres;
+	struct shl_hook *posts;
 
 	bool dispatching;
 	struct epoll_event *cur_fds;
@@ -299,7 +299,7 @@ struct ev_signal_shared {
 
 	struct ev_fd *fd;
 	int signum;
-	struct kmscon_hook *hook;
+	struct shl_hook *hook;
 };
 
 /*
@@ -360,7 +360,7 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 		if (len != sizeof(info))
 			llog_warn(fd, "cannot read signalfd (%d): %m", errno);
 		else
-			kmscon_hook_call(sig->hook, sig->fd->loop, &info);
+			shl_hook_call(sig->hook, sig->fd->loop, &info);
 
 		if (info.ssi_signo == SIGCHLD)
 			sig_child(fd);
@@ -397,7 +397,7 @@ static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 	memset(sig, 0, sizeof(*sig));
 	sig->signum = signum;
 
-	ret = kmscon_hook_new(&sig->hook);
+	ret = shl_hook_new(&sig->hook);
 	if (ret)
 		goto err_free;
 
@@ -425,7 +425,7 @@ static int signal_new(struct ev_signal_shared **out, struct ev_eloop *loop,
 err_sig:
 	close(fd);
 err_hook:
-	kmscon_hook_free(sig->hook);
+	shl_hook_free(sig->hook);
 err_free:
 	free(sig);
 	return ret;
@@ -451,7 +451,7 @@ static void signal_free(struct ev_signal_shared *sig)
 	fd = sig->fd->fd;
 	ev_eloop_rm_fd(sig->fd);
 	close(fd);
-	kmscon_hook_free(sig->hook);
+	shl_hook_free(sig->hook);
 	free(sig);
 	/*
 	 * We do not unblock the signal here as there may be other subsystems
@@ -552,8 +552,8 @@ static void eloop_idle_event(struct ev_eloop *loop, unsigned int mask)
 			     ret);
 		goto err_out;
 	} else if (val > 0) {
-		kmscon_hook_call(loop->idlers, loop, NULL);
-		if (kmscon_hook_num(loop->idlers) > 0)
+		shl_hook_call(loop->idlers, loop, NULL);
+		if (shl_hook_num(loop->idlers) > 0)
 			write_eventfd(loop->llog, loop->idle_fd, 1);
 	}
 
@@ -602,15 +602,15 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 		goto err_free;
 	}
 
-	ret = kmscon_hook_new(&loop->idlers);
+	ret = shl_hook_new(&loop->idlers);
 	if (ret)
 		goto err_fds;
 
-	ret = kmscon_hook_new(&loop->pres);
+	ret = shl_hook_new(&loop->pres);
 	if (ret)
 		goto err_idlers;
 
-	ret = kmscon_hook_new(&loop->posts);
+	ret = shl_hook_new(&loop->posts);
 	if (ret)
 		goto err_pres;
 
@@ -656,11 +656,11 @@ err_fd:
 err_close:
 	close(loop->efd);
 err_posts:
-	kmscon_hook_free(loop->posts);
+	shl_hook_free(loop->posts);
 err_pres:
-	kmscon_hook_free(loop->pres);
+	shl_hook_free(loop->pres);
 err_idlers:
-	kmscon_hook_free(loop->idlers);
+	shl_hook_free(loop->idlers);
 err_fds:
 	free(loop->cur_fds);
 err_free:
@@ -720,9 +720,9 @@ void ev_eloop_unref(struct ev_eloop *loop)
 
 	ev_fd_unref(loop->fd);
 	close(loop->efd);
-	kmscon_hook_free(loop->posts);
-	kmscon_hook_free(loop->pres);
-	kmscon_hook_free(loop->idlers);
+	shl_hook_free(loop->posts);
+	shl_hook_free(loop->pres);
+	shl_hook_free(loop->idlers);
 	free(loop->cur_fds);
 	free(loop);
 }
@@ -803,7 +803,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 
 	loop->dispatching = true;
 
-	kmscon_hook_call(loop->pres, loop, NULL);
+	shl_hook_call(loop->pres, loop, NULL);
 
 	count = epoll_wait(loop->efd,
 			   loop->cur_fds,
@@ -857,7 +857,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 	ret = 0;
 
 out_dispatch:
-	kmscon_hook_call(loop->posts, loop, NULL);
+	shl_hook_call(loop->posts, loop, NULL);
 	loop->dispatching = false;
 	return ret;
 }
@@ -2136,7 +2136,7 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 			return ret;
 	}
 
-	return kmscon_hook_add_cast(sig->hook, cb, data);
+	return shl_hook_add_cast(sig->hook, cb, data);
 }
 
 /**
@@ -2163,8 +2163,8 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 	shl_dlist_for_each(iter, &loop->sig_list) {
 		sig = shl_dlist_entry(iter, struct ev_signal_shared, list);
 		if (sig->signum == signum) {
-			kmscon_hook_rm_cast(sig->hook, cb, data);
-			if (!kmscon_hook_num(sig->hook))
+			shl_hook_rm_cast(sig->hook, cb, data);
+			if (!shl_hook_num(sig->hook))
 				signal_free(sig);
 			return;
 		}
@@ -2198,14 +2198,14 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	ret = kmscon_hook_add_cast(eloop->idlers, cb, data);
+	ret = shl_hook_add_cast(eloop->idlers, cb, data);
 	if (ret)
 		return ret;
 
 	ret = write_eventfd(eloop->llog, eloop->idle_fd, 1);
 	if (ret) {
 		llog_warning(eloop, "cannot increase eloop idle-counter");
-		kmscon_hook_rm_cast(eloop->idlers, cb, data);
+		shl_hook_rm_cast(eloop->idlers, cb, data);
 		return ret;
 	}
 
@@ -2229,7 +2229,7 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return;
 
-	kmscon_hook_rm_cast(eloop->idlers, cb, data);
+	shl_hook_rm_cast(eloop->idlers, cb, data);
 }
 
 /*
@@ -2258,7 +2258,7 @@ int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	return kmscon_hook_add_cast(eloop->pres, cb, data);
+	return shl_hook_add_cast(eloop->pres, cb, data);
 }
 
 /**
@@ -2278,7 +2278,7 @@ void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return;
 
-	kmscon_hook_rm_cast(eloop->pres, cb, data);
+	shl_hook_rm_cast(eloop->pres, cb, data);
 }
 
 /*
@@ -2307,7 +2307,7 @@ int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	return kmscon_hook_add_cast(eloop->posts, cb, data);
+	return shl_hook_add_cast(eloop->posts, cb, data);
 }
 
 /**
@@ -2327,5 +2327,5 @@ void ev_eloop_unregister_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return;
 
-	kmscon_hook_rm_cast(eloop->posts, cb, data);
+	shl_hook_rm_cast(eloop->posts, cb, data);
 }

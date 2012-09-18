@@ -39,7 +39,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"
-#include "static_hook.h"
+#include "shl_hook.h"
 #include "uterm.h"
 #include "uterm_input.h"
 
@@ -69,7 +69,7 @@ struct uterm_input {
 	struct ev_eloop *eloop;
 	int awake;
 
-	struct kmscon_hook *hook;
+	struct shl_hook *hook;
 	struct kbd_desc *desc;
 
 	struct shl_dlist devices;
@@ -92,7 +92,7 @@ static void notify_key(struct uterm_input_dev *dev,
 	if (ret)
 		return;
 
-	kmscon_hook_call(dev->input->hook, dev->input, &ev);
+	shl_hook_call(dev->input->hook, dev->input, &ev);
 }
 
 static void input_data_dev(struct ev_fd *fd, int mask, void *data)
@@ -252,7 +252,7 @@ int uterm_input_new(struct uterm_input **out,
 	input->eloop = eloop;
 	shl_dlist_init(&input->devices);
 
-	ret = kmscon_hook_new(&input->hook);
+	ret = shl_hook_new(&input->hook);
 	if (ret)
 		goto err_free;
 
@@ -280,7 +280,7 @@ int uterm_input_new(struct uterm_input **out,
 	return 0;
 
 err_hook:
-	kmscon_hook_free(input->hook);
+	shl_hook_free(input->hook);
 err_free:
 	free(input);
 	return ret;
@@ -311,7 +311,7 @@ void uterm_input_unref(struct uterm_input *input)
 	}
 
 	kbd_desc_unref(input->desc);
-	kmscon_hook_free(input->hook);
+	shl_hook_free(input->hook);
 	ev_eloop_unref(input->eloop);
 	free(input);
 }
@@ -409,7 +409,7 @@ int uterm_input_register_cb(struct uterm_input *input,
 	if (!input || !cb)
 		return -EINVAL;
 
-	return kmscon_hook_add_cast(input->hook, cb, data);
+	return shl_hook_add_cast(input->hook, cb, data);
 }
 
 void uterm_input_unregister_cb(struct uterm_input *input,
@@ -419,7 +419,7 @@ void uterm_input_unregister_cb(struct uterm_input *input,
 	if (!input || !cb)
 		return;
 
-	kmscon_hook_rm_cast(input->hook, cb, data);
+	shl_hook_rm_cast(input->hook, cb, data);
 }
 
 void uterm_input_sleep(struct uterm_input *input)
