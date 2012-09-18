@@ -71,6 +71,8 @@ typedef void (*tsm_log_t) (const char *file,
 #define TSM_SCREEN_HIDE_CURSOR	0x10
 #define TSM_SCREEN_FIXED_POS	0x20
 
+#define TSM_SCREEN_OPT_RENDER_TIMING	0x01
+
 struct tsm_screen_attr {
 	int8_t fccode;			/* foreground color code or <0 for rgb */
 	int8_t bccode;			/* background color code or <0 for rgb */

@@ -425,6 +425,9 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_free;
 	tsm_screen_set_max_sb(term->console, kmscon_conf.sb_size);
+	if (kmscon_conf.render_timing)
+		tsm_screen_set_opts(term->console,
+				    TSM_SCREEN_OPT_RENDER_TIMING);
 
 	ret = kmscon_vte_new(&term->vte, term->console, write_event, term);
 	if (ret)

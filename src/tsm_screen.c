@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "log.h"
-#include "main.h"
 #include "shl_llog.h"
 #include "shl_timer.h"
 #include "tsm_screen.h"
@@ -1299,7 +1298,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 	/* render preparation */
 
 	if (prepare_cb) {
-		if (kmscon_conf.render_timing)
+		if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 			shl_timer_reset(con->timer);
 
 		ret = prepare_cb(con, data);
@@ -1308,7 +1307,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 			return;
 		}
 
-		if (kmscon_conf.render_timing)
+		if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 			time_prep = shl_timer_elapsed(con->timer);
 	} else {
 		time_prep = 0;
@@ -1316,7 +1315,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 	/* push each character into rendering pipeline */
 
-	if (kmscon_conf.render_timing)
+	if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 		shl_timer_reset(con->timer);
 
 	iter = con->sb_pos;
@@ -1371,26 +1370,26 @@ void tsm_screen_draw(struct tsm_screen *con,
 		}
 	}
 
-	if (kmscon_conf.render_timing)
+	if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 		time_draw = shl_timer_elapsed(con->timer);
 
 	/* perform final rendering steps */
 
 	if (render_cb) {
-		if (kmscon_conf.render_timing)
+		if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 			shl_timer_reset(con->timer);
 
 		ret = render_cb(con, data);
 		if (ret)
 			log_warning("cannot render via text-renderer");
 
-		if (kmscon_conf.render_timing)
+		if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 			time_rend = shl_timer_elapsed(con->timer);
 	} else {
 		time_rend = 0;
 	}
 
-	if (kmscon_conf.render_timing)
+	if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 		log_debug("timing: prepare: %llu draw: %llu render: %llu",
 			  time_prep, time_draw, time_rend);
 }
