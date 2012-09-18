@@ -192,10 +192,13 @@ tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
  * This always returns a valid value. If an error happens, the default character
  * is returned. If \size is NULL, then the size value is omitted.
  */
-static const uint32_t *table__get(struct tsm_symbol_table *tbl,
-				  tsm_symbol_t *sym, size_t *size)
+const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
+			       tsm_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
+
+	if (!tbl)
+		tbl = &tsm_symbol_table_default;
 
 	if (*sym <= TSM_UCS4_MAX) {
 		if (size)
@@ -226,19 +229,6 @@ static const uint32_t *table__get(struct tsm_symbol_table *tbl,
 	return ucs4;
 }
 
-const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
-			       tsm_symbol_t *sym, size_t *size)
-{
-	const uint32_t *res;
-
-	if (!tbl)
-		tbl = &tsm_symbol_table_default;
-
-	res = table__get(tbl, sym, size);
-
-	return res;
-}
-
 tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t sym, uint32_t ucs4)
 {
@@ -262,7 +252,7 @@ tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 		goto unlock;
 	}
 
-	ptr = table__get(tbl, &sym, &s);
+	ptr = tsm_symbol_get(tbl, &sym, &s);
 	if (s >= TSM_UCS4_MAXLEN) {
 		rsym = sym;
 		goto unlock;
