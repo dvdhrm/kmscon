@@ -449,7 +449,9 @@ void kmscon_font_unref(struct kmscon_font *font)
 /**
  * kmscon_font_render:
  * @font: Valid font object
- * @sym: Symbol to find a glyph for
+ * @id: Unique ID that identifies @ch globally
+ * @ch: Symbol to find a glyph for
+ * @len: Length of @ch
  * @out: Output buffer for glyph
  *
  * Renders the glyph for symbol @sym and places a pointer to the glyph in @out.
@@ -460,13 +462,14 @@ void kmscon_font_unref(struct kmscon_font *font)
  *
  * Returns: 0 on success, negative error code on failure
  */
-int kmscon_font_render(struct kmscon_font *font, tsm_symbol_t sym,
+int kmscon_font_render(struct kmscon_font *font,
+		       uint32_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out)
 {
-	if (!font || !out)
+	if (!font || !out || !ch || !len)
 		return -EINVAL;
 
-	return font->ops->render(font, sym, out);
+	return font->ops->render(font, id, ch, len, out);
 }
 
 /**

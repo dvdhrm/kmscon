@@ -49,7 +49,6 @@
 #include <string.h>
 #include "log.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font_8x16"
@@ -82,18 +81,13 @@ static void kmscon_font_8x16_destroy(struct kmscon_font *font)
 }
 
 static int kmscon_font_8x16_render(struct kmscon_font *font,
-				   tsm_symbol_t sym,
+				   uint32_t id, const uint32_t *ch, size_t len,
 				   const struct kmscon_glyph **out)
 {
-	const uint32_t *val;
-	size_t len;
-
-	val = tsm_symbol_get(NULL, &sym, &len);
-	if (len > 1 || *val >= 256)
+	if (len > 1 || *ch >= 256)
 		return -ERANGE;
 
-	*out = &kmscon_font_8x16_glyphs[*val];
-
+	*out = &kmscon_font_8x16_glyphs[*ch];
 	return 0;
 }
 

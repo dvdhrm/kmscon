@@ -50,7 +50,6 @@
 #include "shl_hashtable.h"
 #include "static_gl.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_gltex"
@@ -367,7 +366,7 @@ err_free:
 }
 
 static int find_glyph(struct kmscon_text *txt, struct glyph **out,
-		      tsm_symbol_t ch)
+		      uint32_t id, const uint32_t *ch, size_t len)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
@@ -378,7 +377,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	uint8_t *packed_data, *dst, *src;
 
 	res = shl_hashtable_find(gt->glyphs, (void**)&glyph,
-				    (void*)(unsigned long)ch);
+				    (void*)(unsigned long)id);
 	if (res) {
 		*out = glyph;
 		return 0;
@@ -393,10 +392,10 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 		return -ENOMEM;
 	memset(glyph, 0, sizeof(*glyph));
 
-	if (ch == 0 || ch == ' ') {
+	if (!len) {
 		ret = kmscon_font_render_empty(txt->font, &glyph->glyph);
 	} else {
-		ret = kmscon_font_render(txt->font, ch, &glyph->glyph);
+		ret = kmscon_font_render(txt->font, id, ch, len, &glyph->glyph);
 	}
 
 	if (ret) {
@@ -480,7 +479,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	glyph->atlas = atlas;
 	glyph->texoff = atlas->fill;
 
-	ret = shl_hashtable_insert(gt->glyphs, (void*)(long)ch, glyph);
+	ret = shl_hashtable_insert(gt->glyphs, (void*)(long)id, glyph);
 	if (ret)
 		goto err_free;
 
@@ -521,7 +520,8 @@ static int gltex_prepare(struct kmscon_text *txt)
 	return 0;
 }
 
-static int gltex_draw(struct kmscon_text *txt, tsm_symbol_t ch,
+static int gltex_draw(struct kmscon_text *txt,
+		      uint32_t id, const uint32_t *ch, size_t len,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {
@@ -530,7 +530,7 @@ static int gltex_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 	struct glyph *glyph;
 	int ret, i, idx;
 
-	ret = find_glyph(txt, &glyph, ch);
+	ret = find_glyph(txt, &glyph, id, ch, len);
 	if (ret)
 		return ret;
 	atlas = glyph->atlas;

@@ -48,7 +48,6 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font_freetype2"
@@ -139,7 +138,7 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     tsm_symbol_t ch)
+		     uint32_t id, const uint32_t *ch, size_t len)
 {
 	struct kmscon_glyph *glyph;
 	struct glyph *data;
@@ -147,15 +146,13 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	FT_UInt idx;
 	FT_Bitmap *bmap;
 	FT_GlyphSlot slot;
-	size_t len;
-	const uint32_t *val;
 	bool res;
 	unsigned int i, j, wmax, hmax, idx1, idx2;
 	int ret, hoff1, hoff2, woff1, woff2;
 
 	pthread_mutex_lock(&face->glyph_lock);
 	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
-				    (void*)(long)ch);
+				 (void*)(long)id);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (res) {
 		*out = glyph;
@@ -181,13 +178,12 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	 * TODO: Fix this by drawing all related characters into a single glyph
 	 * and saving it or simply refer to the pango backend which already does
 	 * that. */
-	val = tsm_symbol_get(NULL, &ch, &len);
-	if (len > 1 || !*val) {
+	if (!*ch) {
 		ret = -ERANGE;
 		goto out_glyph;
 	}
 
-	idx = FT_Get_Char_Index(face->face, *val);
+	idx = FT_Get_Char_Index(face->face, *ch);
 	err = FT_Load_Glyph(face->face, idx, FT_LOAD_DEFAULT);
 	if (err) {
 		ret = -ERANGE;
@@ -269,7 +265,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	}
 
 	pthread_mutex_lock(&face->glyph_lock);
-	ret = shl_hashtable_insert(face->glyphs, (void*)(long)ch, glyph);
+	ret = shl_hashtable_insert(face->glyphs, (void*)(long)id, glyph);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (ret) {
 		log_error("cannot add glyph to hashtable");
@@ -537,6 +533,7 @@ static int generate_specials(struct face *face)
 	size_t s;
 	struct kmscon_glyph *g;
 	int ret;
+	static const uint32_t question_mark = '?';
 
 	face->empty.data = NULL;
 	face->empty.buf.width = face->real_attr.width;
@@ -550,7 +547,7 @@ static int generate_specials(struct face *face)
 
 	memset(face->empty.buf.data, 0, s);
 
-	ret = get_glyph(face, &g, tsm_symbol_make('?'));
+	ret = get_glyph(face, &g, question_mark, &question_mark, 1);
 	if (ret) {
 		memcpy(&face->inval, &face->empty, sizeof(face->inval));
 	} else {
@@ -565,8 +562,8 @@ static int kmscon_font_freetype2_init(struct kmscon_font *out,
 {
 	struct face *face = NULL;
 	int ret;
-	tsm_symbol_t ch;
-	unsigned int i, width;
+	unsigned int width;
+	uint32_t i;
 	struct kmscon_glyph *glyph;
 	struct glyph *data;
 
@@ -593,8 +590,7 @@ static int kmscon_font_freetype2_init(struct kmscon_font *out,
 	if (face->shrink) {
 		width = 0;
 		for (i = 0x20; i < 0x7f; ++i) {
-			ch = tsm_symbol_make(i);
-			ret = get_glyph(face, &glyph, ch);
+			ret = get_glyph(face, &glyph, i, &i, 1);
 			if (ret)
 				continue;
 			data = glyph->data;
@@ -636,8 +632,8 @@ static void kmscon_font_freetype2_destroy(struct kmscon_font *font)
 	manager_put_face(face);
 }
 
-static int kmscon_font_freetype2_render(struct kmscon_font *font,
-					tsm_symbol_t sym,
+static int kmscon_font_freetype2_render(struct kmscon_font *font, uint32_t id,
+					const uint32_t *ch, size_t len,
 					const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;
@@ -645,7 +641,7 @@ static int kmscon_font_freetype2_render(struct kmscon_font *font,
 	struct face *face;
 	int ret;
 
-	ret = get_glyph(font->data, &glyph, sym);
+	ret = get_glyph(font->data, &glyph, id, ch, len);
 	if (ret)
 		return ret;
 

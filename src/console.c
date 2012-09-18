@@ -1255,6 +1255,8 @@ void kmscon_console_draw(struct kmscon_console *con,
 	bool cursor_done = false;
 	int ret, warned = 0;
 	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
+	const uint32_t *ch;
+	size_t len;
 
 	if (!con || !draw_cb)
 		return;
@@ -1318,7 +1320,11 @@ void kmscon_console_draw(struct kmscon_console *con,
 			if (con->flags & KMSCON_CONSOLE_INVERSE)
 				attr.inverse = !attr.inverse;
 
-			ret = draw_cb(con, cell->ch, j, i, &attr, data);
+			ch = tsm_symbol_get(NULL, &cell->ch, &len);
+			if (cell->ch == ' ' || cell->ch == 0)
+				len = 0;
+			ret = draw_cb(con, cell->ch, ch, len, j, i, &attr,
+				      data);
 			if (ret && warned++ < 3) {
 				log_debug("cannot draw glyph at %ux%u via text-renderer",
 					  j, i);
@@ -1332,7 +1338,7 @@ void kmscon_console_draw(struct kmscon_console *con,
 			if (!(con->flags & KMSCON_CONSOLE_HIDE_CURSOR)) {
 				if (!(con->flags & KMSCON_CONSOLE_INVERSE))
 					attr.inverse = !attr.inverse;
-				draw_cb(con, 0, cur_x, i, &attr, data);
+				draw_cb(con, 0, NULL, 0, cur_x, i, &attr, data);
 			}
 		}
 	}

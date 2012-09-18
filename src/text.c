@@ -431,7 +431,9 @@ int kmscon_text_prepare(struct kmscon_text *txt)
 /**
  * kmscon_text_draw:
  * @txt: valid text renderer
- * @ch: symbol you want to draw
+ * @id: a unique ID that identifies @ch globally
+ * @ch: ucs4 symbol you want to draw
+ * @len: length of @ch or 0 for empty cell
  * @posx: X-position of the glyph
  * @posy: Y-position of the glyph
  * @attr: glyph attributes
@@ -443,16 +445,17 @@ int kmscon_text_prepare(struct kmscon_text *txt)
  *
  * Returns: 0 on success or negative error code if this glyph couldn't be drawn.
  */
-int kmscon_text_draw(struct kmscon_text *txt, tsm_symbol_t ch,
-		      unsigned int posx, unsigned int posy,
-		      const struct kmscon_console_attr *attr)
+int kmscon_text_draw(struct kmscon_text *txt,
+		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int posx, unsigned int posy,
+		     const struct kmscon_console_attr *attr)
 {
 	if (!txt || !txt->rendering)
 		return -EINVAL;
 	if (posx >= txt->cols || posy >= txt->rows || !attr)
 		return -EINVAL;
 
-	return txt->ops->draw(txt, ch, posx, posy, attr);
+	return txt->ops->draw(txt, id, ch, len, posx, posy, attr);
 }
 
 /**
@@ -503,11 +506,12 @@ int kmscon_text_prepare_cb(struct kmscon_console *con, void *data)
 	return kmscon_text_prepare(data);
 }
 
-int kmscon_text_draw_cb(struct kmscon_console *con, tsm_symbol_t ch,
+int kmscon_text_draw_cb(struct kmscon_console *con,
+			uint32_t id, const uint32_t *ch, size_t len,
 			unsigned int posx, unsigned int posy,
 			const struct kmscon_console_attr *attr, void *data)
 {
-	return kmscon_text_draw(data, ch, posx, posy, attr);
+	return kmscon_text_draw(data, id, ch, len, posx, posy, attr);
 }
 
 int kmscon_text_render_cb(struct kmscon_console *con, void *data)

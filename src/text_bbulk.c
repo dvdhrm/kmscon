@@ -38,7 +38,6 @@
 #include <string.h>
 #include "log.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_bbulk"
@@ -110,7 +109,8 @@ static void bbulk_unset(struct kmscon_text *txt)
 	bb->reqs = NULL;
 }
 
-static int bbulk_draw(struct kmscon_text *txt, tsm_symbol_t ch,
+static int bbulk_draw(struct kmscon_text *txt,
+		      uint32_t id, const uint32_t *ch, size_t len,
 		      unsigned int posx, unsigned int posy,
 		      const struct kmscon_console_attr *attr)
 {
@@ -119,10 +119,10 @@ static int bbulk_draw(struct kmscon_text *txt, tsm_symbol_t ch,
 	int ret;
 	struct uterm_video_blend_req *req;
 
-	if (ch == 0 || ch == ' ') {
+	if (!len) {
 		ret = kmscon_font_render_empty(txt->font, &glyph);
 	} else {
-		ret = kmscon_font_render(txt->font, ch, &glyph);
+		ret = kmscon_font_render(txt->font, id, ch, len, &glyph);
 	}
 
 	if (ret) {

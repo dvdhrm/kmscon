@@ -110,21 +110,21 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     tsm_symbol_t ch)
+		     uint32_t id, const uint32_t *ch, size_t len)
 {
 	struct kmscon_glyph *glyph;
 	PangoLayout *layout;
 	PangoRectangle rec;
 	PangoLayoutLine *line;
 	FT_Bitmap bitmap;
-	size_t len, cnt;
-	const char *val;
+	size_t ulen, cnt;
+	char *val;
 	bool res;
 	int ret;
 
 	pthread_mutex_lock(&face->glyph_lock);
 	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
-				    (void*)(long)ch);
+				 (void*)(long)id);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (res) {
 		*out = glyph;
@@ -149,9 +149,13 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
 
-	val = tsm_symbol_get_u8(NULL, ch, &len);
-	pango_layout_set_text(layout, val, len);
-	tsm_symbol_free_u8(val);
+	val = tsm_ucs4_to_utf8_alloc(ch, len, &ulen);
+	if (!val) {
+		ret = -ERANGE;
+		goto out_glyph;
+	}
+	pango_layout_set_text(layout, val, ulen);
+	free(val);
 
 	cnt = pango_layout_get_line_count(layout);
 	if (cnt == 0) {
@@ -190,7 +194,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	pango_ft2_render_layout_line(&bitmap, line, -rec.x, -rec.y);
 
 	pthread_mutex_lock(&face->glyph_lock);
-	ret = shl_hashtable_insert(face->glyphs, (void*)(long)ch, glyph);
+	ret = shl_hashtable_insert(face->glyphs, (void*)(long)id, glyph);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (ret) {
 		log_error("cannot add glyph to hashtable");
@@ -386,14 +390,14 @@ static void kmscon_font_pango_destroy(struct kmscon_font *font)
 	manager_put_face(face);
 }
 
-static int kmscon_font_pango_render(struct kmscon_font *font,
-				    tsm_symbol_t sym,
+static int kmscon_font_pango_render(struct kmscon_font *font, uint32_t id,
+				    const uint32_t *ch, size_t len,
 				    const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;
 	int ret;
 
-	ret = get_glyph(font->data, &glyph, sym);
+	ret = get_glyph(font->data, &glyph, id, ch, len);
 	if (ret)
 		return ret;
 
@@ -404,13 +408,16 @@ static int kmscon_font_pango_render(struct kmscon_font *font,
 static int kmscon_font_pango_render_empty(struct kmscon_font *font,
 					  const struct kmscon_glyph **out)
 {
-	return kmscon_font_pango_render(font, ' ', out);
+	static const uint32_t empty_char = ' ';
+	return kmscon_font_pango_render(font, empty_char, &empty_char, 1, out);
 }
 
 static int kmscon_font_pango_render_inval(struct kmscon_font *font,
 					  const struct kmscon_glyph **out)
 {
-	return kmscon_font_pango_render(font, '?', out);
+	static const uint32_t question_mark = '?';
+	return kmscon_font_pango_render(font, question_mark, &question_mark, 1,
+					out);
 }
 
 static const struct kmscon_font_ops kmscon_font_pango_ops = {

@@ -41,7 +41,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "console.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 /* fonts */
@@ -87,7 +86,8 @@ struct kmscon_font_ops {
 	int (*init) (struct kmscon_font *out,
 		     const struct kmscon_font_attr *attr);
 	void (*destroy) (struct kmscon_font *font);
-	int (*render) (struct kmscon_font *font, tsm_symbol_t sym,
+	int (*render) (struct kmscon_font *font,
+		       uint32_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out);
 	int (*render_empty) (struct kmscon_font *font,
 			     const struct kmscon_glyph **out);
@@ -104,7 +104,8 @@ int kmscon_font_find(struct kmscon_font **out,
 void kmscon_font_ref(struct kmscon_font *font);
 void kmscon_font_unref(struct kmscon_font *font);
 
-int kmscon_font_render(struct kmscon_font *font, tsm_symbol_t sym,
+int kmscon_font_render(struct kmscon_font *font,
+		       uint32_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out);
 int kmscon_font_render_empty(struct kmscon_font *font,
 			     const struct kmscon_glyph **out);
@@ -135,7 +136,8 @@ struct kmscon_text_ops {
 	int (*set) (struct kmscon_text *txt);
 	void (*unset) (struct kmscon_text *txt);
 	int (*prepare) (struct kmscon_text *txt);
-	int (*draw) (struct kmscon_text *txt, tsm_symbol_t ch,
+	int (*draw) (struct kmscon_text *txt,
+		     uint32_t id, const uint32_t *ch, size_t len,
 		     unsigned int posx, unsigned int posy,
 		     const struct kmscon_console_attr *attr);
 	int (*render) (struct kmscon_text *txt);
@@ -157,14 +159,16 @@ unsigned int kmscon_text_get_cols(struct kmscon_text *txt);
 unsigned int kmscon_text_get_rows(struct kmscon_text *txt);
 
 int kmscon_text_prepare(struct kmscon_text *txt);
-int kmscon_text_draw(struct kmscon_text *txt, tsm_symbol_t ch,
-		      unsigned int posx, unsigned int posy,
-		      const struct kmscon_console_attr *attr);
+int kmscon_text_draw(struct kmscon_text *txt,
+		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int posx, unsigned int posy,
+		     const struct kmscon_console_attr *attr);
 int kmscon_text_render(struct kmscon_text *txt);
 void kmscon_text_abort(struct kmscon_text *txt);
 
 int kmscon_text_prepare_cb(struct kmscon_console *con, void *data);
-int kmscon_text_draw_cb(struct kmscon_console *con, tsm_symbol_t ch,
+int kmscon_text_draw_cb(struct kmscon_console *con,
+			uint32_t id, const uint32_t *ch, size_t len,
 			unsigned int posx, unsigned int posy,
 			const struct kmscon_console_attr *attr, void *data);
 int kmscon_text_render_cb(struct kmscon_console *con, void *data);

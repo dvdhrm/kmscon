@@ -44,7 +44,6 @@
 #include <string.h>
 #include "log.h"
 #include "text.h"
-#include "tsm_unicode.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font_unifont"
@@ -77,19 +76,14 @@ static void kmscon_font_unifont_destroy(struct kmscon_font *font)
 	log_debug("unloading static unifont font");
 }
 
-static int kmscon_font_unifont_render(struct kmscon_font *font,
-				      tsm_symbol_t sym,
+static int kmscon_font_unifont_render(struct kmscon_font *font, uint32_t id,
+				      const uint32_t *ch, size_t len,
 				      const struct kmscon_glyph **out)
 {
-	const uint32_t *val;
-	size_t len;
-
-	val = tsm_symbol_get(NULL, &sym, &len);
-	if (len > 1 || *val >= kmscon_text_font_unifont_data_hex_len)
+	if (len > 1 || *ch >= kmscon_text_font_unifont_data_hex_len)
 		return -ERANGE;
 
-	*out = &kmscon_text_font_unifont_data_hex_glyphs[*val];
-
+	*out = &kmscon_text_font_unifont_data_hex_glyphs[*ch];
 	return 0;
 }
 

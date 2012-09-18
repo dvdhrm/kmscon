@@ -68,7 +68,9 @@ struct kmscon_console_attr {
 typedef int (*kmscon_console_prepare_cb) (struct kmscon_console *con,
 					  void *data);
 typedef int (*kmscon_console_draw_cb) (struct kmscon_console *con,
-				       tsm_symbol_t ch,
+				       uint32_t id,
+				       const uint32_t *ch,
+				       size_t len,
 				       unsigned int posx,
 				       unsigned int posy,
 				       const struct kmscon_console_attr *attr,
