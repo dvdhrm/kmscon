@@ -50,6 +50,10 @@ typedef uint32_t tsm_symbol_t;
 
 extern const tsm_symbol_t tsm_symbol_default;
 
+int tsm_symbol_table_new(struct tsm_symbol_table **out);
+void tsm_symbol_table_ref(struct tsm_symbol_table *tbl);
+void tsm_symbol_table_unref(struct tsm_symbol_table *tbl);
+
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4);
 tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t sym, uint32_t ucs4);

@@ -100,13 +100,14 @@ const tsm_symbol_t tsm_symbol_default = 0;
 static const char default_u8[] = { 0 };
 
 struct tsm_symbol_table {
+	unsigned long ref;
 	uint32_t next_id;
 	struct shl_array *index;
 	struct shl_hashtable *symbols;
 };
 
 /* TODO: remove the default context */
-static struct tsm_symbol_table tsm_symbol_table_default;
+static struct tsm_symbol_table *tsm_symbol_table_default;
 
 static unsigned int hash_ucs4(const void *key)
 {
@@ -146,31 +147,60 @@ static bool cmp_ucs4(const void *a, const void *b)
 	}
 }
 
-static int table__init(struct tsm_symbol_table *tbl)
+int tsm_symbol_table_new(struct tsm_symbol_table **out)
 {
-	static const uint32_t *val = NULL; /* we need a valid lvalue */
+	struct tsm_symbol_table *tbl;
 	int ret;
+	static const uint32_t *val = NULL; /* we need a valid lvalue */
 
-	if (tbl->symbols)
-		return 0;
+	if (!out)
+		return -EINVAL;
 
+	tbl = malloc(sizeof(*tbl));
+	if (!tbl)
+		return -ENOMEM;
+	memset(tbl, 0, sizeof(*tbl));
+	tbl->ref = 1;
 	tbl->next_id = TSM_UCS4_MAX + 2;
 
 	ret = shl_array_new(&tbl->index, sizeof(uint32_t*), 4);
 	if (ret)
-		return ret;
+		goto err_free;
 
 	/* first entry is not used so add dummy */
 	shl_array_push(tbl->index, &val);
 
 	ret = shl_hashtable_new(&tbl->symbols, hash_ucs4, cmp_ucs4,
 				free, NULL);
-	if (ret) {
-		shl_array_free(tbl->index);
-		return -ENOMEM;
-	}
+	if (ret)
+		goto err_array;
 
+	*out = tbl;
 	return 0;
+
+err_array:
+	shl_array_free(tbl->index);
+err_free:
+	free(tbl);
+	return ret;
+}
+
+void tsm_symbol_table_ref(struct tsm_symbol_table *tbl)
+{
+	if (!tbl || !tbl->ref)
+		return;
+
+	++tbl->ref;
+}
+
+void tsm_symbol_table_unref(struct tsm_symbol_table *tbl)
+{
+	if (!tbl || !tbl->ref || --tbl->ref)
+		return;
+
+	shl_hashtable_free(tbl->symbols);
+	shl_array_free(tbl->index);
+	free(tbl);
 }
 
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
@@ -196,9 +226,7 @@ const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t *sym, size_t *size)
 {
 	uint32_t *ucs4;
-
-	if (!tbl)
-		tbl = &tsm_symbol_table_default;
+	int ret;
 
 	if (*sym <= TSM_UCS4_MAX) {
 		if (size)
@@ -206,10 +234,14 @@ const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 		return sym;
 	}
 
-	if (table__init(tbl)) {
-		if (size)
-			*size = 1;
-		return &tsm_symbol_default;
+	if (!tbl) {
+		ret = tsm_symbol_table_new(&tbl);
+		if (ret) {
+			if (size)
+				*size = 1;
+			return &tsm_symbol_default;
+		}
+		tsm_symbol_table_default = tbl;
 	}
 
 	ucs4 = *SHL_ARRAY_AT(tbl->index, uint32_t*,
@@ -235,53 +267,41 @@ tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 	uint32_t buf[TSM_UCS4_MAXLEN + 1], nsym, *nval;
 	const uint32_t *ptr;
 	size_t s;
-	tsm_symbol_t rsym;
 	void *tmp;
 	bool res;
+	int ret;
 
-	if (!tbl)
-		tbl = &tsm_symbol_table_default;
-
-	if (table__init(tbl)) {
-		rsym = sym;
-		goto unlock;
+	if (!tbl) {
+		ret = tsm_symbol_table_new(&tbl);
+		if (ret)
+			return sym;
+		tsm_symbol_table_default = tbl;
 	}
 
-	if (ucs4 > TSM_UCS4_MAX) {
-		rsym = sym;
-		goto unlock;
-	}
+	if (ucs4 > TSM_UCS4_MAX)
+		return sym;
 
 	ptr = tsm_symbol_get(tbl, &sym, &s);
-	if (s >= TSM_UCS4_MAXLEN) {
-		rsym = sym;
-		goto unlock;
-	}
+	if (s >= TSM_UCS4_MAXLEN)
+		return sym;
 
 	memcpy(buf, ptr, s * sizeof(uint32_t));
 	buf[s++] = ucs4;
 	buf[s++] = TSM_UCS4_MAX + 1;
 
 	res = shl_hashtable_find(tbl->symbols, &tmp, buf);
-	if (res) {
-		rsym = (uint32_t)(long)tmp;
-		goto unlock;
-	}
+	if (res)
+		return (uint32_t)(long)tmp;
 
 	nval = malloc(sizeof(uint32_t) * s);
-	if (!nval) {
-		rsym = sym;
-		goto unlock;
-	}
+	if (!nval)
+		return sym;
 
 	memcpy(nval, buf, s * sizeof(uint32_t));
 	nsym = tbl->next_id++;
 	shl_hashtable_insert(tbl->symbols, nval, (void*)(long)nsym);
 	shl_array_push(tbl->index, &nval);
-	rsym = nsym;
-
-unlock:
-	return rsym;
+	return nsym;
 }
 
 const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
@@ -290,9 +310,6 @@ const char *tsm_symbol_get_u8(struct tsm_symbol_table *tbl,
 	const uint32_t *ucs4;
 	char *val;
 	size_t i, pos, len;
-
-	if (!tbl)
-		tbl = &tsm_symbol_table_default;
 
 	ucs4 = tsm_symbol_get(tbl, &sym, &len);
 	val = malloc(4 * len);
