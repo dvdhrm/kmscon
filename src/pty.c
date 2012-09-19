@@ -184,6 +184,7 @@ static void setup_child(int master, struct winsize *ws)
 	pid_t pid;
 	char slave_name[128];
 	int slave = -1;
+	struct termios attr;
 
 	/* The child should not inherit our signal mask. */
 	sigemptyset(&sigset);
@@ -220,6 +221,21 @@ static void setup_child(int master, struct winsize *ws)
 	slave = open(slave_name, O_RDWR | O_CLOEXEC);
 	if (slave < 0) {
 		log_err("cannot open slave: %m");
+		goto err_out;
+	}
+
+	/* get terminal attributes */
+	if (tcgetattr(slave, &attr) < 0) {
+		log_err("cannot get terminal attributes: %m");
+		goto err_out;
+	}
+
+	/* erase character should be normal backspace */
+	attr.c_cc[VERASE] = 010;
+
+	/* set changed terminal attributes */
+	if (tcsetattr(slave, TCSANOW, &attr) < 0) {
+		log_warn("cannot set terminal attributes: %m");
 		goto err_out;
 	}
 
