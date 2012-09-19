@@ -2512,58 +2512,81 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		case XKB_KEY_KP_Space:
 			vte_write(vte, " ", 1);
 			return true;
+		/* TODO: check what to transmit for functions keys when
+		 * shift/ctrl etc. are pressed. Every terminal behaves
+		 * differently here which is really weird.
+		 * We now map F4 to F14 if shift is pressed and so on for all
+		 * keys. However, such mappings should rather be done via
+		 * xkb-configurations and we should instead add a flags argument
+		 * to the CSIs as some of the keys here already do. */
 		case XKB_KEY_F1:
 		case XKB_KEY_KP_F1:
-			vte_write(vte, "\eOP", 3);
+			if (mods & TSM_SHIFT_MASK)
+				vte_write(vte, "\e[23~", 5);
+			else
+				vte_write(vte, "\eOP", 3);
 			return true;
 		case XKB_KEY_F2:
 		case XKB_KEY_KP_F2:
-			vte_write(vte, "\eOQ", 3);
+			if (mods & TSM_SHIFT_MASK)
+				vte_write(vte, "\e[24~", 5);
+			else
+				vte_write(vte, "\eOQ", 3);
 			return true;
 		case XKB_KEY_F3:
 		case XKB_KEY_KP_F3:
-			vte_write(vte, "\eOR", 3);
+			if (mods & TSM_SHIFT_MASK)
+				vte_write(vte, "\e[25~", 5);
+			else
+				vte_write(vte, "\eOR", 3);
 			return true;
 		case XKB_KEY_F4:
 		case XKB_KEY_KP_F4:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[1;2S", 6);
+				//vte_write(vte, "\e[1;2S", 6);
+				vte_write(vte, "\e[26~", 5);
 			else
 				vte_write(vte, "\eOS", 3);
 			return true;
 		case XKB_KEY_F5:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[15;2~", 7);
+				//vte_write(vte, "\e[15;2~", 7);
+				vte_write(vte, "\e[28~", 5);
 			else
 				vte_write(vte, "\e[15~", 5);
 			return true;
 		case XKB_KEY_F6:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[17;2~", 7);
+				//vte_write(vte, "\e[17;2~", 7);
+				vte_write(vte, "\e[29~", 5);
 			else
 				vte_write(vte, "\e[17~", 5);
 			return true;
 		case XKB_KEY_F7:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[18;2~", 7);
+				//vte_write(vte, "\e[18;2~", 7);
+				vte_write(vte, "\e[31~", 5);
 			else
 				vte_write(vte, "\e[18~", 5);
 			return true;
 		case XKB_KEY_F8:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[19;2~", 7);
+				//vte_write(vte, "\e[19;2~", 7);
+				vte_write(vte, "\e[32~", 5);
 			else
 				vte_write(vte, "\e[19~", 5);
 			return true;
 		case XKB_KEY_F9:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[20;2~", 7);
+				//vte_write(vte, "\e[20;2~", 7);
+				vte_write(vte, "\e[33~", 5);
 			else
 				vte_write(vte, "\e[20~", 5);
 			return true;
 		case XKB_KEY_F10:
 			if (mods & TSM_SHIFT_MASK)
-				vte_write(vte, "\e[21;2~", 7);
+				//vte_write(vte, "\e[21;2~", 7);
+				vte_write(vte, "\e[34~", 5);
 			else
 				vte_write(vte, "\e[21~", 5);
 			return true;
