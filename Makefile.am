@@ -28,10 +28,7 @@ pkgconfig_DATA =
 
 bin_PROGRAMS = \
 	kmscon
-check_PROGRAMS = \
-	test_output \
-	test_vt \
-	test_input
+check_PROGRAMS =
 noinst_PROGRAMS = \
 	genshader \
 	genunifont
@@ -389,11 +386,17 @@ kmscon_LDADD = \
 	libeloop.la \
 	libkmscon-core.la
 
+check_PROGRAMS += test_output
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
 
+check_PROGRAMS += test_vt
 test_vt_SOURCES = tests/test_vt.c
 test_vt_LDADD = libkmscon-core.la
 
+check_PROGRAMS += test_input
 test_input_SOURCES = tests/test_input.c
 test_input_LDADD = libkmscon-core.la
+
+check_PROGRAMS += test_key
+test_key_SOURCES = tests/test_key.c
