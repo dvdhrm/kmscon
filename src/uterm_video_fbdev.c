@@ -119,8 +119,12 @@ static int display_activate_force(struct uterm_display *disp,
 	 * (even mmap() accepts it) but the actual size that we can access
 	 * without segfaults is the _real_ framebuffer. Therefore, disable
 	 * double-buffering for it.
-	 * TODO: fix this kernel-side! */
-	if (!strcmp(finfo->id, "udlfb")) {
+	 * TODO: fix this kernel-side!
+	 * TODO: There are so many broken fbdev drivers that just accept any
+	 * virtual FB sizes and then break mmap that we now disable
+	 * double-buffering entirely. We might instead add a white-list or
+	 * optional command-line argument to re-enable it. */
+	if (true || !strcmp(finfo->id, "udlfb")) {
 		disp->flags &= ~DISPLAY_DBUF;
 		vinfo->yres_virtual = vinfo->yres;
 	}
@@ -174,9 +178,9 @@ static int display_activate_force(struct uterm_display *disp,
 	    (disp->flags & DISPLAY_DBUF &&
 	     vinfo->yres_virtual < vinfo->yres * 2) ||
 	    vinfo->yres_virtual < vinfo->yres) {
-		log_error("device %s has weird buffer sizes",
-			  disp->fbdev.node);
-		return -EFAULT;
+		log_warning("device %s has weird virtual buffer sizes (%d %d %d %d)",
+			    disp->fbdev.node, vinfo->xres, vinfo->xres_virtual,
+			    vinfo->yres, vinfo->yres_virtual);
 	}
 
 	if (vinfo->bits_per_pixel != 32 &&
