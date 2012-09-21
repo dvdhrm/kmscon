@@ -766,6 +766,9 @@ static int display_fake_blendv(struct uterm_display *disp,
 		return -EINVAL;
 
 	for (i = 0; i < num; ++i, ++req) {
+		if (!req->buf)
+			continue;
+
 		ret = display_blend(disp, req->buf, req->x, req->y,
 				    req->fr, req->fg, req->fb,
 				    req->br, req->bg, req->bb);

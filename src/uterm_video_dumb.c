@@ -518,6 +518,9 @@ static int display_fake_blendv(struct uterm_display *disp,
 	sh = disp->current_mode->dumb.info.vdisplay;
 
 	for (j = 0; j < num; ++j, ++req) {
+		if (!req->buf)
+			continue;
+
 		if (req->buf->format != UTERM_FORMAT_GREY)
 			return -EOPNOTSUPP;
 
