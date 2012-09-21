@@ -203,8 +203,20 @@ static void seat_add_video(struct kmscon_seat *seat,
 	unsigned int mode;
 	struct kmscon_video *vid;
 
-	if ((type == UTERM_MONITOR_FBDEV) != !!kmscon_conf.use_fbdev)
-		return;
+	if (kmscon_conf.use_fbdev) {
+		if (type != UTERM_MONITOR_FBDEV &&
+		    type != UTERM_MONITOR_FBDEV_DRM) {
+			log_debug("ignoring %s as it is not fbdev device",
+				  node);
+			return;
+		}
+	} else {
+		if (type == UTERM_MONITOR_FBDEV_DRM) {
+			log_debug("ignoring %s as it is a DRM-fbdev device",
+				  node);
+			return;
+		}
+	}
 
 	vid = malloc(sizeof(*vid));
 	if (!vid)
@@ -212,12 +224,14 @@ static void seat_add_video(struct kmscon_seat *seat,
 	memset(vid, 0, sizeof(*vid));
 	vid->vdev = dev;
 
-	if (kmscon_conf.use_fbdev)
+	if (type == UTERM_MONITOR_DRM) {
+		if (kmscon_conf.dumb)
+			mode = UTERM_VIDEO_DUMB;
+		else
+			mode = UTERM_VIDEO_DRM;
+	} else {
 		mode = UTERM_VIDEO_FBDEV;
-	else if (kmscon_conf.dumb)
-		mode = UTERM_VIDEO_DUMB;
-	else
-		mode = UTERM_VIDEO_DRM;
+	}
 
 	ret = uterm_video_new(&vid->video, seat->app->eloop, mode, node);
 	if (ret) {
@@ -304,7 +318,8 @@ static void monitor_event(struct uterm_monitor *mon,
 		if (!seat)
 			break;
 		if (ev->dev_type == UTERM_MONITOR_DRM ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV)
+		    ev->dev_type == UTERM_MONITOR_FBDEV ||
+		    ev->dev_type == UTERM_MONITOR_FBDEV_DRM)
 			seat_add_video(seat, ev->dev, ev->dev_type,
 				       ev->dev_node);
 		else if (ev->dev_type == UTERM_MONITOR_INPUT)
@@ -315,7 +330,8 @@ static void monitor_event(struct uterm_monitor *mon,
 		if (!seat)
 			break;
 		if (ev->dev_type == UTERM_MONITOR_DRM ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV)
+		    ev->dev_type == UTERM_MONITOR_FBDEV ||
+		    ev->dev_type == UTERM_MONITOR_FBDEV_DRM)
 			seat_rm_video(seat, ev->dev);
 		else if (ev->dev_type == UTERM_MONITOR_INPUT)
 			uterm_input_remove_dev(seat->input, ev->dev_node);
