@@ -34,9 +34,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libudev.h>
+#include <linux/fb.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include "log.h"
 #include "shl_dlist.h"
 #include "uterm.h"
@@ -389,6 +392,56 @@ static int get_fb_id(struct udev_device *dev)
 	return devnum;
 }
 
+/*
+ * Nearly all DRM drivers do also create fbdev nodes which refer to the same
+ * hardware as the DRM devices. So we shouldn't advertise these fbdev nodes as
+ * real devices. Otherwise, the user might use these and the DRM devices
+ * simultaneously, thinking that they deal with two different hardware devices.
+ *
+ * We also report that it is a drm-device if we actually cannot verify that it
+ * is not some DRM device.
+ */
+static bool is_drm_fbdev(const char *node)
+{
+	int fd, ret, len;
+	struct fb_fix_screeninfo finfo;
+	bool res = true;
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		log_warning("cannot open fbdev node %s for drm-device verification (%d): %m",
+			    node, errno);
+		return true;
+	}
+
+	ret = ioctl(fd, FBIOGET_FSCREENINFO, &finfo);
+	if (ret) {
+		log_warning("cannot retrieve finfo from fbdev node %s for drm-device verification (%d): %m",
+			    node, errno);
+		goto err_close;
+	}
+
+	/* TODO: we really need some reliable flag here that tells us that we
+	 * are dealing with a DRM device indirectly. Checking for "drmfb" suffix
+	 * seems fine, but that may be just luck.
+	 * If this turns out to not work reliably, we can also fall back to
+	 * checking whether the parent udev device node does also provide a DRM
+	 * device. */
+	len = strlen(finfo.id);
+	if (len > 5 && !strcmp(&finfo.id[len - 5], "drmfb"))
+		goto err_close;
+	if (!strcmp(finfo.id, "nouveaufb"))
+		goto err_close;
+	if (!strcmp(finfo.id, "psbfb"))
+		goto err_close;
+
+	res = false;
+
+err_close:
+	close(fd);
+	return res;
+}
+
 static void monitor_udev_add(struct uterm_monitor *mon,
 				struct udev_device *dev)
 {
@@ -447,7 +500,10 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			return;
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
-		type = UTERM_MONITOR_FBDEV;
+		if (is_drm_fbdev(node))
+			type = UTERM_MONITOR_FBDEV_DRM;
+		else
+			type = UTERM_MONITOR_FBDEV;
 	} else if (!strcmp(subs, "input")) {
 		sysname = udev_device_get_sysname(dev);
 		if (!sysname || strncmp(sysname, "event", 5)) {
