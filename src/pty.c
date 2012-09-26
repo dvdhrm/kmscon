@@ -57,6 +57,8 @@ struct kmscon_pty {
 
 	kmscon_pty_input_cb input_cb;
 	void *data;
+
+	char *term;
 };
 
 int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
@@ -112,9 +114,26 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	log_debug("free pty object");
 	kmscon_pty_close(pty);
+	free(pty->term);
 	shl_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
 	free(pty);
+}
+
+int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term)
+{
+	char *t;
+
+	if (!pty || !term)
+		return -EINVAL;
+
+	t = strdup(term);
+	if (!t)
+		return -ENOMEM;
+	free(pty->term);
+	pty->term = t;
+
+	return 0;
 }
 
 int kmscon_pty_get_fd(struct kmscon_pty *pty)
@@ -167,9 +186,12 @@ static void pty_close(struct kmscon_pty *pty, bool user)
 }
 
 static void __attribute__((noreturn))
-exec_child(int pty_master)
+exec_child(int pty_master, const char *term)
 {
-	setenv("TERM", kmscon_conf.term, 1);
+	if (!term)
+		term = "vt220";
+
+	setenv("TERM", term, 1);
 	execvp(kmscon_conf.argv[0], kmscon_conf.argv);
 
 	log_err("failed to exec child %s: %m", kmscon_conf.argv[0]);
@@ -287,7 +309,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->fd);
+		exec_child(pty->fd, pty->term);
 		exit(EXIT_FAILURE);
 	default:
 		pty->fd = master;
