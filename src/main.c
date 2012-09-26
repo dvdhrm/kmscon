@@ -725,13 +725,8 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_out;
 
-	kmscon_font_unifont_load();
-	kmscon_font_8x16_load();
-	kmscon_font_pango_load();
-	kmscon_font_freetype2_load();
-	kmscon_text_bbulk_load();
-	kmscon_text_bblit_load();
-	kmscon_text_gltex_load();
+	kmscon_font_load_all();
+	kmscon_text_load_all();
 
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
@@ -761,26 +756,16 @@ int main(int argc, char **argv)
 	}
 
 	destroy_app(&app);
-	kmscon_text_gltex_unload();
-	kmscon_text_bblit_unload();
-	kmscon_text_bbulk_unload();
-	kmscon_font_freetype2_unload();
-	kmscon_font_pango_unload();
-	kmscon_font_8x16_unload();
-	kmscon_font_unifont_unload();
+	kmscon_text_unload_all();
+	kmscon_font_unload_all();
 	conf_free(options, onum);
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
 err_unload:
-	kmscon_text_gltex_unload();
-	kmscon_text_bblit_unload();
-	kmscon_text_bbulk_unload();
-	kmscon_font_freetype2_unload();
-	kmscon_font_pango_unload();
-	kmscon_font_8x16_unload();
-	kmscon_font_unifont_unload();
+	kmscon_text_unload_all();
+	kmscon_font_unload_all();
 err_out:
 	conf_free(options, onum);
 	log_err("cannot initialize kmscon, errno %d: %s", ret, strerror(-ret));

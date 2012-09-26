@@ -302,4 +302,34 @@ static inline void kmscon_text_gltex_unload(void)
 
 #endif
 
+static inline void kmscon_font_load_all(void)
+{
+	kmscon_font_unifont_load();
+	kmscon_font_8x16_load();
+	kmscon_font_pango_load();
+	kmscon_font_freetype2_load();
+}
+
+static inline void kmscon_font_unload_all(void)
+{
+	kmscon_font_freetype2_unload();
+	kmscon_font_pango_unload();
+	kmscon_font_8x16_unload();
+	kmscon_font_unifont_unload();
+}
+
+static inline void kmscon_text_load_all(void)
+{
+	kmscon_text_bbulk_load();
+	kmscon_text_bblit_load();
+	kmscon_text_gltex_load();
+}
+
+static inline void kmscon_text_unload_all(void)
+{
+	kmscon_text_gltex_unload();
+	kmscon_text_bblit_unload();
+	kmscon_text_bbulk_unload();
+}
+
 #endif /* KMSCON_TEXT_H */
