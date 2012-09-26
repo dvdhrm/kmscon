@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
-#include "main.h"
 #include "pty.h"
 #include "shl_ring.h"
 
@@ -59,6 +58,7 @@ struct kmscon_pty {
 	void *data;
 
 	char *term;
+	char **argv;
 };
 
 int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
@@ -114,6 +114,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	log_debug("free pty object");
 	kmscon_pty_close(pty);
+	free(pty->argv);
 	free(pty->term);
 	shl_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
@@ -132,6 +133,40 @@ int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term)
 		return -ENOMEM;
 	free(pty->term);
 	pty->term = t;
+
+	return 0;
+}
+
+int kmscon_pty_set_argv(struct kmscon_pty *pty, char **argv)
+{
+	char **t, *off;
+	unsigned int size, i;
+
+	if (!pty || !argv || !*argv || !**argv)
+		return -EINVAL;
+
+	size = 0;
+	for (i = 0; argv[i]; ++i)
+		size += strlen(argv[i]) + 1;
+	++i;
+
+	size += i * sizeof(char*);
+
+	t = malloc(size);
+	if (!t)
+		return -ENOMEM;
+	free(pty->argv);
+	pty->argv = t;
+
+	off = (char*)t + i * sizeof(char*);
+	while (*argv) {
+		*t++ = off;
+		for (i = 0; argv[0][i]; ++i)
+			*off++ = argv[0][i];
+		*off++ = 0;
+		argv++;
+	}
+	*t = NULL;
 
 	return 0;
 }
@@ -186,15 +221,17 @@ static void pty_close(struct kmscon_pty *pty, bool user)
 }
 
 static void __attribute__((noreturn))
-exec_child(int pty_master, const char *term)
+exec_child(int pty_master, const char *term, char **argv)
 {
 	if (!term)
 		term = "vt220";
+	if (!argv)
+		argv = (char*[]){ "/bin/sh", "-l", NULL };
 
 	setenv("TERM", term, 1);
-	execvp(kmscon_conf.argv[0], kmscon_conf.argv);
+	execvp(argv[0], argv);
 
-	log_err("failed to exec child %s: %m", kmscon_conf.argv[0]);
+	log_err("failed to exec child %s: %m", argv[0]);
 
 	exit(EXIT_FAILURE);
 }
@@ -309,7 +346,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->fd, pty->term);
+		exec_child(pty->fd, pty->term, pty->argv);
 		exit(EXIT_FAILURE);
 	default:
 		pty->fd = master;

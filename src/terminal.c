@@ -454,6 +454,10 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_pty;
 
+	ret = kmscon_pty_set_argv(term->pty, kmscon_conf.argv);
+	if (ret)
+		goto err_pty;
+
 	ret = ev_eloop_new_fd(term->eloop, &term->ptyfd,
 			      kmscon_pty_get_fd(term->pty),
 			      EV_READABLE, pty_event, term);
