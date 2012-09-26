@@ -30,6 +30,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wayland-client.h>
+#include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
 #include "log.h"
 #include "pty.h"
@@ -209,6 +211,21 @@ static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 	}
 }
 
+static void widget_key(struct wlt_widget *widget, unsigned int mask,
+		       uint32_t sym, uint32_t state, void *data)
+{
+	struct wlt_terminal *term = data;
+	uint32_t ucs4;
+
+	if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
+		return;
+
+	ucs4 = xkb_keysym_to_utf32(sym) ? : TSM_VTE_INVALID;
+
+	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4))
+		wlt_window_schedule_redraw(term->wnd);
+}
+
 static void vte_event(struct tsm_vte *vte, const char *u8, size_t len,
 		      void *data)
 {
@@ -286,6 +303,7 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 		log_error("cannot create pty object");
 		goto err_vte;
 	}
+	kmscon_pty_set_term(term->pty, "xterm-256color");
 
 	ret = ev_eloop_new_fd(term->eloop, &term->pty_fd,
 			      kmscon_pty_get_fd(term->pty),
@@ -302,6 +320,7 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	wlt_widget_set_destroy_cb(term->widget, widget_destroy);
 	wlt_widget_set_redraw_cb(term->widget, widget_redraw);
 	wlt_widget_set_resize_cb(term->widget, NULL, widget_resize);
+	wlt_widget_set_keyboard_cb(term->widget, widget_key);
 	*out = term;
 	return 0;
 
