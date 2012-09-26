@@ -102,6 +102,11 @@ typedef void (*wlt_widget_pointer_button_cb) (struct wlt_widget *widget,
 					      uint32_t button,
 					      uint32_t state,
 					      void *data);
+typedef void (*wlt_widget_keyboard_cb) (struct wlt_widget *widget,
+					unsigned int mods,
+					uint32_t key,
+					uint32_t state,
+					void *data);
 
 int wlt_display_new(struct wlt_display **out,
 		    struct ev_eloop *eloop);
@@ -154,6 +159,8 @@ void wlt_widget_set_pointer_cb(struct wlt_widget *widget,
 			       wlt_widget_pointer_leave_cb leave_cb,
 			       wlt_widget_pointer_motion_cb motion_cb,
 			       wlt_widget_pointer_button_cb button_cb);
+void wlt_widget_set_keyboard_cb(struct wlt_widget *widget,
+				wlt_widget_keyboard_cb cb);
 
 static inline bool wlt_rect_contains(struct wlt_rect *rect,
 				     unsigned int x,

@@ -35,10 +35,12 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-cursor.h>
+#include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
+#include "tsm_vte.h"
 #include "wlt_toolkit.h"
 
 #define LOG_SUBSYSTEM "wlt_toolkit"
@@ -81,6 +83,12 @@ struct wlt_display {
 	struct wl_surface *w_cursor_surface;
 	struct wl_cursor_theme *cursor_theme;
 	struct wl_cursor *cursors[WLT_CURSOR_NUM];
+
+	struct wl_keyboard *w_keyboard;
+	struct xkb_context *xkb_ctx;
+	struct xkb_keymap *xkb_keymap;
+	struct xkb_state *xkb_state;
+	struct wlt_window *keyboard_focus;
 };
 
 struct wlt_window {
@@ -123,6 +131,7 @@ struct wlt_widget {
 	wlt_widget_pointer_leave_cb pointer_leave_cb;
 	wlt_widget_pointer_motion_cb pointer_motion_cb;
 	wlt_widget_pointer_button_cb pointer_button_cb;
+	wlt_widget_keyboard_cb keyboard_cb;
 };
 
 static int wlt_pool_new(struct wlt_pool **out, struct wlt_display *disp,
@@ -527,6 +536,163 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis = pointer_axis,
 };
 
+static void keyboard_keymap(void *data, struct wl_keyboard *keyboard,
+			    uint32_t format, int fd, uint32_t size)
+{
+	struct wlt_display *disp = data;
+	char *map;
+
+	if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+		log_error("invalid keyboard format");
+		close(fd);
+		return;
+	}
+
+	map = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+	if (map == MAP_FAILED) {
+		log_error("cannot mmap keyboard keymap");
+		close(fd);
+		return;
+	}
+
+	disp->xkb_keymap = xkb_map_new_from_string(disp->xkb_ctx, map,
+						   XKB_KEYMAP_FORMAT_TEXT_V1,
+						   0);
+	munmap(map, size);
+	close(fd);
+
+	if (!disp->xkb_keymap) {
+		log_error("cannot create xkb keymap");
+		return;
+	}
+
+	disp->xkb_state = xkb_state_new(disp->xkb_keymap);
+	if (!disp->xkb_state) {
+		log_error("cannot create XKB state object");
+		xkb_map_unref(disp->xkb_keymap);
+		disp->xkb_keymap = NULL;
+		return;
+	}
+}
+
+static void keyboard_enter(void *data, struct wl_keyboard *keyboard,
+			   uint32_t serial, struct wl_surface *w_surface,
+			   struct wl_array *keys)
+{
+	struct wlt_display *disp = data;
+	struct shl_dlist *iter;
+	struct wlt_window *wnd;
+
+	disp->last_serial = serial;
+	if (!disp->xkb_state)
+		return;
+
+	if (!w_surface)
+		return;
+
+	shl_dlist_for_each(iter, &disp->window_list) {
+		wnd = shl_dlist_entry(iter, struct wlt_window, list);
+		if (wnd->w_surface == w_surface)
+			break;
+	}
+
+	if (iter == &disp->window_list)
+		return;
+
+	disp->keyboard_focus = wnd;
+}
+
+static void keyboard_leave(void *data, struct wl_keyboard *keyboard,
+			   uint32_t serial, struct wl_surface *surface)
+{
+	struct wlt_display *disp = data;
+
+	disp->last_serial = serial;
+	disp->keyboard_focus = NULL;
+}
+
+static unsigned int get_effective_modmask(struct xkb_state *state)
+{
+	unsigned int mods = 0;
+
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
+						XKB_STATE_EFFECTIVE))
+		mods |= TSM_SHIFT_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
+						XKB_STATE_EFFECTIVE))
+		mods |= TSM_LOCK_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
+						XKB_STATE_EFFECTIVE))
+		mods |= TSM_CONTROL_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
+						XKB_STATE_EFFECTIVE))
+		mods |= TSM_MOD1_MASK;
+	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
+						XKB_STATE_EFFECTIVE))
+		mods |= TSM_MOD4_MASK;
+
+	return mods;
+}
+
+static void keyboard_key(void *data, struct wl_keyboard *keyboard,
+			 uint32_t serial, uint32_t time, uint32_t key,
+			 uint32_t state_w)
+{
+	struct wlt_display *disp = data;
+	struct wlt_window *wnd = disp->keyboard_focus;
+	uint32_t code, num_syms;
+	unsigned int mask;
+	enum wl_keyboard_key_state state = state_w;
+	const xkb_keysym_t *syms;
+	xkb_keysym_t sym;
+	struct shl_dlist *iter;
+	struct wlt_widget *widget;
+
+	disp->last_serial = serial;
+	if (!disp->xkb_state)
+		return;
+
+	code = key + 8;
+	if (!wnd)
+		return;
+
+	mask = get_effective_modmask(disp->xkb_state);
+	num_syms = xkb_key_get_syms(disp->xkb_state, code, &syms);
+	sym = XKB_KEY_NoSymbol;
+	if (num_syms == 1)
+		sym = syms[0];
+
+	shl_dlist_for_each(iter, &wnd->widget_list) {
+		widget = shl_dlist_entry(iter, struct wlt_widget, list);
+		if (widget->keyboard_cb)
+			widget->keyboard_cb(widget, mask, sym, state,
+					    widget->data);
+	}
+}
+
+static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
+			       uint32_t serial, uint32_t mods_depressed,
+			       uint32_t mods_latched, uint32_t mods_locked,
+			       uint32_t group)
+{
+	struct wlt_display *disp = data;
+
+	disp->last_serial = serial;
+	if (!disp->xkb_state)
+		return;
+
+	xkb_state_update_mask(disp->xkb_state, mods_depressed, mods_latched,
+			      mods_locked, 0, 0, group);
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+	.keymap = keyboard_keymap,
+	.enter = keyboard_enter,
+	.leave = keyboard_leave,
+	.key = keyboard_key,
+	.modifiers = keyboard_modifiers,
+};
+
 static void check_ready(struct wlt_display *disp)
 {
 	if (disp->state > STATE_INIT)
@@ -536,7 +702,8 @@ static void check_ready(struct wlt_display *disp)
 	    disp->w_seat &&
 	    disp->w_shell &&
 	    disp->w_shm &&
-	    disp->w_pointer) {
+	    disp->w_pointer &&
+	    disp->w_keyboard) {
 		log_debug("wayland display initialized");
 		load_cursors(disp);
 
@@ -554,6 +721,12 @@ static void seat_capabilities(void *data, struct wl_seat *seat,
 		disp->w_pointer = wl_seat_get_pointer(seat);
 		wl_pointer_add_listener(disp->w_pointer, &pointer_listener,
 					disp);
+	}
+
+	if (caps & WL_SEAT_CAPABILITY_KEYBOARD && !disp->w_keyboard) {
+		disp->w_keyboard = wl_seat_get_keyboard(seat);
+		wl_keyboard_add_listener(disp->w_keyboard, &keyboard_listener,
+					 disp);
 	}
 
 	check_ready(disp);
@@ -685,6 +858,12 @@ int wlt_display_new(struct wlt_display **out,
 		goto err_dp_fd;
 	}
 
+	disp->xkb_ctx = xkb_context_new(0);
+	if (!disp->xkb_ctx) {
+		log_error("cannot create XKB context");
+		goto err_dp_fd;
+	}
+
 	log_debug("wlt-display waiting for globals...");
 
 	ev_eloop_ref(disp->eloop);
@@ -720,6 +899,7 @@ void wlt_display_unref(struct wlt_display *disp)
 	ev_eloop_rm_fd(disp->dp_fd);
 	wl_display_flush(disp->dp);
 	wl_display_disconnect(disp->dp);
+	xkb_context_unref(disp->xkb_ctx);
 	shl_hook_free(disp->listeners);
 	ev_eloop_unref(disp->eloop);
 	free(disp);
@@ -1288,4 +1468,13 @@ void wlt_widget_set_pointer_cb(struct wlt_widget *widget,
 	widget->pointer_leave_cb = leave_cb;
 	widget->pointer_motion_cb = motion_cb;
 	widget->pointer_button_cb = button_cb;
+}
+
+void wlt_widget_set_keyboard_cb(struct wlt_widget *widget,
+				wlt_widget_keyboard_cb cb)
+{
+	if (!widget)
+		return;
+
+	widget->keyboard_cb = cb;
 }
