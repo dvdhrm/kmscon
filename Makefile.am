@@ -456,10 +456,12 @@ wlterm_SOURCES = \
 	src/pty.c
 wlterm_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(WAYLAND_CFLAGS)
+	$(WAYLAND_CFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 wlterm_LDADD = \
 	libeloop.la \
 	libtsm.la \
 	libtext-font.la \
 	-lpthread \
-	$(WAYLAND_LIBS)
+	$(WAYLAND_LIBS) \
+	$(XKBCOMMON_LIBS)

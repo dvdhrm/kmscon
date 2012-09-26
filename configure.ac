@@ -280,6 +280,7 @@ if test x$enable_wlterm = xyes ; then
         enable_eloop=yes
         enable_tsm=yes
         enable_wayland=yes
+        enable_xkbcommon=yes
 fi
 
 AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
