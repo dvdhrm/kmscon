@@ -567,6 +567,4 @@ void kmscon_pty_resize(struct kmscon_pty *pty,
 		log_warn("cannot set window size");
 		return;
 	}
-
-	log_debug("window size set to %hdx%hd", ws.ws_col, ws.ws_row);
 }
