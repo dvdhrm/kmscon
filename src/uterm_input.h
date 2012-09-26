@@ -71,7 +71,7 @@ extern const struct kbd_dev_ops plain_dev_ops;
 
 extern int plain_string_to_keysym(const char *n, uint32_t *out);
 
-#ifdef UTERM_HAVE_XKBCOMMON
+#ifdef BUILD_ENABLE_XKBCOMMON
 
 struct uxkb_desc {
 	struct xkb_context *ctx;
@@ -88,7 +88,7 @@ extern const struct kbd_dev_ops uxkb_dev_ops;
 
 extern int uxkb_string_to_keysym(const char *n, uint32_t *out);
 
-#else /* !UTERM_HAVE_XKBCOMMON */
+#else /* !BUILD_ENABLE_XKBCOMMON */
 
 struct uxkb_desc {
 	int unused;
@@ -102,7 +102,7 @@ static const bool uxkb_available = false;
 static const struct kbd_desc_ops uxkb_desc_ops;
 static const struct kbd_dev_ops uxkb_dev_ops;
 
-#endif /* UTERM_HAVE_XKBCOMMON */
+#endif /* BUILD_ENABLE_XKBCOMMON */
 
 struct kbd_desc {
 	unsigned long ref;

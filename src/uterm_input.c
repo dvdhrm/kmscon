@@ -499,7 +499,7 @@ int uterm_input_string_to_keysym(struct uterm_input *input, const char *n,
 	if (input)
 		return kbd_desc_string_to_keysym(input->desc, n, out);
 
-#ifdef UTERM_HAVE_XKBCOMMON
+#ifdef BUILD_ENABLE_XKBCOMMON
 	return uxkb_string_to_keysym(n, out);
 #endif
 

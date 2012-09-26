@@ -73,10 +73,49 @@ PKG_CHECK_MODULES([FREETYPE2], [freetype2 fontconfig],
 PKG_CHECK_MODULES([PANGO], [pango pangoft2],
                   [have_pango=yes], [have_pango=no])
 
+PKG_CHECK_MODULES([WAYLAND], [wayland-client wayland-server wayland-cursor],
+                  [have_wayland=yes], [have_wayland=no])
+
 #
-# Parse arguments
-# Parse all command line arguments and save the values so we can check them
-# later when configuring kmscon.
+# Parse arguments for applications
+# Parse all command-line arguments that enable or disable build of applications.
+# This allows us to compute which dependencies we need.
+#
+
+AC_MSG_CHECKING([whether to compile eloop])
+AC_ARG_ENABLE([eloop],
+              [AS_HELP_STRING([--enable-eloop],
+                              [build eloop library])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to compile TSM])
+AC_ARG_ENABLE([tsm],
+              [AS_HELP_STRING([--enable-tsm],
+                              [build tsm library])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to compile uterm])
+AC_ARG_ENABLE([uterm],
+              [AS_HELP_STRING([--enable-uterm],
+                              [build uterm library])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to compile kmscon])
+AC_ARG_ENABLE([kmscon],
+              [AS_HELP_STRING([--disable-kmscon],
+                              [do not build kmscon])])
+AC_MSG_RESULT([ok])
+
+AC_MSG_CHECKING([whether to build wlterm])
+AC_ARG_ENABLE([wlterm],
+              [AS_HELP_STRING([--enable-wlterm],
+                              [build wlterm])])
+AC_MSG_RESULT([ok])
+
+#
+# Parse depedency arguments
+# This parses all command-line arguments to check for which dependencies should
+# be used and how the applications should be built.
 #
 
 AC_MSG_CHECKING([whether to use systemd for multi-seat support])
@@ -157,6 +196,13 @@ AC_ARG_ENABLE([bbulk],
                               [disable bbulk rendering backend])])
 AC_MSG_RESULT([ok])
 
+#
+# Parse miscellaneous arguments
+# These don't belong into the categories above for several reason so they are
+# handled specially.
+# They configure compiler options and similar.
+#
+
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug],
@@ -186,25 +232,83 @@ if test ! x$enable_optimizations = xno ; then
 fi
 
 if test x$debug_enabled = xyes ; then
-        AC_DEFINE([KMSCON_ENABLE_DEBUG], [1],
-                  [Enable debug for kmscon])
-        AC_DEFINE([LOG_ENABLE_DEBUG], [1],
-                  [Enable debug for log subsystem])
-        AC_DEFINE([LLOG_ENABLE_DEBUG], [1],
-                  [Enable debug for llog subsystem])
+        AC_DEFINE([BUILD_ENABLE_DEBUG], [1],
+                  [Enable debug mode])
 else
         AC_DEFINE([NDEBUG], [1], [No Debug])
 fi
 
-AM_CONDITIONAL([DEBUG], [test x$debug_enabled = xyes])
-AM_CONDITIONAL([OPTIMIZATIONS], [test x$optimizations_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_DEBUG],
+               [test x$debug_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_OPTIMIZATIONS],
+               [test x$optimizations_enabled = xyes])
 
 #
-# Main dependencies
-# This checks for all dependencies that are not optional.
+# Main applications
+# This checks which applications to build so we can optionally disable unused
+# dependencies below.
+#
+# Dependency Calculations
+# The first thing we do is checking which applications to build. Then we
+# forcibly enable all libraries that are needed by these and then we forcibly
+# enable all other source-code dependecies.
+#
+# The "enable_XY" flag is user input that is set to "yes" if they enabled it
+# explicitly, "no" if they disabled it explicitly or "" (empty) if they did
+# not specify it explicitly. In the latter case we enable it if all dependencies
+# are met, otherwise, we disable it. This does not work for applications,
+# though. If an application is not specified explicitly by the user, then we
+# force the default value.
+# An application also forces all _hard_ dependencies to "yes" and so fails if
+# they cannot be met.
 #
 
-# We currently have no mandatory dependencies!
+kmscon_enabled=no
+if test ! x$enable_kmscon = xno ; then
+        kmscon_enabled=yes
+        enable_eloop=yes
+        enable_tsm=yes
+        enable_uterm=yes
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
+               [test x$kmscon_enabled = xyes])
+
+wlterm_enabled=no
+if test x$enable_wlterm = xyes ; then
+        wlterm_enabled=yes
+        enable_eloop=yes
+        enable_tsm=yes
+        enable_wayland=yes
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
+               [test x$wlterm_enabled = xyes])
+
+uterm_enabled=no
+if test x$enable_uterm = xyes ; then
+        uterm_enabled=yes
+        eloop_enabled=yes
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_UTERM],
+               [test x$uterm_enabled = xyes])
+
+eloop_enabled=no
+if test x$enable_eloop = xyes ; then
+        eloop_enabled=yes
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
+               [test x$eloop_enabled = xyes])
+
+tsm_enabled=no
+if test x$enable_tsm = xyes ; then
+        tsm_enabled=yes
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_TSM],
+               [test x$tsm_enabled = xyes])
 
 #
 # Systemd dependency
@@ -223,7 +327,7 @@ if test ! x$enable_systemd = xno ; then
 fi
 
 if test x$systemd_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_SYSTEMD], [1],
+        AC_DEFINE([BUILD_ENABLE_SYSTEMD], [1],
                   [Use systemd for multi-seat support])
 else
         SYSTEMD_CFLAGS=""
@@ -247,7 +351,7 @@ if test ! x$enable_udev = xno ; then
 fi
 
 if test x$udev_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_UDEV], [1],
+        AC_DEFINE([BUILD_ENABLE_UDEV], [1],
                   [Use udev for device hotplug support])
 else
         UDEV_CFLAGS=""
@@ -261,7 +365,7 @@ fi
 #
 
 dbus_enabled=no
-if test ! x$enable_dbus = xno ; then
+if test x$enable_dbus = xyes ; then
         if test x$have_dbus = xyes ; then
                 dbus_enabled=yes
         elif test x$enable_dbus = xyes; then
@@ -270,14 +374,14 @@ if test ! x$enable_dbus = xno ; then
 fi
 
 if test x$dbus_enabled = xyes; then
-        AC_DEFINE([EV_HAVE_DBUS], [1],
+        AC_DEFINE([BUILD_ENABLE_DBUS], [1],
                   [Use dbus for IPC])
 else
         DBUS_CFLAGS=""
         DBUS_LIBS=""
 fi
 
-AM_CONDITIONAL([EV_HAVE_DBUS], [test x$dbus_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_DBUS], [test x$dbus_enabled = xyes])
 
 #
 # Uterm fbdev backend
@@ -292,11 +396,11 @@ if test ! x$enable_fbdev = xno ; then
 fi
 
 if test x$fbdev_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_FBDEV], [1],
+        AC_DEFINE([BUILD_ENABLE_FBDEV], [1],
                   [Use uterm fbdev video backend])
 fi
 
-AM_CONDITIONAL([UTERM_HAVE_FBDEV], [test x$fbdev_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_FBDEV], [test x$fbdev_enabled = xyes])
 
 #
 # Uterm drm backend
@@ -332,11 +436,11 @@ if test ! x$enable_drm = xno ; then
 fi
 
 if test x$dumb_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_DUMB], [1],
+        AC_DEFINE([BUILD_ENABLE_DUMB], [1],
                   [Use uterm dumb drm video backend])
 
         if test x$drm_enabled = xyes ; then
-                AC_DEFINE([UTERM_HAVE_DRM], [1],
+                AC_DEFINE([BUILD_ENABLE_DRM], [1],
                           [Use uterm DRM video backend])
         else
                 GBM_CFLAGS=""
@@ -354,17 +458,18 @@ else
 fi
 
 if test x$gles2_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_GLES2], [1],
+        AC_DEFINE([BUILD_ENABLE_GLES2], [1],
                   [Use OpenGLESv2 as drawing backend])
 else
         GLES2_CFLAGS=""
         GLES2_LIBS=""
 fi
 
-AM_CONDITIONAL([UTERM_HAVE_DUMB], [test x$dumb_enabled = xyes])
-AM_CONDITIONAL([UTERM_HAVE_DRM], [test x$drm_enabled = xyes])
-AM_CONDITIONAL([KMSCON_HAVE_GLES2], [test x$gles2_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_DUMB], [test x$dumb_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_DRM], [test x$drm_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_GLES2], [test x$gles2_enabled = xyes])
 
+# check for gbm_bo_get_stride() function, otherwise gbm_bo_get_pitch() is used
 if test x$have_gbm = xyes ; then
         save_CFLAGS="$CFLAGS"
         save_LIBS="$LIBS"
@@ -372,7 +477,7 @@ if test x$have_gbm = xyes ; then
         LIBS="$LIBS $GBM_LIBS $DRM_LIBS"
         AC_CHECK_LIB([gbm],
                      [gbm_bo_get_stride],
-                     [AC_DEFINE([HAVE_GBM_BO_GET_STRIDE],
+                     [AC_DEFINE([BUILD_HAVE_GBM_BO_GET_STRIDE],
                                 [1],
                                 [Define to 1 if your libgbm provides gbm_bo_get_stride])])
         CFLAGS="$save_CFLAGS"
@@ -395,14 +500,14 @@ if test ! x$enable_xkbcommon = xno ; then
 fi
 
 if test x$xkbcommon_enabled = xyes ; then
-        AC_DEFINE([UTERM_HAVE_XKBCOMMON], [1],
+        AC_DEFINE([BUILD_ENABLE_XKBCOMMON], [1],
                   [Use xkbcommon as input keyboard handling backend])
 else
         XKBCOMMON_CFLAGS=""
         XKBCOMMON_LIBS=""
 fi
 
-AM_CONDITIONAL([UTERM_HAVE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
 
 #
 # Font backends
@@ -421,11 +526,11 @@ if test x$enable_unifont = xyes ; then
 fi
 
 if test x$unifont_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_UNIFONT], [1],
+        AC_DEFINE([BUILD_ENABLE_UNIFONT], [1],
                   [Use static unifont backend])
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_UNIFONT], [test x$unifont_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_UNIFONT], [test x$unifont_enabled = xyes])
 
 f8x16_enabled=no
 if test ! x$enable_f8x16 = xno ; then
@@ -433,11 +538,11 @@ if test ! x$enable_f8x16 = xno ; then
 fi
 
 if test x$f8x16_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_8X16], [1],
+        AC_DEFINE([BUILD_ENABLE_8X16], [1],
                   [Use static 8x16 font backend])
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_8X16], [test x$f8x16_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_8X16], [test x$f8x16_enabled = xyes])
 
 freetype2_enabled=no
 if test ! x$enable_freetype2 = xno ; then
@@ -449,14 +554,14 @@ if test ! x$enable_freetype2 = xno ; then
 fi
 
 if test x$freetype2_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_FREETYPE2], [1],
+        AC_DEFINE([BUILD_ENABLE_FREETYPE2], [1],
                   [Use freetype2 as font backend])
 else
         FREETYPE2_CFLAGS=""
         FREETYPE2_LIBS=""
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_FREETYPE2], [test x$freetype2_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_FREETYPE2], [test x$freetype2_enabled = xyes])
 
 pango_enabled=no
 if test ! x$enable_pango = xno ; then
@@ -468,14 +573,14 @@ if test ! x$enable_pango = xno ; then
 fi
 
 if test x$pango_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_PANGO], [1],
+        AC_DEFINE([BUILD_ENABLE_PANGO], [1],
                   [Use pango as font backend])
 else
         PANGO_CFLAGS=""
         PANGO_LIBS=""
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_PANGO], [test x$pango_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_PANGO], [test x$pango_enabled = xyes])
 
 #
 # BBlit Rendering backend
@@ -487,11 +592,11 @@ if test ! x$enable_bblit = xno ; then
 fi
 
 if test x$bblit_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_BBLIT], [1],
+        AC_DEFINE([BUILD_ENABLE_BBLIT], [1],
                   [Use bblit rendering backend])
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_BBLIT], [test x$bblit_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_BBLIT], [test x$bblit_enabled = xyes])
 
 #
 # BBulk Rendering backend
@@ -503,11 +608,11 @@ if test ! x$enable_bbulk = xno ; then
 fi
 
 if test x$bbulk_enabled = xyes ; then
-        AC_DEFINE([KMSCON_HAVE_BBULK], [1],
+        AC_DEFINE([BUILD_ENABLE_BBULK], [1],
                   [Use bbulk rendering backend])
 fi
 
-AM_CONDITIONAL([KMSCON_HAVE_BBULK], [test x$bbulk_enabled = xyes])
+AM_CONDITIONAL([BUILD_ENABLE_BBULK], [test x$bbulk_enabled = xyes])
 
 #
 # OpenGL Texture rendering backend
@@ -518,6 +623,28 @@ AM_CONDITIONAL([KMSCON_HAVE_BBULK], [test x$bbulk_enabled = xyes])
 gltex_enabled=no
 if test x$gles2_enabled = xyes ; then
         gltex_enabled=yes
+fi
+
+#
+# Wayland
+# This checks whether the wayland libraries are needed and available.
+#
+
+wayland_enabled=no
+if test ! x$enable_wayland = xno ; then
+        if test x$have_wayland = xyes ; then
+                wayland_enabled=yes
+        elif test x$enable_wayland = xyes ; then
+                AC_ERROR([wayland libraries not found])
+        fi
+fi
+
+if test x$wayland_enabled = xyes ; then
+        AC_DEFINE([BUILD_ENABLE_WAYLAND], [1],
+                  [Enable wayland backends])
+else
+        WAYLAND_CFLAGS=""
+        WAYLAND_LIBS=""
 fi
 
 #
@@ -546,6 +673,8 @@ AC_SUBST(FREETYPE2_CFLAGS)
 AC_SUBST(FREETYPE2_LIBS)
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
+AC_SUBST(WAYLAND_CFLAGS)
+AC_SUBST(WAYLAND_LIBS)
 
 AC_CONFIG_FILES([Makefile libeloop.pc libtsm.pc libuterm.pc])
 AC_OUTPUT
@@ -558,9 +687,18 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([Build configuration:
 
+  Applications and libraries:
+	       kmscon: $kmscon_enabled
+	       wlterm: $wlterm_enabled
+	        uterm: $uterm_enabled
+	        eloop: $eloop_enabled
+	          tsm: $tsm_enabled
+
+  Miscellaneous options:
 	        debug: $debug_enabled
 	optimizations: $optimizations_enabled
 
+  Optional dependencies:
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
 	         dbus: $dbus_enabled

@@ -37,4 +37,4 @@ docs/reference/kmscon.????*
 docs/reference/*.stamp
 docs/reference/version.xml
 docs/reference/*/
-gtk-doc.make
+wlterm

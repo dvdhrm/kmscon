@@ -44,7 +44,7 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 	#include <systemd/sd-login.h>
 #endif
 
@@ -72,7 +72,7 @@ struct uterm_monitor {
 	uterm_monitor_cb cb;
 	void *data;
 
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 	sd_login_monitor *sd_mon;
 	struct ev_fd *sd_mon_fd;
 #endif
@@ -87,7 +87,7 @@ struct uterm_monitor {
 static void monitor_new_seat(struct uterm_monitor *mon, const char *name);
 static void monitor_free_seat(struct uterm_monitor_seat *seat);
 
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 
 static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
@@ -184,7 +184,7 @@ static void monitor_sd_deinit(struct uterm_monitor *mon)
 	sd_login_monitor_unref(mon->sd_mon);
 }
 
-#else /* !UTERM_HAVE_SYSTEMD */
+#else /* !BUILD_ENABLE_SYSTEMD */
 
 static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
@@ -205,7 +205,7 @@ static void monitor_sd_deinit(struct uterm_monitor *mon)
 {
 }
 
-#endif /* UTERM_HAVE_SYSTEMD */
+#endif /* BUILD_ENABLE_SYSTEMD */
 
 static void seat_new_dev(struct uterm_monitor_seat *seat,
 				unsigned int type,
@@ -474,7 +474,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 	}
 
 	if (!strcmp(subs, "drm")) {
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 		if (udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
@@ -488,7 +488,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
 	} else if (!strcmp(subs, "graphics")) {
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 		if (udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
@@ -516,7 +516,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			log_debug("adding device without parent %s", name);
 			return;
 		}
-#ifdef UTERM_HAVE_SYSTEMD
+#ifdef BUILD_ENABLE_SYSTEMD
 		if (udev_device_has_tag(p, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;

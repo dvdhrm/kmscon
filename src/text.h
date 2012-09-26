@@ -175,7 +175,7 @@ int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 
 /* modularized backends */
 
-#ifdef KMSCON_HAVE_UNIFONT
+#ifdef BUILD_ENABLE_UNIFONT
 
 int kmscon_font_unifont_load(void);
 void kmscon_font_unifont_unload(void);
@@ -194,7 +194,7 @@ static inline void kmscon_font_unifont_unload(void)
 #endif
 
 
-#ifdef KMSCON_HAVE_8X16
+#ifdef BUILD_ENABLE_8X16
 
 int kmscon_font_8x16_load(void);
 void kmscon_font_8x16_unload(void);
@@ -212,7 +212,7 @@ static inline void kmscon_font_8x16_unload(void)
 
 #endif
 
-#ifdef KMSCON_HAVE_FREETYPE2
+#ifdef BUILD_ENABLE_FREETYPE2
 
 int kmscon_font_freetype2_load(void);
 void kmscon_font_freetype2_unload(void);
@@ -230,7 +230,7 @@ static inline void kmscon_font_freetype2_unload(void)
 
 #endif
 
-#ifdef KMSCON_HAVE_PANGO
+#ifdef BUILD_ENABLE_PANGO
 
 int kmscon_font_pango_load(void);
 void kmscon_font_pango_unload(void);
@@ -248,7 +248,7 @@ static inline void kmscon_font_pango_unload(void)
 
 #endif
 
-#ifdef KMSCON_HAVE_BBLIT
+#ifdef BUILD_ENABLE_BBLIT
 
 int kmscon_text_bblit_load(void);
 void kmscon_text_bblit_unload(void);
@@ -266,7 +266,7 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
-#ifdef KMSCON_HAVE_BBULK
+#ifdef BUILD_ENABLE_BBULK
 
 int kmscon_text_bbulk_load(void);
 void kmscon_text_bbulk_unload(void);
@@ -284,7 +284,7 @@ static inline void kmscon_text_bbulk_unload(void)
 
 #endif
 
-#ifdef KMSCON_HAVE_GLES2
+#ifdef BUILD_ENABLE_GLES2
 
 int kmscon_text_gltex_load(void);
 void kmscon_text_gltex_unload(void);

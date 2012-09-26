@@ -485,7 +485,7 @@ int tsm_vte_set_palette(struct tsm_vte *vte, const char *palette)
 static void vte_write_debug(struct tsm_vte *vte, const char *u8, size_t len,
 			    bool raw, const char *file, int line)
 {
-#ifdef KMSCON_ENABLE_DEBUG
+#ifdef BUILD_ENABLE_DEBUG
 	/* in debug mode we check that escape sequences are always <0x7f so they
 	 * are correctly parsed by non-unicode and non-8bit-mode clients. */
 	size_t i;

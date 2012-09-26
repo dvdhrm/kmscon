@@ -18,8 +18,8 @@
  * debugging-only because it may slow-down your application if every message is
  * filtered.
  *
- * Define LOG_ENABLE_DEBUG before including this header to enable debug-messages
- * for this file.
+ * Define BUILD_ENABLE_DEBUG before including this header to enable
+ * debug-messages for this file.
  */
 
 #ifndef LOG_H_INCLUDED
@@ -258,11 +258,11 @@ extern const char *LOG_SUBSYSTEM;
  * Helpers
  * The pick-up all the default values and submit the message to the
  * log-subsystem. The log_debug() function produces zero-code if
- * LOG_ENABLE_DEBUG is not defined. Therefore, it can be heavily used for
+ * BUILD_ENABLE_DEBUG is not defined. Therefore, it can be heavily used for
  * debugging and will not have any side-effects.
  */
 
-#ifdef LOG_ENABLE_DEBUG
+#ifdef BUILD_ENABLE_DEBUG
 	#define log_debug(format, ...) \
 		log_printf(LOG_DEBUG, (format), ##__VA_ARGS__)
 #else

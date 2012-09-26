@@ -26,14 +26,12 @@ pkgconfig_DATA =
 # genshader: Program used to convert shaders into C-source files
 #
 
-bin_PROGRAMS = \
-	kmscon
+bin_PROGRAMS =
 check_PROGRAMS =
 noinst_PROGRAMS = \
 	genshader \
 	genunifont
-noinst_LTLIBRARIES = \
-	libkmscon-core.la
+noinst_LTLIBRARIES =
 lib_LTLIBRARIES =
 
 #
@@ -58,11 +56,11 @@ AM_CPPFLAGS = \
 AM_LDFLAGS = \
 	-Wl,--as-needed
 
-if DEBUG
+if BUILD_ENABLE_DEBUG
 AM_CFLAGS += -g
 endif
 
-if OPTIMIZATIONS
+if BUILD_ENABLE_OPTIMIZATIONS
 AM_CFLAGS += -O2
 else
 AM_CFLAGS += -O0
@@ -97,8 +95,11 @@ SHL_HOOK = \
 # compiled into a separate object to allow using it in several other programs.
 #
 
-lib_LTLIBRARIES += \
-	libeloop.la
+if BUILD_ENABLE_ELOOP
+lib_LTLIBRARIES += libeloop.la
+include_HEADERS += src/eloop.h
+pkgconfig_DATA += libeloop.pc
+endif
 
 libeloop_la_SOURCES = \
 	$(SHL_DLIST) \
@@ -107,7 +108,7 @@ libeloop_la_SOURCES = \
 	src/eloop.h \
 	src/eloop.c
 
-if EV_HAVE_DBUS
+if BUILD_ENABLE_DBUS
 libeloop_la_SOURCES += \
 	external/dbus-common.h \
 	external/dbus-loop.h \
@@ -122,11 +123,6 @@ libeloop_la_LIBADD = \
 libeloop_la_LDFLAGS = \
 	-version-info 1:0:0
 
-include_HEADERS += \
-	src/eloop.h
-
-pkgconfig_DATA += libeloop.pc
-
 #
 # libtsm
 # The Terminal-emulator State Machine is a library that implements the whole VTE
@@ -134,8 +130,14 @@ pkgconfig_DATA += libeloop.pc
 # be used to implement any kind of terminal emulator or debugger.
 #
 
-lib_LTLIBRARIES += \
-	libtsm.la
+if BUILD_ENABLE_TSM
+lib_LTLIBRARIES += libtsm.la
+include_HEADERS += \
+	src/tsm_screen.h \
+	src/tsm_unicode.h \
+	src/tsm_vte.h
+pkgconfig_DATA += libtsm.pc
+endif
 
 libtsm_la_SOURCES = \
 	$(SHL_LLOG) \
@@ -155,14 +157,6 @@ libtsm_la_CPPFLAGS = \
 libtsm_la_LDFLAGS = \
 	-version-info 1:0:0
 
-include_HEADERS += \
-	src/tsm_screen.h \
-	src/tsm_unicode.h \
-	src/tsm_vte.h
-
-pkgconfig_DATA += \
-	libtsm.pc
-
 #
 # libuterm
 # The uterm library provides helpers to create terminals in user-space. They
@@ -171,8 +165,11 @@ pkgconfig_DATA += \
 # abstractions and an input layer
 #
 
-lib_LTLIBRARIES += \
-	libuterm.la
+if BUILD_ENABLE_UTERM
+lib_LTLIBRARIES += libuterm.la
+include_HEADERS += src/uterm.h
+pkgconfig_DATA += libuterm.pc
+endif
 
 libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
@@ -210,12 +207,12 @@ libuterm_la_LIBADD = \
 libuterm_la_LDFLAGS = \
 	-version-info 1:0:0
 
-if UTERM_HAVE_FBDEV
+if BUILD_ENABLE_FBDEV
 libuterm_la_SOURCES += \
 	src/uterm_video_fbdev.c
 endif
 
-if UTERM_HAVE_DRM
+if BUILD_ENABLE_DRM
 libuterm_la_SOURCES += \
 	src/uterm_video_drm.c
 libuterm_la_SOURCES += \
@@ -226,20 +223,15 @@ nodist_libuterm_la_SOURCES += \
 	src/static_shaders.c
 endif
 
-if UTERM_HAVE_DUMB
+if BUILD_ENABLE_DUMB
 libuterm_la_SOURCES += \
 	src/uterm_video_dumb.c
 endif
 
-if UTERM_HAVE_XKBCOMMON
+if BUILD_ENABLE_XKBCOMMON
 libuterm_la_SOURCES += \
 	src/uterm_input_uxkb.c
 endif
-
-include_HEADERS += \
-	src/uterm.h
-
-pkgconfig_DATA += libuterm.pc
 
 #
 # Shaders
@@ -297,6 +289,10 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 # Only "main.c" is not included here as it contains the main() function.
 #
 
+if BUILD_ENABLE_KMSCON
+noinst_LTLIBRARIES += libkmscon-core.la
+endif
+
 libkmscon_core_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_ARRAY) \
@@ -315,39 +311,39 @@ libkmscon_core_la_SOURCES = \
 	src/text_font.c
 nodist_libkmscon_core_la_SOURCES =
 
-if KMSCON_HAVE_UNIFONT
+if BUILD_ENABLE_UNIFONT
 libkmscon_core_la_SOURCES += \
 	src/text_font_unifont.c
 nodist_libkmscon_core_la_SOURCES += \
 	src/text_font_unifont_data.c
 endif
 
-if KMSCON_HAVE_8X16
+if BUILD_ENABLE_8X16
 libkmscon_core_la_SOURCES += \
 	src/text_font_8x16.c
 endif
 
-if KMSCON_HAVE_FREETYPE2
+if BUILD_ENABLE_FREETYPE2
 libkmscon_core_la_SOURCES += \
 	src/text_font_freetype2.c
 endif
 
-if KMSCON_HAVE_PANGO
+if BUILD_ENABLE_PANGO
 libkmscon_core_la_SOURCES += \
 	src/text_font_pango.c
 endif
 
-if KMSCON_HAVE_BBLIT
+if BUILD_ENABLE_BBLIT
 libkmscon_core_la_SOURCES += \
 	src/text_bblit.c
 endif
 
-if KMSCON_HAVE_BBULK
+if BUILD_ENABLE_BBULK
 libkmscon_core_la_SOURCES += \
 	src/text_bbulk.c
 endif
 
-if KMSCON_HAVE_GLES2
+if BUILD_ENABLE_GLES2
 libkmscon_core_la_SOURCES += \
 	src/text_gltex.c \
 	src/static_gl.h \
@@ -378,6 +374,15 @@ libkmscon_core_la_LIBADD = \
 # built as part of kmscon.
 #
 
+if BUILD_ENABLE_KMSCON
+bin_PROGRAMS += kmscon
+check_PROGRAMS += \
+	test_output \
+	test_vt \
+	test_input \
+	test_key
+endif
+
 kmscon_SOURCES = \
 	$(SHL_DLIST) \
 	src/main.c
@@ -386,17 +391,43 @@ kmscon_LDADD = \
 	libeloop.la \
 	libkmscon-core.la
 
-check_PROGRAMS += test_output
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la
 
-check_PROGRAMS += test_vt
 test_vt_SOURCES = tests/test_vt.c
 test_vt_LDADD = libkmscon-core.la
 
-check_PROGRAMS += test_input
 test_input_SOURCES = tests/test_input.c
 test_input_LDADD = libkmscon-core.la
 
-check_PROGRAMS += test_key
 test_key_SOURCES = tests/test_key.c
+
+#
+# Wayland Terminal
+#
+
+if BUILD_ENABLE_WLTERM
+bin_PROGRAMS += wlterm
+endif
+
+wlterm_SOURCES = \
+	src/wlt_main.h \
+	src/wlt_main.c \
+	src/wlt_toolkit.h \
+	src/wlt_toolkit.c \
+	src/wlt_theme.h \
+	src/wlt_theme.c \
+	src/wlt_terminal.h \
+	src/wlt_terminal.c \
+	src/log.h \
+	src/log.c \
+	src/conf.h \
+	src/conf.c
+wlterm_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(WAYLAND_CFLAGS)
+wlterm_LDADD = \
+	libeloop.la \
+	libtsm.la \
+	-lpthread \
+	$(WAYLAND_LIBS)

@@ -101,22 +101,29 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 #define llog_dprintf(obj, sev, format, ...) \
 	llog_format((obj), LLOG_DEFAULT, (sev), (format), ##__VA_ARGS__)
 
+static inline void llog_dummyf(llog_submit_t llog, unsigned int sev,
+			       const char *format, ...)
+{
+}
+
 /*
  * Helpers
  * They pick-up all the default values and submit the message to the
  * llog-subsystem. The llog_debug() function produces zero-code if
- * LLOG_ENABLE_DEBUG is not defined. Therefore, it can be heavily used for
+ * BUILD_ENABLE_DEBUG is not defined. Therefore, it can be heavily used for
  * debugging and will not have any side-effects.
  */
 
-#ifdef LLOG_ENABLE_DEBUG
+#ifdef BUILD_ENABLE_DEBUG
 	#define llog_ddebug(obj, format, ...) \
 		llog_dprintf((obj), LLOG_DEBUG, (format), ##__VA_ARGS__)
 	#define llog_debug(obj, format, ...) \
 		llog_ddebug((obj)->llog, (format), ##__VA_ARGS__)
 #else
-	#define llog_ddebug(obj, format, ...) ((void)0)
-	#define llog_debug(obj, format, ...) ((void)0)
+	#define llog_ddebug(obj, format, ...) \
+		llog_dummyf((obj), LLOG_DEBUG, (format), ##__VA_ARGS__)
+	#define llog_debug(obj, format, ...) \
+		llog_ddebug((obj)->llog, (format), ##__VA_ARGS__)
 #endif
 
 #define llog_info(obj, format, ...) \

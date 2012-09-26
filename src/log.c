@@ -73,6 +73,7 @@ static void log__time(long long *sec, long long *usec)
  * this so we default to 1 if no external build-number is specified.
  */
 
+/* TODO: define LOG_BUILD as incremental build number */
 #ifdef LOG_BUILD
 static unsigned long log_build = LOG_BUILD;
 #else
