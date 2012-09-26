@@ -1219,6 +1219,14 @@ void wlt_window_close(struct wlt_window *wnd)
 	ev_eloop_register_idle_cb(wnd->disp->eloop, close_window, wnd);
 }
 
+struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd)
+{
+	if (!wnd)
+		return NULL;
+
+	return wnd->disp->eloop;
+}
+
 void wlt_widget_destroy(struct wlt_widget *widget)
 {
 	if (!widget)

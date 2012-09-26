@@ -138,6 +138,7 @@ void wlt_window_set_cursor(struct wlt_window *wnd, unsigned int cursor);
 void wlt_window_set_close_cb(struct wlt_window *wnd,
 			     wlt_window_close_cb cb);
 void wlt_window_close(struct wlt_window *wnd);
+struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd);
 
 void wlt_widget_destroy(struct wlt_widget *widget);
 struct wlt_window *wlt_widget_get_window(struct wlt_widget *widget);
