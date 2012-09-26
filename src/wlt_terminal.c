@@ -33,6 +33,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "pty.h"
+#include "text.h"
 #include "tsm_unicode.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"
@@ -50,7 +51,113 @@ struct wlt_terminal {
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
 	struct ev_fd *pty_fd;
+	bool pty_open;
+
+	struct kmscon_font *font_normal;
+	unsigned int cols;
+	unsigned int rows;
 };
+
+static int draw_cell(struct tsm_screen *scr,
+		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int posx, unsigned int posy,
+		     const struct tsm_screen_attr *attr, void *data)
+{
+	struct wlt_terminal *term = data;
+	const struct kmscon_glyph *glyph;
+	int ret;
+	unsigned int x, y, tmp, width, height, i, r, g, b;
+	uint8_t *dst, *src;
+	const struct uterm_video_buffer *buf;
+	unsigned int fr, fg, fb, br, bg, bb;
+	uint32_t val;
+
+	if (!len)
+		ret = kmscon_font_render_empty(term->font_normal, &glyph);
+	else
+		ret = kmscon_font_render(term->font_normal, id, ch, len,
+					 &glyph);
+
+	if (ret) {
+		ret = kmscon_font_render_inval(term->font_normal, &glyph);
+		if (ret)
+			return ret;
+	}
+
+	buf = &glyph->buf;
+	x = posx * term->font_normal->attr.width;
+	y = posy * term->font_normal->attr.height;
+
+	if (attr->inverse) {
+		fr = attr->br;
+		fg = attr->bg;
+		fb = attr->bb;
+		br = attr->fr;
+		bg = attr->fg;
+		bb = attr->fb;
+	} else {
+		fr = attr->fr;
+		fg = attr->fg;
+		fb = attr->fb;
+		br = attr->br;
+		bg = attr->bg;
+		bb = attr->bb;
+	}
+
+	tmp = x + buf->width;
+	if (tmp < x || x >= term->buffer.width)
+		return -EINVAL;
+	if (tmp > term->buffer.width)
+		width = term->buffer.width - x;
+	else
+		width = buf->width;
+
+	tmp = y + buf->height;
+	if (tmp < y || y >= term->buffer.height)
+		return -EINVAL;
+	if (tmp > term->buffer.height)
+		height = term->buffer.height - y;
+	else
+		height = buf->height;
+
+	dst = term->buffer.data;
+	dst = &dst[y * term->buffer.stride + x * 4];
+	src = buf->data;
+
+	/* Division by 256 instead of 255 increases
+	 * speed by like 20% on slower machines.
+	 * Downside is, full white is 254/254/254
+	 * instead of 255/255/255. */
+	while (height--) {
+		for (i = 0; i < width; ++i) {
+			if (src[i] == 0) {
+				r = br;
+				g = bg;
+				b = bb;
+			} else if (src[i] == 255) {
+				r = fr;
+				g = fg;
+				b = fb;
+			} else {
+				r = fr * src[i] +
+				    br * (255 - src[i]);
+				r /= 256;
+				g = fg * src[i] +
+				    bg * (255 - src[i]);
+				g /= 256;
+				b = fb * src[i] +
+				    bb * (255 - src[i]);
+				b /= 256;
+			}
+			val = (0xff << 24) | (r << 16) | (g << 8) | b;
+			((uint32_t*)dst)[i] = val;
+		}
+		dst += term->buffer.stride;
+		src += buf->stride;
+	}
+
+	return 0;
+}
 
 static void widget_redraw(struct wlt_widget *widget, void *data)
 {
@@ -59,25 +166,47 @@ static void widget_redraw(struct wlt_widget *widget, void *data)
 	uint8_t *dst;
 	uint32_t *line;
 
+	/* black background */
 	dst = term->buffer.data;
 	for (i = 0; i < term->buffer.height; ++i) {
 		line = (uint32_t*)dst;
 		for (j = 0; j < term->buffer.width; ++j)
-			line[j] = 0xffffffff;
+			line[j] = 0xff << 24;
 		dst += term->buffer.stride;
 	}
+
+	tsm_screen_draw(term->scr, NULL, draw_cell, NULL, term);
 }
 
 static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 			  void *data)
 {
 	struct wlt_terminal *term = data;
+	int ret;
 
 	wlt_window_get_buffer(term->wnd, alloc, &term->buffer);
 
 	/* don't allow children */
 	alloc->width = 0;
 	alloc->height = 0;
+
+	term->cols = term->buffer.width / term->font_normal->attr.width;
+	if (term->cols < 1)
+		term->cols = 1;
+	term->rows = term->buffer.height / term->font_normal->attr.height;
+	if (term->rows < 1)
+		term->rows = 1;
+
+	ret = tsm_screen_resize(term->scr, term->cols, term->rows);
+	if (ret)
+		log_error("cannot resize TSM screen: %d", ret);
+
+	if (!term->pty_open) {
+		term->pty_open = true;
+		kmscon_pty_open(term->pty, term->cols, term->rows);
+	} else {
+		kmscon_pty_resize(term->pty, term->cols, term->rows);
+	}
 }
 
 static void vte_event(struct tsm_vte *vte, const char *u8, size_t len,
@@ -122,6 +251,7 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 {
 	struct wlt_terminal *term;
 	int ret;
+	const struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 
 	if (!out || !wnd)
 		return -EINVAL;
@@ -133,13 +263,19 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	term->wnd = wnd;
 	term->eloop = wlt_window_get_eloop(wnd);
 
-	ret = tsm_screen_new(&term->scr, NULL);
+	ret = kmscon_font_find(&term->font_normal, &attr, NULL);
 	if (ret) {
-		log_error("cannot create tsm-screen object");
+		log_error("cannot create font");
 		goto err_free;
 	}
 
-	ret = tsm_vte_new(&term->vte, term->scr, vte_event, term, NULL);
+	ret = tsm_screen_new(&term->scr, log_llog);
+	if (ret) {
+		log_error("cannot create tsm-screen object");
+		goto err_font;
+	}
+
+	ret = tsm_vte_new(&term->vte, term->scr, vte_event, term, log_llog);
 	if (ret) {
 		log_error("cannot create tsm-vte object");
 		goto err_scr;
@@ -177,6 +313,8 @@ err_vte:
 	tsm_vte_unref(term->vte);
 err_scr:
 	tsm_screen_unref(term->scr);
+err_font:
+	kmscon_font_unref(term->font_normal);
 err_free:
 	free(term);
 	return ret;
