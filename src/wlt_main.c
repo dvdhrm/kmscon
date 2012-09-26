@@ -37,6 +37,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
+#include "text.h"
 #include "wlt_main.h"
 #include "wlt_terminal.h"
 #include "wlt_theme.h"
@@ -251,19 +252,24 @@ int main(int argc, char **argv)
 
 	log_print_init("wlterm");
 
+	kmscon_font_load_all();
+
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
 	if (ret)
-		goto err_out;
+		goto err_unload;
 
 	ev_eloop_run(app.eloop, -1);
 
 	destroy_app(&app);
+	kmscon_font_unload_all();
 	conf_free(options, onum);
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
+err_unload:
+	kmscon_font_unload_all();
 err_out:
 	conf_free(options, onum);
 	log_err("cannot initialize wlterm, errno %d: %s", ret, strerror(-ret));
