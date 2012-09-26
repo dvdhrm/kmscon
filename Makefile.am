@@ -422,7 +422,9 @@ wlterm_SOURCES = \
 	src/log.h \
 	src/log.c \
 	src/conf.h \
-	src/conf.c
+	src/conf.c \
+	src/pty.h \
+	src/pty.c
 wlterm_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(WAYLAND_CFLAGS)
