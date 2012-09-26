@@ -239,7 +239,9 @@ static void widget_redraw(struct wlt_widget *widget, void *data)
 	width = theme->buffer.width;
 	height = theme->buffer.height;
 	if (width < 2 ||
-	    width < 2 * theme->frame_width) {
+	    width < 2 * theme->frame_width ||
+	    width < 2 * theme->button_margin + 2 * theme->button_padding +
+	            3 * theme->button_size) {
 		widget_draw_fallback(theme);
 	} else if (height < theme->control_height + 2 * theme->frame_width) {
 		widget_draw_fallback(theme);
@@ -258,6 +260,14 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 
 	minw = theme->frame_width * 2;
 	minh = theme->control_height + theme->frame_width * 2;
+	if (*width < minw)
+		*width = minw;
+	if (*height < minh)
+		*height = minh;
+
+	minw = 2 * theme->button_margin + 2 * theme->button_padding +
+	       3 * theme->button_size;
+	minh = theme->button_size + 2 * theme->button_padding;
 	if (*width < minw)
 		*width = minw;
 	if (*height < minh)
