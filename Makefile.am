@@ -283,6 +283,61 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 	./genunifont$(EXEEXT) src/text_font_unifont_data.c $(UNIFONT)
 
 #
+# Text-font library
+# The text-font library is used by kmscon _and_ wlterm but is currently linked
+# statically as it hasn't been cleaned up entirely.
+# It has a build-time dependency to UTERM and runtime dependencies to TSM.
+#
+
+if BUILD_ENABLE_KMSCON
+noinst_LTLIBRARIES += libtext-font.la
+else
+if BUILD_ENABLE_WLTERM
+noinst_LTLIBRARIES += libtext-font.la
+endif
+endif
+
+libtext_font_la_SOURCES = \
+	$(SHL_DLIST) \
+	$(SHL_HASHTABLE) \
+	$(SHL_HOOK) \
+	src/text.h \
+	src/text_font.c
+nodist_libtext_font_la_SOURCES =
+
+if BUILD_ENABLE_UNIFONT
+libtext_font_la_SOURCES += \
+	src/text_font_unifont.c
+nodist_libtext_font_la_SOURCES += \
+	src/text_font_unifont_data.c
+endif
+
+if BUILD_ENABLE_8X16
+libtext_font_la_SOURCES += \
+	src/text_font_8x16.c
+endif
+
+if BUILD_ENABLE_FREETYPE2
+libtext_font_la_SOURCES += \
+	src/text_font_freetype2.c
+endif
+
+if BUILD_ENABLE_PANGO
+libtext_font_la_SOURCES += \
+	src/text_font_pango.c
+endif
+
+libtext_font_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(PANGO_CFLAGS) \
+	$(FREETYPE2_CFLAGS)
+libtext_font_la_LIBADD = \
+	$(PANGO_LIBS) \
+	$(FREETYPE2_LIBS) \
+	-lpthread \
+	libtsm.la
+
+#
 # libkmscon-core
 # This static library contains all the source files used in kmscon. We build
 # them as separate library to allow linking them to the test programs.
@@ -307,31 +362,8 @@ libkmscon_core_la_SOURCES = \
 	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
 	src/text.h \
-	src/text.c \
-	src/text_font.c
+	src/text.c
 nodist_libkmscon_core_la_SOURCES =
-
-if BUILD_ENABLE_UNIFONT
-libkmscon_core_la_SOURCES += \
-	src/text_font_unifont.c
-nodist_libkmscon_core_la_SOURCES += \
-	src/text_font_unifont_data.c
-endif
-
-if BUILD_ENABLE_8X16
-libkmscon_core_la_SOURCES += \
-	src/text_font_8x16.c
-endif
-
-if BUILD_ENABLE_FREETYPE2
-libkmscon_core_la_SOURCES += \
-	src/text_font_freetype2.c
-endif
-
-if BUILD_ENABLE_PANGO
-libkmscon_core_la_SOURCES += \
-	src/text_font_pango.c
-endif
 
 if BUILD_ENABLE_BBLIT
 libkmscon_core_la_SOURCES += \
@@ -355,13 +387,9 @@ endif
 
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(GLES2_CFLAGS) \
-	$(PANGO_CFLAGS) \
-	$(FREETYPE2_CFLAGS)
+	$(GLES2_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(GLES2_LIBS) \
-	$(PANGO_LIBS) \
-	$(FREETYPE2_LIBS) \
 	-lpthread \
 	libeloop.la \
 	libtsm.la \
@@ -389,6 +417,7 @@ kmscon_SOURCES = \
 kmscon_LDADD = \
 	libuterm.la \
 	libeloop.la \
+	libtext-font.la \
 	libkmscon-core.la
 
 test_output_SOURCES = tests/test_output.c tests/test_include.h
@@ -431,5 +460,6 @@ wlterm_CPPFLAGS = \
 wlterm_LDADD = \
 	libeloop.la \
 	libtsm.la \
+	libtext-font.la \
 	-lpthread \
 	$(WAYLAND_LIBS)
