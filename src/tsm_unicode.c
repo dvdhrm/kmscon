@@ -233,6 +233,9 @@ const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 		return sym;
 	}
 
+	if (!tbl)
+		tbl = tsm_symbol_table_default;
+
 	if (!tbl) {
 		ret = tsm_symbol_table_new(&tbl);
 		if (ret) {
@@ -269,6 +272,9 @@ tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 	void *tmp;
 	bool res;
 	int ret;
+
+	if (!tbl)
+		tbl = tsm_symbol_table_default;
 
 	if (!tbl) {
 		ret = tsm_symbol_table_new(&tbl);
