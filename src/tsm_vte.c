@@ -736,7 +736,7 @@ static void do_execute(struct tsm_vte *vte, uint32_t ctrl)
 		/* nothing to do here */
 		break;
 	default:
-		llog_warn(vte, "unhandled control char %u", ctrl);
+		llog_debug(vte, "unhandled control char %u", ctrl);
 	}
 }
 
