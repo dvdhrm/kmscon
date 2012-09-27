@@ -224,7 +224,7 @@ tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
 const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t *sym, size_t *size)
 {
-	uint32_t *ucs4;
+	uint32_t *ucs4, idx;
 	int ret;
 
 	if (*sym <= TSM_UCS4_MAX) {
@@ -246,8 +246,12 @@ const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 		tsm_symbol_table_default = tbl;
 	}
 
-	ucs4 = *SHL_ARRAY_AT(tbl->index, uint32_t*,
-			     *sym - (TSM_UCS4_MAX + 1));
+	idx = *sym - (TSM_UCS4_MAX + 1);
+	if (idx >= shl_array_get_length(tbl->index))
+		ucs4 = NULL;
+	else
+		ucs4 = *SHL_ARRAY_AT(tbl->index, uint32_t*, idx);
+
 	if (!ucs4) {
 		if (size)
 			*size = 1;
