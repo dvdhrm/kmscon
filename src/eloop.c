@@ -1502,6 +1502,8 @@ err_cb:
 		timer->cb(timer, 0, timer->data);
 }
 
+static const struct itimerspec ev_timer_zero;
+
 /**
  * ev_timer_new:
  * @out: Timer pointer where to store the new timer
@@ -1524,6 +1526,9 @@ int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 
 	if (!out)
 		return llog_dEINVAL(log);
+
+	if (!spec)
+		spec = &ev_timer_zero;
 
 	timer = malloc(sizeof(*timer));
 	if (!timer)
@@ -1694,8 +1699,9 @@ int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 
 	if (!timer)
 		return -EINVAL;
+
 	if (!spec)
-		return llog_EINVAL(timer);
+		spec = &ev_timer_zero;
 
 	ret = timerfd_settime(timer->fd, 0, spec, NULL);
 	if (ret) {
