@@ -896,9 +896,9 @@ void wlt_display_unref(struct wlt_display *disp)
 
 	unload_cursors(disp);
 	wl_display_remove_global_listener(disp->dp, disp->dp_listener);
-	ev_eloop_rm_fd(disp->dp_fd);
 	wl_display_flush(disp->dp);
 	wl_display_disconnect(disp->dp);
+	ev_eloop_rm_fd(disp->dp_fd);
 	xkb_context_unref(disp->xkb_ctx);
 	shl_hook_free(disp->listeners);
 	ev_eloop_unref(disp->eloop);
