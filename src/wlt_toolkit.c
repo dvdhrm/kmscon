@@ -89,6 +89,8 @@ struct wlt_display {
 	struct xkb_keymap *xkb_keymap;
 	struct xkb_state *xkb_state;
 	struct wlt_window *keyboard_focus;
+	struct ev_timer *repeat_timer;
+	uint32_t repeat_sym;
 };
 
 struct wlt_window {
@@ -609,6 +611,7 @@ static void keyboard_leave(void *data, struct wl_keyboard *keyboard,
 
 	disp->last_serial = serial;
 	disp->keyboard_focus = NULL;
+	ev_timer_update(disp->repeat_timer, NULL);
 }
 
 static unsigned int get_effective_modmask(struct xkb_state *state)
@@ -647,6 +650,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	xkb_keysym_t sym;
 	struct shl_dlist *iter;
 	struct wlt_widget *widget;
+	struct itimerspec spec;
 
 	disp->last_serial = serial;
 	if (!disp->xkb_state)
@@ -666,6 +670,39 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->keyboard_cb)
 			widget->keyboard_cb(widget, mask, sym, state,
+					    widget->data);
+	}
+
+	if (state == WL_KEYBOARD_KEY_STATE_RELEASED &&
+	    sym == disp->repeat_sym) {
+		ev_timer_update(disp->repeat_timer, NULL);
+	} else if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+		disp->repeat_sym = sym;
+		spec.it_interval.tv_sec = 0;
+		spec.it_interval.tv_nsec = 25 * 1000000;
+		spec.it_value.tv_sec = 0;
+		spec.it_value.tv_nsec = 250 * 1000000;
+		ev_timer_update(disp->repeat_timer, &spec);
+	}
+}
+
+static void repeat_event(struct ev_timer *timer, uint64_t num, void *data)
+{
+	struct wlt_display *disp = data;
+	struct wlt_window *wnd = disp->keyboard_focus;
+	struct wlt_widget *widget;
+	struct shl_dlist *iter;
+	unsigned int mask;
+
+	if (!wnd)
+		return;
+
+	mask = get_effective_modmask(disp->xkb_state);
+	shl_dlist_for_each(iter, &wnd->widget_list) {
+		widget = shl_dlist_entry(iter, struct wlt_widget, list);
+		if (widget->keyboard_cb)
+			widget->keyboard_cb(widget, mask, disp->repeat_sym,
+					    WL_KEYBOARD_KEY_STATE_PRESSED,
 					    widget->data);
 	}
 }
@@ -850,18 +887,25 @@ int wlt_display_new(struct wlt_display **out,
 		goto err_dp;
 	}
 
+	ret = ev_eloop_new_timer(eloop, &disp->repeat_timer, NULL,
+				 repeat_event, disp);
+	if (ret) {
+		log_error("cannot create repeat-timer");
+		goto err_dp_fd;
+	}
+
 	disp->dp_listener = wl_display_add_global_listener(disp->dp,
 							   dp_global,
 							   disp);
 	if (!disp->dp_listener) {
 		log_error("cannot add wayland global listener (%d)");
-		goto err_dp_fd;
+		goto err_timer;
 	}
 
 	disp->xkb_ctx = xkb_context_new(0);
 	if (!disp->xkb_ctx) {
 		log_error("cannot create XKB context");
-		goto err_dp_fd;
+		goto err_timer;
 	}
 
 	log_debug("wlt-display waiting for globals...");
@@ -870,6 +914,8 @@ int wlt_display_new(struct wlt_display **out,
 	*out = disp;
 	return 0;
 
+err_timer:
+	ev_eloop_rm_timer(disp->repeat_timer);
 err_dp_fd:
 	ev_eloop_rm_fd(disp->dp_fd);
 err_dp:
@@ -898,6 +944,7 @@ void wlt_display_unref(struct wlt_display *disp)
 	wl_display_remove_global_listener(disp->dp, disp->dp_listener);
 	wl_display_flush(disp->dp);
 	wl_display_disconnect(disp->dp);
+	ev_eloop_rm_timer(disp->repeat_timer);
 	ev_eloop_rm_fd(disp->dp_fd);
 	xkb_context_unref(disp->xkb_ctx);
 	shl_hook_free(disp->listeners);
