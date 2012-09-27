@@ -1166,7 +1166,7 @@ static void fd_epoll_remove(struct ev_fd *fd)
 		return;
 
 	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_DEL, fd->fd, NULL);
-	if (ret)
+	if (ret && errno != EBADF)
 		llog_warning(fd, "cannot remove fd %d from epoll set (%d): %m",
 			     fd->fd, errno);
 }
