@@ -1540,7 +1540,7 @@ int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 	timer->cb = cb;
 	timer->data = data;
 
-	timer->fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+	timer->fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
 	if (timer->fd < 0) {
 		llog_error(timer, "cannot create timerfd (%d): %m", errno);
 		ret = -EFAULT;
