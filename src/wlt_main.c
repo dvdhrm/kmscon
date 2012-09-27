@@ -187,7 +187,17 @@ static void print_help()
 		"\t-h, --help                  [off]   Print this help and exit\n"
 		"\t-v, --verbose               [off]   Print verbose messages\n"
 		"\t    --debug                 [off]   Enable debug mode\n"
-		"\t    --silent                [off]   Suppress notices and warnings\n",
+		"\t    --silent                [off]   Suppress notices and warnings\n"
+		"\n"
+		"Font Options:\n"
+		"\t    --font-engine <engine>  [pango]\n"
+		"\t                              Font engine\n"
+		"\t    --font-size <points>    [15]\n"
+		"\t                              Font size in points\n"
+		"\t    --font-name <name>      [monospace]\n"
+		"\t                              Font name\n"
+		"\t    --font-dpi <dpi>        [96]\n"
+		"\t                              Force DPI value for all fonts\n",
 		"wlterm");
 	/*
 	 * 80 char line:
@@ -226,6 +236,10 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
 	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &wlt_conf.debug, false),
 	CONF_OPTION_BOOL(0, "silent", NULL, &wlt_conf.silent, false),
+	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
+	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),
+	CONF_OPTION_STRING(0, "font-name", NULL, &wlt_conf.font_name, "monospace"),
+	CONF_OPTION_UINT(0, "font-dpi", NULL, &wlt_conf.font_ppi, 96),
 };
 
 int main(int argc, char **argv)

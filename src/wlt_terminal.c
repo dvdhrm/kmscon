@@ -39,6 +39,7 @@
 #include "tsm_unicode.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"
+#include "wlt_main.h"
 #include "wlt_toolkit.h"
 
 #define LOG_SUBSYSTEM "wlt_terminal"
@@ -108,7 +109,7 @@ static int draw_cell(struct tsm_screen *scr,
 
 	tmp = x + buf->width;
 	if (tmp < x || x >= term->buffer.width)
-		return -EINVAL;
+		return 0;
 	if (tmp > term->buffer.width)
 		width = term->buffer.width - x;
 	else
@@ -116,7 +117,7 @@ static int draw_cell(struct tsm_screen *scr,
 
 	tmp = y + buf->height;
 	if (tmp < y || y >= term->buffer.height)
-		return -EINVAL;
+		return 0;
 	if (tmp > term->buffer.height)
 		height = term->buffer.height - y;
 	else
@@ -268,7 +269,7 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 {
 	struct wlt_terminal *term;
 	int ret;
-	const struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
+	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 
 	if (!out || !wnd)
 		return -EINVAL;
@@ -280,7 +281,12 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	term->wnd = wnd;
 	term->eloop = wlt_window_get_eloop(wnd);
 
-	ret = kmscon_font_find(&term->font_normal, &attr, NULL);
+	attr.ppi = wlt_conf.font_ppi;
+	attr.points = wlt_conf.font_size;
+	strncpy(attr.name, wlt_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
+	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
+
+	ret = kmscon_font_find(&term->font_normal, &attr, wlt_conf.font_engine);
 	if (ret) {
 		log_error("cannot create font");
 		goto err_free;

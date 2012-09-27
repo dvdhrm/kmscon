@@ -44,6 +44,15 @@ struct wlt_conf_t {
 	bool verbose;
 	/* disable notices and warnings */
 	bool silent;
+
+	/* font engine */
+	char *font_engine;
+	/* font size */
+	unsigned int font_size;
+	/* font name */
+	char *font_name;
+	/* font ppi (overrides per monitor PPI) */
+	unsigned int font_ppi;
 };
 
 extern struct wlt_conf_t wlt_conf;
