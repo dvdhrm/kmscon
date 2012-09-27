@@ -1056,7 +1056,13 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	return 0;
 }
 
+static void frame_callback(void *data, struct wl_callback *w_callback,
+			   uint32_t time);
 static void idle_frame(struct ev_eloop *eloop, void *unused, void *data);
+
+static const struct wl_callback_listener frame_callback_listener = {
+	.done = frame_callback,
+};
 
 static void do_frame(struct wlt_window *wnd)
 {
@@ -1064,15 +1070,23 @@ static void do_frame(struct wlt_window *wnd)
 	ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd);
 
 	if (wnd->need_resize) {
+		wnd->need_frame = true;
 		wnd->need_resize = false;
 		wnd->need_redraw = false;
 		resize_window(wnd, wnd->new_width, wnd->new_height);
 	}
 
 	if (wnd->need_redraw) {
+		wnd->need_frame = true;
 		wnd->need_redraw = false;
 		wlt_window_do_redraw(wnd, wnd->buffer.width,
 				     wnd->buffer.height);
+	}
+
+	if (wnd->need_frame) {
+		wnd->w_frame = wl_surface_frame(wnd->w_surface);
+		wl_callback_add_listener(wnd->w_frame,
+					 &frame_callback_listener, wnd);
 	}
 }
 
@@ -1092,27 +1106,49 @@ static void idle_frame(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct wlt_window *wnd = data;
 
-	wnd->need_frame = true;
 	do_frame(wnd);
 }
 
-static const struct wl_callback_listener frame_callback_listener = {
-	.done = frame_callback,
-};
-
+/*
+ * Buffer Handling and Frame Scheduling
+ * We use wl_shm for buffer allocation. This means, we have a single buffer
+ * client side and the server loads it into its backbuffer for rendering. If the
+ * server does not do this, we are screwed anyway, but that's on behalf of the
+ * server, so we don't care.
+ *
+ * However, this means, when we create a buffer, we need to notify the
+ * compositor and then wait until the compositor has created its back-buffer,
+ * before we continue using this buffer. We can use the "frame" callback to get
+ * notified about this.
+ *
+ * The logic we have is:
+ * You set the boolean flags what action is needed in wlt_window and then call
+ * "schedule_frame()". If we didn't already do any buffer operations in this
+ * frame, then this function schedules an idle-callback which then performs
+ * the requested functions (flags in wlt_window). Afterwards, it sets a marker
+ * that this frame was already used and schedules a frame-callback.
+ * If during this time another call to schedule_frame() is made, we do nothing
+ * but wait for the frame-callback. It will then directly perform all the
+ * requested functions and reschedule a frame-callback.
+ * If nothing was schedule for one frame, we have no more interest in
+ * frame-callbacks and thus we set "need_frame" to false again and don't
+ * schedule any more frame-callbacks.
+ */
 static void schedule_frame(struct wlt_window *wnd)
 {
+	int ret;
+
 	if (!wnd || wnd->w_frame)
 		return;
 
-	if (!wnd->need_frame && !wnd->idle_pending) {
+	if (wnd->need_frame || wnd->idle_pending)
+		return;
+
+	ret = ev_eloop_register_idle_cb(wnd->disp->eloop, idle_frame, wnd);
+	if (ret)
+		log_error("cannot schedule idle callback: %d", ret);
+	else
 		wnd->idle_pending = true;
-		ev_eloop_register_idle_cb(wnd->disp->eloop,
-					  idle_frame, wnd);
-		wnd->w_frame = wl_surface_frame(wnd->w_surface);
-		wl_callback_add_listener(wnd->w_frame,
-					 &frame_callback_listener, wnd);
-	}
 }
 
 static void shell_surface_configure(void *data, struct wl_shell_surface *s,
