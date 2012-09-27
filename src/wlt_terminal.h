@@ -35,7 +35,18 @@
 
 struct wlt_terminal;
 
+enum wlt_terminal_event_type {
+	WLT_TERMINAL_HUP,
+};
+
+typedef void (*wlt_terminal_cb) (struct wlt_terminal *term,
+				 unsigned int event,
+				 void *data);
+
 int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd);
 void wlt_terminal_destroy(struct wlt_terminal *term);
+
+int wlt_terminal_open(struct wlt_terminal *term, wlt_terminal_cb cb,
+		      void *data);
 
 #endif /* WLT_TERMINAL_H */

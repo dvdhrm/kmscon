@@ -68,6 +68,17 @@ static void window_close(struct wlt_window *wnd, void *data)
 	ev_eloop_exit(app->eloop);
 }
 
+static void terminal_close(struct wlt_terminal *term, unsigned int event,
+			   void *data)
+{
+	struct wlt_app *app = data;
+
+	if (event == WLT_TERMINAL_HUP) {
+		log_info("closing pty");
+		ev_eloop_exit(app->eloop);
+	}
+}
+
 static int window_init(struct wlt_app *app)
 {
 	int ret;
@@ -91,6 +102,12 @@ static int window_init(struct wlt_app *app)
 	ret = wlt_terminal_new(&term, app->wnd);
 	if (ret) {
 		log_error("cannot create terminal");
+		return ret;
+	}
+
+	ret = wlt_terminal_open(term, terminal_close, app);
+	if (ret) {
+		log_error("cannot open terminal");
 		return ret;
 	}
 

@@ -40,6 +40,7 @@
 #include "tsm_screen.h"
 #include "tsm_vte.h"
 #include "wlt_main.h"
+#include "wlt_terminal.h"
 #include "wlt_toolkit.h"
 
 #define LOG_SUBSYSTEM "wlt_terminal"
@@ -59,6 +60,9 @@ struct wlt_terminal {
 	struct kmscon_font *font_normal;
 	unsigned int cols;
 	unsigned int rows;
+
+	wlt_terminal_cb cb;
+	void *data;
 };
 
 static int draw_cell(struct tsm_screen *scr,
@@ -203,13 +207,7 @@ static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 	ret = tsm_screen_resize(term->scr, term->cols, term->rows);
 	if (ret)
 		log_error("cannot resize TSM screen: %d", ret);
-
-	if (!term->pty_open) {
-		term->pty_open = true;
-		kmscon_pty_open(term->pty, term->cols, term->rows);
-	} else {
-		kmscon_pty_resize(term->pty, term->cols, term->rows);
-	}
+	kmscon_pty_resize(term->pty, term->cols, term->rows);
 }
 
 static void widget_key(struct wlt_widget *widget, unsigned int mask,
@@ -241,8 +239,9 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	struct wlt_terminal *term = data;
 
 	if (!len) {
-		log_debug("hangup on PTY");
-		/* TODO: signal that to caller */
+		term->pty_open = false;
+		if (term->cb)
+			term->cb(term, WLT_TERMINAL_HUP, term->data);
 	} else {
 		tsm_vte_input(term->vte, u8, len);
 		wlt_window_schedule_redraw(term->wnd);
@@ -280,6 +279,8 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	memset(term, 0, sizeof(*term));
 	term->wnd = wnd;
 	term->eloop = wlt_window_get_eloop(wnd);
+	term->cols = 80;
+	term->rows = 24;
 
 	attr.ppi = wlt_conf.font_ppi;
 	attr.points = wlt_conf.font_size;
@@ -351,4 +352,27 @@ void wlt_terminal_destroy(struct wlt_terminal *term)
 		return;
 
 	wlt_widget_destroy(term->widget);
+}
+
+int wlt_terminal_open(struct wlt_terminal *term, wlt_terminal_cb cb,
+		      void *data)
+{
+	int ret;
+
+	if (!term)
+		return -EINVAL;
+
+	if (term->pty_open)
+		return -EALREADY;
+
+	term->cb = cb;
+	term->data = data;
+
+	kmscon_pty_close(term->pty);
+	ret = kmscon_pty_open(term->pty, term->cols, term->rows);
+	if (ret)
+		return ret;
+
+	term->pty_open = true;
+	return 0;
 }
