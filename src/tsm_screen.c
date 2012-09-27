@@ -552,9 +552,20 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 	}
 
 	/* When resizing, we need to reset all the new cells, otherwise, the old
-	 * data that was written there will reoccur on the screen. */
-	for (j = 0; j < y; ++j) {
-		for (i = con->size_x; i < x; ++i)
+	 * data that was written there will reoccur on the screen.
+	 * TODO: we overwrite way to much here; most of it should already be
+	 * cleaned. Maybe it does more sense cleaning when _allocating_ or when
+	 * _shrinking_, then we never clean twice (for performance reasons). */
+	for (j = 0; j < con->line_num; ++j) {
+		if (j >= con->size_y)
+			i = 0;
+		else
+			i = con->size_x;
+		if (x < con->lines[j]->size)
+			width = x;
+		else
+			width = con->lines[j]->size;
+		for (; i < width; ++i)
 			cell_init(con, &con->lines[j]->cells[i]);
 	}
 
