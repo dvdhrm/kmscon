@@ -76,6 +76,14 @@ struct conf_option {
 		    _aftercheck, \
 		    _mem, \
 		    _def)
+#define CONF_OPTION_INT(_short, _long, _aftercheck, _mem, _def) \
+	CONF_OPTION(0, \
+		    _short, \
+		    _long, \
+		    &conf_int, \
+		    _aftercheck, \
+		    _mem, \
+		    (void*)(unsigned long)_def)
 #define CONF_OPTION_UINT(_short, _long, _aftercheck, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
@@ -104,6 +112,8 @@ struct conf_option {
 void conf_free_value(struct conf_option *opt);
 int conf_parse_bool(struct conf_option *opt, bool on, const char *arg);
 void conf_default_bool(struct conf_option *opt);
+int conf_parse_int(struct conf_option *opt, bool on, const char *arg);
+void conf_default_int(struct conf_option *opt);
 int conf_parse_uint(struct conf_option *opt, bool on, const char *arg);
 void conf_default_uint(struct conf_option *opt);
 int conf_parse_string(struct conf_option *opt, bool on, const char *arg);
@@ -112,6 +122,7 @@ int conf_parse_string_list(struct conf_option *opt, bool on, const char *arg);
 void conf_default_string_list(struct conf_option *opt);
 
 extern const struct conf_type conf_bool;
+extern const struct conf_type conf_int;
 extern const struct conf_type conf_uint;
 extern const struct conf_type conf_string;
 extern const struct conf_type conf_string_list;
