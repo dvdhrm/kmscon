@@ -443,6 +443,7 @@ static void button_action(struct wlt_theme *theme)
 		wlt_window_close(theme->wnd);
 		break;
 	case LOC_MAXIMIZE:
+		wlt_window_toggle_maximize(theme->wnd);
 		break;
 	case LOC_MINIMIZE:
 		break;

@@ -114,7 +114,10 @@ struct wlt_window {
 	bool idle_pending;
 	unsigned int new_width;
 	unsigned int new_height;
+	unsigned int saved_width;
+	unsigned int saved_height;
 	unsigned int resize_edges;
+	bool maximized;
 	struct wlt_shm_buffer buffer;
 	struct wl_callback *w_frame;
 
@@ -1480,6 +1483,23 @@ void wlt_window_close(struct wlt_window *wnd)
 
 	wnd->close_pending = true;
 	ev_eloop_register_idle_cb(wnd->disp->eloop, close_window, wnd);
+}
+
+void wlt_window_toggle_maximize(struct wlt_window *wnd)
+{
+	if (!wnd)
+		return;
+
+	if (wnd->maximized) {
+		wl_shell_surface_set_toplevel(wnd->w_shell_surface);
+		wlt_window_set_size(wnd, wnd->saved_width, wnd->saved_height);
+	} else {
+		wnd->saved_width = wnd->buffer.width;
+		wnd->saved_height = wnd->buffer.height;
+		wl_shell_surface_set_maximized(wnd->w_shell_surface, NULL);
+	}
+
+	wnd->maximized = !wnd->maximized;
 }
 
 struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd)
