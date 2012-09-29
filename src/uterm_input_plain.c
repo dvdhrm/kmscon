@@ -162,10 +162,12 @@ static const uint32_t keytab_normal[] = {
 
 #define KEYTAB_SIZE (KEY_RIGHTMETA + 1)
 
+#ifdef BUILD_HAVE_STATIC_ASSERT
 _Static_assert(
 	(KEYTAB_SIZE == sizeof(keytab_normal) / sizeof(*keytab_normal)),
 	"The KEYTAB_SIZE #define is incorrect!"
 );
+#endif
 
 static const uint32_t keytab_numlock[KEYTAB_SIZE] = {
 	[KEY_KP7]         =  XKB_KEY_KP_7,

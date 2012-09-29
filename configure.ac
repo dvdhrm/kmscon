@@ -243,6 +243,17 @@ AM_CONDITIONAL([BUILD_ENABLE_DEBUG],
 AM_CONDITIONAL([BUILD_ENABLE_OPTIMIZATIONS],
                [test x$optimizations_enabled = xyes])
 
+# check for _Static_assert
+AC_MSG_CHECKING([whether _Static_assert() is supported])
+AC_LANG([C])
+have_static_assert=yes
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[_Static_assert(1, "What?");]])],
+                  [AC_DEFINE([BUILD_HAVE_STATIC_ASSERT],
+                             [1],
+                             [Define to 1 if _Static_assert() is supported])],
+                  [have_static_assert=no])
+AC_MSG_RESULT([$have_static_assert])
+
 #
 # Main applications
 # This checks which applications to build so we can optionally disable unused
