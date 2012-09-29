@@ -334,6 +334,8 @@ enum uterm_vt_mode {
 	UTERM_VT_DEAD,
 };
 
+#define UTERM_VT_DEFAULT (-1)
+
 typedef int (*uterm_vt_cb) (struct uterm_vt *vt, unsigned int action,
 			    void *data);
 
@@ -344,7 +346,7 @@ void uterm_vt_master_unref(struct uterm_vt_master *vtm);
 
 int uterm_vt_allocate(struct uterm_vt_master *vt, struct uterm_vt **out,
 		      const char *seat, struct uterm_input *input,
-		      uterm_vt_cb cb, void *data);
+		      int vt_for_seat0, uterm_vt_cb cb, void *data);
 void uterm_vt_deallocate(struct uterm_vt *vt);
 void uterm_vt_ref(struct uterm_vt *vt);
 void uterm_vt_unref(struct uterm_vt *vt);

@@ -203,7 +203,7 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-static int real_open(struct uterm_vt *vt)
+static int real_open(struct uterm_vt *vt, int vt_for_seat0)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -213,7 +213,7 @@ static int real_open(struct uterm_vt *vt)
 
 	log_debug("open vt %p", vt);
 
-	ret = open_tty(-1, &vt->real_fd, &vt->real_num);
+	ret = open_tty(vt_for_seat0, &vt->real_fd, &vt->real_num);
 	if (ret)
 		return ret;
 
@@ -455,6 +455,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      const char *seat,
 		      struct uterm_input *input,
+		      int vt_for_seat0,
 		      uterm_vt_cb cb,
 		      void *data)
 {
@@ -489,7 +490,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
 		vt->mode = UTERM_VT_REAL;
-		ret = real_open(vt);
+		ret = real_open(vt, vt_for_seat0);
 		if (ret)
 			goto err_sig2;
 	} else {

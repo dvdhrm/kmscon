@@ -157,7 +157,7 @@ static void seat_new(struct kmscon_app *app,
 		goto err_name;
 
 	ret = uterm_vt_allocate(app->vtm, &seat->vt, seat->sname,
-				seat->input, vt_event, seat);
+				seat->input, kmscon_conf.vt, vt_event, seat);
 	if (ret)
 		goto err_input;
 
@@ -426,6 +426,7 @@ static void print_help()
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
 		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
+		"\t    --vt <vt-number>        [auto]  Select which VT to run on on seat0\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
 		"\n"
@@ -678,6 +679,7 @@ struct conf_option options[] = {
 	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
 	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
 	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
+	CONF_OPTION_INT(0, "vt", NULL, &kmscon_conf.vt, UTERM_VT_DEFAULT),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "xterm-256color"),

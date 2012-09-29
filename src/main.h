@@ -46,6 +46,8 @@ struct kmscon_conf_t {
 	bool verbose;
 	/* disable notices and warnings */
 	bool silent;
+	/* VT number to run on on seat0 */
+	int vt;
 	/* enter new VT directly */
 	bool switchvt;
 	/* use framebuffers instead of DRM */
