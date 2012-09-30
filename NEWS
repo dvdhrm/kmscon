@@ -1,5 +1,37 @@
 = KMSCON Release News =
 
+CHANGES WITH 5:
+	* Idle sources are now faster registered and unregistered so they can
+	  be used for any scheduling tasks
+
+	* eloop got pre- and post-dispatch hooks to inetgrate external
+	  event-loops better
+
+	* Added pkg-config files for eloop, tsm and uterm
+
+	* Added xkbcommon-keysyms.h as fallback
+
+	* fakevt got removed. It is now integrated into kmscon core and is no
+	  longer needed.
+
+	* Cleaned up unicode, console and vte layer. It is now a fully
+	  independent library calles TSM.
+
+	* All helpers were prefixed with SHL_* and can be used in any project
+	  inside of this repository. They are linked statically and mostly
+	  inlined code.
+
+	* VTE layer now handles ALT key
+
+	* fbdev devices are automatically used if they are not run by DRM
+	  drivers. Use --fbdev to force the use of fbdev devices only.
+
+	* --vt=<num> now selects the TTY to use by kmscon on seat0
+
+	* Added wlterm, a native terminal emulator for Wayland
+
+	* Lots of bugfixes! Thanks to all the bug-reporters!
+
 CHANGES WITH 4:
 	* The "conf" subsystem was modularized so we can use it in other
 	  binaries as well. It is also much easier to add new parameters now.
