@@ -415,6 +415,7 @@ endif
 
 kmscon_SOURCES = \
 	$(SHL_DLIST) \
+	$(SHL_MISC) \
 	src/main.c
 kmscon_LDADD = \
 	libuterm.la \

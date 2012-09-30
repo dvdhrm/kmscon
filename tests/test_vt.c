@@ -102,8 +102,7 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_exit;
 
-	ret = uterm_vt_allocate(vtm, &vt, NULL, NULL, UTERM_VT_DEFAULT, NULL,
-				NULL);
+	ret = uterm_vt_allocate(vtm, &vt, NULL, NULL, NULL, NULL, NULL);
 	if (ret)
 		goto err_vtm;
 

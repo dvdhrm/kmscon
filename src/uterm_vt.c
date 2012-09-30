@@ -38,6 +38,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/signalfd.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
@@ -159,15 +160,16 @@ static void real_input(struct ev_fd *fd, int mask, void *data)
 	tcflush(vt->real_fd, TCIFLUSH);
 }
 
-static int open_tty(int id, int *tty_fd, int *tty_num)
+static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 {
-	int fd, err1;
+	int fd, err1, id, ret;
 	char filename[16];
+	struct stat st;
 
 	if (!tty_fd || !tty_num)
 		return -EINVAL;
 
-	if (id < 0) {
+	if (!dev) {
 		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
 			err1 = errno;
@@ -186,24 +188,34 @@ static int open_tty(int id, int *tty_fd, int *tty_num)
 			return -EINVAL;
 		}
 		close(fd);
+
+		snprintf(filename, sizeof(filename), "/dev/tty%d", id);
+		filename[sizeof(filename) - 1] = 0;
+		dev = filename;
 	}
 
-	snprintf(filename, sizeof(filename), "/dev/tty%d", id);
-	filename[sizeof(filename) - 1] = 0;
-	log_notice("using tty %s", filename);
+	log_notice("using tty %s", dev);
 
-	fd = open(filename, O_RDWR | O_NOCTTY | O_CLOEXEC);
+	fd = open(dev, O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
-		log_err("cannot open tty %s", filename);
+		log_err("cannot open tty %s", dev);
 		return -errno;
 	}
+
+	ret = fstat(fd, &st);
+	if (ret) {
+		log_error("cannot introspect tty %s (%d): %m", dev, errno);
+		close(fd);
+		return -errno;
+	}
+	id = minor(st.st_rdev);
 
 	*tty_fd = fd;
 	*tty_num = id;
 	return 0;
 }
 
-static int real_open(struct uterm_vt *vt, int vt_for_seat0)
+static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 {
 	struct termios raw_attribs;
 	struct vt_mode mode;
@@ -251,7 +263,7 @@ static int real_open(struct uterm_vt *vt, int vt_for_seat0)
 		log_warn("cannot put terminal into raw mode");
 
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS)) {
-		log_err("vt: cannot set graphics mode\n");
+		log_err("vt: cannot set graphics mode");
 		ret = -errno;
 		goto err_reset;
 	}
@@ -455,7 +467,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      const char *seat,
 		      struct uterm_input *input,
-		      int vt_for_seat0,
+		      const char *vt_for_seat0,
 		      uterm_vt_cb cb,
 		      void *data)
 {

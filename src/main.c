@@ -37,6 +37,7 @@
 #include "log.h"
 #include "main.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "text.h"
 #include "ui.h"
 #include "uterm.h"
@@ -589,6 +590,48 @@ const struct conf_type conf_grab = {
 		    _mem, \
 		    _def)
 
+int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
+{
+	static const char prefix[] = "/dev/";
+	unsigned int val;
+	char *str;
+	int ret;
+
+	if (!shl_strtou(arg, &val)) {
+		ret = asprintf(&str, "%stty%u", prefix, val);
+		if (ret == -1)
+			return -ENOMEM;
+	} else if (*arg && *arg != '.' && *arg != '/') {
+		str = malloc(sizeof(prefix) + strlen(arg));
+		if (!str)
+			return -ENOMEM;
+
+		strcpy(str, prefix);
+		strcat(str, arg);
+	} else {
+		str = strdup(arg);
+		if (!str)
+			return -ENOMEM;
+	}
+
+
+	opt->type->free(opt);
+	*(void**)opt->mem = str;
+	return 0;
+}
+
+void conf_default_vt(struct conf_option *opt)
+{
+	*(void**)opt->mem = opt->def;
+}
+
+const struct conf_type conf_vt = {
+	.flags = CONF_HAS_ARG,
+	.parse = conf_parse_vt,
+	.free = conf_free_value,
+	.set_default = conf_default_vt,
+};
+
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
@@ -679,7 +722,7 @@ struct conf_option options[] = {
 	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
 	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
 	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
-	CONF_OPTION_INT(0, "vt", NULL, &kmscon_conf.vt, UTERM_VT_DEFAULT),
+	CONF_OPTION(0, 0, "vt", &conf_vt, NULL, &kmscon_conf.vt, NULL),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "xterm-256color"),
