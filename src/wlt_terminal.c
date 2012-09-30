@@ -170,18 +170,6 @@ static int draw_cell(struct tsm_screen *scr,
 static void widget_redraw(struct wlt_widget *widget, void *data)
 {
 	struct wlt_terminal *term = data;
-	unsigned int i, j;
-	uint8_t *dst;
-	uint32_t *line;
-
-	/* black background */
-	dst = term->buffer.data;
-	for (i = 0; i < term->buffer.height; ++i) {
-		line = (uint32_t*)dst;
-		for (j = 0; j < term->buffer.width; ++j)
-			line[j] = 0xff << 24;
-		dst += term->buffer.stride;
-	}
 
 	tsm_screen_draw(term->scr, NULL, draw_cell, NULL, term);
 }
