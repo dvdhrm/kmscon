@@ -344,10 +344,22 @@ err_id:
  * indicates how long the written UTF8 string is.
  *
  * Please note @g is a real UCS4 code and not a tsm_symbol_t object!
+ *
+ * Unicode symbols between 0xD800 and 0xDFFF are not assigned and reserved for
+ * UTF16 compatibility. It is an error to encode them. Same applies to numbers
+ * greater than 0x10FFFF, the range 0xFDD0-0xFDEF and codepoints ending with
+ * 0xFFFF or 0xFFFE.
  */
 
 size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 {
+	if (g >= 0xd800 && g <= 0xdfff)
+		return 0;
+	if (g > 0x10ffff || (g & 0xffff) == 0xffff || (g & 0xffff) == 0xfffe)
+		return 0;
+	if (g >= 0xfdd0 && g <= 0xfdef)
+		return 0;
+
 	if (g < (1 << 7)) {
 		txt[0] = g & 0x7f;
 		return 1;
