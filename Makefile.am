@@ -88,6 +88,8 @@ SHL_LLOG = \
 	src/shl_llog.h
 SHL_HOOK = \
 	src/shl_hook.h
+SHL_MISC = \
+	src/shl_misc.h
 
 #
 # libeloop
