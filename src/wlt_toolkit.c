@@ -1028,7 +1028,7 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 }
 
 static int resize_window(struct wlt_window *wnd, unsigned int width,
-			 unsigned int height)
+			 unsigned int height, bool force_redraw)
 {
 	struct shl_dlist *iter;
 	struct wlt_widget *widget;
@@ -1057,8 +1057,11 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 		height = newh;
 
 	if (width == wnd->buffer.width &&
-	    height == wnd->buffer.height)
+	    height == wnd->buffer.height) {
+		if (force_redraw)
+			wlt_window_do_redraw(wnd, width, height);
 		return 0;
+	}
 
 	oldw = wnd->buffer.width;
 	oldh = wnd->buffer.height;
@@ -1124,14 +1127,17 @@ static const struct wl_callback_listener frame_callback_listener = {
 
 static void do_frame(struct wlt_window *wnd)
 {
+	bool force;
+
 	wnd->idle_pending = false;
 	ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd);
 
 	if (wnd->need_resize) {
+		force = wnd->need_redraw;
 		wnd->need_frame = true;
 		wnd->need_resize = false;
 		wnd->need_redraw = false;
-		resize_window(wnd, wnd->new_width, wnd->new_height);
+		resize_window(wnd, wnd->new_width, wnd->new_height, force);
 	}
 
 	if (wnd->need_redraw) {
@@ -1291,7 +1297,7 @@ int wlt_display_create_window(struct wlt_display *disp,
 				      &shell_surface_listener, wnd);
 	wl_shell_surface_set_toplevel(wnd->w_shell_surface);
 
-	ret = resize_window(wnd, width, height);
+	ret = resize_window(wnd, width, height, true);
 	if (ret)
 		goto err_shell_surface;
 
