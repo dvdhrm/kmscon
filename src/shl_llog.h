@@ -71,15 +71,15 @@ typedef void (*llog_submit_t) (const char *file,
 			       const char *format,
 			       va_list args);
 
-__attribute__((__unused__))
-static void llog_format(llog_submit_t llog,
-			const char *file,
-			int line,
-			const char *func,
-			const char *subs,
-			unsigned int sev,
-			const char *format,
-			...)
+static inline __attribute__((format(printf, 7, 8)))
+void llog_format(llog_submit_t llog,
+		 const char *file,
+		 int line,
+		 const char *func,
+		 const char *subs,
+		 unsigned int sev,
+		 const char *format,
+		 ...)
 {
 	va_list list;
 
@@ -101,8 +101,9 @@ static const char *LLOG_SUBSYSTEM __attribute__((__unused__));
 #define llog_dprintf(obj, sev, format, ...) \
 	llog_format((obj), LLOG_DEFAULT, (sev), (format), ##__VA_ARGS__)
 
-static inline void llog_dummyf(llog_submit_t llog, unsigned int sev,
-			       const char *format, ...)
+static inline __attribute__((format(printf, 3, 4)))
+void llog_dummyf(llog_submit_t llog, unsigned int sev,
+		 const char *format, ...)
 {
 }
 

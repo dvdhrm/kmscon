@@ -176,6 +176,7 @@ void log_clean_filter();
  * some log-message at application start. This is a handy-helper to do this.
  */
 
+__attribute__((format(printf, 7, 0)))
 void log_submit(const char *file,
 		int line,
 		const char *func,
@@ -185,6 +186,7 @@ void log_submit(const char *file,
 		const char *format,
 		va_list args);
 
+__attribute__((format(printf, 7, 8)))
 void log_format(const char *file,
 		int line,
 		const char *func,
@@ -194,6 +196,7 @@ void log_format(const char *file,
 		const char *format,
 		...);
 
+__attribute__((format(printf, 6, 0)))
 void log_llog(const char *file,
 	      int line,
 	      const char *func,
@@ -205,7 +208,8 @@ void log_llog(const char *file,
 int log_set_file(const char *file);
 void log_print_init(const char *appname);
 
-static inline void log_dummyf(unsigned int sev, const char *format, ...)
+static inline __attribute__((format(printf, 2, 3)))
+void log_dummyf(unsigned int sev, const char *format, ...)
 {
 }
 
