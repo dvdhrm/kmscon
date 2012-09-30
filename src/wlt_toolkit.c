@@ -1370,7 +1370,7 @@ int wlt_window_create_widget(struct wlt_window *wnd,
 	widget->wnd = wnd;
 	widget->data = data;
 
-	wlt_window_schedule_redraw(wnd);
+	wlt_window_set_size(wnd, wnd->buffer.width, wnd->buffer.height);
 	shl_dlist_link_tail(&wnd->widget_list, &widget->list);
 	*out = widget;
 	return 0;
