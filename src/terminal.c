@@ -31,6 +31,7 @@
  */
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include "eloop.h"
@@ -65,7 +66,7 @@ struct kmscon_terminal {
 	unsigned int min_cols;
 	unsigned int min_rows;
 
-	unsigned int fps;
+	unsigned long fps;
 	unsigned int redraw;
 	struct ev_timer *redraw_timer;
 	struct tsm_screen *console;
@@ -119,7 +120,7 @@ static void redraw_timer_event(struct ev_timer *timer, uint64_t num, void *data)
 	 * ev_timer_enable/disable() all the time. */
 
 	if (num > 1)
-		log_debug("CPU is too slow; skipping %llu frames", num - 1);
+		log_debug("CPU is too slow; skipping %" PRIu64 " frames", num - 1);
 
 	if (term->redraw-- != term->fps) {
 		if (!term->redraw) {
@@ -203,7 +204,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 
 	scr = malloc(sizeof(*scr));
 	if (!scr) {
-		log_error("cannot allocate memory for display %p");
+		log_error("cannot allocate memory for display %p", disp);
 		return -ENOMEM;
 	}
 	memset(scr, 0, sizeof(*scr));

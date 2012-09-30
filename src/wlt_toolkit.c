@@ -901,7 +901,7 @@ int wlt_display_new(struct wlt_display **out,
 							   dp_global,
 							   disp);
 	if (!disp->dp_listener) {
-		log_error("cannot add wayland global listener (%d)");
+		log_error("cannot add wayland global listener (%d)", errno);
 		goto err_timer;
 	}
 

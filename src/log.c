@@ -512,6 +512,6 @@ void log_print_init(const char *appname)
 	if (!appname)
 		appname = "<unknown>";
 	log_format(LOG_DEFAULT_CONF, NULL, LOG_NOTICE,
-			"%s Build #%u %s %s", appname,
+			"%s Build #%lu %s %s", appname,
 			log_build, __DATE__, __TIME__);
 }

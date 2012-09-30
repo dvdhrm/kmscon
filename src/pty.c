@@ -25,6 +25,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <pty.h>
 #include <signal.h>
@@ -438,7 +439,7 @@ static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	if (info->ssi_pid != pty->child)
 		return;
 
-	log_info("child exited: pid: %u status: %d utime: %llu stime: %llu",
+	log_info("child exited: pid: %u status: %d utime: %" PRIu64 " stime: %" PRIu64,
 			info->ssi_pid, info->ssi_status,
 			info->ssi_utime, info->ssi_stime);
 

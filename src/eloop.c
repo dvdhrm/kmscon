@@ -158,6 +158,7 @@
  */
 
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -505,14 +506,14 @@ static int write_eventfd(llog_submit_t llog, int fd, uint64_t val)
 		return llog_dEINVAL(llog);
 
 	if (val == 0xffffffffffffffffULL) {
-		llog_dwarning(llog, "increasing counter with invalid value %llu", val);
+		llog_dwarning(llog, "increasing counter with invalid value %" PRIu64, val);
 		return -EINVAL;;
 	}
 
 	ret = write(fd, &val, sizeof(val));
 	if (ret < 0) {
 		if (errno == EAGAIN)
-			llog_dwarning(llog, "eventfd overflow while writing %llu", val);
+			llog_dwarning(llog, "eventfd overflow while writing %" PRIu64, val);
 		else
 			llog_dwarning(llog, "eventfd write error (%d): %m", errno);
 		return -EFAULT;
@@ -846,7 +847,7 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 		ep = realloc(loop->cur_fds, sizeof(struct epoll_event) *
 			     loop->cur_fds_size * 2);
 		if (!ep) {
-			llog_warning(loop, "cannot reallocate dispatch cache to size %u",
+			llog_warning(loop, "cannot reallocate dispatch cache to size %zu",
 				    loop->cur_fds_size * 2);
 		} else {
 			loop->cur_fds = ep;

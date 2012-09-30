@@ -213,13 +213,13 @@ int conf_parse_argv(struct conf_option *opts, size_t len,
 
 	short_options = malloc(sizeof(char) * (len + 1) * 2);
 	if (!short_options) {
-		log_error("cannot allocate enough memory to parse command line arguments (%d): %m");
+		log_error("cannot allocate enough memory to parse command line arguments (%d): %m", errno);
 		return -ENOMEM;
 	}
 
 	long_options = malloc(sizeof(struct option) * len * 2);
 	if (!long_options) {
-		log_error("cannot allocate enough memory to parse command line arguments (%d): %m");
+		log_error("cannot allocate enough memory to parse command line arguments (%d): %m", errno);
 		free(short_options);
 		return -ENOMEM;
 	}

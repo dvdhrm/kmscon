@@ -32,6 +32,7 @@
  */
 
 #include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1405,7 +1406,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 	if (con->opts & TSM_SCREEN_OPT_RENDER_TIMING)
 		llog_debug(con,
-			   "timing: sum: %llu prepare: %llu draw: %llu render: %llu",
+			   "timing: sum: %" PRIu64 " prepare: %" PRIu64 " draw: %" PRIu64 " render: %" PRIu64,
 			   time_prep + time_draw + time_rend,
 			   time_prep, time_draw, time_rend);
 }

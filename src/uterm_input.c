@@ -151,7 +151,7 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 								&ledbits);
 			if (ret == -1)
 				log_warn("cannot read LED state of %s (%d): %m",
-						errno, dev->node);
+					 dev->node, errno);
 		}
 
 		/* rediscover the keyboard state if sth changed during sleep */

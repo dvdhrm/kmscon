@@ -323,7 +323,7 @@ try_next:
 		goto err_tex;
 	}
 
-	log_debug("new atlas of size %ux%u for %u", width, height, newsize);
+	log_debug("new atlas of size %ux%u for %zu", width, height, newsize);
 
 	nsize = txt->cols * txt->rows;
 
