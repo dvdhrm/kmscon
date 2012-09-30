@@ -574,10 +574,6 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 	con->margin_top = 0;
 	con->margin_bottom = con->size_y - 1;
 
-	/* scroll buffer if screen height shrinks */
-	if (con->size_y != 0 && y < con->size_y)
-		screen_scroll_up(con, con->size_y - y);
-
 	/* reset tabs */
 	for (i = 0; i < x; ++i) {
 		if (i % 8 == 0)
@@ -586,13 +582,22 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 			con->tab_ruler[i] = false;
 	}
 
-	con->size_x = x;
-	con->size_y = y;
-	con->margin_top = 0;
-	con->margin_bottom = con->size_y - 1;
+	/* We need to adjust x-size first as screen_scroll_up() and friends may
+	 * have to reallocate lines. The y-size is adjusted after them to avoid
+	 * missing lines when shrinking y-size.
+	 * We need to carefully look for the functions that we call here as they
+	 * have stronger invariants as when called normally. */
 
+	con->size_x = x;
 	if (con->cursor_x >= con->size_x)
 		con->cursor_x = con->size_x - 1;
+
+	/* scroll buffer if screen height shrinks */
+	if (con->size_y != 0 && y < con->size_y)
+		screen_scroll_up(con, con->size_y - y);
+
+	con->size_y = y;
+	con->margin_bottom = con->size_y - 1;
 	if (con->cursor_y >= con->size_y)
 		con->cursor_y = con->size_y - 1;
 
