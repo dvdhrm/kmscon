@@ -82,8 +82,10 @@ typedef void (*wlt_widget_redraw_cb) (struct wlt_widget *widget,
 typedef void (*wlt_widget_destroy_cb) (struct wlt_widget *widget,
 				       void *data);
 typedef void (*wlt_widget_prepare_resize_cb) (struct wlt_widget *widget,
-					      unsigned int *width,
-					      unsigned int *height,
+					      unsigned int width,
+					      unsigned int height,
+					      unsigned int *new_width,
+					      unsigned int *new_height,
 					      void *data);
 typedef void (*wlt_widget_resize_cb) (struct wlt_widget *widget,
 				      struct wlt_rect *allocation,

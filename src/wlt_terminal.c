@@ -210,6 +210,20 @@ static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 	kmscon_pty_resize(term->pty, term->cols, term->rows);
 }
 
+static void widget_prepare_resize(struct wlt_widget *widget,
+				  unsigned int width, unsigned int height,
+				  unsigned int *new_width,
+				  unsigned int *new_height,
+				  void *data)
+{
+	struct wlt_terminal *term = data;
+
+	if (*new_width < width)
+		*new_width = width;
+	if (*new_height < height)
+		*new_height = height;
+}
+
 static void widget_key(struct wlt_widget *widget, unsigned int mask,
 		       uint32_t sym, uint32_t state, void *data)
 {
@@ -326,7 +340,8 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 
 	wlt_widget_set_destroy_cb(term->widget, widget_destroy);
 	wlt_widget_set_redraw_cb(term->widget, widget_redraw);
-	wlt_widget_set_resize_cb(term->widget, NULL, widget_resize);
+	wlt_widget_set_resize_cb(term->widget, widget_prepare_resize,
+				 widget_resize);
 	wlt_widget_set_keyboard_cb(term->widget, widget_key);
 	*out = term;
 	return 0;
