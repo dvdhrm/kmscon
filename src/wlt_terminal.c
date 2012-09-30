@@ -205,37 +205,28 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 				  unsigned int *new_height,
 				  void *data)
 {
-	static const bool do_snap = true;
 	struct wlt_terminal *term = data;
 	unsigned int w, h;
 
-	/* TODO: allow disabling this via command-line */
-	if (do_snap) {
-		if (*new_width >= width) {
-			*new_width += term->font_normal->attr.width;
-		} else {
-			w = width - *new_width;
-			w /= term->font_normal->attr.width;
-			if (!w)
-				w = 1;
-			w *= term->font_normal->attr.width;
-			*new_width += w;
-		}
-		if (*new_height >= height) {
-			*new_height += term->font_normal->attr.height;
-		} else {
-			h = height - *new_height;
-			h /= term->font_normal->attr.height;
-			if (!h)
-				h = 1;
-			h *= term->font_normal->attr.height;
-			*new_height += h;
-		}
+	if (*new_width >= width) {
+		*new_width += term->font_normal->attr.width;
 	} else {
-		if (*new_width < width)
-			*new_width = width;
-		if (*new_height < height)
-			*new_height = height;
+		w = width - *new_width;
+		w /= term->font_normal->attr.width;
+		if (!w)
+			w = 1;
+		w *= term->font_normal->attr.width;
+		*new_width += w;
+	}
+	if (*new_height >= height) {
+		*new_height += term->font_normal->attr.height;
+	} else {
+		h = height - *new_height;
+		h /= term->font_normal->attr.height;
+		if (!h)
+			h = 1;
+		h *= term->font_normal->attr.height;
+		*new_height += h;
 	}
 }
 
