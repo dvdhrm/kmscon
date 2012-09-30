@@ -500,7 +500,7 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 			  unsigned int y)
 {
 	struct line **cache;
-	unsigned int i, j, width;
+	unsigned int i, j, width, diff;
 	int ret;
 	bool *tab_ruler;
 
@@ -593,8 +593,14 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 		con->cursor_x = con->size_x - 1;
 
 	/* scroll buffer if screen height shrinks */
-	if (con->size_y != 0 && y < con->size_y)
-		screen_scroll_up(con, con->size_y - y);
+	if (con->size_y != 0 && y < con->size_y) {
+		diff = con->size_y - y;
+		screen_scroll_up(con, diff);
+		if (con->cursor_y > diff)
+			con->cursor_y -= diff;
+		else
+			con->cursor_y = 0;
+	}
 
 	con->size_y = y;
 	con->margin_bottom = con->size_y - 1;
