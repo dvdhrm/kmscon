@@ -253,24 +253,28 @@ static void widget_redraw(struct wlt_widget *widget, void *data)
 
 static void widget_prepare_resize(struct wlt_widget *widget,
 				  unsigned int width, unsigned int height,
+				  unsigned int *min_width,
+				  unsigned int *min_height,
 				  unsigned int *new_width,
 				  unsigned int *new_height,
 				  void *data)
 {
 	struct wlt_theme *theme = data;
-	unsigned int minw, minh, tw, th;
+	unsigned int minw, minh;
 
-	minw = theme->frame_width * 2;
-	minh = theme->control_height + theme->frame_width * 2;
+	/* set minimal size */
+	minw = 2 * theme->button_margin + 2 * theme->button_padding +
+	       3 * theme->button_size + *new_width;
+	minh = theme->button_size + 2 * theme->button_padding +
+	       2 * theme->frame_width + *new_height;
+	if (*min_width < minw)
+		*min_width = minw;
+	if (*min_height < minh)
+		*min_height = minh;
 
-	tw = 2 * theme->button_margin + 2 * theme->button_padding +
-	     3 * theme->button_size;
-	th = theme->button_size + 2 * theme->button_padding;
-
-	if (minw < tw)
-		minw = tw;
-	if (minh < th)
-		minh = th;
+	/* set margin size */
+	minw = 2 * theme->frame_width;
+	minh = theme->control_height + 2 * theme->frame_width;
 
 	*new_width += minw;
 	*new_height += minh;

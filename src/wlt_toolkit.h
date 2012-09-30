@@ -84,6 +84,8 @@ typedef void (*wlt_widget_destroy_cb) (struct wlt_widget *widget,
 typedef void (*wlt_widget_prepare_resize_cb) (struct wlt_widget *widget,
 					      unsigned int width,
 					      unsigned int height,
+					      unsigned int *min_width,
+					      unsigned int *min_height,
 					      unsigned int *new_width,
 					      unsigned int *new_height,
 					      void *data);

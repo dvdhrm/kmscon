@@ -201,6 +201,8 @@ static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 
 static void widget_prepare_resize(struct wlt_widget *widget,
 				  unsigned int width, unsigned int height,
+				  unsigned int *min_width,
+				  unsigned int *min_height,
 				  unsigned int *new_width,
 				  unsigned int *new_height,
 				  void *data)
@@ -218,6 +220,15 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 		w *= term->font_normal->attr.width;
 		*new_width += w;
 	}
+
+	if (*new_width < *min_width) {
+		w = *min_width - *new_width;
+		w /= term->font_normal->attr.width;
+		w += 1;
+		w *= term->font_normal->attr.width;
+		*new_width += w;
+	}
+
 	if (*new_height >= height) {
 		*new_height += term->font_normal->attr.height;
 	} else {
@@ -225,6 +236,14 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 		h /= term->font_normal->attr.height;
 		if (!h)
 			h = 1;
+		h *= term->font_normal->attr.height;
+		*new_height += h;
+	}
+
+	if (*new_height < *min_height) {
+		h = *min_height - *new_height;
+		h /= term->font_normal->attr.height;
+		h += 1;
 		h *= term->font_normal->attr.height;
 		*new_height += h;
 	}

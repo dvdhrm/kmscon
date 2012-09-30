@@ -1036,17 +1036,20 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	struct wlt_pool *old_pool = NULL;
 	size_t nsize;
 	int ret;
-	unsigned int oldw, oldh, neww, newh;
+	unsigned int oldw, oldh, neww, newh, minw, minh;
 
 	if (!wnd || !width || !height)
 		return -EINVAL;
 
 	neww = 0;
 	newh = 0;
+	minw = 0;
+	minh = 0;
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->prepare_resize_cb)
 			widget->prepare_resize_cb(widget, width, height,
+						  &minw, &minh,
 						  &neww, &newh,
 						  widget->data);
 	}
