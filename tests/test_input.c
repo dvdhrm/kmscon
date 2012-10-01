@@ -76,16 +76,10 @@ static void print_modifiers(unsigned int mods)
 		printf("LOCK ");
 	if (mods & UTERM_CONTROL_MASK)
 		printf("CONTROL ");
-	if (mods & UTERM_MOD1_MASK)
-		printf("MOD1 ");
-	if (mods & UTERM_MOD2_MASK)
-		printf("MOD2 ");
-	if (mods & UTERM_MOD3_MASK)
-		printf("MOD3 ");
-	if (mods & UTERM_MOD4_MASK)
-		printf("MOD4 ");
-	if (mods & UTERM_MOD5_MASK)
-		printf("MOD5 ");
+	if (mods & UTERM_ALT_MASK)
+		printf("ALT ");
+	if (mods & UTERM_LOGO_MASK)
+		printf("LOGO ");
 	printf("\n");
 }
 
