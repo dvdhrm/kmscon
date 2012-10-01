@@ -33,9 +33,11 @@
 #include <string.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
+#include "conf.h"
 #include "eloop.h"
 #include "log.h"
 #include "pty.h"
+#include "shl_misc.h"
 #include "text.h"
 #include "tsm_unicode.h"
 #include "tsm_screen.h"
@@ -259,6 +261,31 @@ static void widget_key(struct wlt_widget *widget, unsigned int mask,
 		return;
 
 	ucs4 = xkb_keysym_to_utf32(sym) ? : TSM_VTE_INVALID;
+
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_scroll_up->mods) &&
+	    sym == wlt_conf.grab_scroll_up->keysym) {
+		tsm_screen_sb_up(term->scr, 1);
+		wlt_window_schedule_redraw(term->wnd);
+		return;
+	}
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_scroll_down->mods) &&
+	    sym == wlt_conf.grab_scroll_down->keysym) {
+		tsm_screen_sb_down(term->scr, 1);
+		wlt_window_schedule_redraw(term->wnd);
+		return;
+	}
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_up->mods) &&
+	    sym == wlt_conf.grab_page_up->keysym) {
+		tsm_screen_sb_page_up(term->scr, 1);
+		wlt_window_schedule_redraw(term->wnd);
+		return;
+	}
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_down->mods) &&
+	    sym == wlt_conf.grab_page_down->keysym) {
+		tsm_screen_sb_page_down(term->scr, 1);
+		wlt_window_schedule_redraw(term->wnd);
+		return;
+	}
 
 	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4))
 		wlt_window_schedule_redraw(term->wnd);

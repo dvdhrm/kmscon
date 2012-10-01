@@ -32,6 +32,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "conf.h"
 
 struct wlt_conf_t {
 	/* show help/usage information */
@@ -44,6 +45,15 @@ struct wlt_conf_t {
 	bool verbose;
 	/* disable notices and warnings */
 	bool silent;
+
+	/* scroll-up grab */
+	struct conf_grab *grab_scroll_up;
+	/* scroll-down grab */
+	struct conf_grab *grab_scroll_down;
+	/* page-up grab */
+	struct conf_grab *grab_page_up;
+	/* page-down grab */
+	struct conf_grab *grab_page_down;
 
 	/* font engine */
 	char *font_engine;

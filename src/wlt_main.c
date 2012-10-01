@@ -37,6 +37,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
+#include "shl_misc.h"
 #include "text.h"
 #include "wlt_main.h"
 #include "wlt_terminal.h"
@@ -206,6 +207,15 @@ static void print_help()
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
 		"\n"
+		"Keyboard Shortcuts and Grabs:\n"
+		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
+		"\t                                Shortcut to scroll up\n"
+		"\t    --grab-scroll-down <grab> [<Shift>Down]\n"
+		"\t                                Shortcut to scroll down\n"
+		"\t    --grab-page-up <grab>     [<Shift>Prior]\n"
+		"\t                                Shortcut to scroll page up\n"
+		"\t    --grab-page-down <grab>   [<Shift>Next]\n"
+		"\t                                Shortcut to scroll page down\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
 		"\t                              Font engine\n"
@@ -248,11 +258,35 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
+static struct conf_grab def_grab_scroll_up = {
+	.mods = SHL_SHIFT_MASK,
+	.keysym = XKB_KEY_Up,
+};
+
+static struct conf_grab def_grab_scroll_down = {
+	.mods = SHL_SHIFT_MASK,
+	.keysym = XKB_KEY_Down,
+};
+
+static struct conf_grab def_grab_page_up = {
+	.mods = SHL_SHIFT_MASK,
+	.keysym = XKB_KEY_Prior,
+};
+
+static struct conf_grab def_grab_page_down = {
+	.mods = SHL_SHIFT_MASK,
+	.keysym = XKB_KEY_Next,
+};
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &wlt_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
 	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &wlt_conf.debug, false),
 	CONF_OPTION_BOOL(0, "silent", NULL, &wlt_conf.silent, false),
+	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
+	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
+	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
+	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
 	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &wlt_conf.font_name, "monospace"),
