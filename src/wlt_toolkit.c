@@ -963,8 +963,12 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 {
 	struct shl_dlist *iter;
 	struct wlt_widget *widget;
-	unsigned int x, y;
+	unsigned int x, y, flags;
 	struct wlt_rect alloc;
+
+	flags = 0;
+	if (wnd->maximized)
+		flags |= WLT_WINDOW_MAXIMIZED;
 
 	alloc.x = 0;
 	alloc.y = 0;
@@ -973,7 +977,7 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->resize_cb)
-			widget->resize_cb(widget, &alloc, widget->data);
+			widget->resize_cb(widget, flags, &alloc, widget->data);
 	}
 
 	memset(wnd->buffer.data, 0,
@@ -983,7 +987,7 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->redraw_cb)
-			widget->redraw_cb(widget, widget->data);
+			widget->redraw_cb(widget, flags, widget->data);
 	}
 	wnd->skip_damage = false;
 
@@ -1014,10 +1018,14 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	struct wlt_pool *old_pool = NULL;
 	size_t nsize;
 	int ret;
-	unsigned int oldw, oldh, neww, newh, minw, minh;
+	unsigned int oldw, oldh, neww, newh, minw, minh, flags;
 
 	if (!wnd || !width || !height)
 		return -EINVAL;
+
+	flags = 0;
+	if (wnd->maximized)
+		flags |= WLT_WINDOW_MAXIMIZED;
 
 	neww = 0;
 	newh = 0;
@@ -1026,7 +1034,9 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->prepare_resize_cb)
-			widget->prepare_resize_cb(widget, width, height,
+			widget->prepare_resize_cb(widget,
+						  flags,
+						  width, height,
 						  &minw, &minh,
 						  &neww, &newh,
 						  widget->data);

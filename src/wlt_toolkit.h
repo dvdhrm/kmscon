@@ -73,15 +73,19 @@ enum cursor_type {
 	WLT_CURSOR_NUM,
 };
 
+#define WLT_WINDOW_MAXIMIZED		0x01
+
 typedef void (*wlt_display_cb) (struct wlt_display *disp,
 				unsigned int event,
 				void *data);
 typedef void (*wlt_window_close_cb) (struct wlt_window *wnd, void *data);
 typedef void (*wlt_widget_redraw_cb) (struct wlt_widget *widget,
+				      unsigned int flags,
 				      void *data);
 typedef void (*wlt_widget_destroy_cb) (struct wlt_widget *widget,
 				       void *data);
 typedef void (*wlt_widget_prepare_resize_cb) (struct wlt_widget *widget,
+					      unsigned int flags,
 					      unsigned int width,
 					      unsigned int height,
 					      unsigned int *min_width,
@@ -90,6 +94,7 @@ typedef void (*wlt_widget_prepare_resize_cb) (struct wlt_widget *widget,
 					      unsigned int *new_height,
 					      void *data);
 typedef void (*wlt_widget_resize_cb) (struct wlt_widget *widget,
+				      unsigned int flags,
 				      struct wlt_rect *allocation,
 				      void *data);
 typedef void (*wlt_widget_pointer_enter_cb) (struct wlt_widget *widget,

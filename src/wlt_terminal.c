@@ -169,15 +169,16 @@ static int draw_cell(struct tsm_screen *scr,
 	return 0;
 }
 
-static void widget_redraw(struct wlt_widget *widget, void *data)
+static void widget_redraw(struct wlt_widget *widget, unsigned int flags,
+			  void *data)
 {
 	struct wlt_terminal *term = data;
 
 	tsm_screen_draw(term->scr, NULL, draw_cell, NULL, term);
 }
 
-static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
-			  void *data)
+static void widget_resize(struct wlt_widget *widget, unsigned int flags,
+			  struct wlt_rect *alloc, void *data)
 {
 	struct wlt_terminal *term = data;
 	int ret;
@@ -202,6 +203,7 @@ static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
 }
 
 static void widget_prepare_resize(struct wlt_widget *widget,
+				  unsigned int flags,
 				  unsigned int width, unsigned int height,
 				  unsigned int *min_width,
 				  unsigned int *min_height,

@@ -231,7 +231,8 @@ static void widget_draw_fallback(struct wlt_theme *theme)
 	}
 }
 
-static void widget_redraw(struct wlt_widget *widget, void *data)
+static void widget_redraw(struct wlt_widget *widget, unsigned int flags,
+			  void *data)
 {
 	struct wlt_theme *theme = data;
 	unsigned int width, height;
@@ -252,6 +253,7 @@ static void widget_redraw(struct wlt_widget *widget, void *data)
 }
 
 static void widget_prepare_resize(struct wlt_widget *widget,
+				  unsigned int flags,
 				  unsigned int width, unsigned int height,
 				  unsigned int *min_width,
 				  unsigned int *min_height,
@@ -280,8 +282,8 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	*new_height += minh;
 }
 
-static void widget_resize(struct wlt_widget *widget, struct wlt_rect *alloc,
-			  void *data)
+static void widget_resize(struct wlt_widget *widget, unsigned int flags,
+			  struct wlt_rect *alloc, void *data)
 {
 	struct wlt_theme *theme = data;
 	unsigned int nwidth, nheight;
