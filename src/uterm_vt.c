@@ -358,9 +358,8 @@ static int real_activate(struct uterm_vt *vt)
  * still needs to react on SIGUSR. Make sure you call the eloop dispatcher again
  * if you get -EINPROGRESS here.
  *
- * Returns 0 if we don't know the previous VT or if the previous VT is already
- * active. Returns -EINPROGRESS if we started the VT switch. Returns <0 on
- * failure.
+ * Returns 0 if the previous VT is already active.
+ * Returns -EINPROGRESS if we started the VT switch. Returns <0 on failure.
  */
 static int real_deactivate(struct uterm_vt *vt)
 {
@@ -368,7 +367,7 @@ static int real_deactivate(struct uterm_vt *vt)
 	struct vt_stat vts;
 
 	if (vt->real_saved_num < 0)
-		return 0;
+		return -EINVAL;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
