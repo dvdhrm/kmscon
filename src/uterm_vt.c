@@ -338,7 +338,7 @@ static int real_activate(struct uterm_vt *vt)
 		return -EFAULT;
 	}
 
-	if (vts.v_active != vt->real_num)
+	if (vts.v_active == vt->real_num)
 		return 0;
 
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
