@@ -1306,9 +1306,12 @@ void tsm_screen_draw(struct tsm_screen *con,
 	uint64_t time_prep = 0, time_draw = 0, time_rend = 0;
 	const uint32_t *ch;
 	size_t len;
+	struct cell empty;
 
 	if (!con || !draw_cb)
 		return;
+
+	cell_init(con, &empty);
 
 	cur_x = con->cursor_x;
 	if (con->cursor_x >= con->size_x)
@@ -1353,7 +1356,10 @@ void tsm_screen_draw(struct tsm_screen *con,
 		}
 
 		for (j = 0; j < con->size_x; ++j) {
-			cell = &line->cells[j];
+			if (j < line->size)
+				cell = &line->cells[j];
+			else
+				cell = &empty;
 			memcpy(&attr, &cell->attr, sizeof(attr));
 
 			if (k == cur_y + 1 &&
