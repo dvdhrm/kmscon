@@ -1509,14 +1509,18 @@ void wlt_window_toggle_maximize(struct wlt_window *wnd)
 		return;
 
 	if (wnd->maximized) {
-		wl_shell_surface_set_toplevel(wnd->w_shell_surface);
-		wlt_window_set_size(wnd, wnd->saved_width, wnd->saved_height);
+		if (!wnd->fullscreen) {
+			wl_shell_surface_set_toplevel(wnd->w_shell_surface);
+			wlt_window_set_size(wnd, wnd->saved_width,
+					    wnd->saved_height);
+		}
 	} else {
 		if (!wnd->fullscreen) {
 			wnd->saved_width = wnd->buffer.width;
 			wnd->saved_height = wnd->buffer.height;
+			wl_shell_surface_set_maximized(wnd->w_shell_surface,
+						       NULL);
 		}
-		wl_shell_surface_set_maximized(wnd->w_shell_surface, NULL);
 	}
 
 	wnd->maximized = !wnd->maximized;
@@ -1528,8 +1532,14 @@ void wlt_window_toggle_fullscreen(struct wlt_window *wnd)
 		return;
 
 	if (wnd->fullscreen) {
-		wl_shell_surface_set_toplevel(wnd->w_shell_surface);
-		wlt_window_set_size(wnd, wnd->saved_width, wnd->saved_height);
+		if (wnd->maximized) {
+			wl_shell_surface_set_maximized(wnd->w_shell_surface,
+						       NULL);
+		} else {
+			wl_shell_surface_set_toplevel(wnd->w_shell_surface);
+			wlt_window_set_size(wnd, wnd->saved_width,
+					    wnd->saved_height);
+		}
 	} else {
 		if (!wnd->maximized) {
 			wnd->saved_width = wnd->buffer.width;
