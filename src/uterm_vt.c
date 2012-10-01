@@ -418,6 +418,20 @@ static void fake_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	vt_call(vt, UTERM_VT_DEACTIVATE);
 }
 
+static int fake_activate(struct uterm_vt *vt)
+{
+	log_debug("activating fake VT due to user request");
+	vt_call(vt, UTERM_VT_ACTIVATE);
+	return 0;
+}
+
+static int fake_deactivate(struct uterm_vt *vt)
+{
+	log_debug("deactivating fake VT due to user request");
+	vt_call(vt, UTERM_VT_DEACTIVATE);
+	return 0;
+}
+
 static bool check_vt_support(void)
 {
 	if (!access("/dev/tty0", F_OK))
@@ -600,7 +614,7 @@ int uterm_vt_activate(struct uterm_vt *vt)
 	if (vt->mode == UTERM_VT_REAL)
 		return real_activate(vt);
 	else
-		return -EFAULT;
+		return fake_activate(vt);
 }
 
 int uterm_vt_deactivate(struct uterm_vt *vt)
@@ -611,7 +625,7 @@ int uterm_vt_deactivate(struct uterm_vt *vt)
 	if (vt->mode == UTERM_VT_REAL)
 		return real_deactivate(vt);
 	else
-		return -EFAULT;
+		return fake_deactivate(vt);
 }
 
 int uterm_vt_master_new(struct uterm_vt_master **out,
