@@ -183,6 +183,7 @@ libuterm_la_SOURCES = \
 	src/uterm_monitor.c \
 	src/uterm_vt.c \
 	src/uterm_input.c \
+	src/uterm_input_uxkb.c \
 	src/uterm_input_plain.c \
 	external/imKStoUCS.h \
 	external/imKStoUCS.c
@@ -228,11 +229,6 @@ endif
 if BUILD_ENABLE_DUMB
 libuterm_la_SOURCES += \
 	src/uterm_video_dumb.c
-endif
-
-if BUILD_ENABLE_XKBCOMMON
-libuterm_la_SOURCES += \
-	src/uterm_input_uxkb.c
 endif
 
 #

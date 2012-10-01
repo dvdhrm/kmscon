@@ -154,12 +154,6 @@ AC_ARG_ENABLE([gles2],
                               [provide uterm OpenGLES2 support])])
 AC_MSG_RESULT([ok])
 
-AC_MSG_CHECKING([whether to use xkbcommon keyboard backend])
-AC_ARG_ENABLE([xkbcommon],
-              [AS_HELP_STRING([--disable-xkbcommon],
-                              [disable xkbcommon keyboard backend])])
-AC_MSG_RESULT([ok])
-
 AC_MSG_CHECKING([whether to use static unifont backend])
 AC_ARG_ENABLE([unifont],
               [AS_HELP_STRING([--enable-unifont],
@@ -291,7 +285,6 @@ if test x$enable_wlterm = xyes ; then
         enable_eloop=yes
         enable_tsm=yes
         enable_wayland=yes
-        enable_xkbcommon=yes
 fi
 
 AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
@@ -498,28 +491,17 @@ fi
 
 #
 # xkbcommon keyboard backend
-# This checks for the xkbcommon library for keyboard handling in uterm. If it is
-# not available, we use a dumb-keyboard backend as fall-back.
+# This checks for the xkbcommon library for keyboard handling in uterm. We
+# require this library as there is no other way to handle keyboard input
+# properly.
 #
 
 xkbcommon_enabled=no
-if test ! x$enable_xkbcommon = xno ; then
-        if test x$have_xkbcommon = xyes ; then
-                xkbcommon_enabled=yes
-        elif test x$enable_xkbcommon = xyes ; then
-                AC_ERROR([xkbcommon not found for keyboard backend])
-        fi
-fi
-
-if test x$xkbcommon_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_XKBCOMMON], [1],
-                  [Use xkbcommon as input keyboard handling backend])
+if test ! x$have_xkbcommon = xno ; then
+        xkbcommon_enabled=yes
 else
-        XKBCOMMON_CFLAGS=""
-        XKBCOMMON_LIBS=""
+        AC_ERROR([xkbcommon not found for keyboard backend])
 fi
-
-AM_CONDITIONAL([BUILD_ENABLE_XKBCOMMON], [test x$xkbcommon_enabled = xyes])
 
 #
 # Font backends

@@ -8,6 +8,14 @@ console.
 
   Kmscon requires the following software:
     - libudev: providing input, video, etc. device hotplug support
+    - libxkbcommon: providing internationalized keyboard handling
+      libxkbcommon has no public release, yet, but is available on freedesktop.org.
+      Building libxkbcommon from Git without root:
+       - You can fetch it from Git using: git clone git://anongit.freedesktop.org/xorg/lib/libxkbcommon
+       - You can then ``./autogen.sh && make`` in its directory
+       - You configure kmscon using:
+           PKG_CONFIG_PATH="libxkbcommon/" ./configure --enable-debug
+         assuming you cloned it into a subfolder of kmscon called libxkbcommon.
 
   Everything else is optional:
 
@@ -18,21 +26,6 @@ console.
              and accessible via pkg-config.
       - OpenGLES2: For accelerated video output via OpenGLESv2 the following must
                    be installed: libdrm, libgbm, egl, glesv2 (i.e., mesa)
-
-    By default a very limited built-in keyboard handling is used. To get other
-    keyboard layouts working, the following is required:
-      - libxkbcommon: keyboard handling (optional but strongly recommended)
-                      Without libxkbcommon, basic US-ASCII input is provided.
-    libxkbcommon has no public release, yet, but is available on freedesktop.org.
-    Use "--disable-xkbcommon" if you have problems due to compile-errors.
-
-    Building libxkbcommon from Git without root:
-
-      - You can fetch it from Git using: git clone git://anongit.freedesktop.org/xorg/lib/libxkbcommon
-      - You can then ``./autogen.sh && make`` in its directory
-      - You configure kmscon using:
-          PKG_CONFIG_PATH="libxkbcommon/" ./configure --enable-debug --enable-xkbcommon
-        assuming you cloned it into a subfolder of kmscon.
 
     For font handling the following is required:
       - 8x16: The 8x16 font is a static built-in font which does not require
@@ -71,8 +64,6 @@ console.
     --enable-drm: This adds DRM video output support. [default: on]
     --enable-gles2: This adds OpenGL hardware accelerated font rendering
                     [default: on]
-    --enable-xkbcommon: Use xkbcommon for internationalized keyboard handling.
-                        [default: on]
     --enable-f8x16: The 8x16 font is a static built-in fallback font
                     [default: on]
     --enable-freetype2: Uses freetype2 and fontconfig as font-backend.
