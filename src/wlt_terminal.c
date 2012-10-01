@@ -214,42 +214,63 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	struct wlt_terminal *term = data;
 	unsigned int w, h;
 
-	if (*new_width >= width) {
-		*new_width += term->font_normal->attr.width;
+	/* We are a catch-all handler. That is, we use all space that is
+	 * available. We must be called _last_, which is guaranteed by
+	 * registering the widget as last widget.
+	 * All previous handlers put their size constraints into the arguemnts
+	 * and we need to make sure to not break them.
+	 * Every redraw-handler is guaranteed to work for every size, but still,
+	 * we should try to avoid invalid-sizes to not generate artifacts. */
+
+	if (flags & WLT_WINDOW_MAXIMIZED) {
+		/* if maximized, always use requested size */
+		*new_width = width;
+		*new_height = height;
 	} else {
-		w = width - *new_width;
-		w /= term->font_normal->attr.width;
-		if (!w)
-			w = 1;
-		w *= term->font_normal->attr.width;
-		*new_width += w;
-	}
+		/* In normal mode, we want the console to "snap" to grid-sizes.
+		 * That is, resizing is in steps instead of smooth. To guarantee
+		 * that, we use the font-width/height and try to make the
+		 * console as big as possible to fit the needed size.
+		 * However, we also must make sure the minimal size is always
+		 * guaranteed. */
 
-	if (*new_width < *min_width) {
-		w = *min_width - *new_width;
-		w /= term->font_normal->attr.width;
-		w += 1;
-		w *= term->font_normal->attr.width;
-		*new_width += w;
-	}
+		if (*new_width >= width) {
+			*new_width += term->font_normal->attr.width;
+		} else {
+			w = width - *new_width;
+			w /= term->font_normal->attr.width;
+			if (!w)
+				w = 1;
+			w *= term->font_normal->attr.width;
+			*new_width += w;
+		}
 
-	if (*new_height >= height) {
-		*new_height += term->font_normal->attr.height;
-	} else {
-		h = height - *new_height;
-		h /= term->font_normal->attr.height;
-		if (!h)
-			h = 1;
-		h *= term->font_normal->attr.height;
-		*new_height += h;
-	}
+		if (*new_width < *min_width) {
+			w = *min_width - *new_width;
+			w /= term->font_normal->attr.width;
+			w += 1;
+			w *= term->font_normal->attr.width;
+			*new_width += w;
+		}
 
-	if (*new_height < *min_height) {
-		h = *min_height - *new_height;
-		h /= term->font_normal->attr.height;
-		h += 1;
-		h *= term->font_normal->attr.height;
-		*new_height += h;
+		if (*new_height >= height) {
+			*new_height += term->font_normal->attr.height;
+		} else {
+			h = height - *new_height;
+			h /= term->font_normal->attr.height;
+			if (!h)
+				h = 1;
+			h *= term->font_normal->attr.height;
+			*new_height += h;
+		}
+
+		if (*new_height < *min_height) {
+			h = *min_height - *new_height;
+			h /= term->font_normal->attr.height;
+			h += 1;
+			h *= term->font_normal->attr.height;
+			*new_height += h;
+		}
 	}
 }
 
