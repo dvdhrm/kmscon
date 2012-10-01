@@ -119,6 +119,7 @@ struct wlt_window {
 	unsigned int saved_height;
 	unsigned int resize_edges;
 	bool maximized;
+	bool fullscreen;
 	struct wlt_shm_buffer buffer;
 	struct wl_callback *w_frame;
 
@@ -969,6 +970,8 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 	flags = 0;
 	if (wnd->maximized)
 		flags |= WLT_WINDOW_MAXIMIZED;
+	if (wnd->fullscreen)
+		flags |= WLT_WINDOW_FULLSCREEN;
 
 	alloc.x = 0;
 	alloc.y = 0;
@@ -1026,6 +1029,8 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	flags = 0;
 	if (wnd->maximized)
 		flags |= WLT_WINDOW_MAXIMIZED;
+	if (wnd->fullscreen)
+		flags |= WLT_WINDOW_FULLSCREEN;
 
 	neww = 0;
 	newh = 0;
@@ -1499,12 +1504,35 @@ void wlt_window_toggle_maximize(struct wlt_window *wnd)
 		wl_shell_surface_set_toplevel(wnd->w_shell_surface);
 		wlt_window_set_size(wnd, wnd->saved_width, wnd->saved_height);
 	} else {
-		wnd->saved_width = wnd->buffer.width;
-		wnd->saved_height = wnd->buffer.height;
+		if (!wnd->fullscreen) {
+			wnd->saved_width = wnd->buffer.width;
+			wnd->saved_height = wnd->buffer.height;
+		}
 		wl_shell_surface_set_maximized(wnd->w_shell_surface, NULL);
 	}
 
 	wnd->maximized = !wnd->maximized;
+}
+
+void wlt_window_toggle_fullscreen(struct wlt_window *wnd)
+{
+	if (!wnd)
+		return;
+
+	if (wnd->fullscreen) {
+		wl_shell_surface_set_toplevel(wnd->w_shell_surface);
+		wlt_window_set_size(wnd, wnd->saved_width, wnd->saved_height);
+	} else {
+		if (!wnd->maximized) {
+			wnd->saved_width = wnd->buffer.width;
+			wnd->saved_height = wnd->buffer.height;
+		}
+		wl_shell_surface_set_fullscreen(wnd->w_shell_surface,
+				WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT,
+				0, NULL);
+	}
+
+	wnd->fullscreen = !wnd->fullscreen;
 }
 
 struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd)
