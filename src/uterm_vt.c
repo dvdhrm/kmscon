@@ -459,15 +459,6 @@ static void vt_input(struct uterm_input *input,
 	}
 }
 
-static void vt_idle_event(struct ev_eloop *eloop, void *unused, void *data)
-{
-	struct uterm_vt *vt = data;
-
-	ev_eloop_unregister_idle_cb(eloop, vt_idle_event, data);
-	log_debug("activating fake VT on startup");
-	vt_call(vt, UTERM_VT_ACTIVATE);
-}
-
 static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 		       void *data)
 {
@@ -540,10 +531,6 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		if (ret)
 			goto err_sig2;
 
-		ret = ev_eloop_register_idle_cb(vtm->eloop, vt_idle_event, vt);
-		if (ret)
-			goto err_input;
-
 		uterm_input_ref(vt->input);
 		uterm_input_wake_up(vt->input);
 	}
@@ -552,8 +539,6 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	*out = vt;
 	return 0;
 
-err_input:
-	uterm_input_unregister_cb(vt->input, vt_input, vt);
 err_sig2:
 	ev_eloop_unregister_signal_cb(vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 err_sig1:
@@ -576,8 +561,6 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (mode == UTERM_VT_REAL) {
 		real_close(vt);
 	} else if (mode == UTERM_VT_FAKE) {
-		ev_eloop_unregister_idle_cb(vt->vtm->eloop, vt_idle_event,
-					    vt);
 		vt_call(vt, UTERM_VT_DEACTIVATE);
 	}
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
