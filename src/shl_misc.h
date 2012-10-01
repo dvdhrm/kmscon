@@ -38,6 +38,8 @@
 #include <stdlib.h>
 #include <xkbcommon/xkbcommon.h>
 
+#define SHL_HAS_BITS(_bitmask, _bits) (((_bitmask) & (_bits)) == (_bits))
+
 static inline int shl_strtou(const char *input, unsigned int *output)
 {
 	unsigned long val;
