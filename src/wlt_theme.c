@@ -33,6 +33,8 @@
 #include <string.h>
 #include <wayland-client.h>
 #include "log.h"
+#include "shl_misc.h"
+#include "wlt_main.h"
 #include "wlt_theme.h"
 #include "wlt_toolkit.h"
 
@@ -519,6 +521,24 @@ static void widget_pointer_button(struct wlt_widget *widget,
 	}
 }
 
+static bool widget_key(struct wlt_widget *widget, unsigned int mask,
+		       uint32_t sym, uint32_t state, bool handled, void *data)
+{
+	struct wlt_theme *theme = data;
+
+	if (handled || state != WL_KEYBOARD_KEY_STATE_PRESSED)
+		return false;
+
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_fullscreen->mods) &&
+	    sym == wlt_conf.grab_fullscreen->keysym) {
+		wlt_window_toggle_fullscreen(theme->wnd);
+		return true;
+	}
+
+	return false;
+}
+
+
 static void widget_destroy(struct wlt_widget *widget, void *data)
 {
 	struct wlt_theme *theme = data;
@@ -565,6 +585,7 @@ int wlt_theme_new(struct wlt_theme **out, struct wlt_window *wnd)
 	wlt_widget_set_pointer_cb(theme->widget, widget_pointer_enter,
 				  widget_pointer_leave, widget_pointer_motion,
 				  widget_pointer_button);
+	wlt_widget_set_keyboard_cb(theme->widget, widget_key);
 	*out = theme;
 	return 0;
 

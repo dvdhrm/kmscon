@@ -234,6 +234,9 @@ static void print_help()
 		"\t                                Shortcut to scroll page up\n"
 		"\t    --grab-page-down <grab>   [<Shift>Next]\n"
 		"\t                                Shortcut to scroll page down\n"
+		"\t    --grab-fullscreen <grab>  [F11]\n"
+		"\t                                Shortcut to toggle fullscreen mode\n"
+		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
 		"\t                              Font engine\n"
@@ -321,6 +324,11 @@ static struct conf_grab def_grab_page_down = {
 	.keysym = XKB_KEY_Next,
 };
 
+static struct conf_grab def_grab_fullscreen = {
+	.mods = 0,
+	.keysym = XKB_KEY_F11,
+};
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &wlt_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
@@ -336,6 +344,7 @@ struct conf_option options[] = {
 	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
 	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
 	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
+	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
 
 	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),

@@ -65,6 +65,8 @@ struct wlt_conf_t {
 	struct conf_grab *grab_page_up;
 	/* page-down grab */
 	struct conf_grab *grab_page_down;
+	/* fullscreen grab */
+	struct conf_grab *grab_fullscreen;
 
 	/* font engine */
 	char *font_engine;
