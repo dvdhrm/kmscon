@@ -271,13 +271,12 @@ static const struct {
 	[KEY_LEFTCTRL]    =  {  UTERM_CONTROL_MASK,  MOD_NORMAL  },
 	[KEY_LEFTSHIFT]   =  {  UTERM_SHIFT_MASK,    MOD_NORMAL  },
 	[KEY_RIGHTSHIFT]  =  {  UTERM_SHIFT_MASK,    MOD_NORMAL  },
-	[KEY_LEFTALT]     =  {  UTERM_MOD1_MASK,     MOD_NORMAL  },
+	[KEY_LEFTALT]     =  {  UTERM_ALT_MASK,      MOD_NORMAL  },
 	[KEY_CAPSLOCK]    =  {  UTERM_LOCK_MASK,     MOD_LOCK    },
-	[KEY_NUMLOCK]     =  {  UTERM_MOD2_MASK,     MOD_LOCK    },
 	[KEY_RIGHTCTRL]   =  {  UTERM_CONTROL_MASK,  MOD_NORMAL  },
-	[KEY_RIGHTALT]    =  {  UTERM_MOD1_MASK,     MOD_NORMAL  },
-	[KEY_LEFTMETA]    =  {  UTERM_MOD4_MASK,     MOD_NORMAL  },
-	[KEY_RIGHTMETA]   =  {  UTERM_MOD4_MASK,     MOD_NORMAL  },
+	[KEY_RIGHTALT]    =  {  UTERM_ALT_MASK,      MOD_NORMAL  },
+	[KEY_LEFTMETA]    =  {  UTERM_LOGO_MASK,     MOD_NORMAL  },
+	[KEY_RIGHTMETA]   =  {  UTERM_LOGO_MASK,     MOD_NORMAL  },
 };
 
 static void plain_dev_ref(struct kbd_dev *kbd)
@@ -303,8 +302,6 @@ static void plain_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 
 	kbd->plain.mods = 0;
 
-	if (input_bit_is_set(ledbits, LED_NUML))
-		kbd->plain.mods |= UTERM_MOD2_MASK;
 	if (input_bit_is_set(ledbits, LED_CAPSL))
 		kbd->plain.mods |= UTERM_LOCK_MASK;
 }
@@ -352,8 +349,6 @@ static int plain_dev_process(struct kbd_dev *kbd,
 
 	keysym = 0;
 
-	if (!keysym && kbd->plain.mods & UTERM_MOD2_MASK)
-		keysym = keytab_numlock[code];
 	if (!keysym && kbd->plain.mods & UTERM_SHIFT_MASK)
 		keysym = keytab_shift[code];
 	if (!keysym && kbd->plain.mods & UTERM_LOCK_MASK)

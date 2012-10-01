@@ -33,7 +33,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include "uterm.h"
+#include "conf.h"
 
 struct kmscon_conf_t {
 	/* show help/usage information */
@@ -71,13 +71,13 @@ struct kmscon_conf_t {
 	/* terminal scroll-back buffer size */
 	unsigned int sb_size;
 	/* scroll-up grab */
-	struct uterm_input_grab *grab_scroll_up;
+	struct conf_grab *grab_scroll_up;
 	/* scroll-down grab */
-	struct uterm_input_grab *grab_scroll_down;
+	struct conf_grab *grab_scroll_down;
 	/* page-up grab */
-	struct uterm_input_grab *grab_page_up;
+	struct conf_grab *grab_page_up;
 	/* page-down grab */
-	struct uterm_input_grab *grab_page_down;
+	struct conf_grab *grab_page_down;
 
 	/* seats */
 	char **seats;

@@ -40,6 +40,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
+#include "shl_misc.h"
 #include "tsm_vte.h"
 #include "wlt_toolkit.h"
 
@@ -617,29 +618,6 @@ static void keyboard_leave(void *data, struct wl_keyboard *keyboard,
 	ev_timer_update(disp->repeat_timer, NULL);
 }
 
-static unsigned int get_effective_modmask(struct xkb_state *state)
-{
-	unsigned int mods = 0;
-
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
-						XKB_STATE_EFFECTIVE))
-		mods |= TSM_SHIFT_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
-						XKB_STATE_EFFECTIVE))
-		mods |= TSM_LOCK_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
-						XKB_STATE_EFFECTIVE))
-		mods |= TSM_CONTROL_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
-						XKB_STATE_EFFECTIVE))
-		mods |= TSM_MOD1_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
-						XKB_STATE_EFFECTIVE))
-		mods |= TSM_MOD4_MASK;
-
-	return mods;
-}
-
 static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 			 uint32_t serial, uint32_t time, uint32_t key,
 			 uint32_t state_w)
@@ -663,7 +641,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	if (!wnd)
 		return;
 
-	mask = get_effective_modmask(disp->xkb_state);
+	mask = shl_get_xkb_mods(disp->xkb_state);
 	num_syms = xkb_key_get_syms(disp->xkb_state, code, &syms);
 	sym = XKB_KEY_NoSymbol;
 	if (num_syms == 1)
@@ -700,7 +678,7 @@ static void repeat_event(struct ev_timer *timer, uint64_t num, void *data)
 	if (!wnd)
 		return;
 
-	mask = get_effective_modmask(disp->xkb_state);
+	mask = shl_get_xkb_mods(disp->xkb_state);
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->keyboard_cb)

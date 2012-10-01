@@ -36,6 +36,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+/* parsed types */
+
+struct conf_grab {
+	unsigned int mods;
+	uint32_t keysym;
+};
+
 /* configuration parser */
 
 struct conf_type;
@@ -108,6 +115,14 @@ struct conf_option {
 		    _aftercheck, \
 		    _mem, \
 		    _def)
+#define CONF_OPTION_GRAB(_short, _long, _aftercheck, _mem, _def) \
+	CONF_OPTION(0, \
+		    _short, \
+		    _long, \
+		    &conf_grab, \
+		    _aftercheck, \
+		    _mem, \
+		    _def)
 
 void conf_free_value(struct conf_option *opt);
 int conf_parse_bool(struct conf_option *opt, bool on, const char *arg);
@@ -120,12 +135,15 @@ int conf_parse_string(struct conf_option *opt, bool on, const char *arg);
 void conf_default_string(struct conf_option *opt);
 int conf_parse_string_list(struct conf_option *opt, bool on, const char *arg);
 void conf_default_string_list(struct conf_option *opt);
+int conf_parse_grab(struct conf_option *opt, bool on, const char *arg);
+void conf_default_grab(struct conf_option *opt);
 
 extern const struct conf_type conf_bool;
 extern const struct conf_type conf_int;
 extern const struct conf_type conf_uint;
 extern const struct conf_type conf_string;
 extern const struct conf_type conf_string_list;
+extern const struct conf_type conf_grab;
 
 void conf_free(struct conf_option *opts, size_t len);
 int conf_parse_argv(struct conf_option *opts, size_t len,

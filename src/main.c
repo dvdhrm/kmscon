@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/signalfd.h>
-#include <xkbcommon/xkbcommon-keysyms.h>
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
@@ -489,107 +488,6 @@ static void print_help()
 	 */
 }
 
-int conf_parse_grab(struct conf_option *opt, bool on, const char *arg)
-{
-	char *buf, *tmp, *start;
-	int ret;
-	struct uterm_input_grab grab, *gnew;
-
-	memset(&grab, 0, sizeof(grab));
-
-	buf = strdup(arg);
-	if (!buf)
-		return -ENOMEM;
-	tmp = buf;
-
-next_mod:
-	if (*tmp == '<') {
-		start = tmp;
-		while (*tmp && *tmp != '>')
-			++tmp;
-
-		if (*tmp != '>') {
-			log_error("missing '>' in grab '%s' near '%s'",
-				  arg, start);
-			goto err_free;
-		}
-
-		*tmp++ = 0;
-		++start;
-		if (!strcasecmp(start, "shift")) {
-			grab.mods |= UTERM_SHIFT_MASK;
-		} else if (!strcasecmp(start, "lock")) {
-			grab.mods |= UTERM_LOCK_MASK;
-		} else if (!strcasecmp(start, "control") ||
-			   !strcasecmp(start, "ctrl")) {
-			grab.mods |= UTERM_CONTROL_MASK;
-		} else if (!strcasecmp(start, "mod1")) {
-			grab.mods |= UTERM_MOD1_MASK;
-		} else if (!strcasecmp(start, "mod2")) {
-			grab.mods |= UTERM_MOD2_MASK;
-		} else if (!strcasecmp(start, "mod3")) {
-			grab.mods |= UTERM_MOD3_MASK;
-		} else if (!strcasecmp(start, "mod4")) {
-			grab.mods |= UTERM_MOD4_MASK;
-		} else if (!strcasecmp(start, "mod5")) {
-			grab.mods |= UTERM_MOD5_MASK;
-		} else {
-			log_error("invalid modifier '%s' in grab '%s'",
-				  start, arg);
-			goto err_free;
-		}
-
-		goto next_mod;
-	}
-
-	if (!*tmp) {
-		log_error("missing key in grab '%s'", arg);
-		goto err_free;
-	}
-
-	ret = uterm_input_string_to_keysym(NULL, tmp, &grab.keysym);
-	if (ret || !grab.keysym) {
-		log_error("invalid key '%s' in grab '%s'", tmp, arg);
-		goto err_free;
-	}
-
-	gnew = malloc(sizeof(*gnew));
-	if (!gnew)
-		goto err_free;
-	memcpy(gnew, &grab, sizeof(*gnew));
-
-	opt->type->free(opt);
-	*(void**)opt->mem = gnew;
-	free(buf);
-
-	return 0;
-
-err_free:
-	free(buf);
-	return -EFAULT;
-}
-
-void conf_default_grab(struct conf_option *opt)
-{
-	*(void**)opt->mem = opt->def;
-}
-
-const struct conf_type conf_grab = {
-	.flags = CONF_HAS_ARG,
-	.parse = conf_parse_grab,
-	.free = conf_free_value,
-	.set_default = conf_default_grab,
-};
-
-#define CONF_OPTION_GRAB(_short, _long, _aftercheck, _mem, _def) \
-	CONF_OPTION(0, \
-		    _short, \
-		    _long, \
-		    &conf_grab, \
-		    _aftercheck, \
-		    _mem, \
-		    _def)
-
 int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
 {
 	static const char prefix[] = "/dev/";
@@ -692,23 +590,23 @@ static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 
 static char *def_seats[] = { "seat0", NULL };
 
-static struct uterm_input_grab def_grab_scroll_up = {
-	.mods = UTERM_SHIFT_MASK,
+static struct conf_grab def_grab_scroll_up = {
+	.mods = SHL_SHIFT_MASK,
 	.keysym = XKB_KEY_Up,
 };
 
-static struct uterm_input_grab def_grab_scroll_down = {
-	.mods = UTERM_SHIFT_MASK,
+static struct conf_grab def_grab_scroll_down = {
+	.mods = SHL_SHIFT_MASK,
 	.keysym = XKB_KEY_Down,
 };
 
-static struct uterm_input_grab def_grab_page_up = {
-	.mods = UTERM_SHIFT_MASK,
+static struct conf_grab def_grab_page_up = {
+	.mods = SHL_SHIFT_MASK,
 	.keysym = XKB_KEY_Prior,
 };
 
-static struct uterm_input_grab def_grab_page_down = {
-	.mods = UTERM_SHIFT_MASK,
+static struct conf_grab def_grab_page_down = {
+	.mods = SHL_SHIFT_MASK,
 	.keysym = XKB_KEY_Next,
 };
 

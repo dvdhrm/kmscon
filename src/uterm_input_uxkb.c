@@ -32,6 +32,7 @@
 #include <string.h>
 #include <xkbcommon/xkbcommon.h>
 #include "log.h"
+#include "shl_misc.h"
 #include "uterm.h"
 #include "uterm_input.h"
 
@@ -61,29 +62,6 @@ enum {
 	KEY_PRESSED = 1,
 	KEY_REPEATED = 2,
 };
-
-static unsigned int get_effective_modmask(struct xkb_state *state)
-{
-	unsigned int mods = 0;
-
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
-						XKB_STATE_EFFECTIVE))
-	    mods |= UTERM_SHIFT_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
-						XKB_STATE_EFFECTIVE))
-	    mods |= UTERM_LOCK_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
-						XKB_STATE_EFFECTIVE))
-	    mods |= UTERM_CONTROL_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
-						XKB_STATE_EFFECTIVE))
-	    mods |= UTERM_MOD1_MASK;
-	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
-						XKB_STATE_EFFECTIVE))
-	    mods |= UTERM_MOD4_MASK;
-
-	return mods;
-}
 
 static int uxkb_dev_process(struct kbd_dev *kbd,
 			    uint16_t key_state,
@@ -126,7 +104,7 @@ static int uxkb_dev_process(struct kbd_dev *kbd,
 	 */
 	out->keycode = code;
 	out->keysym = keysyms[0];
-	out->mods = get_effective_modmask(state);
+	out->mods = shl_get_xkb_mods(state);
 	out->unicode = xkb_keysym_to_utf32(out->keysym) ? : UTERM_INPUT_INVALID;
 
 	return 0;

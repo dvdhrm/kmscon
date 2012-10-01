@@ -419,7 +419,7 @@ static void vt_input(struct uterm_input *input,
 {
 	struct uterm_vt *vt = data;
 
-	if (UTERM_INPUT_HAS_MODS(ev, UTERM_MOD4_MASK | UTERM_CONTROL_MASK)) {
+	if (UTERM_INPUT_HAS_MODS(ev, UTERM_LOGO_MASK | UTERM_CONTROL_MASK)) {
 		if (ev->keysym == XKB_KEY_F12) {
 			if (vt->active) {
 				log_debug("deactivating fake VT due to user input");

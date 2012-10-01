@@ -256,18 +256,16 @@ void uterm_video_poll(struct uterm_video *video);
 
 struct uterm_input;
 
-/* keep in sync with tsm_vte_modified */
+/* keep in sync with shl_xkb_mods */
 enum uterm_input_modifier {
 	UTERM_SHIFT_MASK	= (1 << 0),
 	UTERM_LOCK_MASK		= (1 << 1),
 	UTERM_CONTROL_MASK	= (1 << 2),
-	UTERM_MOD1_MASK		= (1 << 3),
-	UTERM_MOD2_MASK		= (1 << 4),
-	UTERM_MOD3_MASK		= (1 << 5),
-	UTERM_MOD4_MASK		= (1 << 6),
-	UTERM_MOD5_MASK		= (1 << 7),
+	UTERM_ALT_MASK		= (1 << 3),
+	UTERM_LOGO_MASK		= (1 << 4),
 };
 
+/* keep in sync with TSM_VTE_INVALID */
 #define UTERM_INPUT_INVALID 0xffffffff
 
 struct uterm_input_event {
@@ -278,11 +276,6 @@ struct uterm_input_event {
 };
 
 #define UTERM_INPUT_HAS_MODS(_ev, _mods) (((_ev)->mods & (_mods)) == (_mods))
-
-struct uterm_input_grab {
-	unsigned int mods;
-	uint32_t keysym;
-};
 
 typedef void (*uterm_input_cb) (struct uterm_input *input,
 				struct uterm_input_event *ev,

@@ -2164,7 +2164,7 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 	 * Also check whether altSendsEscape should be the default (xterm
 	 * disables this by default, why?) and whether we should implement the
 	 * fallback shifting that xterm does. */
-	if (mods & TSM_MOD1_MASK)
+	if (mods & TSM_ALT_MASK)
 		vte->flags |= FLAG_PREPEND_ESCAPE;
 
 	if (mods & TSM_CONTROL_MASK) {

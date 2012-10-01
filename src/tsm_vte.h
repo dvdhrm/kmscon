@@ -50,18 +50,16 @@ extern tsm_vte_charset tsm_vte_dec_special_graphics;
 
 struct tsm_vte;
 
-/* keep in sync with uterm_input_modifier */
+/* keep in sync with shl_xkb_mods */
 enum tsm_vte_modifier {
 	TSM_SHIFT_MASK		= (1 << 0),
 	TSM_LOCK_MASK		= (1 << 1),
 	TSM_CONTROL_MASK	= (1 << 2),
-	TSM_MOD1_MASK		= (1 << 3),
-	TSM_MOD2_MASK		= (1 << 4),
-	TSM_MOD3_MASK		= (1 << 5),
-	TSM_MOD4_MASK		= (1 << 6),
-	TSM_MOD5_MASK		= (1 << 7),
+	TSM_ALT_MASK		= (1 << 3),
+	TSM_LOGO_MASK		= (1 << 4),
 };
 
+/* keep in sync with TSM_INPUT_INVALID */
 #define TSM_VTE_INVALID 0xffffffff
 
 typedef void (*tsm_vte_write_cb) (struct tsm_vte *vte,
