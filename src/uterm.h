@@ -335,6 +335,9 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 void uterm_vt_master_ref(struct uterm_vt_master *vtm);
 void uterm_vt_master_unref(struct uterm_vt_master *vtm);
 
+int uterm_vt_master_activate_all(struct uterm_vt_master *vtm);
+int uterm_vt_master_deactivate_all(struct uterm_vt_master *vtm);
+
 int uterm_vt_allocate(struct uterm_vt_master *vt, struct uterm_vt **out,
 		      const char *seat, struct uterm_input *input,
 		      const char *vt_for_seat0, uterm_vt_cb cb, void *data);

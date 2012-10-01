@@ -658,3 +658,53 @@ void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 	ev_eloop_unref(vtm->eloop);
 	free(vtm);
 }
+
+int uterm_vt_master_activate_all(struct uterm_vt_master *vtm)
+{
+	struct uterm_vt *vt;
+	struct shl_dlist *iter;
+	int ret, res = 0;
+	unsigned int in_progress = 0;
+
+	if (!vtm)
+		return -EINVAL;
+
+	shl_dlist_for_each(iter, &vtm->vts) {
+		vt = shl_dlist_entry(iter, struct uterm_vt, list);
+		ret = uterm_vt_activate(vt);
+		if (ret == -EINPROGRESS)
+			in_progress++;
+		else if (ret)
+			res = ret;
+	}
+
+	if (in_progress)
+		return in_progress;
+
+	return res;
+}
+
+int uterm_vt_master_deactivate_all(struct uterm_vt_master *vtm)
+{
+	struct uterm_vt *vt;
+	struct shl_dlist *iter;
+	int ret, res = 0;
+	unsigned int in_progress = 0;
+
+	if (!vtm)
+		return -EINVAL;
+
+	shl_dlist_for_each(iter, &vtm->vts) {
+		vt = shl_dlist_entry(iter, struct uterm_vt, list);
+		ret = uterm_vt_deactivate(vt);
+		if (ret == -EINPROGRESS)
+			in_progress++;
+		else if (ret)
+			res = ret;
+	}
+
+	if (in_progress)
+		return in_progress;
+
+	return res;
+}
