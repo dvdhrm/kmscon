@@ -169,11 +169,43 @@ static int draw_cell(struct tsm_screen *scr,
 	return 0;
 }
 
+static void draw_background(struct wlt_terminal *term)
+{
+	uint8_t *dst;
+	uint32_t *line;
+	unsigned int i, j, w, h;
+
+	/* when maximized, we might have a right and bottom border. So draw
+	 * a black background for everything beyond grid-size.
+	 * TODO: we should catch the color from tsm_screen instead of using
+	 * black background by default. */
+	w = term->buffer.width;
+	w /= term->font_normal->attr.width;
+	w *= term->font_normal->attr.width;
+
+	h = term->buffer.height;
+	h /= term->font_normal->attr.height;
+	h *= term->font_normal->attr.height;
+
+	dst = term->buffer.data;
+	for (i = 0; i < term->buffer.height; ++i) {
+		line = (uint32_t*)dst;
+		if (i >= h)
+			j = 0;
+		else
+			j = w;
+		for ( ; j < term->buffer.width; ++j)
+			line[j] = 0xff << 24;
+		dst += term->buffer.stride;
+	}
+}
+
 static void widget_redraw(struct wlt_widget *widget, unsigned int flags,
 			  void *data)
 {
 	struct wlt_terminal *term = data;
 
+	draw_background(term);
 	tsm_screen_draw(term->scr, NULL, draw_cell, NULL, term);
 }
 
