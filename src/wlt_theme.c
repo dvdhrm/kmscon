@@ -239,6 +239,9 @@ static void widget_redraw(struct wlt_widget *widget, unsigned int flags,
 	struct wlt_theme *theme = data;
 	unsigned int width, height;
 
+	if (flags & WLT_WINDOW_FULLSCREEN)
+		return;
+
 	width = theme->buffer.width;
 	height = theme->buffer.height;
 	if (width < 2 ||
@@ -266,6 +269,9 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	struct wlt_theme *theme = data;
 	unsigned int minw, minh;
 
+	if (flags & WLT_WINDOW_FULLSCREEN)
+		return;
+
 	/* set minimal size */
 	minw = 2 * theme->button_margin + 2 * theme->button_padding +
 	       3 * theme->button_size + *new_width;
@@ -292,6 +298,9 @@ static void widget_resize(struct wlt_widget *widget, unsigned int flags,
 
 	wlt_window_get_buffer(theme->wnd, alloc, &theme->buffer);
 	memcpy(&theme->alloc, alloc, sizeof(*alloc));
+
+	if (flags & WLT_WINDOW_FULLSCREEN)
+		return;
 
 	alloc->x = theme->frame_width;
 	alloc->y = theme->control_height + theme->frame_width;
