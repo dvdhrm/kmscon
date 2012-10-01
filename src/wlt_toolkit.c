@@ -633,6 +633,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	struct shl_dlist *iter;
 	struct wlt_widget *widget;
 	struct itimerspec spec;
+	bool handled;
 
 	disp->last_serial = serial;
 	if (!disp->xkb_state)
@@ -648,11 +649,14 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	if (num_syms == 1)
 		sym = syms[0];
 
+	handled = false;
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
-		if (widget->keyboard_cb)
-			widget->keyboard_cb(widget, mask, sym, state,
-					    widget->data);
+		if (widget->keyboard_cb) {
+			if (widget->keyboard_cb(widget, mask, sym, state,
+						handled, widget->data))
+				handled = true;
+		}
 	}
 
 	if (state == WL_KEYBOARD_KEY_STATE_RELEASED &&
@@ -675,17 +679,21 @@ static void repeat_event(struct ev_timer *timer, uint64_t num, void *data)
 	struct wlt_widget *widget;
 	struct shl_dlist *iter;
 	unsigned int mask;
+	bool handled;
 
 	if (!wnd)
 		return;
 
 	mask = shl_get_xkb_mods(disp->xkb_state);
+	handled = false;
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
-		if (widget->keyboard_cb)
-			widget->keyboard_cb(widget, mask, disp->repeat_sym,
-					    WL_KEYBOARD_KEY_STATE_PRESSED,
-					    widget->data);
+		if (widget->keyboard_cb) {
+			if (widget->keyboard_cb(widget, mask, disp->repeat_sym,
+						WL_KEYBOARD_KEY_STATE_PRESSED,
+						handled, widget->data))
+				handled = true;
+		}
 	}
 }
 

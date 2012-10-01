@@ -306,14 +306,14 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	}
 }
 
-static void widget_key(struct wlt_widget *widget, unsigned int mask,
-		       uint32_t sym, uint32_t state, void *data)
+static bool widget_key(struct wlt_widget *widget, unsigned int mask,
+		       uint32_t sym, uint32_t state, bool handled, void *data)
 {
 	struct wlt_terminal *term = data;
 	uint32_t ucs4;
 
-	if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
-		return;
+	if (handled || state != WL_KEYBOARD_KEY_STATE_PRESSED)
+		return false;
 
 	ucs4 = xkb_keysym_to_utf32(sym) ? : TSM_VTE_INVALID;
 
@@ -321,31 +321,34 @@ static void widget_key(struct wlt_widget *widget, unsigned int mask,
 	    sym == wlt_conf.grab_scroll_up->keysym) {
 		tsm_screen_sb_up(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
-		return;
+		return true;
 	}
 	if (SHL_HAS_BITS(mask, wlt_conf.grab_scroll_down->mods) &&
 	    sym == wlt_conf.grab_scroll_down->keysym) {
 		tsm_screen_sb_down(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
-		return;
+		return true;
 	}
 	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_up->mods) &&
 	    sym == wlt_conf.grab_page_up->keysym) {
 		tsm_screen_sb_page_up(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
-		return;
+		return true;
 	}
 	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_down->mods) &&
 	    sym == wlt_conf.grab_page_down->keysym) {
 		tsm_screen_sb_page_down(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
-		return;
+		return true;
 	}
 
 	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4)) {
 		tsm_screen_sb_reset(term->scr);
 		wlt_window_schedule_redraw(term->wnd);
+		return true;
 	}
+
+	return false;
 }
 
 static void vte_event(struct tsm_vte *vte, const char *u8, size_t len,
