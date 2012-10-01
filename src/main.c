@@ -44,6 +44,7 @@
 struct kmscon_app {
 	struct ev_eloop *eloop;
 	struct ev_eloop *vt_eloop;
+	unsigned int vt_exit_count;
 
 	struct uterm_vt_master *vtm;
 	struct uterm_monitor *mon;
@@ -84,6 +85,7 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 	struct kmscon_seat *seat = data;
 	struct shl_dlist *iter;
 	struct kmscon_video *vid;
+	struct kmscon_app *app = seat->app;
 
 	if (action == UTERM_VT_ACTIVATE) {
 		seat->awake = true;
@@ -103,6 +105,13 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 
 		uterm_input_sleep(seat->input);
 		seat->awake = false;
+
+		if (app->vt_exit_count > 0) {
+			log_debug("deactivating VT on exit, %d to go",
+				  app->vt_exit_count - 1);
+			if (!--app->vt_exit_count)
+				ev_eloop_exit(app->vt_eloop);
+		}
 	}
 
 	return 0;
@@ -677,7 +686,8 @@ int main(int argc, char **argv)
 		goto err_unload;
 
 	if (kmscon_conf.switchvt) {
-		/* TODO: implement automatic VT switching */
+		log_debug("activating VTs during startup due to user request");
+		uterm_vt_master_activate_all(app.vtm);
 	}
 
 	ev_eloop_run(app.eloop, -1);
@@ -694,8 +704,12 @@ int main(int argc, char **argv)
 		 * subsystems to continue receiving events and this is not what
 		 * we want.
 		 */
-		if (ret == -EINPROGRESS)
+		ret = uterm_vt_master_deactivate_all(app.vtm);
+		if (ret > 0) {
+			log_debug("waiting for %d VTs to deactivate", ret);
+			app.vt_exit_count = ret;
 			ev_eloop_run(app.vt_eloop, 50);
+		}
 	}
 
 	destroy_app(&app);
