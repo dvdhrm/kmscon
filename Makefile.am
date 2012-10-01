@@ -176,6 +176,7 @@ endif
 libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_HOOK) \
+	$(SHL_MISC) \
 	src/uterm.h \
 	src/uterm_input.h \
 	src/uterm_video.h \
@@ -353,6 +354,7 @@ libkmscon_core_la_SOURCES = \
 	$(SHL_RING) \
 	$(SHL_TIMER) \
 	$(SHL_HOOK) \
+	$(SHL_MISC) \
 	src/main.h \
 	src/conf.c src/conf.h \
 	src/ui.c src/ui.h \
@@ -439,6 +441,7 @@ bin_PROGRAMS += wlterm
 endif
 
 wlterm_SOURCES = \
+	$(SHL_MISC) \
 	src/wlt_main.h \
 	src/wlt_main.c \
 	src/wlt_toolkit.h \
