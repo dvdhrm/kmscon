@@ -319,13 +319,27 @@ static void real_close(struct uterm_vt *vt)
 	vt->real_saved_num = -1;
 }
 
-/* Switch to this VT and make it the active VT. */
+/* Switch to this VT and make it the active VT. If we are already the active
+ * VT, then 0 is returned, if the VT_ACTIVATE ioctl is called to activate this
+ * VT, then -EINPROGRESS is returned and we will be activated when receiving the
+ * VT switch signal. The currently active VT may prevent this, though.
+ * On error a negative error code is returned other than -EINPROGRESS */
 static int real_activate(struct uterm_vt *vt)
 {
 	int ret;
+	struct vt_stat vts;
 
 	if (vt->real_num < 0)
 		return -EINVAL;
+
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
+	if (ret) {
+		log_warn("cannot find current VT");
+		return -EFAULT;
+	}
+
+	if (vts.v_active != vt->real_num)
+		return 0;
 
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
 	if (ret) {
@@ -334,7 +348,7 @@ static int real_activate(struct uterm_vt *vt)
 	}
 
 	log_debug("entering VT %p on demand", vt);
-	return 0;
+	return -EINPROGRESS;
 }
 
 /*
