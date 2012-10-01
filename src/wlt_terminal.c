@@ -254,7 +254,8 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	 * Every redraw-handler is guaranteed to work for every size, but still,
 	 * we should try to avoid invalid-sizes to not generate artifacts. */
 
-	if (flags & WLT_WINDOW_MAXIMIZED) {
+	if (flags & WLT_WINDOW_MAXIMIZED ||
+	    flags & WLT_WINDOW_FULLSCREEN) {
 		/* if maximized, always use requested size */
 		*new_width = width;
 		*new_height = height;
