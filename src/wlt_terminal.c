@@ -342,8 +342,10 @@ static void widget_key(struct wlt_widget *widget, unsigned int mask,
 		return;
 	}
 
-	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4))
+	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4)) {
+		tsm_screen_sb_reset(term->scr);
 		wlt_window_schedule_redraw(term->wnd);
+	}
 }
 
 static void vte_event(struct tsm_vte *vte, const char *u8, size_t len,
