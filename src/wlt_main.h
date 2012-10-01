@@ -46,6 +46,17 @@ struct wlt_conf_t {
 	/* disable notices and warnings */
 	bool silent;
 
+	/* custom login process */
+	bool login;
+	/* argv for login process */
+	char **argv;
+	/* TERM value */
+	char *term;
+	/* color palette */
+	char *palette;
+	/* terminal scroll-back buffer size */
+	unsigned int sb_size;
+
 	/* scroll-up grab */
 	struct conf_grab *grab_scroll_up;
 	/* scroll-down grab */

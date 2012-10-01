@@ -364,12 +364,14 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 		log_error("cannot create tsm-screen object");
 		goto err_font;
 	}
+	tsm_screen_set_max_sb(term->scr, wlt_conf.sb_size);
 
 	ret = tsm_vte_new(&term->vte, term->scr, vte_event, term, log_llog);
 	if (ret) {
 		log_error("cannot create tsm-vte object");
 		goto err_scr;
 	}
+	tsm_vte_set_palette(term->vte, wlt_conf.palette);
 
 	ret = kmscon_pty_new(&term->pty, pty_input, term);
 	if (ret) {
@@ -377,6 +379,14 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 		goto err_vte;
 	}
 	kmscon_pty_set_term(term->pty, "xterm-256color");
+
+	ret = kmscon_pty_set_term(term->pty, wlt_conf.term);
+	if (ret)
+		goto err_pty;
+
+	ret = kmscon_pty_set_argv(term->pty, wlt_conf.argv);
+	if (ret)
+		goto err_pty;
 
 	ret = ev_eloop_new_fd(term->eloop, &term->pty_fd,
 			      kmscon_pty_get_fd(term->pty),

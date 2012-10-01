@@ -28,6 +28,7 @@
  */
 
 #include <errno.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -197,6 +198,7 @@ static void print_help()
 		"Usage:\n"
 		"\t%1$s [options]\n"
 		"\t%1$s -h [options]\n"
+		"\t%1$s -l [options] -- /bin/sh [sh-arguments]\n"
 		"\n"
 		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
 		"given multiple times, only the last argument matters if not otherwise stated.\n"
@@ -206,6 +208,22 @@ static void print_help()
 		"\t-v, --verbose               [off]   Print verbose messages\n"
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
+		"\n"
+		"Terminal Options:\n"
+		"\t-l, --login                 [/bin/sh]\n"
+		"\t                              Start the given login process instead\n"
+		"\t                              of the default process; all arguments\n"
+		"\t                              following '--' will be be parsed as\n"
+		"\t                              argv to this process. No more options\n"
+		"\t                              after '--' will be parsed so use it at\n"
+		"\t                              the end of the argument string\n"
+		"\t-t, --term <TERM>           [xterm-256color]\n"
+		"\t                              Value of the TERM environment variable\n"
+		"\t                              for the child process\n"
+		"\t    --palette <name>        [default]\n"
+		"\t                              Select the used color palette\n"
+		"\t    --sb-size <num>         [1000]\n"
+		"\t                              Size of the scrollback-buffer in lines\n"
 		"\n"
 		"Keyboard Shortcuts and Grabs:\n"
 		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
@@ -258,6 +276,31 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
+static char *def_argv[] = { NULL, "-i", NULL };
+
+static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	int ret;
+
+	/* parse "--login [...] -- args" arguments */
+	if (wlt_conf.login) {
+		if (idx >= argc) {
+			fprintf(stderr, "Arguments for --login missing\n");
+			return -EFAULT;
+		}
+
+		wlt_conf.argv = &argv[idx];
+		ret = argc - idx;
+	} else {
+		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
+		wlt_conf.argv = def_argv;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static struct conf_grab def_grab_scroll_up = {
 	.mods = SHL_SHIFT_MASK,
 	.keysym = XKB_KEY_Up,
@@ -283,10 +326,17 @@ struct conf_option options[] = {
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
 	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &wlt_conf.debug, false),
 	CONF_OPTION_BOOL(0, "silent", NULL, &wlt_conf.silent, false),
+
+	CONF_OPTION_BOOL('l', "login", aftercheck_login, &wlt_conf.login, false),
+	CONF_OPTION_STRING('t', "term", NULL, &wlt_conf.term, "xterm-256color"),
+	CONF_OPTION_STRING(0, "palette", NULL, &wlt_conf.palette, NULL),
+	CONF_OPTION_UINT(0, "sb-size", NULL, &wlt_conf.sb_size, 1000),
+
 	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
 	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
 	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
 	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
+
 	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &wlt_conf.font_name, "monospace"),
