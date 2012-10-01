@@ -169,19 +169,6 @@ _Static_assert(
 );
 #endif
 
-static const uint32_t keytab_numlock[KEYTAB_SIZE] = {
-	[KEY_KP7]         =  XKB_KEY_KP_7,
-	[KEY_KP8]         =  XKB_KEY_KP_8,
-	[KEY_KP9]         =  XKB_KEY_KP_9,
-	[KEY_KP4]         =  XKB_KEY_KP_4,
-	[KEY_KP5]         =  XKB_KEY_KP_5,
-	[KEY_KP6]         =  XKB_KEY_KP_6,
-	[KEY_KP1]         =  XKB_KEY_KP_1,
-	[KEY_KP2]         =  XKB_KEY_KP_2,
-	[KEY_KP3]         =  XKB_KEY_KP_3,
-	[KEY_KP0]         =  XKB_KEY_KP_0,
-};
-
 static const uint32_t keytab_shift[KEYTAB_SIZE] = {
 	[KEY_1]           =  XKB_KEY_exclam,
 	[KEY_2]           =  XKB_KEY_at,
