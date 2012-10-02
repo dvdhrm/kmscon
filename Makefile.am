@@ -397,7 +397,8 @@ libkmscon_core_la_LIBADD = \
 	-lpthread \
 	libeloop.la \
 	libtsm.la \
-	libuterm.la
+	libuterm.la \
+	libtext-font.la
 
 #
 # Binaries
