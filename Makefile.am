@@ -155,8 +155,10 @@ libtsm_la_SOURCES = \
 	src/tsm_vte_charsets.c
 
 libtsm_la_CPPFLAGS = \
-	$(AM_CPPFLAGS)
+	$(AM_CPPFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 libtsm_la_LDFLAGS = \
+	$(XKBCOMMON_LIBS) \
 	-version-info 1:0:0
 
 #
@@ -387,9 +389,11 @@ endif
 
 libkmscon_core_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(GLES2_CFLAGS)
+	$(GLES2_CFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 libkmscon_core_la_LIBADD = \
 	$(GLES2_LIBS) \
+	$(XKBCOMMON_LIBS) \
 	-lpthread \
 	libeloop.la \
 	libtsm.la \
@@ -415,7 +419,11 @@ kmscon_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_MISC) \
 	src/main.c
+kmscon_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(XKBCOMMON_CFLAGS)
 kmscon_LDADD = \
+	$(XKBCOMMON_LIBS) \
 	libuterm.la \
 	libeloop.la \
 	libtext-font.la \
