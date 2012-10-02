@@ -60,6 +60,7 @@ struct wlt_terminal {
 	struct ev_fd *pty_fd;
 	bool pty_open;
 
+	struct kmscon_font_attr font_attr;
 	struct kmscon_font *font_normal;
 	unsigned int cols;
 	unsigned int rows;
@@ -312,6 +313,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 {
 	struct wlt_terminal *term = data;
 	uint32_t ucs4;
+	struct kmscon_font *font;
+	int ret;
 
 	if (handled || state != WL_KEYBOARD_KEY_STATE_PRESSED)
 		return false;
@@ -340,6 +343,43 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 	    sym == wlt_conf.grab_page_down->keysym) {
 		tsm_screen_sb_page_down(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
+		return true;
+	}
+
+	if (SHL_HAS_BITS(mask, SHL_CONTROL_MASK) &&
+	    sym == XKB_KEY_plus) {
+		if (term->font_attr.points + 1 < term->font_attr.points)
+			return true;
+
+		++term->font_attr.points;
+		ret = kmscon_font_find(&font, &term->font_attr,
+				       wlt_conf.font_engine);
+		if (ret) {
+			--term->font_attr.points;
+			log_error("cannot create font");
+		} else {
+			kmscon_font_unref(term->font_normal);
+			term->font_normal = font;
+			wlt_window_schedule_redraw(term->wnd);
+		}
+		return true;
+	}
+	if (SHL_HAS_BITS(mask, SHL_CONTROL_MASK) &&
+	    sym == XKB_KEY_minus) {
+		if (term->font_attr.points - 1 < 1)
+			return true;
+
+		--term->font_attr.points;
+		ret = kmscon_font_find(&font, &term->font_attr,
+				       wlt_conf.font_engine);
+		if (ret) {
+			++term->font_attr.points;
+			log_error("cannot create font");
+		} else {
+			kmscon_font_unref(term->font_normal);
+			term->font_normal = font;
+			wlt_window_schedule_redraw(term->wnd);
+		}
 		return true;
 	}
 
@@ -395,7 +435,6 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 {
 	struct wlt_terminal *term;
 	int ret;
-	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 
 	if (!out || !wnd)
 		return -EINVAL;
@@ -409,12 +448,18 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	term->cols = 80;
 	term->rows = 24;
 
-	attr.ppi = wlt_conf.font_ppi;
-	attr.points = wlt_conf.font_size;
-	strncpy(attr.name, wlt_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
-	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
+	term->font_attr.ppi = wlt_conf.font_ppi;
+	term->font_attr.points = wlt_conf.font_size;
+	term->font_attr.bold = false;
+	term->font_attr.italic = false;
+	term->font_attr.width = 0;
+	term->font_attr.height = 0;
+	strncpy(term->font_attr.name, wlt_conf.font_name,
+		KMSCON_FONT_MAX_NAME - 1);
+	term->font_attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
 
-	ret = kmscon_font_find(&term->font_normal, &attr, wlt_conf.font_engine);
+	ret = kmscon_font_find(&term->font_normal, &term->font_attr,
+			       wlt_conf.font_engine);
 	if (ret) {
 		log_error("cannot create font");
 		goto err_free;
