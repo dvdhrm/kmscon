@@ -619,7 +619,7 @@ void tsm_vte_reset(struct tsm_vte *vte)
 	reset_state(vte);
 }
 
-static void hard_reset(struct tsm_vte *vte)
+void tsm_vte_hard_reset(struct tsm_vte *vte)
 {
 	tsm_vte_reset(vte);
 	tsm_screen_erase_screen(vte->con, false);
@@ -992,7 +992,7 @@ static void do_esc(struct tsm_vte *vte, uint32_t data)
 		break;
 	case 'c': /* RIS */
 		/* hard reset */
-		hard_reset(vte);
+		tsm_vte_hard_reset(vte);
 		break;
 	case '7': /* DECSC */
 		/* save console state */

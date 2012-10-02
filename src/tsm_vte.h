@@ -76,6 +76,7 @@ void tsm_vte_unref(struct tsm_vte *vte);
 int tsm_vte_set_palette(struct tsm_vte *vte, const char *palette);
 
 void tsm_vte_reset(struct tsm_vte *vte);
+void tsm_vte_hard_reset(struct tsm_vte *vte);
 void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len);
 bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			     unsigned int mods, uint32_t unicode);

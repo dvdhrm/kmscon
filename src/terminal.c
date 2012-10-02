@@ -548,6 +548,7 @@ int kmscon_terminal_open(struct kmscon_terminal *term,
 		return -EINVAL;
 
 	kmscon_pty_close(term->pty);
+	tsm_vte_hard_reset(term->vte);
 	width = tsm_screen_get_width(term->console);
 	height = tsm_screen_get_height(term->console);
 	ret = kmscon_pty_open(term->pty, width, height);
