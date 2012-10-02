@@ -1031,7 +1031,12 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 	int ret;
 	unsigned int oldw, oldh, neww, newh, minw, minh, flags;
 
-	if (!wnd || !width || !height)
+	if (!width)
+		width = wnd->buffer.width;
+	if (!height)
+		height = wnd->buffer.height;
+
+	if (!width || !height)
 		return -EINVAL;
 
 	flags = 0;
@@ -1466,7 +1471,7 @@ void wlt_window_resize(struct wlt_window *wnd, uint32_t edges)
 int wlt_window_set_size(struct wlt_window *wnd,
 			unsigned int width, unsigned int height)
 {
-	if (!wnd || !width || !height)
+	if (!wnd)
 		return -EINVAL;
 
 	wnd->new_width = width;
