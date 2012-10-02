@@ -346,8 +346,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		return true;
 	}
 
-	if (SHL_HAS_BITS(mask, SHL_CONTROL_MASK) &&
-	    sym == XKB_KEY_plus) {
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_zoom_in->mods) &&
+	    sym == wlt_conf.grab_zoom_in->keysym) {
 		if (term->font_attr.points + 1 < term->font_attr.points)
 			return true;
 
@@ -364,8 +364,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		}
 		return true;
 	}
-	if (SHL_HAS_BITS(mask, SHL_CONTROL_MASK) &&
-	    sym == XKB_KEY_minus) {
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_zoom_out->mods) &&
+	    sym == wlt_conf.grab_zoom_out->keysym) {
 		if (term->font_attr.points - 1 < 1)
 			return true;
 

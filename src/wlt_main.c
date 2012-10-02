@@ -236,6 +236,10 @@ static void print_help()
 		"\t                                Shortcut to scroll page down\n"
 		"\t    --grab-fullscreen <grab>  [F11]\n"
 		"\t                                Shortcut to toggle fullscreen mode\n"
+		"\t    --grab-zoom-in <grab>     [<Ctrl>plus]\n"
+		"\t                                Shortcut to increase font size\n"
+		"\t    --grab-zoom-out <grab>    [<Ctrl>minus]\n"
+		"\t                                Shortcut to decrease font size\n"
 		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
@@ -329,6 +333,16 @@ static struct conf_grab def_grab_fullscreen = {
 	.keysym = XKB_KEY_F11,
 };
 
+static struct conf_grab def_grab_zoom_in = {
+	.mods = SHL_CONTROL_MASK,
+	.keysym = XKB_KEY_plus,
+};
+
+static struct conf_grab def_grab_zoom_out = {
+	.mods = SHL_CONTROL_MASK,
+	.keysym = XKB_KEY_minus,
+};
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &wlt_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
@@ -345,6 +359,8 @@ struct conf_option options[] = {
 	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
 	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
 	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
+	CONF_OPTION_GRAB(0, "grab-zoom-in", NULL, &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
+	CONF_OPTION_GRAB(0, "grab-zoom-out", NULL, &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
 
 	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),

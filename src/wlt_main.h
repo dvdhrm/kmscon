@@ -67,6 +67,10 @@ struct wlt_conf_t {
 	struct conf_grab *grab_page_down;
 	/* fullscreen grab */
 	struct conf_grab *grab_fullscreen;
+	/* font-zoom-in grab */
+	struct conf_grab *grab_zoom_in;
+	/* font-zoom-out grab */
+	struct conf_grab *grab_zoom_out;
 
 	/* font engine */
 	char *font_engine;
