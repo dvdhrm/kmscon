@@ -73,6 +73,9 @@ struct wlt_terminal {
 	int pointer_x;
 	int pointer_y;
 	bool in_selection;
+	bool selection_started;
+	int sel_start_x;
+	int sel_start_y;
 };
 
 static int draw_cell(struct tsm_screen *scr,
@@ -409,16 +412,28 @@ static void pointer_motion(struct wlt_widget *widget,
 		term->pointer_x = -1;
 		term->pointer_y = -1;
 		return;
+	} else if (term->pointer_x == x - term->alloc.x &&
+		   term->pointer_y == y - term->alloc.y) {
+		return;
 	} else {
 		term->pointer_x = x - term->alloc.x;
 		term->pointer_y = y - term->alloc.y;
 	}
 
-	posx = term->pointer_x / term->font_normal->attr.width;
-	posy = term->pointer_y / term->font_normal->attr.height;
-
 	if (term->in_selection) {
-		tsm_screen_selection_target(term->scr, posx, posy);
+		if (!term->selection_started) {
+			term->selection_started = true;
+			posx = term->sel_start_x / term->font_normal->attr.width;
+			posy = term->sel_start_y / term->font_normal->attr.height;
+
+			tsm_screen_selection_start(term->scr, posx, posy);
+		} else {
+			posx = term->pointer_x / term->font_normal->attr.width;
+			posy = term->pointer_y / term->font_normal->attr.height;
+
+			tsm_screen_selection_target(term->scr, posx, posy);
+		}
+
 		wlt_window_schedule_redraw(term->wnd);
 	}
 }
@@ -443,7 +458,6 @@ static void pointer_button(struct wlt_widget *widget,
 			   uint32_t button, uint32_t state, void *data)
 {
 	struct wlt_terminal *term = data;
-	unsigned int posx, posy;
 
 	if (button != BTN_LEFT)
 		return;
@@ -452,14 +466,18 @@ static void pointer_button(struct wlt_widget *widget,
 		if (!term->in_selection &&
 		    term->pointer_x >= 0 && term->pointer_y >= 0) {
 			term->in_selection = true;
+			term->selection_started = false;
 
-			posx = term->pointer_x / term->font_normal->attr.width;
-			posy = term->pointer_y / term->font_normal->attr.height;
-
-			tsm_screen_selection_start(term->scr, posx, posy);
-			wlt_window_schedule_redraw(term->wnd);
+			term->sel_start_x = term->pointer_x;
+			term->sel_start_y = term->pointer_y;
 		}
 	} else {
+		if (term->pointer_x == term->sel_start_x &&
+		    term->pointer_y == term->sel_start_y) {
+			tsm_screen_selection_reset(term->scr);
+			wlt_window_schedule_redraw(term->wnd);
+		}
+
 		term->in_selection = false;
 	}
 }
