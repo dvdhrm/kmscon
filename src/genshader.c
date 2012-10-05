@@ -164,7 +164,6 @@ int main(int argc, char *argv[])
 
 	fwrite(c0, sizeof(c0) - 1, 1, out);
 	for (i = 2; i < argc; ++i) {
-		fprintf(stderr, "genshader: parsing shader %s\n", argv[i]);
 		write_single_file(out, argv[i]);
 	}
 

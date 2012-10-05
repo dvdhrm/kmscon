@@ -262,7 +262,7 @@ genshader_SOURCES = \
 	src/genshader.c
 
 src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
-	./genshader$(EXEEXT) src/static_shaders.c $(SHADERS)
+	$(AM_V_GEN)./genshader$(EXEEXT) src/static_shaders.c $(SHADERS)
 
 #
 # Unifont Generator
@@ -281,7 +281,7 @@ genunifont_SOURCES = \
 	src/genunifont.c
 
 src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
-	./genunifont$(EXEEXT) src/text_font_unifont_data.c $(UNIFONT)
+	$(AM_V_GEN)./genunifont$(EXEEXT) src/text_font_unifont_data.c $(UNIFONT)
 
 #
 # Text-font library
