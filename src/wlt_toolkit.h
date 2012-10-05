@@ -179,6 +179,8 @@ static inline bool wlt_rect_contains(struct wlt_rect *rect,
 				     unsigned int x,
 				     unsigned int y)
 {
+	if (x < rect->x || y < rect->y)
+		return false;
 	if (x >= rect->x + rect->width)
 		return false;
 	if (y >= rect->y + rect->height)
