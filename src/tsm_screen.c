@@ -57,6 +57,13 @@ struct line {
 	uint64_t sb_id;
 };
 
+#define SELECTION_TOP -1
+struct selection_pos {
+	struct line *line;
+	unsigned int x;
+	int y;
+};
+
 struct tsm_screen {
 	size_t ref;
 	llog_submit_t llog;
@@ -89,6 +96,11 @@ struct tsm_screen {
 
 	/* tab ruler */
 	bool *tab_ruler;
+
+	/* selection */
+	bool sel_active;
+	struct selection_pos sel_start;
+	struct selection_pos sel_end;
 };
 
 static void cell_init(struct tsm_screen *con, struct cell *cell)
@@ -163,6 +175,16 @@ static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 	struct line *tmp;
 
 	if (con->sb_max == 0) {
+		if (con->sel_active) {
+			if (con->sel_start.line == line) {
+				con->sel_start.line = NULL;
+				con->sel_start.y = SELECTION_TOP;
+			}
+			if (con->sel_end.line == line) {
+				con->sel_end.line = NULL;
+				con->sel_end.y = SELECTION_TOP;
+			}
+		}
 		line_free(line);
 		return;
 	}
@@ -196,6 +218,17 @@ static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 					con->sb_pos = line;
 			}
 		}
+
+		if (con->sel_active) {
+			if (con->sel_start.line == tmp) {
+				con->sel_start.line = NULL;
+				con->sel_start.y = SELECTION_TOP;
+			}
+			if (con->sel_end.line == tmp) {
+				con->sel_end.line = NULL;
+				con->sel_end.y = SELECTION_TOP;
+			}
+		}
 		line_free(tmp);
 	}
 
@@ -212,7 +245,7 @@ static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 
 static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 {
-	unsigned int i, j, max;
+	unsigned int i, j, max, pos;
 	int ret;
 
 	if (!num)
@@ -234,12 +267,12 @@ static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 	struct line *cache[num];
 
 	for (i = 0; i < num; ++i) {
+		pos = con->margin_top + i;
 		ret = line_new(con, &cache[i], con->size_x);
 		if (!ret) {
-			link_to_scrollback(con,
-					   con->lines[con->margin_top + i]);
+			link_to_scrollback(con, con->lines[pos]);
 		} else {
-			cache[i] = con->lines[con->margin_top + i];
+			cache[i] = con->lines[pos];
 			for (j = 0; j < con->size_x; ++j)
 				cell_init(con, &cache[i]->cells[j]);
 		}
@@ -253,6 +286,27 @@ static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 
 	memcpy(&con->lines[con->margin_top + (max - num)],
 	       cache, num * sizeof(struct line*));
+
+	if (con->sel_active) {
+		if (!con->sel_start.line && con->sel_start.y >= 0) {
+			con->sel_start.y -= num;
+			if (con->sel_start.y < 0) {
+				con->sel_start.line = con->sb_last;
+				while (con->sel_start.line && ++con->sel_start.y < 0)
+					con->sel_start.line = con->sel_start.line->prev;
+				con->sel_start.y = SELECTION_TOP;
+			}
+		}
+		if (!con->sel_end.line && con->sel_end.y >= 0) {
+			con->sel_end.y -= num;
+			if (con->sel_end.y < 0) {
+				con->sel_end.line = con->sb_last;
+				while (con->sel_end.line && ++con->sel_end.y < 0)
+					con->sel_end.line = con->sel_end.line->prev;
+				con->sel_end.y = SELECTION_TOP;
+			}
+		}
+	}
 }
 
 static void screen_scroll_down(struct tsm_screen *con, unsigned int num)
@@ -287,6 +341,13 @@ static void screen_scroll_down(struct tsm_screen *con, unsigned int num)
 
 	memcpy(&con->lines[con->margin_top],
 	       cache, num * sizeof(struct line*));
+
+	if (con->sel_active) {
+		if (!con->sel_start.line && con->sel_start.y >= 0)
+			con->sel_start.y += num;
+		if (!con->sel_end.line && con->sel_end.y >= 0)
+			con->sel_end.y += num;
+	}
 }
 
 static void screen_write(struct tsm_screen *con, unsigned int x,
@@ -631,6 +692,16 @@ void tsm_screen_set_max_sb(struct tsm_screen *con,
 		if (con->sb_pos == line)
 			con->sb_pos = con->sb_first;
 
+		if (con->sel_active) {
+			if (con->sel_start.line == line) {
+				con->sel_start.line = NULL;
+				con->sel_start.y = SELECTION_TOP;
+			}
+			if (con->sel_end.line == line) {
+				con->sel_end.line = NULL;
+				con->sel_end.y = SELECTION_TOP;
+			}
+		}
 		line_free(line);
 	}
 
@@ -655,6 +726,17 @@ void tsm_screen_clear_sb(struct tsm_screen *con)
 	con->sb_last = NULL;
 	con->sb_count = 0;
 	con->sb_pos = NULL;
+
+	if (con->sel_active) {
+		if (con->sel_start.line) {
+			con->sel_start.line = NULL;
+			con->sel_start.y = SELECTION_TOP;
+		}
+		if (con->sel_end.line) {
+			con->sel_end.line = NULL;
+			con->sel_end.y = SELECTION_TOP;
+		}
+	}
 }
 
 void tsm_screen_sb_up(struct tsm_screen *con, unsigned int num)
@@ -1261,6 +1343,83 @@ void tsm_screen_erase_screen(struct tsm_screen *con, bool protect)
 			     protect);
 }
 
+/*
+ * Selection Code
+ * If a running pty-client does not support mouse-tracking extensions, a
+ * terminal can manually mark selected areas if it does mouse-tracking itself.
+ * This tracking is slightly different than the integrated client-tracking:
+ *
+ * Initial state is no-selection. At any time selection_reset() can be called to
+ * clear the selection and go back to initial state.
+ * If the user presses a mouse-button, the terminal can calculate the selected
+ * cell and call selection_start() to notify the terminal that the user started
+ * the selection. While the mouse-button is held down, the terminal should call
+ * selection_target() whenever a mouse-event occurs. This will tell the screen
+ * layer to draw the selection from the initial start up to the last given
+ * target.
+ * Please note that the selection-start cannot be modified by the terminal
+ * during a selection. Instead, the screen-layer automatically moves it along
+ * with any scroll-operations or inserts/deletes. This also means, the terminal
+ * must _not_ cache the start-position itself as it may change under the hood.
+ * This selection takes also care of scrollback-buffer selections and correctly
+ * moves selection state along.
+ *
+ * Please note that this is not the kind of selection that some PTY applications
+ * support. If the client supports the mouse-protocol, then it can also control
+ * a separate screen-selection which is always inside of the actual screen. This
+ * is a totally different selection.
+ */
+
+static void selection_set(struct tsm_screen *con, struct selection_pos *sel,
+			  unsigned int x, unsigned int y)
+{
+	struct line *pos;
+
+	sel->line = NULL;
+	pos = con->sb_pos;
+
+	while (y && pos) {
+		--y;
+		pos = pos->next;
+	}
+
+	if (pos)
+		sel->line = pos;
+
+	sel->x = x;
+	sel->y = y;
+}
+
+void tsm_screen_selection_reset(struct tsm_screen *con)
+{
+	if (!con)
+		return;
+
+	con->sel_active = false;
+}
+
+void tsm_screen_selection_start(struct tsm_screen *con,
+				unsigned int posx,
+				unsigned int posy)
+{
+	if (!con)
+		return;
+
+	con->sel_active = true;
+	selection_set(con, &con->sel_start, posx, posy);
+	memcpy(&con->sel_end, &con->sel_start, sizeof(con->sel_end));
+}
+
+void tsm_screen_selection_target(struct tsm_screen *con,
+				 unsigned int posx,
+				 unsigned int posy)
+{
+	if (!con || !con->sel_active)
+		return;
+
+	selection_set(con, &con->sel_end, posx, posy);
+}
+
 void tsm_screen_draw(struct tsm_screen *con,
 			 tsm_screen_prepare_cb prepare_cb,
 			 tsm_screen_draw_cb draw_cb,
@@ -1278,6 +1437,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 	const uint32_t *ch;
 	size_t len;
 	struct cell empty;
+	bool in_sel = false, sel_start = false, sel_end = false;
 
 	if (!con || !draw_cb)
 		return;
@@ -1317,6 +1477,21 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 	iter = con->sb_pos;
 	k = 0;
+
+	if (con->sel_active) {
+		if (!con->sel_start.line && con->sel_start.y == SELECTION_TOP)
+			in_sel = !in_sel;
+		if (!con->sel_end.line && con->sel_end.y == SELECTION_TOP)
+			in_sel = !in_sel;
+
+		if (con->sel_start.line &&
+		    (!iter || con->sel_start.line->sb_id < iter->sb_id))
+			in_sel = !in_sel;
+		if (con->sel_end.line &&
+		    (!iter || con->sel_end.line->sb_id < iter->sb_id))
+			in_sel = !in_sel;
+	}
+
 	for (i = 0; i < con->size_y; ++i) {
 		if (iter) {
 			line = iter;
@@ -1326,12 +1501,36 @@ void tsm_screen_draw(struct tsm_screen *con,
 			k++;
 		}
 
+		if (con->sel_active) {
+			if (con->sel_start.line == line ||
+			    (!con->sel_start.line &&
+			     con->sel_start.y == k - 1))
+				sel_start = true;
+			else
+				sel_start = false;
+			if (con->sel_end.line == line ||
+			    (!con->sel_end.line &&
+			     con->sel_end.y == k - 1))
+				sel_end = true;
+			else
+				sel_end = false;
+		}
+
 		for (j = 0; j < con->size_x; ++j) {
 			if (j < line->size)
 				cell = &line->cells[j];
 			else
 				cell = &empty;
 			memcpy(&attr, &cell->attr, sizeof(attr));
+
+			if (con->sel_active) {
+				if (sel_start &&
+				    j == con->sel_start.x)
+					in_sel = !in_sel;
+				if (sel_end &&
+				    j == con->sel_end.x)
+					in_sel = !in_sel;
+			}
 
 			if (k == cur_y + 1 &&
 			    j == cur_x) {
@@ -1345,6 +1544,9 @@ void tsm_screen_draw(struct tsm_screen *con,
 			 * inverse colors instead of switching background and
 			 * foreground */
 			if (con->flags & TSM_SCREEN_INVERSE)
+				attr.inverse = !attr.inverse;
+
+			if (in_sel)
 				attr.inverse = !attr.inverse;
 
 			ch = tsm_symbol_get(NULL, &cell->ch, &len);

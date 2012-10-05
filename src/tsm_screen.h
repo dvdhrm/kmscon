@@ -174,6 +174,14 @@ void tsm_screen_erase_cursor_to_screen(struct tsm_screen *con,
 				       bool protect);
 void tsm_screen_erase_screen(struct tsm_screen *con, bool protect);
 
+void tsm_screen_selection_reset(struct tsm_screen *con);
+void tsm_screen_selection_start(struct tsm_screen *con,
+				unsigned int posx,
+				unsigned int posy);
+void tsm_screen_selection_target(struct tsm_screen *con,
+				 unsigned int posx,
+				 unsigned int posy);
+
 void tsm_screen_draw(struct tsm_screen *con,
 		     tsm_screen_prepare_cb prepare_cb,
 		     tsm_screen_draw_cb draw_cb,
