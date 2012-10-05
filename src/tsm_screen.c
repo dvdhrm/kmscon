@@ -1438,6 +1438,7 @@ void tsm_screen_draw(struct tsm_screen *con,
 	size_t len;
 	struct cell empty;
 	bool in_sel = false, sel_start = false, sel_end = false;
+	bool was_sel = false;
 
 	if (!con || !draw_cb)
 		return;
@@ -1514,6 +1515,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 				sel_end = true;
 			else
 				sel_end = false;
+
+			was_sel = false;
 		}
 
 		for (j = 0; j < con->size_x; ++j) {
@@ -1525,11 +1528,15 @@ void tsm_screen_draw(struct tsm_screen *con,
 
 			if (con->sel_active) {
 				if (sel_start &&
-				    j == con->sel_start.x)
+				    j == con->sel_start.x) {
+					was_sel = in_sel;
 					in_sel = !in_sel;
+				}
 				if (sel_end &&
-				    j == con->sel_end.x)
+				    j == con->sel_end.x) {
+					was_sel = in_sel;
 					in_sel = !in_sel;
+				}
 			}
 
 			if (k == cur_y + 1 &&
@@ -1546,8 +1553,10 @@ void tsm_screen_draw(struct tsm_screen *con,
 			if (con->flags & TSM_SCREEN_INVERSE)
 				attr.inverse = !attr.inverse;
 
-			if (in_sel)
+			if (in_sel || was_sel) {
+				was_sel = false;
 				attr.inverse = !attr.inverse;
+			}
 
 			ch = tsm_symbol_get(NULL, &cell->ch, &len);
 			if (cell->ch == ' ' || cell->ch == 0)
