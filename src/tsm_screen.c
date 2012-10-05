@@ -207,38 +207,6 @@ static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 	++con->sb_count;
 }
 
-/* Unlinks last line from the scrollback buffer, Returns NULL if it is empty */
-static struct line *get_from_scrollback(struct tsm_screen *con)
-{
-	struct line *line;
-
-	if (!con->sb_last)
-		return NULL;
-
-	line = con->sb_last;
-	con->sb_last = line->prev;
-	if (line->prev)
-		line->prev->next = NULL;
-	else
-		con->sb_first = NULL;
-	con->sb_count--;
-
-	/* correctly move the current position if it is set in the sb */
-	if (con->sb_pos) {
-		if (con->flags & TSM_SCREEN_FIXED_POS ||
-		    !con->sb_pos->prev) {
-			if (con->sb_pos == line)
-				con->sb_pos = NULL;
-		} else {
-			con->sb_pos = con->sb_pos->prev;
-		}
-	}
-
-	line->next = NULL;
-	line->prev = NULL;
-	return line;
-}
-
 static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 {
 	unsigned int i, j, max;
