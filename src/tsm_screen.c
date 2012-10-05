@@ -54,6 +54,7 @@ struct line {
 
 	unsigned int size;
 	struct cell *cells;
+	uint64_t sb_id;
 };
 
 struct tsm_screen {
@@ -80,6 +81,7 @@ struct tsm_screen {
 	struct line *sb_last;		/* last line; was moved last*/
 	unsigned int sb_max;		/* max-limit of lines in sb */
 	struct line *sb_pos;		/* current position in sb or NULL */
+	uint64_t sb_last_id;		/* last id given to sb-line */
 
 	/* cursor */
 	unsigned int cursor_x;
@@ -197,6 +199,7 @@ static void link_to_scrollback(struct tsm_screen *con, struct line *line)
 		line_free(tmp);
 	}
 
+	line->sb_id = ++con->sb_last_id;
 	line->next = NULL;
 	line->prev = con->sb_last;
 	if (con->sb_last)
