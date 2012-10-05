@@ -395,8 +395,8 @@ static void widget_pointer_motion(struct wlt_widget *widget,
 		set_pointer_location(theme, LOC_NOWHERE);
 		return;
 	} else {
-		theme->pointer_x = x + theme->alloc.x;
-		theme->pointer_y = y + theme->alloc.y;
+		theme->pointer_x = x - theme->alloc.x;
+		theme->pointer_y = y - theme->alloc.y;
 		set_pointer_location(theme, get_pointer_location(theme));
 	}
 
