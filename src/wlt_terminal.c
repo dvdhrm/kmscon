@@ -28,6 +28,7 @@
  */
 
 #include <errno.h>
+#include <linux/input.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,7 @@ struct wlt_terminal {
 	struct wlt_window *wnd;
 	struct wlt_widget *widget;
 	struct wlt_shm_buffer buffer;
+	struct wlt_rect alloc;
 
 	struct tsm_screen *scr;
 	struct tsm_vte *vte;
@@ -67,6 +69,10 @@ struct wlt_terminal {
 
 	wlt_terminal_cb cb;
 	void *data;
+
+	int pointer_x;
+	int pointer_y;
+	bool in_selection;
 };
 
 static int draw_cell(struct tsm_screen *scr,
@@ -217,6 +223,7 @@ static void widget_resize(struct wlt_widget *widget, unsigned int flags,
 	int ret;
 
 	wlt_window_get_buffer(term->wnd, alloc, &term->buffer);
+	memcpy(&term->alloc, alloc, sizeof(*alloc));
 
 	/* don't allow children */
 	alloc->width = 0;
@@ -392,6 +399,71 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 	return false;
 }
 
+static void pointer_motion(struct wlt_widget *widget,
+			   unsigned int x, unsigned int y, void *data)
+{
+	struct wlt_terminal *term = data;
+	unsigned int posx, posy;
+
+	if (!wlt_rect_contains(&term->alloc, x, y)) {
+		term->pointer_x = -1;
+		term->pointer_y = -1;
+		return;
+	} else {
+		term->pointer_x = x - term->alloc.x;
+		term->pointer_y = y - term->alloc.y;
+	}
+
+	posx = term->pointer_x / term->font_normal->attr.width;
+	posy = term->pointer_y / term->font_normal->attr.height;
+
+	if (term->in_selection) {
+		tsm_screen_selection_target(term->scr, posx, posy);
+		wlt_window_schedule_redraw(term->wnd);
+	}
+}
+
+static void pointer_enter(struct wlt_widget *widget,
+			  unsigned int x, unsigned int y, void *data)
+{
+	struct wlt_terminal *term = data;
+
+	pointer_motion(widget, x, y, term);
+}
+
+static void pointer_leave(struct wlt_widget *widget, void *data)
+{
+	struct wlt_terminal *term = data;
+
+	term->pointer_x = -1;
+	term->pointer_y = -1;
+}
+
+static void pointer_button(struct wlt_widget *widget,
+			   uint32_t button, uint32_t state, void *data)
+{
+	struct wlt_terminal *term = data;
+	unsigned int posx, posy;
+
+	if (button != BTN_LEFT)
+		return;
+
+	if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		if (!term->in_selection &&
+		    term->pointer_x >= 0 && term->pointer_y >= 0) {
+			term->in_selection = true;
+
+			posx = term->pointer_x / term->font_normal->attr.width;
+			posy = term->pointer_y / term->font_normal->attr.height;
+
+			tsm_screen_selection_start(term->scr, posx, posy);
+			wlt_window_schedule_redraw(term->wnd);
+		}
+	} else {
+		term->in_selection = false;
+	}
+}
+
 static void vte_event(struct tsm_vte *vte, const char *u8, size_t len,
 		      void *data)
 {
@@ -511,6 +583,8 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 	wlt_widget_set_resize_cb(term->widget, widget_prepare_resize,
 				 widget_resize);
 	wlt_widget_set_keyboard_cb(term->widget, widget_key);
+	wlt_widget_set_pointer_cb(term->widget, pointer_enter, pointer_leave,
+				  pointer_motion, pointer_button);
 	*out = term;
 	return 0;
 
