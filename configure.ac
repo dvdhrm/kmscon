@@ -478,8 +478,10 @@ AM_CONDITIONAL([BUILD_ENABLE_GLES2], [test x$gles2_enabled = xyes])
 if test x$have_gbm = xyes ; then
         save_CFLAGS="$CFLAGS"
         save_LIBS="$LIBS"
-        CFLAGS="$CFLAGS $GBM_CFLAGS $DRM_CFLAGS"
-        LIBS="$LIBS $GBM_LIBS $DRM_LIBS"
+        save_LDFLAGS="$LDFLAGS"
+        CFLAGS="$DRM_CFLAGS $GBM_CFLAGS"
+        LIBS="$DRM_LIBS $GBM_LIBS"
+        LDFLAGS=""
         AC_CHECK_LIB([gbm],
                      [gbm_bo_get_stride],
                      [AC_DEFINE([BUILD_HAVE_GBM_BO_GET_STRIDE],
@@ -487,6 +489,7 @@ if test x$have_gbm = xyes ; then
                                 [Define to 1 if your libgbm provides gbm_bo_get_stride])])
         CFLAGS="$save_CFLAGS"
         LIBS="$save_LIBS"
+        LDFLAGS="$save_LDFLAGS"
 fi
 
 #
