@@ -38,6 +38,7 @@
 #include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
 #include "log.h"
+#include "shl_array.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
 #include "shl_misc.h"
@@ -56,6 +57,13 @@ enum {
 	STATE_INIT = 0,
 	STATE_RUNNING,
 	STATE_HUP,
+};
+
+struct data_offer {
+	unsigned long ref;
+	struct wl_data_offer *w_offer;
+	struct wlt_display *disp;
+	struct shl_array *types;
 };
 
 struct wlt_display {
@@ -92,6 +100,11 @@ struct wlt_display {
 	struct wlt_window *keyboard_focus;
 	struct ev_timer *repeat_timer;
 	uint32_t repeat_sym;
+
+	struct wl_data_device_manager *w_manager;
+	struct wl_data_device *w_data_dev;
+	struct data_offer *drag_offer;
+	struct data_offer *selection_offer;
 };
 
 struct wlt_window {
@@ -720,6 +733,176 @@ static const struct wl_keyboard_listener keyboard_listener = {
 	.modifiers = keyboard_modifiers,
 };
 
+static void data_offer_unref(struct data_offer *offer)
+{
+	unsigned int i, len;
+
+	if (!offer || !offer->ref || --offer->ref)
+		return;
+
+	len = shl_array_get_length(offer->types);
+	for (i = 0; i < len; ++i)
+		free(*SHL_ARRAY_AT(offer->types, char*, i));
+	shl_array_free(offer->types);
+	wl_data_offer_destroy(offer->w_offer);
+	free(offer);
+}
+
+static void data_offer_offer(void *data, struct wl_data_offer *w_offer,
+			     const char *type)
+{
+	char *tmp;
+	int ret;
+	struct data_offer *offer = wl_data_offer_get_user_data(w_offer);
+
+	tmp = strdup(type);
+	if (!tmp)
+		return;
+
+	ret = shl_array_push(offer->types, &tmp);
+	if (ret) {
+		free(tmp);
+		return;
+	}
+}
+
+static const struct wl_data_offer_listener data_offer_listener = {
+	.offer = data_offer_offer,
+};
+
+static void data_dev_data_offer(void *data, struct wl_data_device *w_dev,
+				struct wl_data_offer *w_offer)
+{
+	struct data_offer *offer;
+	struct wlt_display *disp = data;
+	int ret;
+
+	offer = malloc(sizeof(*offer));
+	if (!offer) {
+		wl_data_offer_destroy(w_offer);
+		return;
+	}
+	memset(offer, 0, sizeof(*offer));
+	offer->ref = 1;
+	offer->w_offer = w_offer;
+	offer->disp = disp;
+
+	ret = shl_array_new(&offer->types, sizeof(char*), 4);
+	if (ret) {
+		wl_data_offer_destroy(w_offer);
+		free(offer);
+		return;
+	}
+
+	wl_data_offer_add_listener(w_offer, &data_offer_listener, offer);
+	wl_data_offer_set_user_data(w_offer, offer);
+}
+
+static void data_dev_enter(void *data, struct wl_data_device *w_dev,
+			   uint32_t serial, struct wl_surface *w_surface,
+			   wl_fixed_t x, wl_fixed_t y,
+			   struct wl_data_offer *w_offer)
+{
+	struct wlt_display *disp = data;
+
+	if (disp->drag_offer) {
+		data_offer_unref(disp->drag_offer);
+		disp->drag_offer = NULL;
+	}
+
+	if (!w_offer)
+		return;
+
+	disp->drag_offer = wl_data_offer_get_user_data(w_offer);
+}
+
+static void data_dev_leave(void *data, struct wl_data_device *w_dev)
+{
+	struct wlt_display *disp = data;
+
+	if (disp->drag_offer) {
+		data_offer_unref(disp->drag_offer);
+		disp->drag_offer = NULL;
+	}
+}
+
+static void data_dev_motion(void *data, struct wl_data_device *w_dev,
+			    uint32_t time, wl_fixed_t x, wl_fixed_t y)
+{
+}
+
+static void data_dev_drop(void *data, struct wl_data_device *w_dev)
+{
+}
+
+static void data_dev_selection(void *data, struct wl_data_device *w_dev,
+			       struct wl_data_offer *w_offer)
+{
+	struct wlt_display *disp = data;
+
+	if (disp->selection_offer) {
+		data_offer_unref(disp->selection_offer);
+		disp->selection_offer = NULL;
+	}
+
+	if (!w_offer)
+		return;
+
+	disp->selection_offer = wl_data_offer_get_user_data(w_offer);
+}
+
+int wlt_display_get_selection_to_fd(struct wlt_display *disp, const char *mime,
+				    int output_fd)
+{
+	unsigned int i, num;
+	struct data_offer *offer;
+
+	if (!disp || !mime)
+		return -EINVAL;
+	if (!disp->selection_offer)
+		return -ENOENT;
+
+	offer = disp->selection_offer;
+	num = shl_array_get_length(offer->types);
+	for (i = 0; i < num; ++i) {
+		if (!strcmp(mime, *SHL_ARRAY_AT(offer->types, char*, i)))
+			break;
+	}
+
+	if (i == num)
+		return -EAGAIN;
+
+	wl_data_offer_receive(offer->w_offer, mime, output_fd);
+	return 0;
+}
+
+int wlt_display_get_selection_fd(struct wlt_display *disp, const char *mime)
+{
+	int p[2], ret;
+
+	if (pipe2(p, O_CLOEXEC | O_NONBLOCK))
+		return -EFAULT;
+
+	ret = wlt_display_get_selection_to_fd(disp, mime, p[1]);
+	close(p[1]);
+
+	if (ret) {
+		close(p[0]);
+		return ret;
+	}
+
+	return p[0];
+}
+
+static const struct wl_data_device_listener data_dev_listener = {
+	.data_offer = data_dev_data_offer,
+	.enter = data_dev_enter,
+	.leave = data_dev_leave,
+	.motion = data_dev_motion,
+	.drop = data_dev_drop,
+	.selection = data_dev_selection,
+};
+
 static void check_ready(struct wlt_display *disp)
 {
 	if (disp->state > STATE_INIT)
@@ -730,9 +913,16 @@ static void check_ready(struct wlt_display *disp)
 	    disp->w_shell &&
 	    disp->w_shm &&
 	    disp->w_pointer &&
-	    disp->w_keyboard) {
+	    disp->w_keyboard &&
+	    disp->w_manager) {
 		log_debug("wayland display initialized");
 		load_cursors(disp);
+
+		disp->w_data_dev = wl_data_device_manager_get_data_device(
+						disp->w_manager, disp->w_seat);
+		wl_data_device_add_listener(disp->w_data_dev,
+					    &data_dev_listener,
+					    disp);
 
 		disp->state = STATE_RUNNING;
 		shl_hook_call(disp->listeners, disp, (void*)WLT_DISPLAY_READY);
@@ -819,6 +1009,17 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 					      &wl_shm_interface);
 		if (!disp->w_shm) {
 			log_error("cannot bind wl_shm object");
+			return;
+		}
+	} else if (!strcmp(iface, "wl_data_device_manager")) {
+		if (disp->w_manager) {
+			log_error("global wl_data_device_manager advertised twice");
+			return;
+		}
+		disp->w_manager = wl_display_bind(disp->dp, id,
+						  &wl_data_device_manager_interface);
+		if (!disp->w_manager) {
+			log_error("cannot bind wl_data_device_manager_object");
 			return;
 		}
 	} else {

@@ -451,6 +451,9 @@ endif
 
 wlterm_SOURCES = \
 	$(SHL_MISC) \
+	$(SHL_ARRAY) \
+	$(SHL_DLIST) \
+	$(SHL_HOOK) \
 	src/wlt_main.h \
 	src/wlt_main.c \
 	src/wlt_toolkit.h \
