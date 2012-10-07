@@ -43,6 +43,7 @@
 #include "shl_hook.h"
 #include "shl_misc.h"
 #include "tsm_vte.h"
+#include "wlt_main.h"
 #include "wlt_toolkit.h"
 
 #define LOG_SUBSYSTEM "wlt_toolkit"
@@ -678,9 +679,9 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	} else if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		disp->repeat_sym = sym;
 		spec.it_interval.tv_sec = 0;
-		spec.it_interval.tv_nsec = 25 * 1000000;
+		spec.it_interval.tv_nsec = wlt_conf.xkb_repeat_rate * 1000000;
 		spec.it_value.tv_sec = 0;
-		spec.it_value.tv_nsec = 250 * 1000000;
+		spec.it_value.tv_nsec = wlt_conf.xkb_repeat_delay * 1000000;
 		ev_timer_update(disp->repeat_timer, &spec);
 	}
 }

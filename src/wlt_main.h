@@ -84,6 +84,11 @@ struct wlt_conf_t {
 	char *font_name;
 	/* font ppi (overrides per monitor PPI) */
 	unsigned int font_ppi;
+
+	/* xkb key repeat delay */
+	unsigned int xkb_repeat_delay;
+	/* xkb key repeat rate */
+	unsigned int xkb_repeat_rate;
 };
 
 extern struct wlt_conf_t wlt_conf;
