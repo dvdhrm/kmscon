@@ -240,6 +240,10 @@ static void print_help()
 		"\t                                Shortcut to increase font size\n"
 		"\t    --grab-zoom-out <grab>    [<Ctrl>minus]\n"
 		"\t                                Shortcut to decrease font size\n"
+		"\t    --grab-copy <grab>        [<Logo>c]\n"
+		"\t                                Copy selected text\n"
+		"\t    --grab-paste <grab>       [<Logo>v]\n"
+		"\t                                Paste selection buffer\n"
 		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
@@ -343,6 +347,16 @@ static struct conf_grab def_grab_zoom_out = {
 	.keysym = XKB_KEY_minus,
 };
 
+static struct conf_grab def_grab_copy = {
+	.mods = SHL_LOGO_MASK,
+	.keysym = XKB_KEY_c,
+};
+
+static struct conf_grab def_grab_paste = {
+	.mods = SHL_LOGO_MASK,
+	.keysym = XKB_KEY_v,
+};
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &wlt_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
@@ -361,6 +375,8 @@ struct conf_option options[] = {
 	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
 	CONF_OPTION_GRAB(0, "grab-zoom-in", NULL, &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
 	CONF_OPTION_GRAB(0, "grab-zoom-out", NULL, &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
+	CONF_OPTION_GRAB(0, "grab-copy", NULL, &wlt_conf.grab_copy, &def_grab_copy),
+	CONF_OPTION_GRAB(0, "grab-paste", NULL, &wlt_conf.grab_paste, &def_grab_paste),
 
 	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),

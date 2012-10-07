@@ -32,6 +32,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 #include "conf.h"
@@ -52,6 +53,7 @@
 struct wlt_terminal {
 	struct ev_eloop *eloop;
 	struct wlt_window *wnd;
+	struct wlt_display *disp;
 	struct wlt_widget *widget;
 	struct wlt_shm_buffer buffer;
 	struct wlt_rect alloc;
@@ -76,6 +78,12 @@ struct wlt_terminal {
 	bool selection_started;
 	int sel_start_x;
 	int sel_start_y;
+
+	int paste_fd;
+	struct ev_fd *paste;
+	struct wl_data_source *copy;
+	char *copy_buf;
+	int copy_len;
 };
 
 static int draw_cell(struct tsm_screen *scr,
@@ -318,6 +326,77 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	}
 }
 
+static void paste_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct wlt_terminal *term = data;
+	char buf[4096];
+	int ret;
+
+	if (mask & EV_READABLE) {
+		ret = read(term->paste_fd, buf, sizeof(buf));
+		if (ret == 0) {
+			goto err_close;
+		} else if (ret < 0) {
+			if (errno == EAGAIN)
+				return;
+			log_error("error on paste-fd (%d): %m", errno);
+			goto err_close;
+		}
+
+		kmscon_pty_write(term->pty, buf, ret);
+		return;
+	}
+
+	if (mask & EV_ERR) {
+		log_error("error on paste FD");
+		goto err_close;
+	}
+
+	if (mask & EV_HUP)
+		goto err_close;
+
+	return;
+
+err_close:
+	close(term->paste_fd);
+	ev_eloop_rm_fd(term->paste);
+	term->paste = NULL;
+}
+
+static void copy_target(void *data, struct wl_data_source *w_source,
+			const char *target)
+{
+}
+
+static void copy_send(void *data, struct wl_data_source *w_source,
+		      const char *mime, int32_t fd)
+{
+	struct wlt_terminal *term = data;
+	int ret;
+
+	/* TODO: make this non-blocking */
+	ret = write(fd, term->copy_buf, term->copy_len);
+	if (ret != term->copy_len)
+		log_warning("cannot write whole selection: %d/%d", ret,
+			    term->copy_len);
+	close(fd);
+}
+
+static void copy_cancelled(void *data, struct wl_data_source *w_source)
+{
+	struct wlt_terminal *term = data;
+
+	wl_data_source_destroy(w_source);
+	if (term->copy == w_source)
+		term->copy = NULL;
+}
+
+static const struct wl_data_source_listener copy_listener = {
+	.target = copy_target,
+	.send = copy_send,
+	.cancelled = copy_cancelled,
+};
+
 static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		       uint32_t sym, uint32_t state, bool handled, void *data)
 {
@@ -390,6 +469,70 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 			term->font_normal = font;
 			wlt_window_schedule_redraw(term->wnd);
 		}
+		return true;
+	}
+
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_paste->mods) &&
+	    sym == wlt_conf.grab_paste->keysym) {
+		if (term->paste) {
+			log_debug("cannot paste selection, previous paste still in progress");
+			return true;
+		}
+
+		ret = wlt_display_get_selection_fd(term->disp,
+						"text/plain;charset=utf-8");
+		if (ret == -ENOENT) {
+			log_debug("no selection to paste");
+			return true;
+		} else if (ret == -EAGAIN) {
+			log_debug("unknown mime-time for pasting selection");
+			return true;
+		} else if (ret < 0) {
+			log_error("cannot paste selection: %d", ret);
+			return true;
+		}
+
+		term->paste_fd = ret;
+		ret = ev_eloop_new_fd(term->eloop, &term->paste, ret,
+				      EV_READABLE, paste_event, term);
+		if (ret) {
+			close(ret);
+			log_error("cannot create eloop fd: %d", ret);
+			return true;
+		}
+
+		return true;
+	}
+
+	if (SHL_HAS_BITS(mask, wlt_conf.grab_copy->mods) &&
+	    sym == wlt_conf.grab_copy->keysym) {
+		if (term->copy) {
+			wl_data_source_destroy(term->copy);
+			free(term->copy_buf);
+			term->copy = NULL;
+		}
+
+		ret = wlt_display_new_data_source(term->disp, &term->copy);
+		if (ret) {
+			log_error("cannot create data source");
+			return true;
+		}
+
+		term->copy_len = tsm_screen_selection_copy(term->scr,
+							   &term->copy_buf);
+		if (term->copy_len < 0) {
+			if (term->copy_len != -ENOENT)
+				log_error("cannot copy TSM selection: %d",
+					  term->copy_len);
+			wl_data_source_destroy(term->copy);
+			term->copy = NULL;
+			return true;
+		}
+
+		wl_data_source_offer(term->copy, "text/plain;charset=utf-8");
+		wl_data_source_add_listener(term->copy, &copy_listener, term);
+		wlt_display_set_selection(term->disp, term->copy);
+
 		return true;
 	}
 
@@ -516,6 +659,10 @@ static void widget_destroy(struct wlt_widget *widget, void *data)
 {
 	struct wlt_terminal *term = data;
 
+	if (term->paste) {
+		ev_eloop_rm_fd(term->paste);
+		close(term->paste_fd);
+	}
 	tsm_vte_unref(term->vte);
 	tsm_screen_unref(term->scr);
 	free(term);
@@ -534,6 +681,7 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 		return -ENOMEM;
 	memset(term, 0, sizeof(*term));
 	term->wnd = wnd;
+	term->disp = wlt_window_get_display(wnd);
 	term->eloop = wlt_window_get_eloop(wnd);
 	term->cols = 80;
 	term->rows = 24;
