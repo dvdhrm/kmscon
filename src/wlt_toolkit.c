@@ -1566,6 +1566,14 @@ struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd)
 	return wnd->disp->eloop;
 }
 
+struct wlt_display *wlt_window_get_display(struct wlt_window *wnd)
+{
+	if (!wnd)
+		return NULL;
+
+	return wnd->disp;
+}
+
 void wlt_widget_destroy(struct wlt_widget *widget)
 {
 	if (!widget)
