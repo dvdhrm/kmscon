@@ -60,6 +60,7 @@ struct kmscon_pty {
 
 	char *term;
 	char **argv;
+	char *seat;
 };
 
 int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
@@ -172,6 +173,22 @@ int kmscon_pty_set_argv(struct kmscon_pty *pty, char **argv)
 	return 0;
 }
 
+int kmscon_pty_set_seat(struct kmscon_pty *pty, const char *seat)
+{
+	char *t;
+
+	if (!pty || !seat)
+		return -EINVAL;
+
+	t = strdup(seat);
+	if (!t)
+		return -ENOMEM;
+	free(pty->seat);
+	pty->seat = t;
+
+	return 0;
+}
+
 int kmscon_pty_get_fd(struct kmscon_pty *pty)
 {
 	if (!pty)
@@ -222,7 +239,7 @@ static void pty_close(struct kmscon_pty *pty, bool user)
 }
 
 static void __attribute__((noreturn))
-exec_child(int pty_master, const char *term, char **argv)
+exec_child(int pty_master, const char *term, char **argv, const char *seat)
 {
 	if (!term)
 		term = "vt220";
@@ -230,6 +247,8 @@ exec_child(int pty_master, const char *term, char **argv)
 		argv = (char*[]){ "/bin/sh", "-l", NULL };
 
 	setenv("TERM", term, 1);
+	if (seat)
+		setenv("XDG_SEAT", seat, 1);
 	execvp(argv[0], argv);
 
 	log_err("failed to exec child %s: %m", argv[0]);
@@ -347,7 +366,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->fd, pty->term, pty->argv);
+		exec_child(pty->fd, pty->term, pty->argv, pty->seat);
 		exit(EXIT_FAILURE);
 	default:
 		pty->fd = master;

@@ -55,6 +55,7 @@ void kmscon_pty_ref(struct kmscon_pty *pty);
 void kmscon_pty_unref(struct kmscon_pty *pty);
 int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term);
 int kmscon_pty_set_argv(struct kmscon_pty *pty, char **argv);
+int kmscon_pty_set_seat(struct kmscon_pty *pty, const char *seat);
 
 int kmscon_pty_get_fd(struct kmscon_pty *pty);
 void kmscon_pty_dispatch(struct kmscon_pty *pty);
