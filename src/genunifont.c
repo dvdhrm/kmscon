@@ -82,10 +82,10 @@ static void print_data_row(FILE *out, char c)
 
 	idx = hex_val(c);
 	if (idx < 16) {
-		fprintf(out, line_map[idx]);
+		fputs(line_map[idx], out);
 	} else {
 		fprintf(stderr, "genunifont: invalid value %c\n", c);
-		fprintf(out, line_map[0]);
+		fputs(line_map[0], out);
 	}
 }
 
