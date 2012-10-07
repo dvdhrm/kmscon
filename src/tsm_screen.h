@@ -181,6 +181,7 @@ void tsm_screen_selection_start(struct tsm_screen *con,
 void tsm_screen_selection_target(struct tsm_screen *con,
 				 unsigned int posx,
 				 unsigned int posy);
+int tsm_screen_selection_copy(struct tsm_screen *con, char **out);
 
 void tsm_screen_draw(struct tsm_screen *con,
 		     tsm_screen_prepare_cb prepare_cb,

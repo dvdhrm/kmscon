@@ -1420,6 +1420,235 @@ void tsm_screen_selection_target(struct tsm_screen *con,
 	selection_set(con, &con->sel_end, posx, posy);
 }
 
+/* TODO: tsm_ucs4_to_utf8 expects UCS4 characters, but a cell contains a
+ * tsm-symbol (which can contain multiple UCS4 chars). Fix this when introducing
+ * support for combining characters. */
+static unsigned int copy_line(struct line *line, char *buf,
+			      unsigned int start, unsigned int len)
+{
+	unsigned int i, end;
+	char *pos = buf;
+
+	end = start + len;
+	for (i = start; i < line->size && i < end; ++i) {
+		if (i < line->size || !line->cells[i].ch)
+			pos += tsm_ucs4_to_utf8(line->cells[i].ch, pos);
+		else
+			pos += tsm_ucs4_to_utf8(' ', pos);
+	}
+
+	return pos - buf;
+}
+
+/* TODO: This beast definitely needs some "beautification", however, it's meant
+ * as a "proof-of-concept" so its enough for now. */
+int tsm_screen_selection_copy(struct tsm_screen *con, char **out)
+{
+	unsigned int len, i;
+	struct selection_pos *start, *end;
+	struct line *iter;
+	char *str, *pos;
+
+	if (!con || !out)
+		return -EINVAL;
+
+	if (!con->sel_active)
+		return -ENOENT;
+
+	/* check whether sel_start or sel_end comes first */
+	if (!con->sel_start.line && con->sel_start.y == SELECTION_TOP) {
+		if (!con->sel_end.line && con->sel_end.y == SELECTION_TOP) {
+			str = strdup("");
+			if (!str)
+				return -ENOMEM;
+			*out = str;
+			return 0;
+		}
+		start = &con->sel_start;
+		end = &con->sel_end;
+	} else if (!con->sel_end.line && con->sel_end.y == SELECTION_TOP) {
+		start = &con->sel_end;
+		end = &con->sel_start;
+	} else if (con->sel_start.line && con->sel_end.line) {
+		if (con->sel_start.line->sb_id < con->sel_end.line->sb_id) {
+			start = &con->sel_start;
+			end = &con->sel_end;
+		} else if (con->sel_start.line->sb_id > con->sel_end.line->sb_id) {
+			start = &con->sel_end;
+			end = &con->sel_start;
+		} else if (con->sel_start.x < con->sel_end.x) {
+			start = &con->sel_start;
+			end = &con->sel_end;
+		} else {
+			start = &con->sel_end;
+			end = &con->sel_start;
+		}
+	} else if (con->sel_start.line) {
+		start = &con->sel_start;
+		end = &con->sel_end;
+	} else if (con->sel_end.line) {
+		start = &con->sel_end;
+		end = &con->sel_start;
+	} else if (con->sel_start.y < con->sel_end.y) {
+		start = &con->sel_start;
+		end = &con->sel_end;
+	} else if (con->sel_start.y > con->sel_end.y) {
+		start = &con->sel_end;
+		end = &con->sel_start;
+	} else if (con->sel_start.x < con->sel_end.x) {
+		start = &con->sel_start;
+		end = &con->sel_end;
+	} else {
+		start = &con->sel_end;
+		end = &con->sel_start;
+	}
+
+	/* calculate size of buffer */
+	len = 0;
+	iter = start->line;
+	if (!iter && start->y == SELECTION_TOP)
+		iter = con->sb_first;
+
+	while (iter) {
+		if (iter == start->line && iter == end->line) {
+			if (iter->size > start->x) {
+				if (iter->size > end->x)
+					len += end->x - start->x + 1;
+				else
+					len += iter->size - start->x;
+			}
+			break;
+		} else if (iter == start->line) {
+			if (iter->size > start->x)
+				len += iter->size - start->x;
+		} else if (iter == end->line) {
+			if (iter->size > end->x)
+				len += end->x + 1;
+			else
+				len += iter->size;
+			break;
+		} else {
+			len += iter->size;
+		}
+
+		++len;
+		iter = iter->next;
+	}
+
+	if (!end->line) {
+		if (start->line || start->y == SELECTION_TOP)
+			i = 0;
+		else
+			i = start->y;
+		for ( ; i < con->size_y; ++i) {
+			if (!start->line && start->y == i && end->y == i) {
+				if (con->size_x > start->x) {
+					if (con->size_x > end->x)
+						len += end->x - start->x + 1;
+					else
+						len += con->size_x - start->x;
+				}
+				break;
+			} else if (!start->line && start->y == i) {
+				if (con->size_x > start->x)
+					len += con->size_x - start->x;
+			} else if (end->y == i) {
+				if (con->size_x > end->x)
+					len += end->x + 1;
+				else
+					len += con->size_x;
+				break;
+			} else {
+				len += con->size_x;
+			}
+
+			++len;
+		}
+	}
+
+	/* allocate buffer */
+	len *= 4;
+	++len;
+	str = malloc(len);
+	if (!str)
+		return -ENOMEM;
+	pos = str;
+
+	/* copy data into buffer */
+	iter = start->line;
+	if (!iter && start->y == SELECTION_TOP)
+		iter = con->sb_first;
+
+	while (iter) {
+		if (iter == start->line && iter == end->line) {
+			if (iter->size > start->x) {
+				if (iter->size > end->x)
+					len = end->x - start->x + 1;
+				else
+					len = iter->size - start->x;
+				pos += copy_line(iter, pos, start->x, len);
+			}
+			break;
+		} else if (iter == start->line) {
+			if (iter->size > start->x)
+				pos += copy_line(iter, pos, start->x,
+						 iter->size - start->x);
+		} else if (iter == end->line) {
+			if (iter->size > end->x)
+				len = end->x + 1;
+			else
+				len = iter->size;
+			pos += copy_line(iter, pos, 0, len);
+			break;
+		} else {
+			pos += copy_line(iter, pos, 0, iter->size);
+		}
+
+		*pos++ = '\n';
+		iter = iter->next;
+	}
+
+	if (!end->line) {
+		if (start->line || start->y == SELECTION_TOP)
+			i = 0;
+		else
+			i = start->y;
+		for ( ; i < con->size_y; ++i) {
+			iter = con->lines[i];
+			if (!start->line && start->y == i && end->y == i) {
+				if (con->size_x > start->x) {
+					if (con->size_x > end->x)
+						len = end->x - start->x + 1;
+					else
+						len = con->size_x - start->x;
+					pos += copy_line(iter, pos, start->x, len);
+				}
+				break;
+			} else if (!start->line && start->y == i) {
+				if (con->size_x > start->x)
+					pos += copy_line(iter, pos, start->x,
+							 con->size_x - start->x);
+			} else if (end->y == i) {
+				if (con->size_x > end->x)
+					len = end->x + 1;
+				else
+					len = con->size_x;
+				pos += copy_line(iter, pos, 0, len);
+				break;
+			} else {
+				pos += copy_line(iter, pos, 0, con->size_x);
+			}
+
+			*pos++ = '\n';
+		}
+	}
+
+	/* return buffer */
+	*pos = 0;
+	*out = str;
+	return pos - str;
+}
+
 void tsm_screen_draw(struct tsm_screen *con,
 			 tsm_screen_prepare_cb prepare_cb,
 			 tsm_screen_draw_cb draw_cb,
