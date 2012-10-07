@@ -137,6 +137,10 @@ void wlt_display_unregister_cb(struct wlt_display *disp,
 int wlt_display_get_selection_fd(struct wlt_display *disp, const char *mime);
 int wlt_display_get_selection_to_fd(struct wlt_display *disp, const char *mime,
 				    int output_fd);
+int wlt_display_new_data_source(struct wlt_display *disp,
+				struct wl_data_source **out);
+void wlt_display_set_selection(struct wlt_display *disp,
+			       struct wl_data_source *selection);
 
 void wlt_window_ref(struct wlt_window *wnd);
 void wlt_window_unref(struct wlt_window *wnd);

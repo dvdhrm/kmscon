@@ -894,6 +894,32 @@ int wlt_display_get_selection_fd(struct wlt_display *disp, const char *mime)
 	return p[0];
 }
 
+int wlt_display_new_data_source(struct wlt_display *disp,
+				struct wl_data_source **out)
+{
+	struct wl_data_source *src;
+
+	if (!disp)
+		return -EINVAL;
+
+	src = wl_data_device_manager_create_data_source(disp->w_manager);
+	if (!src)
+		return -EFAULT;
+
+	*out = src;
+	return 0;
+}
+
+void wlt_display_set_selection(struct wlt_display *disp,
+			       struct wl_data_source *selection)
+{
+	if (!disp)
+		return;
+
+	wl_data_device_set_selection(disp->w_data_dev, selection,
+				     disp->last_serial);
+}
+
 static const struct wl_data_device_listener data_dev_listener = {
 	.data_offer = data_dev_data_offer,
 	.enter = data_dev_enter,
