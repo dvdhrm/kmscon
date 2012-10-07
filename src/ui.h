@@ -41,7 +41,8 @@ struct kmscon_ui;
 
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
-			struct uterm_input *input);
+			struct uterm_input *input,
+			const char *seat);
 void kmscon_ui_free(struct kmscon_ui *ui);
 void kmscon_ui_add_video(struct kmscon_ui *ui, struct uterm_video *video);
 void kmscon_ui_remove_video(struct kmscon_ui *ui, struct uterm_video *video);

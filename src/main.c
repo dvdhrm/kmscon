@@ -170,7 +170,7 @@ static void seat_new(struct kmscon_app *app,
 	if (ret)
 		goto err_input;
 
-	ret = kmscon_ui_new(&seat->ui, app->eloop, seat->input);
+	ret = kmscon_ui_new(&seat->ui, app->eloop, seat->input, seat->sname);
 	if (ret)
 		goto err_vt;
 

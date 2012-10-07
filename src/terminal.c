@@ -400,7 +400,8 @@ static void write_event(struct tsm_vte *vte, const char *u8, size_t len,
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct uterm_input *input)
+			struct uterm_input *input,
+			const char *seat)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -456,6 +457,10 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 		goto err_pty;
 
 	ret = kmscon_pty_set_argv(term->pty, kmscon_conf.argv);
+	if (ret)
+		goto err_pty;
+
+	ret = kmscon_pty_set_seat(term->pty, seat);
 	if (ret)
 		goto err_pty;
 

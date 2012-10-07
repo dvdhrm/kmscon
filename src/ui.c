@@ -184,7 +184,8 @@ static void terminal_event(struct kmscon_terminal *term,
 
 int kmscon_ui_new(struct kmscon_ui **out,
 			struct ev_eloop *eloop,
-			struct uterm_input *input)
+			struct uterm_input *input,
+			const char *seat)
 {
 	struct kmscon_ui *ui;
 	int ret;
@@ -200,7 +201,7 @@ int kmscon_ui_new(struct kmscon_ui **out,
 	ui->input = input;
 	shl_dlist_init(&ui->video_list);
 
-	ret = kmscon_terminal_new(&ui->term, eloop, ui->input);
+	ret = kmscon_terminal_new(&ui->term, eloop, ui->input, seat);
 	if (ret)
 		goto err_free;
 

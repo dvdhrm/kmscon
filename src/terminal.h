@@ -52,7 +52,8 @@ typedef void (*kmscon_terminal_event_cb)
 
 int kmscon_terminal_new(struct kmscon_terminal **out,
 			struct ev_eloop *loop,
-			struct uterm_input *input);
+			struct uterm_input *input,
+			const char *seat);
 void kmscon_terminal_ref(struct kmscon_terminal *term);
 void kmscon_terminal_unref(struct kmscon_terminal *term);
 
