@@ -109,4 +109,11 @@ static inline bool shl_dlist_empty(struct shl_dlist *head)
 	for (iter = (head)->next, tmp = iter->next; iter != (head); \
 		iter = tmp, tmp = iter->next)
 
+#define shl_dlist_for_each_reverse(iter, head) \
+	for (iter = (head)->prev; iter != (head); iter = iter->prev)
+
+#define shl_dlist_for_each_reverse_safe(iter, tmp, head) \
+	for (iter = (head)->prev, tmp = iter->prev; iter != (head); \
+		iter = tmp, tmp = iter->prev)
+
 #endif /* SHL_DLIST_H */
