@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "shl_dlist.h"
 
 struct shl_hook;
 struct shl_hook_entry;
@@ -48,15 +49,15 @@ typedef void (*shl_hook_cb) (void *parent, void *arg, void *data);
 	shl_hook_rm((hook), (shl_hook_cb)(cb), (data))
 
 struct shl_hook_entry {
-	struct shl_hook_entry *next;
+	struct shl_dlist list;
 	shl_hook_cb cb;
 	void *data;
 };
 
 struct shl_hook {
 	unsigned int num;
-	struct shl_hook_entry *entries;
-	struct shl_hook_entry *cur_entry;
+	struct shl_dlist entries;
+	struct shl_dlist *cur_entry;
 };
 
 static inline int shl_hook_new(struct shl_hook **out)
@@ -70,6 +71,7 @@ static inline int shl_hook_new(struct shl_hook **out)
 	if (!hook)
 		return -ENOMEM;
 	memset(hook, 0, sizeof(*hook));
+	shl_dlist_init(&hook->entries);
 
 	*out = hook;
 	return 0;
@@ -79,11 +81,14 @@ static inline void shl_hook_free(struct shl_hook *hook)
 {
 	struct shl_hook_entry *entry;
 
-	if (!hook)
+	if (!hook || hook->cur_entry)
 		return;
 
-	while ((entry = hook->entries)) {
-		hook->entries = entry->next;
+	while (!shl_dlist_empty(&hook->entries)) {
+		entry = shl_dlist_entry(hook->entries.prev,
+					struct shl_hook_entry,
+					list);
+		shl_dlist_unlink(&entry->list);
 		free(entry);
 	}
 
@@ -99,7 +104,7 @@ static inline unsigned int shl_hook_num(struct shl_hook *hook)
 }
 
 static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
-				  void *data)
+			       void *data)
 {
 	struct shl_hook_entry *entry;
 
@@ -113,53 +118,52 @@ static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
 	entry->cb = cb;
 	entry->data = data;
 
-	entry->next = hook->entries;
-	hook->entries = entry;
+	shl_dlist_link_tail(&hook->entries, &entry->list);
 	hook->num++;
 	return 0;
 }
 
 static inline void shl_hook_rm(struct shl_hook *hook, shl_hook_cb cb,
-				  void *data)
+			       void *data)
 {
-	struct shl_hook_entry *entry, *tmp;
+	struct shl_dlist *iter;
+	struct shl_hook_entry *entry;
 
-	if (!hook || !cb || !hook->entries)
+	if (!hook || !cb)
 		return;
 
-	tmp = NULL;
-	if (hook->entries->cb == cb && hook->entries->data == data) {
-		tmp = hook->entries;
-		hook->entries = tmp->next;
-	} else for (entry = hook->entries; entry->next; entry = entry->next) {
-		if (entry->next->cb == cb && entry->next->data == data) {
-			tmp = entry->next;
-			entry->next = tmp->next;
-			break;
+	shl_dlist_for_each_reverse(iter, &hook->entries) {
+		entry = shl_dlist_entry(iter, struct shl_hook_entry, list);
+		if (entry->cb == cb && entry->data == data) {
+			/* if *_call() is running we must not disturb it */
+			if (hook->cur_entry == iter)
+				hook->cur_entry = iter->next;
+			shl_dlist_unlink(&entry->list);
+			free(entry);
+			hook->num--;
+			return;
 		}
-	}
-
-	if (tmp) {
-		/* if *_call() is currently running we must not disturb it */
-		if (hook->cur_entry == tmp)
-			hook->cur_entry = tmp->next;
-		free(tmp);
-		hook->num--;
 	}
 }
 
 static inline void shl_hook_call(struct shl_hook *hook, void *parent,
-				    void *arg)
+				 void *arg)
 {
-	if (!hook)
+	struct shl_hook_entry *entry;
+
+	if (!hook || hook->cur_entry)
 		return;
 
-	hook->cur_entry = hook->entries;
-	while (hook->cur_entry) {
-		hook->cur_entry->cb(parent, arg, hook->cur_entry->data);
-		if (hook->cur_entry)
+	for (hook->cur_entry = hook->entries.next;
+	     hook->cur_entry != &hook->entries; ) {
+		entry = shl_dlist_entry(hook->cur_entry,
+					struct shl_hook_entry, list);
+		entry->cb(parent, arg, entry->data);
+		if (hook->cur_entry == &entry->list)
 			hook->cur_entry = hook->cur_entry->next;
 	}
+
+	hook->cur_entry = NULL;
 }
 
 #endif /* SHL_HOOK_H */
