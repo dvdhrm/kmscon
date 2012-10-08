@@ -66,6 +66,7 @@ struct uterm_vt {
 	int real_fd;
 	int real_num;
 	int real_saved_num;
+	int real_kbmode;
 	struct termios real_saved_attribs;
 	struct ev_fd *real_efd;
 };
@@ -322,6 +323,20 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_text;
 	}
 
+	ret = ioctl(vt->real_fd, KDGKBMODE, &vt->real_kbmode);
+	if (ret) {
+		log_error("cannot retrieve VT KBMODE (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_setmode;
+	}
+
+	ret = ioctl(vt->real_fd, KDSKBMODE, K_OFF);
+	if (ret) {
+		log_error("cannot set VT KBMODE to K_OFF (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_setmode;
+	}
+
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGUSR1);
 	sigaddset(&mask, SIGUSR2);
@@ -331,6 +346,13 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 
 	return 0;
 
+err_setmode:
+	memset(&mode, 0, sizeof(mode));
+	mode.mode = VT_AUTO;
+	ret = ioctl(vt->real_fd, VT_SETMODE, &mode);
+	if (ret)
+		log_warning("cannot reset VT %d to VT_AUTO mode (%d): %m",
+			    vt->real_num, errno);
 err_text:
 	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 	if (ret)
@@ -355,6 +377,11 @@ static void real_close(struct uterm_vt *vt)
 	int ret;
 
 	log_debug("closing VT %d", vt->real_num);
+
+	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
+	if (ret)
+		log_error("cannot reset VT KBMODE to %d (%d): %m",
+			  vt->real_kbmode, errno);
 
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_AUTO;
@@ -456,6 +483,52 @@ static int real_deactivate(struct uterm_vt *vt)
 	return -EINPROGRESS;
 }
 
+static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
+{
+	int id;
+	struct vt_stat vts;
+	int ret;
+
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
+	if (ret) {
+		log_warn("cannot find current VT (%d): %m", errno);
+		return;
+	}
+
+	if (vts.v_active != vt->real_num)
+		return;
+
+	id = 0;
+	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_ALT_MASK) &&
+	    ev->keysym >= XKB_KEY_F1 && ev->keysym <= XKB_KEY_F12) {
+		id = ev->keysym - XKB_KEY_F1 + 1;
+		if (id == vt->real_num)
+			return;
+	} else if (ev->keysym >= XKB_KEY_XF86Switch_VT_1 &&
+		   ev->keysym <= XKB_KEY_XF86Switch_VT_12) {
+		id = ev->keysym - XKB_KEY_XF86Switch_VT_1 + 1;
+		if (id == vt->real_num)
+			return;
+	}
+
+	if (!id)
+		return;
+
+	if (!vt->active)
+		log_warning("leaving VT %d even though it's not active",
+			    vt->real_num);
+
+	log_debug("deactivating VT %d to %d due to user input", vt->real_num,
+		  id);
+
+	ret = ioctl(vt->real_fd, VT_ACTIVATE, id);
+	if (ret) {
+		log_warn("cannot leave VT %d to %d (%d): %m", vt->real_num,
+			 id, errno);
+		return;
+	}
+}
+
 /*
  * Fake VT:
  * For systems without CONFIG_VT or for all seats that have no real VTs (which
@@ -535,7 +608,9 @@ static void vt_input(struct uterm_input *input,
 {
 	struct uterm_vt *vt = data;
 
-	if (vt->mode == UTERM_VT_FAKE)
+	if (vt->mode == UTERM_VT_REAL)
+		real_input(vt, ev);
+	else if (vt->mode == UTERM_VT_FAKE)
 		fake_input(vt, ev);
 }
 
