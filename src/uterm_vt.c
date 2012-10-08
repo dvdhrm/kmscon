@@ -489,6 +489,9 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	struct vt_stat vts;
 	int ret;
 
+	if (ev->handled)
+		return;
+
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warn("cannot find current VT (%d): %m", errno);
@@ -501,11 +504,13 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	id = 0;
 	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_ALT_MASK) &&
 	    ev->keysym >= XKB_KEY_F1 && ev->keysym <= XKB_KEY_F12) {
+		ev->handled = true;
 		id = ev->keysym - XKB_KEY_F1 + 1;
 		if (id == vt->real_num)
 			return;
 	} else if (ev->keysym >= XKB_KEY_XF86Switch_VT_1 &&
 		   ev->keysym <= XKB_KEY_XF86Switch_VT_12) {
+		ev->handled = true;
 		id = ev->keysym - XKB_KEY_XF86Switch_VT_1 + 1;
 		if (id == vt->real_num)
 			return;
@@ -568,8 +573,12 @@ static int fake_deactivate(struct uterm_vt *vt)
 
 static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 {
+	if (ev->handled)
+		return;
+
 	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_LOGO_MASK) &&
 	    ev->keysym == XKB_KEY_F12) {
+		ev->handled = true;
 		if (vt->active) {
 			log_debug("deactivating fake VT due to user input");
 			vt_call(vt, UTERM_VT_DEACTIVATE);

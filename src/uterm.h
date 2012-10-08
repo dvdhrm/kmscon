@@ -269,6 +269,7 @@ enum uterm_input_modifier {
 #define UTERM_INPUT_INVALID 0xffffffff
 
 struct uterm_input_event {
+	bool handled;
 	uint16_t keycode;	/* linux keycode - KEY_* - linux/input.h */
 	uint32_t keysym;	/* X keysym - XKB_KEY_* - X11/keysym.h */
 	unsigned int mods;	/* active modifiers - uterm_modifier mask */

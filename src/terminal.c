@@ -355,31 +355,35 @@ static void input_event(struct uterm_input *input,
 {
 	struct kmscon_terminal *term = data;
 
-	if (!term->opened || !term->awake)
+	if (!term->opened || !term->awake || ev->handled)
 		return;
 
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_up->mods) &&
 	    ev->keysym == kmscon_conf.grab_scroll_up->keysym) {
 		tsm_screen_sb_up(term->console, 1);
 		schedule_redraw(term);
+		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_down->mods) &&
 	    ev->keysym == kmscon_conf.grab_scroll_down->keysym) {
 		tsm_screen_sb_down(term->console, 1);
 		schedule_redraw(term);
+		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_up->mods) &&
 	    ev->keysym == kmscon_conf.grab_page_up->keysym) {
 		tsm_screen_sb_page_up(term->console, 1);
 		schedule_redraw(term);
+		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_down->mods) &&
 	    ev->keysym == kmscon_conf.grab_page_down->keysym) {
 		tsm_screen_sb_page_down(term->console, 1);
 		schedule_redraw(term);
+		ev->handled = true;
 		return;
 	}
 
@@ -387,6 +391,7 @@ static void input_event(struct uterm_input *input,
 				       ev->unicode)) {
 		tsm_screen_sb_reset(term->console);
 		schedule_redraw(term);
+		ev->handled = true;
 	}
 }
 

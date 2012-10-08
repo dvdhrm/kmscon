@@ -88,6 +88,7 @@ static void notify_key(struct uterm_input_dev *dev,
 	if (type != EV_KEY)
 		return;
 
+	memset(&ev, 0, sizeof(ev));
 	ret = kbd_dev_process(dev->kbd, value, code, &ev);
 	if (ret)
 		return;

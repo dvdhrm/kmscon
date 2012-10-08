@@ -170,7 +170,7 @@ static void input_event(struct uterm_input *input,
 {
 	struct kmscon_ui *ui = data;
 
-	if (!ui->awake)
+	if (!ui->awake || ev->handled)
 		return;
 }
 
