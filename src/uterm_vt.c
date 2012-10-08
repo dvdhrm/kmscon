@@ -77,7 +77,7 @@ struct uterm_vt_master {
 	struct shl_dlist vts;
 };
 
-static int vt_call(struct uterm_vt *vt, unsigned int event)
+static void vt_call(struct uterm_vt *vt, unsigned int event)
 {
 	int ret;
 
@@ -87,7 +87,8 @@ static int vt_call(struct uterm_vt *vt, unsigned int event)
 			if (vt->cb) {
 				ret = vt->cb(vt, event, vt->data);
 				if (ret)
-					log_warning("vt event handler returned %d instead of 0 on activation", ret);
+					log_warning("vt event handler returned %d instead of 0 on activation",
+						    ret);
 			}
 			vt->active = true;
 		}
@@ -97,17 +98,46 @@ static int vt_call(struct uterm_vt *vt, unsigned int event)
 			if (vt->cb) {
 				ret = vt->cb(vt, event, vt->data);
 				if (ret)
-					return ret;
+					log_warning("vt event handler returned %d instead of 0 on deactivation",
+						    ret);
 			}
 			vt->active = false;
 		}
 		break;
 	}
-
-	return 0;
 }
 
-static void real_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
+/*
+ * 'Real' VTs
+ * The linux kernel (used) to provide VTs via CONFIG_VT. These VTs are TTYs that
+ * the kernel runs a very limit VT102 compatible console on. They also provide a
+ * mechanism to switch between graphical user-applications.
+ * An application that opens a VT is notified via two signals whenever the user
+ * switches to or away from the VT. We catch these signals and forward a
+ * notification to the application via callbacks.
+ *
+ * Real VTs are only available on seat0 and should be avoided whenever possible
+ * as they have a horrible API, have synchronization issues and are unflexible.
+ *
+ * Also note that the VT API is asynchronous and requires acknowledgment of
+ * applications when switching VTs. That means, when a VT-switch is started, the
+ * currently-active VT is notified about this and needs to acknowledge this
+ * switch. If it allows it, the new VT is notified that it is now started up.
+ * This control-passing is very fragile. For instance if the currently-active VT
+ * is stuck or paused, the VT switch cannot take place as it is not acknowledged
+ * by the currently active VT.
+ * Furthermore, there are some race-conditions during a switch. If resources
+ * that are passed from one VT to another are acquired during this switch from a
+ * 3rd party application, then they can highjack the VT-switch and make the new
+ * VT fail acquiring the resources.
+ *
+ * There are a lot more issues. For instance VTs are not cleaned up when closed
+ * which can cause deadlocks if VT_SETMODE is not reset.
+ * All in all, real VTs are very fragile and should be avoided. They should only
+ * be used for backwards-compatibility.
+ */
+
+static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
 	int ret;
@@ -116,20 +146,27 @@ static void real_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
-	if (ret || vts.v_active != vt->real_num)
+	if (ret) {
+		log_warning("cannot get current VT state (%d): %m", errno);
+		return;
+	}
+
+	if (vts.v_active != vt->real_num)
 		return;
 
-	log_debug("enter VT %d %p", vt->real_num, vt);
+	if (vt->active)
+		log_warning("activating VT %d even though it's already active",
+			    vt->real_num);
 
+	log_debug("enter VT %d %p due to VT signal", vt->real_num, vt);
 	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
-
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS))
-		log_warn("cannot set graphics mode on vt %p", vt);
-
+		log_warn("cannot set graphics mode on vt %p (%d): %m", vt,
+			 errno);
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
-static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
+static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
 	int ret;
@@ -138,21 +175,26 @@ static void real_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
-	if (ret || vts.v_active != vt->real_num)
+	if (ret) {
+		log_warning("cannot get current VT state (%d): %m", errno);
+		return;
+	}
+
+	if (vts.v_active != vt->real_num)
 		return;
 
-	if (vt_call(vt, UTERM_VT_DEACTIVATE)) {
-		log_debug("leaving VT %d %p denied", vt->real_num, vt);
-		ioctl(vt->real_fd, VT_RELDISP, 0);
-	} else {
-		log_debug("leaving VT %d %p", vt->real_num, vt);
-		ioctl(vt->real_fd, VT_RELDISP, 1);
-		if (ioctl(vt->real_fd, KDSETMODE, KD_TEXT))
-			log_warn("cannot set text mode on vt %p", vt);
-	}
+	if (!vt->active)
+		log_warning("deactivating VT %d even though it's not active",
+			    vt->real_num);
+
+	log_debug("leaving VT %d %p due to VT signal", vt->real_num, vt);
+	vt_call(vt, UTERM_VT_DEACTIVATE);
+	ioctl(vt->real_fd, VT_RELDISP, 1);
+	if (ioctl(vt->real_fd, KDSETMODE, KD_TEXT))
+		log_warn("cannot set text mode on vt %p (%d): %m", vt, errno);
 }
 
-static void real_input(struct ev_fd *fd, int mask, void *data)
+static void real_vt_input(struct ev_fd *fd, int mask, void *data)
 {
 	struct uterm_vt *vt = data;
 
@@ -174,17 +216,18 @@ static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 		if (fd < 0) {
 			err1 = errno;
 			fd = open("/dev/tty1",
-					O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+				  O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 			if (fd < 0) {
-				log_err("cannot find parent tty (%d, %d): %m",
-					err1, errno);
-				return -errno;
+				log_error("cannot find parent tty (%d, %d): %m",
+					  err1, errno);
+				return -EFAULT;
 			}
 		}
 
+		errno = 0;
 		if (ioctl(fd, VT_OPENQRY, &id) || id <= 0) {
 			close(fd);
-			log_err("cannot get unused tty");
+			log_err("cannot get unused tty (%d): %m", errno);
 			return -EINVAL;
 		}
 		close(fd);
@@ -198,7 +241,7 @@ static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 
 	fd = open(dev, O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
-		log_err("cannot open tty %s", dev);
+		log_err("cannot open tty %s (%d): %m", dev, errno);
 		return -errno;
 	}
 
@@ -209,6 +252,7 @@ static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 		return -errno;
 	}
 	id = minor(st.st_rdev);
+	log_debug("new tty ID is %d", id);
 
 	*tty_fd = fd;
 	*tty_num = id;
@@ -230,24 +274,22 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		return ret;
 
 	ret = ev_eloop_new_fd(vt->vtm->eloop, &vt->real_efd, vt->real_fd,
-			      EV_READABLE, real_input, vt);
+			      EV_READABLE, real_vt_input, vt);
 	if (ret)
 		goto err_fd;
 
-	/*
-	 * Get the number of the VT which is active now, so we have something
-	 * to switch back to in kmscon_vt_switch_leave.
-	 */
+	/* Get the number of the VT which is active now, so we have something
+	 * to switch back to in kmscon_vt_switch_leave. */
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warn("cannot find the currently active VT");
-		vt->real_saved_num = -1;
-	} else {
-		vt->real_saved_num = vts.v_active;
+		log_warn("cannot find the currently active VT (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_eloop;
 	}
+	vt->real_saved_num = vts.v_active;
 
 	if (tcgetattr(vt->real_fd, &vt->real_saved_attribs) < 0) {
-		log_err("cannot get terminal attributes");
+		log_err("cannot get terminal attributes (%d): %m", errno);
 		ret = -EFAULT;
 		goto err_eloop;
 	}
@@ -260,10 +302,10 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	raw_attribs.c_oflag |= OPOST | OCRNL;
 
 	if (tcsetattr(vt->real_fd, TCSANOW, &raw_attribs) < 0)
-		log_warn("cannot put terminal into raw mode");
+		log_warn("cannot put terminal into raw mode (%d): %m", errno);
 
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS)) {
-		log_err("vt: cannot set graphics mode");
+		log_err("cannot put VT in graphics mode (%d): %m", errno);
 		ret = -errno;
 		goto err_reset;
 	}
@@ -274,7 +316,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	mode.relsig = SIGUSR2;
 
 	if (ioctl(vt->real_fd, VT_SETMODE, &mode)) {
-		log_err("cannot take control of vt handling");
+		log_err("cannot take control of vt handling (%d): %m", errno);
 		ret = -errno;
 		goto err_text;
 	}
@@ -282,14 +324,22 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGUSR1);
 	sigaddset(&mask, SIGUSR2);
-	sigprocmask(SIG_BLOCK, &mask, NULL);
+	ret = sigprocmask(SIG_BLOCK, &mask, NULL);
+	if (ret)
+		log_warning("cannot ignore SIGUSR1/2 (%d): %m", errno);
 
 	return 0;
 
 err_text:
-	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
+	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
+	if (ret)
+		log_warning("cannot reset VT %d to text-mode (%d): %m",
+			    vt->real_num, errno);
 err_reset:
-	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
+	ret = tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
+	if (ret)
+		log_warning("cannot reset VT %d attributes (%d): %m",
+			    vt->real_num, errno);
 err_eloop:
 	ev_eloop_rm_fd(vt->real_efd);
 	vt->real_efd = NULL;
@@ -301,15 +351,27 @@ err_fd:
 static void real_close(struct uterm_vt *vt)
 {
 	struct vt_mode mode;
+	int ret;
 
-	log_debug("closing vt %p", vt);
+	log_debug("closing VT %d", vt->real_num);
 
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_AUTO;
-	ioctl(vt->real_fd, VT_SETMODE, &mode);
+	ret = ioctl(vt->real_fd, VT_SETMODE, &mode);
+	if (ret)
+		log_warning("cannot reset VT %d to VT_AUTO mode (%d): %m",
+			    vt->real_num, errno);
 
-	ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
-	tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
+	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
+	if (ret)
+		log_warning("cannot reset VT %d to text-mode (%d): %m",
+			    vt->real_num, errno);
+
+	ret = tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
+	if (ret)
+		log_warning("cannot reset VT %d attributes (%d): %m",
+			    vt->real_num, errno);
+
 	ev_eloop_rm_fd(vt->real_efd);
 	vt->real_efd = NULL;
 	close(vt->real_fd);
@@ -329,25 +391,23 @@ static int real_activate(struct uterm_vt *vt)
 	int ret;
 	struct vt_stat vts;
 
-	if (vt->real_num < 0)
-		return -EINVAL;
-
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
-	if (ret) {
-		log_warn("cannot find current VT");
-		return -EFAULT;
-	}
-
-	if (vts.v_active == vt->real_num)
+	if (ret)
+		log_warn("cannot find current VT (%d): %m", errno);
+	else if (vts.v_active == vt->real_num)
 		return 0;
+
+	if (vt->active)
+		log_warning("activating VT %d even though it's already active",
+			    vt->real_num);
 
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
 	if (ret) {
-		log_warn("cannot enter VT %p", vt);
+		log_warn("cannot enter VT %d (%d): %m", vt->real_num, errno);
 		return -EFAULT;
 	}
 
-	log_debug("entering VT %p on demand", vt);
+	log_debug("entering VT %d on demand", vt->real_num);
 	return -EINPROGRESS;
 }
 
@@ -360,31 +420,38 @@ static int real_activate(struct uterm_vt *vt)
  *
  * Returns 0 if the previous VT is already active.
  * Returns -EINPROGRESS if we started the VT switch. Returns <0 on failure.
+ *
+ * When run as a daemon, the VT where we were started on is often no longer a
+ * safe return-path when we shut-down. Therefore, you might want to avoid
+ * calling this when started as a long-running daemon.
  */
 static int real_deactivate(struct uterm_vt *vt)
 {
 	int ret;
 	struct vt_stat vts;
 
-	if (vt->real_saved_num < 0)
-		return -EINVAL;
-
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
-		log_warn("cannot find current VT");
+		log_warn("cannot find current VT (%d): %m", errno);
 		return -EFAULT;
 	}
 
 	if (vts.v_active != vt->real_num)
 		return 0;
 
+	if (!vt->active)
+		log_warning("deactivating VT %d even though it's not active",
+			    vt->real_num);
+
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_saved_num);
 	if (ret) {
-		log_warn("cannot leave VT %p", vt);
+		log_warn("cannot leave VT %d to VT %d (%d): %m", vt->real_num,
+			 vt->real_saved_num, errno);
 		return -EFAULT;
 	}
 
-	log_debug("leaving VT %p on demand", vt);
+	log_debug("leaving VT %d on demand to VT %d", vt->real_num,
+		  vt->real_saved_num);
 	return -EINPROGRESS;
 }
 
@@ -400,7 +467,7 @@ static int real_deactivate(struct uterm_vt *vt)
  * TODO: Replace this with a proper multi-seat-capable fake-VT mechanism.
  */
 
-static void fake_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
+static void fake_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	if (info->ssi_code != SI_USER)
 		return;
@@ -409,7 +476,7 @@ static void fake_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	vt_call(vt, UTERM_VT_ACTIVATE);
 }
 
-static void fake_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
+static void fake_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	if (info->ssi_code != SI_USER)
 		return;
@@ -430,14 +497,6 @@ static int fake_deactivate(struct uterm_vt *vt)
 	log_debug("deactivating fake VT due to user request");
 	vt_call(vt, UTERM_VT_DEACTIVATE);
 	return 0;
-}
-
-static bool check_vt_support(void)
-{
-	if (!access("/dev/tty0", F_OK))
-		return true;
-	else
-		return false;
 }
 
 static void vt_input(struct uterm_input *input,
@@ -465,9 +524,9 @@ static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	struct uterm_vt *vt = data;
 
 	if (vt->mode == UTERM_VT_REAL)
-		real_enter(vt, info);
+		real_sig_enter(vt, info);
 	else if (vt->mode == UTERM_VT_FAKE)
-		fake_enter(vt, info);
+		fake_sig_enter(vt, info);
 }
 
 static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -476,9 +535,9 @@ static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 	struct uterm_vt *vt = data;
 
 	if (vt->mode == UTERM_VT_REAL)
-		real_leave(vt, info);
+		real_sig_leave(vt, info);
 	else if (vt->mode == UTERM_VT_FAKE)
-		fake_leave(vt, info);
+		fake_sig_leave(vt, info);
 }
 
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
@@ -550,19 +609,14 @@ err_free:
 
 void uterm_vt_deallocate(struct uterm_vt *vt)
 {
-	unsigned int mode;
-
-	if (!vt || !vt->vtm || vt->mode == UTERM_VT_DEAD)
+	if (!vt || !vt->vtm)
 		return;
 
-	mode = vt->mode;
-	vt->mode = UTERM_VT_DEAD;
-
-	if (mode == UTERM_VT_REAL) {
+	if (vt->mode == UTERM_VT_REAL)
 		real_close(vt);
-	} else if (mode == UTERM_VT_FAKE) {
+	else if (vt->mode == UTERM_VT_FAKE)
 		vt_call(vt, UTERM_VT_DEACTIVATE);
-	}
+
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
 	shl_dlist_unlink(&vt->list);
@@ -626,7 +680,7 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 	vtm->ref = 1;
 	vtm->eloop = eloop;
 	shl_dlist_init(&vtm->vts);
-	vtm->vt_support = check_vt_support();
+	vtm->vt_support = !access("/dev/tty0", F_OK);
 
 	ev_eloop_ref(vtm->eloop);
 	*out = vtm;
@@ -641,6 +695,8 @@ void uterm_vt_master_ref(struct uterm_vt_master *vtm)
 	++vtm->ref;
 }
 
+/* Drops a reference to the VT-master. If the reference drops to 0, all
+ * allocated VTs are deallocated and the VT-master is destroyed. */
 void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;
@@ -659,6 +715,9 @@ void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 	free(vtm);
 }
 
+/* Calls uterm_vt_activate() on all allocated VTs on this master. Returns
+ * number of VTs that returned -EINPROGRESS or a negative error code on failure.
+ * See uterm_vt_activate() for information. */
 int uterm_vt_master_activate_all(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;
@@ -684,6 +743,9 @@ int uterm_vt_master_activate_all(struct uterm_vt_master *vtm)
 	return res;
 }
 
+/* Calls uterm_vt_deactivate() on all allocated VTs on this master. Returns
+ * number of VTs that returned -EINPROGRESS or a negative error code on failure.
+ * See uterm_vt_deactivate() for information. */
 int uterm_vt_master_deactivate_all(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;
