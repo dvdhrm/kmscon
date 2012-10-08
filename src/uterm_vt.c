@@ -45,6 +45,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "vt"
@@ -492,23 +493,50 @@ static int fake_deactivate(struct uterm_vt *vt)
 	return 0;
 }
 
+static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
+{
+	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_LOGO_MASK) &&
+	    ev->keysym == XKB_KEY_F12) {
+		if (vt->active) {
+			log_debug("deactivating fake VT due to user input");
+			vt_call(vt, UTERM_VT_DEACTIVATE);
+		} else {
+			log_debug("activating fake VT due to user input");
+			vt_call(vt, UTERM_VT_ACTIVATE);
+		}
+	}
+}
+
+/*
+ * Generic VT handling layer
+ * VTs are a historical concept. Technically, they actually are a VT102
+ * compatible terminal emulator, but with the invention of X11 and other
+ * graphics servers, VTs were mainly used to control which application is
+ * currently active.
+ * If an application is "active" it is allowed to read keyboard/mouse/etc input
+ * and access the output devices (like displays/monitors). If an application is
+ * not active (that is, inactive) it should not access these devices at all and
+ * leave them for other VTs so they can access them.
+ *
+ * The kernel VTs have a horrible API and thus should be avoided whenever
+ * possible. We provide a layer for this VT as "real_*" VTs here. If those are
+ * not available, we also provide a layer for "fake_*" VTs. See their
+ * description for more information.
+ *
+ * If you allocate a new VT with this API, it automatically chooses the right
+ * implementation for you. So you are notified whenever your VT becomes active
+ * and when it becomes inactive. You do not have to care for any other VT
+ * handling.
+ */
+
 static void vt_input(struct uterm_input *input,
 		     struct uterm_input_event *ev,
 		     void *data)
 {
 	struct uterm_vt *vt = data;
 
-	if (UTERM_INPUT_HAS_MODS(ev, UTERM_LOGO_MASK | UTERM_CONTROL_MASK)) {
-		if (ev->keysym == XKB_KEY_F12) {
-			if (vt->active) {
-				log_debug("deactivating fake VT due to user input");
-				vt_call(vt, UTERM_VT_DEACTIVATE);
-			} else {
-				log_debug("activating fake VT due to user input");
-				vt_call(vt, UTERM_VT_ACTIVATE);
-			}
-		}
-	}
+	if (vt->mode == UTERM_VT_FAKE)
+		fake_input(vt, ev);
 }
 
 static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -553,6 +581,7 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	vt->vtm = vtm;
 	vt->cb = cb;
 	vt->data = data;
+	vt->input = input;
 
 	vt->real_fd = -1;
 	vt->real_num = -1;
@@ -566,27 +595,27 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	if (ret)
 		goto err_sig1;
 
+	ret = uterm_input_register_cb(vt->input, vt_input, vt);
+	if (ret)
+		goto err_sig2;
+
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
 		vt->mode = UTERM_VT_REAL;
 		ret = real_open(vt, vt_for_seat0);
 		if (ret)
-			goto err_sig2;
+			goto err_input;
 	} else {
 		vt->mode = UTERM_VT_FAKE;
-		vt->input = input;
-
-		ret = uterm_input_register_cb(vt->input, vt_input, vt);
-		if (ret)
-			goto err_sig2;
-
-		uterm_input_ref(vt->input);
-		uterm_input_wake_up(vt->input);
 	}
 
+	uterm_input_ref(vt->input);
+	uterm_input_wake_up(vt->input);
 	shl_dlist_link(&vtm->vts, &vt->list);
 	*out = vt;
 	return 0;
 
+err_input:
+	uterm_input_unregister_cb(vt->input, vt_input, vt);
 err_sig2:
 	ev_eloop_unregister_signal_cb(vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 err_sig1:
