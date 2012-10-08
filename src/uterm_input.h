@@ -57,20 +57,6 @@ struct kbd_dev_ops {
 			struct uterm_input_event *out);
 };
 
-struct plain_desc {
-	int unused;
-};
-
-struct plain_dev {
-	unsigned int mods;
-};
-
-static const bool plain_available = true;
-extern const struct kbd_desc_ops plain_desc_ops;
-extern const struct kbd_dev_ops plain_dev_ops;
-
-extern int plain_string_to_keysym(const char *n, uint32_t *out);
-
 struct uxkb_desc {
 	struct xkb_context *ctx;
 	struct xkb_keymap *keymap;
@@ -91,7 +77,6 @@ struct kbd_desc {
 	const struct kbd_desc_ops *ops;
 
 	union {
-		struct plain_desc plain;
 		struct uxkb_desc uxkb;
 	};
 };
@@ -102,13 +87,11 @@ struct kbd_dev {
 	const struct kbd_dev_ops *ops;
 
 	union {
-		struct plain_dev plain;
 		struct uxkb_dev uxkb;
 	};
 };
 
 enum kbd_mode {
-	KBD_PLAIN,
 	KBD_UXKB,
 };
 
@@ -125,13 +108,6 @@ static inline int kbd_desc_new(struct kbd_desc **out, const char *layout,
 			return -EOPNOTSUPP;
 		}
 		ops = &uxkb_desc_ops;
-		break;
-	case KBD_PLAIN:
-		if (!plain_available) {
-			log_error("plain KBD backend not available");
-			return -EOPNOTSUPP;
-		}
-		ops = &plain_desc_ops;
 		break;
 	default:
 		log_error("unknown KBD backend %u", mode);

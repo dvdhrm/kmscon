@@ -262,18 +262,8 @@ int uterm_input_new(struct uterm_input **out,
 			   variant,
 			   options,
 			   KBD_UXKB);
-	if (ret == -EOPNOTSUPP) {
-		log_info("XKB keyboard backend not available, trying plain backend");
-		ret = kbd_desc_new(&input->desc,
-				   layout,
-				   variant,
-				   options,
-				   KBD_PLAIN);
-		if (ret)
-			goto err_hook;
-	} else if (ret) {
+	if (ret)
 		goto err_hook;
-	}
 
 	log_debug("new object %p", input);
 	ev_eloop_ref(input->eloop);

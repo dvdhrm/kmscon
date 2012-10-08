@@ -188,7 +188,6 @@ libuterm_la_SOURCES = \
 	src/uterm_vt.c \
 	src/uterm_input.c \
 	src/uterm_input_uxkb.c \
-	src/uterm_input_plain.c \
 	external/imKStoUCS.h \
 	external/imKStoUCS.c
 nodist_libuterm_la_SOURCES =
