@@ -460,30 +460,23 @@ static int real_deactivate(struct uterm_vt *vt)
  * For systems without CONFIG_VT or for all seats that have no real VTs (which
  * is all seats except seat0), we support a fake-VT mechanism. This machanism is
  * only used for debugging and should not be used in production.
- * The Fake-VT reacts on SIGUSR1 and SIGUSR2 similar to the real-vt and
- * activates or deactivates the VT. However, this is a global mechanism as all
- * fake VTs listen to the same signals. Therefore, this is not really multi-seat
- * safe.
- * TODO: Replace this with a proper multi-seat-capable fake-VT mechanism.
+ *
+ * Fake-VTs react on a key-press and activate themselves if not active. If they
+ * are already active, they deactivate themself. To switch from one fake-VT to
+ * another, you first need to deactivate the current fake-VT and then activate
+ * the new fake-VT. This also means that you must use different hotkeys for each
+ * fake-VT.
+ * This is a very fragile infrastructure and should only be used for debugging.
+ *
+ * To avoid this bad situation, you simply activate a fake-VT during startup
+ * with uterm_vt_activate() and then do not use the hotkeys at all. This assumes
+ * that the fake-VT is the only application on this seat.
+ *
+ * If you use multiple fake-VTs on a seat without real-VTs, you should really
+ * use some other daemon that handles VT-switches. Otherwise, there is no sane
+ * way to communicate this between the fake-VTs. So please use fake-VTs only for
+ * debugging or if they are the only session on their seat.
  */
-
-static void fake_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
-{
-	if (info->ssi_code != SI_USER)
-		return;
-
-	log_debug("activating fake VT due to SIGUSR1");
-	vt_call(vt, UTERM_VT_ACTIVATE);
-}
-
-static void fake_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
-{
-	if (info->ssi_code != SI_USER)
-		return;
-
-	log_debug("deactivating fake VT due to SIGUSR2");
-	vt_call(vt, UTERM_VT_DEACTIVATE);
-}
 
 static int fake_activate(struct uterm_vt *vt)
 {
@@ -525,8 +518,6 @@ static void vt_sigusr1(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 	if (vt->mode == UTERM_VT_REAL)
 		real_sig_enter(vt, info);
-	else if (vt->mode == UTERM_VT_FAKE)
-		fake_sig_enter(vt, info);
 }
 
 static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -536,8 +527,6 @@ static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 	if (vt->mode == UTERM_VT_REAL)
 		real_sig_leave(vt, info);
-	else if (vt->mode == UTERM_VT_FAKE)
-		fake_sig_leave(vt, info);
 }
 
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
