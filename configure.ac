@@ -474,7 +474,7 @@ AM_CONDITIONAL([BUILD_ENABLE_DUMB], [test x$dumb_enabled = xyes])
 AM_CONDITIONAL([BUILD_ENABLE_DRM], [test x$drm_enabled = xyes])
 AM_CONDITIONAL([BUILD_ENABLE_GLES2], [test x$gles2_enabled = xyes])
 
-# check for gbm_bo_get_stride() function, otherwise gbm_bo_get_pitch() is used
+# check for gbm_bo_get_pitch() function, otherwise gbm_bo_get_stride() is used
 if test x$have_gbm = xyes ; then
         save_CFLAGS="$CFLAGS"
         save_LIBS="$LIBS"
@@ -483,10 +483,10 @@ if test x$have_gbm = xyes ; then
         LIBS="$DRM_LIBS $GBM_LIBS"
         LDFLAGS=""
         AC_CHECK_LIB([gbm],
-                     [gbm_bo_get_stride],
-                     [AC_DEFINE([BUILD_HAVE_GBM_BO_GET_STRIDE],
+                     [gbm_bo_get_pitch],
+                     [AC_DEFINE([BUILD_HAVE_GBM_BO_GET_PITCH],
                                 [1],
-                                [Define to 1 if your libgbm provides gbm_bo_get_stride])])
+                                [Define to 1 if your libgbm provides gbm_bo_get_pitch])])
         CFLAGS="$save_CFLAGS"
         LIBS="$save_LIBS"
         LDFLAGS="$save_LDFLAGS"

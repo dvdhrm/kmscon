@@ -82,10 +82,10 @@ static int init_rb(struct uterm_display *disp, struct drm_rb *rb)
 		return -EFAULT;
 	}
 
-#ifdef BUILD_HAVE_GBM_BO_GET_STRIDE
-	stride = gbm_bo_get_stride(rb->bo);
-#else
+#ifdef BUILD_HAVE_GBM_BO_GET_PITCH
 	stride = gbm_bo_get_pitch(rb->bo);
+#else
+	stride = gbm_bo_get_stride(rb->bo);
 #endif
 	handle = gbm_bo_get_handle(rb->bo).u32;
 
