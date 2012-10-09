@@ -46,6 +46,9 @@ struct uterm_input_dev {
 	char *node;
 	struct ev_fd *fd;
 	struct xkb_state *state;
+
+	struct uterm_input_event event;
+	unsigned int num_syms;
 };
 
 struct uterm_input {
@@ -75,8 +78,7 @@ int uxkb_dev_init(struct uterm_input_dev *dev);
 void uxkb_dev_destroy(struct uterm_input_dev *dev);
 int uxkb_dev_process(struct uterm_input_dev *dev,
 		     uint16_t key_state,
-		     uint16_t code,
-		     struct uterm_input_event *out);
+		     uint16_t code);
 void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits);
 
 #endif /* UTERM_INPUT_H */

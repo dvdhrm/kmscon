@@ -61,17 +61,15 @@ static void notify_key(struct uterm_input_dev *dev,
 			int32_t value)
 {
 	int ret;
-	struct uterm_input_event ev;
 
 	if (type != EV_KEY)
 		return;
 
-	memset(&ev, 0, sizeof(ev));
-	ret = uxkb_dev_process(dev, value, code, &ev);
+	ret = uxkb_dev_process(dev, value, code);
 	if (ret)
 		return;
 
-	shl_hook_call(dev->input->hook, dev->input, &ev);
+	shl_hook_call(dev->input->hook, dev->input, &dev->event);
 }
 
 static void input_data_dev(struct ev_fd *fd, int mask, void *data)
@@ -179,9 +177,17 @@ static void input_new_dev(struct uterm_input *input,
 	if (!dev->node)
 		goto err_free;
 
+	dev->num_syms = 1;
+	dev->event.keysyms = malloc(sizeof(uint32_t) * dev->num_syms);
+	if (!dev->event.keysyms)
+		goto err_node;
+	dev->event.codepoints = malloc(sizeof(uint32_t) * dev->num_syms);
+	if (!dev->event.codepoints)
+		goto err_syms;
+
 	ret = uxkb_dev_init(dev);
 	if (ret)
-		goto err_node;
+		goto err_codepoints;
 
 	if (input->awake > 0) {
 		ret = input_wake_up_dev(dev);
@@ -195,6 +201,10 @@ static void input_new_dev(struct uterm_input *input,
 
 err_kbd:
 	uxkb_dev_destroy(dev);
+err_codepoints:
+	free(dev->event.codepoints);
+err_syms:
+	free(dev->event.keysyms);
 err_node:
 	free(dev->node);
 err_free:
@@ -207,6 +217,8 @@ static void input_free_dev(struct uterm_input_dev *dev)
 	input_sleep_dev(dev);
 	shl_dlist_unlink(&dev->list);
 	uxkb_dev_destroy(dev);
+	free(dev->event.codepoints);
+	free(dev->event.keysyms);
 	free(dev->node);
 	free(dev);
 }

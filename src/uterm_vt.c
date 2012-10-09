@@ -503,15 +503,15 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 
 	id = 0;
 	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_ALT_MASK) &&
-	    ev->keysym >= XKB_KEY_F1 && ev->keysym <= XKB_KEY_F12) {
+	    ev->keysyms[0] >= XKB_KEY_F1 && ev->keysyms[0] <= XKB_KEY_F12) {
 		ev->handled = true;
-		id = ev->keysym - XKB_KEY_F1 + 1;
+		id = ev->keysyms[0] - XKB_KEY_F1 + 1;
 		if (id == vt->real_num)
 			return;
-	} else if (ev->keysym >= XKB_KEY_XF86Switch_VT_1 &&
-		   ev->keysym <= XKB_KEY_XF86Switch_VT_12) {
+	} else if (ev->keysyms[0] >= XKB_KEY_XF86Switch_VT_1 &&
+		   ev->keysyms[0] <= XKB_KEY_XF86Switch_VT_12) {
 		ev->handled = true;
-		id = ev->keysym - XKB_KEY_XF86Switch_VT_1 + 1;
+		id = ev->keysyms[0] - XKB_KEY_XF86Switch_VT_1 + 1;
 		if (id == vt->real_num)
 			return;
 	}
@@ -577,7 +577,7 @@ static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 		return;
 
 	if (SHL_HAS_BITS(ev->mods, SHL_CONTROL_MASK | SHL_LOGO_MASK) &&
-	    ev->keysym == XKB_KEY_F12) {
+	    ev->keysyms[0] == XKB_KEY_F12) {
 		ev->handled = true;
 		if (vt->active) {
 			log_debug("deactivating fake VT due to user input");

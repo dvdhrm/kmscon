@@ -359,36 +359,42 @@ static void input_event(struct uterm_input *input,
 		return;
 
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_up->mods) &&
-	    ev->keysym == kmscon_conf.grab_scroll_up->keysym) {
+	    ev->keysyms[0] == kmscon_conf.grab_scroll_up->keysym) {
 		tsm_screen_sb_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_down->mods) &&
-	    ev->keysym == kmscon_conf.grab_scroll_down->keysym) {
+	    ev->keysyms[0] == kmscon_conf.grab_scroll_down->keysym) {
 		tsm_screen_sb_down(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_up->mods) &&
-	    ev->keysym == kmscon_conf.grab_page_up->keysym) {
+	    ev->keysyms[0] == kmscon_conf.grab_page_up->keysym) {
 		tsm_screen_sb_page_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
 	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_down->mods) &&
-	    ev->keysym == kmscon_conf.grab_page_down->keysym) {
+	    ev->keysyms[0] == kmscon_conf.grab_page_down->keysym) {
 		tsm_screen_sb_page_down(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
 
-	if (tsm_vte_handle_keyboard(term->vte, ev->keysym, ev->mods,
-				       ev->unicode)) {
+	/* TODO: xkbcommon supports multiple keysyms, but it is currently
+	 * unclear how this feature will be used. There is no keymap, which
+	 * uses this, yet. */
+	if (ev->num_syms > 1)
+		return;
+
+	if (tsm_vte_handle_keyboard(term->vte, ev->keysyms[0], ev->mods,
+				    ev->codepoints[0])) {
 		tsm_screen_sb_reset(term->console);
 		schedule_redraw(term);
 		ev->handled = true;

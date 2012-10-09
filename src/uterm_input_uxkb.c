@@ -113,15 +113,14 @@ enum {
 };
 
 int uxkb_dev_process(struct uterm_input_dev *dev,
-		     uint16_t key_state,
-		     uint16_t code,
-		     struct uterm_input_event *out)
+		     uint16_t key_state, uint16_t code)
 {
 	struct xkb_state *state;
 	struct xkb_keymap *keymap;
 	xkb_keycode_t keycode;
 	const xkb_keysym_t *keysyms;
-	int num_keysyms;
+	int num_keysyms, i;
+	uint32_t *tmp;
 
 	state = dev->state;
 	keymap = xkb_state_get_map(state);
@@ -143,15 +142,37 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	if (num_keysyms <= 0)
 		return -ENOKEY;
 
-	/*
-	 * TODO: xkbcommon actually supports multiple keysyms
-	 * per key press. Here we're just using the first one,
-	 * but we might want to support this feature.
-	 */
-	out->keycode = code;
-	out->keysym = keysyms[0];
-	out->mods = shl_get_xkb_mods(state);
-	out->unicode = xkb_keysym_to_utf32(out->keysym) ? : UTERM_INPUT_INVALID;
+	if (dev->num_syms < num_keysyms) {
+		tmp = realloc(dev->event.keysyms,
+			      sizeof(uint32_t) * num_keysyms);
+		if (!tmp) {
+			log_warning("cannot reallocate keysym buffer");
+			return -ENOKEY;
+		}
+		dev->event.keysyms = tmp;
+
+		tmp = realloc(dev->event.codepoints,
+			      sizeof(uint32_t) * num_keysyms);
+		if (!tmp) {
+			log_warning("cannot reallocate codepoints buffer");
+			return -ENOKEY;
+		}
+		dev->event.codepoints = tmp;
+
+		dev->num_syms = num_keysyms;
+	}
+
+	dev->event.handled = false;
+	dev->event.keycode = code;
+	dev->event.mods = shl_get_xkb_mods(state);
+	dev->event.num_syms = num_keysyms;
+	memcpy(dev->event.keysyms, keysyms, sizeof(uint32_t) * num_keysyms);
+
+	for (i = 0; i < num_keysyms; ++i) {
+		dev->event.codepoints[i] = xkb_keysym_to_utf32(keysyms[i]);
+		if (!dev->event.codepoints[i])
+			dev->event.codepoints[i] = UTERM_INPUT_INVALID;
+	}
 
 	return 0;
 }

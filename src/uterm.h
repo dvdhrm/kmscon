@@ -269,11 +269,13 @@ enum uterm_input_modifier {
 #define UTERM_INPUT_INVALID 0xffffffff
 
 struct uterm_input_event {
-	bool handled;
+	bool handled;		/* user-controlled, default is false */
 	uint16_t keycode;	/* linux keycode - KEY_* - linux/input.h */
-	uint32_t keysym;	/* X keysym - XKB_KEY_* - X11/keysym.h */
 	unsigned int mods;	/* active modifiers - uterm_modifier mask */
-	uint32_t unicode;	/* ucs4 unicode value or UTERM_INPUT_INVALID */
+
+	unsigned int num_syms;	/* number of keysyms */
+	uint32_t *keysyms;	/* XKB-common keysym-array - XKB_KEY_* */
+	uint32_t *codepoints;	/* ucs4 unicode value or UTERM_INPUT_INVALID */
 };
 
 #define UTERM_INPUT_HAS_MODS(_ev, _mods) (((_ev)->mods & (_mods)) == (_mods))
