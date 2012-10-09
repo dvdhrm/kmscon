@@ -35,11 +35,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "eloop.h"
+#include "kmscon_main.h"
+#include "kmscon_terminal.h"
 #include "log.h"
-#include "main.h"
 #include "pty.h"
 #include "shl_dlist.h"
-#include "terminal.h"
 #include "text.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"

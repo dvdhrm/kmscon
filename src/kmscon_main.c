@@ -33,12 +33,12 @@
 #include <sys/signalfd.h>
 #include "conf.h"
 #include "eloop.h"
+#include "kmscon_main.h"
+#include "kmscon_ui.h"
 #include "log.h"
-#include "main.h"
 #include "shl_dlist.h"
 #include "shl_misc.h"
 #include "text.h"
-#include "ui.h"
 #include "uterm.h"
 
 struct kmscon_app {

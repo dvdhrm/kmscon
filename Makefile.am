@@ -357,11 +357,8 @@ libkmscon_core_la_SOURCES = \
 	$(SHL_TIMER) \
 	$(SHL_HOOK) \
 	$(SHL_MISC) \
-	src/main.h \
 	src/conf.c src/conf.h \
-	src/ui.c src/ui.h \
 	src/log.c src/log.h \
-	src/terminal.c src/terminal.h \
 	src/pty.c src/pty.h \
 	src/text.h \
 	src/text.c
@@ -419,7 +416,12 @@ endif
 kmscon_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_MISC) \
-	src/main.c
+	src/kmscon_terminal.h \
+	src/kmscon_terminal.c \
+	src/kmscon_ui.h \
+	src/kmscon_ui.c \
+	src/kmscon_main.h \
+	src/kmscon_main.c
 kmscon_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS)

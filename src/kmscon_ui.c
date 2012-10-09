@@ -32,10 +32,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "eloop.h"
+#include "kmscon_terminal.h"
+#include "kmscon_ui.h"
 #include "log.h"
 #include "shl_dlist.h"
-#include "terminal.h"
-#include "ui.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "ui"
