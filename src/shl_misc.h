@@ -61,6 +61,22 @@ static inline int shl_strtou(const char *input, unsigned int *output)
 	return 0;
 }
 
+static inline int shl_dup(void **out, const void *data, size_t size)
+{
+	void *cpy;
+
+	if (!data || !size)
+		return -EINVAL;
+
+	cpy = malloc(size);
+	if (!cpy)
+		return -ENOMEM;
+
+	memcpy(cpy, data, size);
+	*out = cpy;
+	return 0;
+}
+
 /* TODO: xkbcommon should provide these flags!
  * We currently copy them into each library API we use so we need  to keep
  * them in sync. Currently, they're used in uterm-input and tsm-vte. */
