@@ -499,10 +499,7 @@ fi
 # properly.
 #
 
-xkbcommon_enabled=no
-if test ! x$have_xkbcommon = xno ; then
-        xkbcommon_enabled=yes
-else
+if test x$have_xkbcommon = xno ; then
         AC_ERROR([xkbcommon not found for keyboard backend])
 fi
 
@@ -699,7 +696,6 @@ AC_MSG_NOTICE([Build configuration:
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
 	         dbus: $dbus_enabled
-	    xkbcommon: $xkbcommon_enabled
 
   libuterm video backends:
 	        fbdev: $fbdev_enabled
