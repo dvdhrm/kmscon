@@ -115,6 +115,7 @@ typedef void (*wlt_widget_pointer_button_cb) (struct wlt_widget *widget,
 typedef bool (*wlt_widget_keyboard_cb) (struct wlt_widget *widget,
 					unsigned int mods,
 					uint32_t key,
+					uint32_t ascii,
 					uint32_t state,
 					bool handled,
 					void *data);

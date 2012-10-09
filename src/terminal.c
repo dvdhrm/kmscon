@@ -393,8 +393,8 @@ static void input_event(struct uterm_input *input,
 	if (ev->num_syms > 1)
 		return;
 
-	if (tsm_vte_handle_keyboard(term->vte, ev->keysyms[0], ev->mods,
-				    ev->codepoints[0])) {
+	if (tsm_vte_handle_keyboard(term->vte, ev->keysyms[0], ev->ascii,
+				    ev->mods, ev->codepoints[0])) {
 		tsm_screen_sb_reset(term->console);
 		schedule_redraw(term);
 		ev->handled = true;

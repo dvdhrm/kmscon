@@ -101,6 +101,7 @@ struct wlt_display {
 	struct wlt_window *keyboard_focus;
 	struct ev_timer *repeat_timer;
 	uint32_t repeat_sym;
+	uint32_t repeat_ascii;
 
 	struct wl_data_device_manager *w_manager;
 	struct wl_data_device *w_data_dev;
@@ -639,7 +640,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 {
 	struct wlt_display *disp = data;
 	struct wlt_window *wnd = disp->keyboard_focus;
-	uint32_t code, num_syms;
+	uint32_t code, num_syms, ascii;
 	unsigned int mask;
 	enum wl_keyboard_key_state state = state_w;
 	const xkb_keysym_t *syms;
@@ -659,6 +660,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 
 	mask = shl_get_xkb_mods(disp->xkb_state);
 	num_syms = xkb_key_get_syms(disp->xkb_state, code, &syms);
+	ascii = shl_get_ascii(disp->xkb_state, code, syms, num_syms);
 	sym = XKB_KEY_NoSymbol;
 	if (num_syms == 1)
 		sym = syms[0];
@@ -667,7 +669,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 	shl_dlist_for_each(iter, &wnd->widget_list) {
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->keyboard_cb) {
-			if (widget->keyboard_cb(widget, mask, sym, state,
+			if (widget->keyboard_cb(widget, mask, sym, ascii, state,
 						handled, widget->data))
 				handled = true;
 		}
@@ -678,6 +680,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 		ev_timer_update(disp->repeat_timer, NULL);
 	} else if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		disp->repeat_sym = sym;
+		disp->repeat_ascii = ascii;
 		spec.it_interval.tv_sec = 0;
 		spec.it_interval.tv_nsec = wlt_conf.xkb_repeat_rate * 1000000;
 		spec.it_value.tv_sec = 0;
@@ -704,6 +707,7 @@ static void repeat_event(struct ev_timer *timer, uint64_t num, void *data)
 		widget = shl_dlist_entry(iter, struct wlt_widget, list);
 		if (widget->keyboard_cb) {
 			if (widget->keyboard_cb(widget, mask, disp->repeat_sym,
+						disp->repeat_ascii,
 						WL_KEYBOARD_KEY_STATE_PRESSED,
 						handled, widget->data))
 				handled = true;

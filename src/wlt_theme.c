@@ -531,7 +531,8 @@ static void widget_pointer_button(struct wlt_widget *widget,
 }
 
 static bool widget_key(struct wlt_widget *widget, unsigned int mask,
-		       uint32_t sym, uint32_t state, bool handled, void *data)
+		       uint32_t sym, uint32_t ascii, uint32_t state,
+		       bool handled, void *data)
 {
 	struct wlt_theme *theme = data;
 

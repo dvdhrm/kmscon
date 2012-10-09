@@ -398,7 +398,8 @@ static const struct wl_data_source_listener copy_listener = {
 };
 
 static bool widget_key(struct wlt_widget *widget, unsigned int mask,
-		       uint32_t sym, uint32_t state, bool handled, void *data)
+		       uint32_t sym, uint32_t ascii, uint32_t state,
+		       bool handled, void *data)
 {
 	struct wlt_terminal *term = data;
 	uint32_t ucs4;
@@ -536,7 +537,7 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		return true;
 	}
 
-	if (tsm_vte_handle_keyboard(term->vte, sym, mask, ucs4)) {
+	if (tsm_vte_handle_keyboard(term->vte, sym, ascii, mask, ucs4)) {
 		tsm_screen_sb_reset(term->scr);
 		wlt_window_schedule_redraw(term->wnd);
 		return true;

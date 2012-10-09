@@ -271,6 +271,7 @@ enum uterm_input_modifier {
 struct uterm_input_event {
 	bool handled;		/* user-controlled, default is false */
 	uint16_t keycode;	/* linux keycode - KEY_* - linux/input.h */
+	uint32_t ascii;		/* ascii keysym for @keycode */
 	unsigned int mods;	/* active modifiers - uterm_modifier mask */
 
 	unsigned int num_syms;	/* number of keysyms */

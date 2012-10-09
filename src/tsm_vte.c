@@ -2152,10 +2152,12 @@ void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
 }
 
 bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
-			     unsigned int mods, uint32_t unicode)
+			     uint32_t ascii, unsigned int mods,
+			     uint32_t unicode)
 {
 	char val, u8[4];
 	size_t len;
+	uint32_t sym;
 
 	/* MOD1 (mostly labeled 'Alt') prepends an escape character to every
 	 * input that is sent by a key.
@@ -2167,8 +2169,22 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 	if (mods & TSM_ALT_MASK)
 		vte->flags |= FLAG_PREPEND_ESCAPE;
 
+	/* A user might actually use multiple layouts for keyboard input. The
+	 * @keysym variable contains the actual keysym that the user used. But
+	 * if this keysym is not in the ascii range, the input handler does
+	 * check all other layouts that the user specified whether one of them
+	 * maps the key to some ASCII keysym and provides this via @ascii.
+	 * We always use the real keysym except when handling CTRL+<XY>
+	 * shortcuts we use the ascii keysym. This is for compatibility to xterm
+	 * et. al. so ctrl+c always works regardless of the currently active
+	 * keyboard layout.
+	 * But if no ascii-sym is found, we still use the real keysym. */
+	sym = ascii;
+	if (sym == XKB_KEY_NoSymbol)
+		sym = keysym;
+
 	if (mods & TSM_CONTROL_MASK) {
-		switch (keysym) {
+		switch (sym) {
 		case XKB_KEY_2:
 		case XKB_KEY_space:
 			vte_write(vte, "\x00", 1);

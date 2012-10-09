@@ -95,4 +95,35 @@ static inline unsigned int shl_get_xkb_mods(struct xkb_state *state)
 	return mods;
 }
 
+static inline uint32_t shl_get_ascii(struct xkb_state *state, uint32_t keycode,
+				     const uint32_t *keysyms,
+				     unsigned int num_keysyms)
+{
+	struct xkb_keymap *keymap;
+	xkb_layout_index_t num_layouts;
+	xkb_layout_index_t layout;
+	xkb_level_index_t level;
+	const xkb_keysym_t *syms;
+	int num_syms;
+
+	if (num_keysyms == 1 && keysyms[0] < 128)
+		return keysyms[0];
+
+	keymap = xkb_state_get_map(state);
+	num_layouts = xkb_keymap_num_layouts_for_key(keymap, keycode);
+
+	for (layout = 0; layout < num_layouts; layout++) {
+		level = xkb_state_key_get_level(state, keycode, layout);
+		num_syms = xkb_keymap_key_get_syms_by_level(keymap, keycode,
+							layout, level, &syms);
+		if (num_syms != 1)
+			continue;
+
+		if (syms[0] < 128)
+			return syms[0];
+	}
+
+	return XKB_KEY_NoSymbol;
+}
+
 #endif /* SHL_MISC_H */
