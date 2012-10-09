@@ -202,7 +202,7 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 
 	dev->event.handled = false;
 	dev->event.keycode = code;
-	dev->event.ascii = shl_get_ascii(state, code, keysyms, num_keysyms);
+	dev->event.ascii = shl_get_ascii(state, keycode, keysyms, num_keysyms);
 	dev->event.mods = shl_get_xkb_mods(state);
 	dev->event.num_syms = num_keysyms;
 	memcpy(dev->event.keysyms, keysyms, sizeof(uint32_t) * num_keysyms);
