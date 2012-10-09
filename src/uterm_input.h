@@ -47,8 +47,13 @@ struct uterm_input_dev {
 	struct ev_fd *fd;
 	struct xkb_state *state;
 
-	struct uterm_input_event event;
 	unsigned int num_syms;
+	struct uterm_input_event event;
+	struct uterm_input_event repeat_event;
+
+	unsigned int repeat_rate;
+	unsigned int repeat_delay;
+	struct ev_timer *repeat_timer;
 };
 
 struct uterm_input {

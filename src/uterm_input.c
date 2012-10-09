@@ -60,16 +60,10 @@ static void notify_key(struct uterm_input_dev *dev,
 			uint16_t code,
 			int32_t value)
 {
-	int ret;
-
 	if (type != EV_KEY)
 		return;
 
-	ret = uxkb_dev_process(dev, value, code);
-	if (ret)
-		return;
-
-	shl_hook_call(dev->input->hook, dev->input, &dev->event);
+	uxkb_dev_process(dev, value, code);
 }
 
 static void input_data_dev(struct ev_fd *fd, int mask, void *data)
@@ -172,6 +166,8 @@ static void input_new_dev(struct uterm_input *input,
 	dev->input = input;
 	dev->rfd = -1;
 	dev->features = features;
+	dev->repeat_rate = 25;
+	dev->repeat_delay = 250;
 
 	dev->node = strdup(node);
 	if (!dev->node)
@@ -184,10 +180,16 @@ static void input_new_dev(struct uterm_input *input,
 	dev->event.codepoints = malloc(sizeof(uint32_t) * dev->num_syms);
 	if (!dev->event.codepoints)
 		goto err_syms;
+	dev->repeat_event.keysyms = malloc(sizeof(uint32_t) * dev->num_syms);
+	if (!dev->repeat_event.keysyms)
+		goto err_codepoints;
+	dev->repeat_event.codepoints = malloc(sizeof(uint32_t) * dev->num_syms);
+	if (!dev->repeat_event.codepoints)
+		goto err_rsyms;
 
 	ret = uxkb_dev_init(dev);
 	if (ret)
-		goto err_codepoints;
+		goto err_rcodepoints;
 
 	if (input->awake > 0) {
 		ret = input_wake_up_dev(dev);
@@ -201,6 +203,10 @@ static void input_new_dev(struct uterm_input *input,
 
 err_kbd:
 	uxkb_dev_destroy(dev);
+err_rcodepoints:
+	free(dev->repeat_event.codepoints);
+err_rsyms:
+	free(dev->repeat_event.keysyms);
 err_codepoints:
 	free(dev->event.codepoints);
 err_syms:
@@ -217,6 +223,8 @@ static void input_free_dev(struct uterm_input_dev *dev)
 	input_sleep_dev(dev);
 	shl_dlist_unlink(&dev->list);
 	uxkb_dev_destroy(dev);
+	free(dev->repeat_event.codepoints);
+	free(dev->repeat_event.keysyms);
 	free(dev->event.codepoints);
 	free(dev->event.keysyms);
 	free(dev->node);

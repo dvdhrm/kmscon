@@ -32,6 +32,7 @@
 #include <string.h>
 #include <xkbcommon/xkbcommon.h>
 #include "log.h"
+#include "shl_hook.h"
 #include "shl_misc.h"
 #include "uterm.h"
 #include "uterm_input.h"
@@ -91,18 +92,41 @@ void uxkb_desc_destroy(struct uterm_input *input)
 	xkb_context_unref(input->ctx);
 }
 
+static void timer_event(struct ev_timer *timer, uint64_t num, void *data)
+{
+	struct uterm_input_dev *dev = data;
+
+	dev->repeat_event.handled = false;
+	shl_hook_call(dev->input->hook, dev->input, &dev->repeat_event);
+}
+
 int uxkb_dev_init(struct uterm_input_dev *dev)
 {
+	int ret;
+
+	ret = ev_eloop_new_timer(dev->input->eloop, &dev->repeat_timer, NULL,
+				 timer_event, dev);
+	if (ret)
+		return ret;
+
 	dev->state = xkb_state_new(dev->input->keymap);
-	if (!dev->state)
-		return -ENOMEM;
+	if (!dev->state) {
+		log_error("cannot create XKB state");
+		ret = -ENOMEM;
+		goto err_timer;
+	}
 
 	return 0;
+
+err_timer:
+	ev_eloop_rm_timer(dev->repeat_timer);
+	return ret;
 }
 
 void uxkb_dev_destroy(struct uterm_input_dev *dev)
 {
 	xkb_state_unref(dev->state);
+	ev_eloop_rm_timer(dev->repeat_timer);
 }
 
 #define EVDEV_KEYCODE_OFFSET 8
@@ -121,6 +145,10 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	const xkb_keysym_t *keysyms;
 	int num_keysyms, i;
 	uint32_t *tmp;
+	struct itimerspec spec;
+
+	if (key_state == KEY_REPEATED)
+		return -ENOKEY;
 
 	state = dev->state;
 	keymap = xkb_state_get_map(state);
@@ -132,12 +160,6 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 	else if (key_state == KEY_RELEASED)
 		xkb_state_update_key(state, keycode, XKB_KEY_UP);
-
-	if (key_state == KEY_RELEASED)
-		return -ENOKEY;
-
-	if (key_state == KEY_REPEATED && !xkb_key_repeats(keymap, keycode))
-		return -ENOKEY;
 
 	if (num_keysyms <= 0)
 		return -ENOKEY;
@@ -159,6 +181,22 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 		}
 		dev->event.codepoints = tmp;
 
+		tmp = realloc(dev->repeat_event.keysyms,
+			      sizeof(uint32_t) * num_keysyms);
+		if (!tmp) {
+			log_warning("cannot reallocate keysym buffer");
+			return -ENOKEY;
+		}
+		dev->repeat_event.keysyms = tmp;
+
+		tmp = realloc(dev->repeat_event.codepoints,
+			      sizeof(uint32_t) * num_keysyms);
+		if (!tmp) {
+			log_warning("cannot reallocate codepoints buffer");
+			return -ENOKEY;
+		}
+		dev->repeat_event.codepoints = tmp;
+
 		dev->num_syms = num_keysyms;
 	}
 
@@ -174,6 +212,37 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 		if (!dev->event.codepoints[i])
 			dev->event.codepoints[i] = UTERM_INPUT_INVALID;
 	}
+
+	if (key_state == KEY_RELEASED &&
+	    dev->repeat_event.num_syms == num_keysyms &&
+	    !memcmp(dev->repeat_event.keysyms,
+	            keysyms,
+	            sizeof(uint32_t) * num_keysyms)) {
+		ev_timer_update(dev->repeat_timer, NULL);
+	} else if (key_state == KEY_PRESSED &&
+		   xkb_key_repeats(keymap, keycode)) {
+		dev->repeat_event.keycode = code;
+		dev->repeat_event.ascii = dev->event.ascii;
+		dev->repeat_event.mods = dev->event.mods;
+		dev->repeat_event.num_syms = num_keysyms;
+
+		for (i = 0; i < num_keysyms; ++i) {
+			dev->repeat_event.keysyms[i] = dev->event.keysyms[i];
+			dev->repeat_event.codepoints[i] =
+						dev->event.codepoints[i];
+		}
+
+		spec.it_interval.tv_sec = 0;
+		spec.it_interval.tv_nsec = dev->repeat_rate * 1000000;
+		spec.it_value.tv_sec = 0;
+		spec.it_value.tv_nsec = dev->repeat_delay * 1000000;
+		ev_timer_update(dev->repeat_timer, &spec);
+	}
+
+	if (key_state == KEY_RELEASED)
+		return -ENOKEY;
+
+	shl_hook_call(dev->input->hook, dev->input, &dev->event);
 
 	return 0;
 }
