@@ -51,8 +51,6 @@ struct uterm_input_dev {
 	struct uterm_input_event event;
 	struct uterm_input_event repeat_event;
 
-	unsigned int repeat_rate;
-	unsigned int repeat_delay;
 	struct ev_timer *repeat_timer;
 };
 
@@ -60,6 +58,8 @@ struct uterm_input {
 	unsigned long ref;
 	struct ev_eloop *eloop;
 	int awake;
+	unsigned int repeat_rate;
+	unsigned int repeat_delay;
 
 	struct shl_hook *hook;
 	struct xkb_context *ctx;

@@ -233,9 +233,9 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 		}
 
 		spec.it_interval.tv_sec = 0;
-		spec.it_interval.tv_nsec = dev->repeat_rate * 1000000;
+		spec.it_interval.tv_nsec = dev->input->repeat_rate * 1000000;
 		spec.it_value.tv_sec = 0;
-		spec.it_value.tv_nsec = dev->repeat_delay * 1000000;
+		spec.it_value.tv_nsec = dev->input->repeat_delay * 1000000;
 		ev_timer_update(dev->repeat_timer, &spec);
 	}
 

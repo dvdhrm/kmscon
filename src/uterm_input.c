@@ -166,8 +166,6 @@ static void input_new_dev(struct uterm_input *input,
 	dev->input = input;
 	dev->rfd = -1;
 	dev->features = features;
-	dev->repeat_rate = 25;
-	dev->repeat_delay = 250;
 
 	dev->node = strdup(node);
 	if (!dev->node)
@@ -235,7 +233,9 @@ int uterm_input_new(struct uterm_input **out,
 		    struct ev_eloop *eloop,
 		    const char *layout,
 		    const char *variant,
-		    const char *options)
+		    const char *options,
+		    unsigned int repeat_delay,
+		    unsigned int repeat_rate)
 {
 	struct uterm_input *input;
 	int ret;
@@ -243,12 +243,23 @@ int uterm_input_new(struct uterm_input **out,
 	if (!out || !eloop)
 		return -EINVAL;
 
+	if (!repeat_delay)
+		repeat_delay = 250;
+	if (repeat_delay >= 1000)
+		repeat_delay = 999;
+	if (!repeat_rate)
+		repeat_rate = 25;
+	if (repeat_rate >= 1000)
+		repeat_rate = 999;
+
 	input = malloc(sizeof(*input));
 	if (!input)
 		return -ENOMEM;
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
 	input->eloop = eloop;
+	input->repeat_delay = repeat_delay;
+	input->repeat_rate = repeat_rate;
 	shl_dlist_init(&input->devices);
 
 	ret = shl_hook_new(&input->hook);

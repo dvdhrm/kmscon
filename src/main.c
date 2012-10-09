@@ -161,7 +161,9 @@ static void seat_new(struct kmscon_app *app,
 	ret = uterm_input_new(&seat->input, app->eloop,
 			      kmscon_conf.xkb_layout,
 			      kmscon_conf.xkb_variant,
-			      kmscon_conf.xkb_options);
+			      kmscon_conf.xkb_options,
+			      kmscon_conf.xkb_repeat_delay,
+			      kmscon_conf.xkb_repeat_rate);
 	if (ret)
 		goto err_name;
 
@@ -464,9 +466,13 @@ static void print_help()
 		"\t    --render-timing         [off]   Print renderer timing information\n"
 		"\n"
 		"Input Device Options:\n"
-		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
-		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
-		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
+		"\t    --xkb-layout <layout>      [us] Set XkbLayout for input devices\n"
+		"\t    --xkb-variant <variant>    [-]  Set XkbVariant for input devices\n"
+		"\t    --xkb-options <options>    [-]  Set XkbOptions for input devices\n"
+		"\t    --xkb-repeat-delay <msecs> [250]\n"
+		"\t                                 Initial delay for key-repeat in ms\n"
+		"\t    --xkb-repeat-rate <msecs>  [25]\n"
+		"\t                                 Delay between two key-repeats in ms\n"
 		"\n"
 		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
 		"\t                                Shortcut to scroll up\n"
@@ -642,6 +648,8 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
+	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &kmscon_conf.xkb_repeat_delay, 250),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 25),
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),

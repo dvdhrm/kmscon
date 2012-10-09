@@ -61,6 +61,8 @@ struct kmscon_conf_t {
 	char *xkb_layout;
 	char *xkb_variant;
 	char *xkb_options;
+	unsigned int xkb_repeat_delay;
+	unsigned int xkb_repeat_rate;
 
 	/* TERM value */
 	char *term;
