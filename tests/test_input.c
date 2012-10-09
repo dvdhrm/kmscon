@@ -37,6 +37,7 @@ static void print_help();
 #include <sys/signalfd.h>
 #include <unistd.h>
 #include <X11/keysym.h>
+#include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
 #include "log.h"
 #include "uterm.h"
@@ -84,19 +85,19 @@ static void print_modifiers(unsigned int mods)
 }
 
 static void input_arrived(struct uterm_input *input,
-				struct uterm_input_event *ev,
-				void *data)
+			  struct uterm_input_event *ev,
+			  void *data)
 {
 	char s[32];
 
-	uterm_input_keysym_to_string(input, ev->keysym, s, sizeof(s));
+	xkb_keysym_get_name(ev->keysyms[0], s, sizeof(s));
 	printf("sym %s ", s);
-	if (ev->unicode != UTERM_INPUT_INVALID) {
+	if (ev->codepoints[0] != UTERM_INPUT_INVALID) {
 		/*
 		 * Just a proof-of-concept hack. This works because glibc uses
 		 * UTF-32 (= UCS-4) as the internal wchar_t encoding.
 		 */
-		printf("unicode %lc ", ev->unicode);
+		printf("unicode %lc ", ev->codepoints[0]);
 	}
 	print_modifiers(ev->mods);
 }
@@ -114,7 +115,8 @@ static void monitor_event(struct uterm_monitor *mon,
 		ret = uterm_input_new(&input, eloop,
 				      input_conf.xkb_layout,
 				      input_conf.xkb_variant,
-				      input_conf.xkb_options);
+				      input_conf.xkb_options,
+				      0, 0);
 		if (ret)
 			return;
 		ret = uterm_input_register_cb(input, input_arrived, NULL);
