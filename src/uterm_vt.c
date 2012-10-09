@@ -330,6 +330,12 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_setmode;
 	}
 
+	log_debug("previous VT KBMODE was %d", vt->real_kbmode);
+	if (vt->real_kbmode == K_OFF) {
+		log_warning("VT KBMODE was K_OFF, using K_UNICODE instead");
+		vt->real_kbmode = K_UNICODE;
+	}
+
 	ret = ioctl(vt->real_fd, KDSKBMODE, K_OFF);
 	if (ret) {
 		log_error("cannot set VT KBMODE to K_OFF (%d): %m", errno);
