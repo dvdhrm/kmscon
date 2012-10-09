@@ -53,28 +53,6 @@ enum device_feature {
 	FEATURE_HAS_LEDS = 0x02,
 };
 
-struct uterm_input_dev {
-	struct shl_dlist list;
-	struct uterm_input *input;
-
-	unsigned int features;
-	int rfd;
-	char *node;
-	struct ev_fd *fd;
-	struct kbd_dev *kbd;
-};
-
-struct uterm_input {
-	unsigned long ref;
-	struct ev_eloop *eloop;
-	int awake;
-
-	struct shl_hook *hook;
-	struct kbd_desc *desc;
-
-	struct shl_dlist devices;
-};
-
 static void input_free_dev(struct uterm_input_dev *dev);
 
 static void notify_key(struct uterm_input_dev *dev,
@@ -89,7 +67,7 @@ static void notify_key(struct uterm_input_dev *dev,
 		return;
 
 	memset(&ev, 0, sizeof(ev));
-	ret = kbd_dev_process(dev->kbd, value, code, &ev);
+	ret = uxkb_dev_process(dev, value, code, &ev);
 	if (ret)
 		return;
 
@@ -156,7 +134,7 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 		}
 
 		/* rediscover the keyboard state if sth changed during sleep */
-		kbd_dev_reset(dev->kbd, ledbits);
+		uxkb_dev_reset(dev, ledbits);
 
 		ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd,
 						dev->rfd, EV_READABLE,
@@ -201,7 +179,7 @@ static void input_new_dev(struct uterm_input *input,
 	if (!dev->node)
 		goto err_free;
 
-	ret = kbd_desc_alloc(input->desc, &dev->kbd);
+	ret = uxkb_dev_init(dev);
 	if (ret)
 		goto err_node;
 
@@ -216,7 +194,7 @@ static void input_new_dev(struct uterm_input *input,
 	return;
 
 err_kbd:
-	kbd_dev_unref(dev->kbd);
+	uxkb_dev_destroy(dev);
 err_node:
 	free(dev->node);
 err_free:
@@ -228,7 +206,7 @@ static void input_free_dev(struct uterm_input_dev *dev)
 	log_debug("free device %s", dev->node);
 	input_sleep_dev(dev);
 	shl_dlist_unlink(&dev->list);
-	kbd_dev_unref(dev->kbd);
+	uxkb_dev_destroy(dev);
 	free(dev->node);
 	free(dev);
 }
@@ -257,11 +235,7 @@ int uterm_input_new(struct uterm_input **out,
 	if (ret)
 		goto err_free;
 
-	ret = kbd_desc_new(&input->desc,
-			   layout,
-			   variant,
-			   options,
-			   KBD_UXKB);
+	ret = uxkb_desc_init(input, layout, variant, options);
 	if (ret)
 		goto err_hook;
 
@@ -301,7 +275,7 @@ void uterm_input_unref(struct uterm_input *input)
 		input_free_dev(dev);
 	}
 
-	kbd_desc_unref(input->desc);
+	uxkb_desc_destroy(input);
 	shl_hook_free(input->hook);
 	ev_eloop_unref(input->eloop);
 	free(input);
@@ -466,29 +440,4 @@ bool uterm_input_is_awake(struct uterm_input *input)
 		return false;
 
 	return input->awake > 0;
-}
-
-void uterm_input_keysym_to_string(struct uterm_input *input,
-				  uint32_t keysym, char *str, size_t size)
-{
-	if (!str || !size)
-		return;
-	if (!input) {
-		*str = 0;
-		return;
-	}
-
-	kbd_desc_keysym_to_string(input->desc, keysym, str, size);
-}
-
-int uterm_input_string_to_keysym(struct uterm_input *input, const char *n,
-				 uint32_t *out)
-{
-	if (!n || !out)
-		return -EINVAL;
-
-	if (input)
-		return kbd_desc_string_to_keysym(input->desc, n, out);
-
-	return uxkb_string_to_keysym(n, out);
 }

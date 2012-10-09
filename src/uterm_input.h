@@ -34,172 +34,49 @@
 #include <stdlib.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
+#include "shl_dlist.h"
 #include "uterm.h"
 
-struct kbd_desc;
-struct kbd_dev;
+struct uterm_input_dev {
+	struct shl_dlist list;
+	struct uterm_input *input;
 
-struct kbd_desc_ops {
-	int (*init) (struct kbd_desc **out, const char *layout,
-		     const char *variant, const char *options);
-	void (*ref) (struct kbd_desc *desc);
-	void (*unref) (struct kbd_desc *desc);
-	int (*alloc) (struct kbd_desc *desc, struct kbd_dev **out);
-	void (*keysym_to_string) (uint32_t keysym, char *str, size_t size);
-	int (*string_to_keysym) (const char *n, uint32_t *out);
-};
-
-struct kbd_dev_ops {
-	void (*ref) (struct kbd_dev *dev);
-	void (*unref) (struct kbd_dev *dev);
-	void (*reset) (struct kbd_dev *dev, const unsigned long *ledbits);
-	int (*process) (struct kbd_dev *dev, uint16_t state, uint16_t code,
-			struct uterm_input_event *out);
-};
-
-struct uxkb_desc {
-	struct xkb_context *ctx;
-	struct xkb_keymap *keymap;
-};
-
-struct uxkb_dev {
+	unsigned int features;
+	int rfd;
+	char *node;
+	struct ev_fd *fd;
 	struct xkb_state *state;
 };
 
-static const bool uxkb_available = true;
-extern const struct kbd_desc_ops uxkb_desc_ops;
-extern const struct kbd_dev_ops uxkb_dev_ops;
-
-extern int uxkb_string_to_keysym(const char *n, uint32_t *out);
-
-struct kbd_desc {
+struct uterm_input {
 	unsigned long ref;
-	const struct kbd_desc_ops *ops;
+	struct ev_eloop *eloop;
+	int awake;
 
-	union {
-		struct uxkb_desc uxkb;
-	};
+	struct shl_hook *hook;
+	struct xkb_context *ctx;
+	struct xkb_keymap *keymap;
+
+	struct shl_dlist devices;
 };
-
-struct kbd_dev {
-	unsigned long ref;
-	struct kbd_desc *desc;
-	const struct kbd_dev_ops *ops;
-
-	union {
-		struct uxkb_dev uxkb;
-	};
-};
-
-enum kbd_mode {
-	KBD_UXKB,
-};
-
-static inline int kbd_desc_new(struct kbd_desc **out, const char *layout,
-			       const char *variant, const char *options,
-			       unsigned int mode)
-{
-	const struct kbd_desc_ops *ops;
-
-	switch (mode) {
-	case KBD_UXKB:
-		if (!uxkb_available) {
-			log_error("XKB KBD backend not available");
-			return -EOPNOTSUPP;
-		}
-		ops = &uxkb_desc_ops;
-		break;
-	default:
-		log_error("unknown KBD backend %u", mode);
-		return -EINVAL;
-	}
-
-	return ops->init(out, layout, variant, options);
-}
-
-static inline void kbd_desc_ref(struct kbd_desc *desc)
-{
-	if (!desc)
-		return;
-
-	return desc->ops->ref(desc);
-}
-
-static inline void kbd_desc_unref(struct kbd_desc *desc)
-{
-	if (!desc)
-		return;
-
-	return desc->ops->unref(desc);
-}
-
-static inline int kbd_desc_alloc(struct kbd_desc *desc, struct kbd_dev **out)
-{
-	if (!desc)
-		return -EINVAL;
-
-	return desc->ops->alloc(desc, out);
-}
-
-static inline void kbd_desc_keysym_to_string(struct kbd_desc *desc,
-					     uint32_t keysym,
-					     char *str, size_t size)
-{
-	if (!desc)
-		return;
-
-	return desc->ops->keysym_to_string(keysym, str, size);
-}
-
-static inline int kbd_desc_string_to_keysym(struct kbd_desc *desc,
-					    const char *n,
-					    uint32_t *out)
-{
-	if (!desc)
-		return -EINVAL;
-
-	return desc->ops->string_to_keysym(n, out);
-}
-
-static inline void kbd_dev_ref(struct kbd_dev *dev)
-{
-	if (!dev)
-		return;
-
-	return dev->ops->ref(dev);
-}
-
-static inline void kbd_dev_unref(struct kbd_dev *dev)
-{
-	if (!dev)
-		return;
-
-	return dev->ops->unref(dev);
-}
-
-static inline void kbd_dev_reset(struct kbd_dev *dev,
-				 const unsigned long *ledbits)
-{
-	if (!dev)
-		return;
-
-	return dev->ops->reset(dev, ledbits);
-}
-
-static inline int kbd_dev_process(struct kbd_dev *dev,
-				  uint16_t key_state,
-				  uint16_t code,
-				  struct uterm_input_event *out)
-{
-	if (!dev)
-		return -EINVAL;
-
-	return dev->ops->process(dev, key_state, code, out);
-}
 
 static inline bool input_bit_is_set(const unsigned long *array, int bit)
 {
 	return !!(array[bit / LONG_BIT] & (1LL << (bit % LONG_BIT)));
 }
+
+int uxkb_desc_init(struct uterm_input *input,
+		   const char *layout,
+		   const char *variant,
+		   const char *options);
+void uxkb_desc_destroy(struct uterm_input *input);
+
+int uxkb_dev_init(struct uterm_input_dev *dev);
+void uxkb_dev_destroy(struct uterm_input_dev *dev);
+int uxkb_dev_process(struct uterm_input_dev *dev,
+		     uint16_t key_state,
+		     uint16_t code,
+		     struct uterm_input_event *out);
+void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits);
 
 #endif /* UTERM_INPUT_H */

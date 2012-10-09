@@ -38,22 +38,71 @@
 
 #define LOG_SUBSYSTEM "input_uxkb"
 
-static void uxkb_dev_ref(struct kbd_dev *kbd)
+int uxkb_desc_init(struct uterm_input *input,
+		   const char *layout,
+		   const char *variant,
+		   const char *options)
 {
-	if (!kbd || !kbd->ref)
-		return;
+	int ret;
+	struct xkb_rule_names rmlvo = {
+		.rules = "evdev",
+		.model = "evdev",
+		.layout = layout,
+		.variant = variant,
+		.options = options,
+	};
 
-	++kbd->ref;
+	input->ctx = xkb_context_new(0);
+	if (!input->ctx) {
+		log_error("cannot create XKB context");
+		return -ENOMEM;
+	}
+
+	input->keymap = xkb_map_new_from_names(input->ctx, &rmlvo, 0);
+	if (!input->keymap) {
+		log_warn("failed to create keymap (%s, %s, %s), "
+			 "reverting to default US keymap",
+			 layout, variant, options);
+
+		rmlvo.layout = "us";
+		rmlvo.variant = "";
+		rmlvo.options = "";
+
+		input->keymap = xkb_map_new_from_names(input->ctx, &rmlvo, 0);
+		if (!input->keymap) {
+			log_warn("failed to create XKB keymap");
+			ret = -EFAULT;
+			goto err_ctx;
+		}
+	}
+
+	log_debug("new keyboard description (%s, %s, %s)",
+		  layout, variant, options);
+	return 0;
+
+err_ctx:
+	xkb_context_unref(input->ctx);
+	return ret;
 }
 
-static void uxkb_dev_unref(struct kbd_dev *kbd)
+void uxkb_desc_destroy(struct uterm_input *input)
 {
-	if (!kbd || !kbd->ref || --kbd->ref)
-		return;
+	xkb_map_unref(input->keymap);
+	xkb_context_unref(input->ctx);
+}
 
-	xkb_state_unref(kbd->uxkb.state);
-	kbd_desc_unref(kbd->desc);
-	free(kbd);
+int uxkb_dev_init(struct uterm_input_dev *dev)
+{
+	dev->state = xkb_state_new(dev->input->keymap);
+	if (!dev->state)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void uxkb_dev_destroy(struct uterm_input_dev *dev)
+{
+	xkb_state_unref(dev->state);
 }
 
 #define EVDEV_KEYCODE_OFFSET 8
@@ -63,10 +112,10 @@ enum {
 	KEY_REPEATED = 2,
 };
 
-static int uxkb_dev_process(struct kbd_dev *kbd,
-			    uint16_t key_state,
-			    uint16_t code,
-			    struct uterm_input_event *out)
+int uxkb_dev_process(struct uterm_input_dev *dev,
+		     uint16_t key_state,
+		     uint16_t code,
+		     struct uterm_input_event *out)
 {
 	struct xkb_state *state;
 	struct xkb_keymap *keymap;
@@ -74,10 +123,7 @@ static int uxkb_dev_process(struct kbd_dev *kbd,
 	const xkb_keysym_t *keysyms;
 	int num_keysyms;
 
-	if (!kbd)
-		return -EINVAL;
-
-	state = kbd->uxkb.state;
+	state = dev->state;
 	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
@@ -115,7 +161,7 @@ static int uxkb_dev_process(struct kbd_dev *kbd,
  * We don't reset the locked group, this should survive a VT switch, etc. The
  * locked modifiers are reset according to the keyboard LEDs.
  */
-static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
+void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits)
 {
 	unsigned int i;
 	struct xkb_state *state;
@@ -128,9 +174,6 @@ static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 		{ LED_SCROLLL, XKB_LED_NAME_SCROLL },
 	};
 
-	if (!kbd)
-		return;
-
 	/* TODO: Urghs, while the input device was closed we might have missed
 	 * some events that affect internal state. As xkbcommon does not provide
 	 * a way to reset the internal state, we simply recreate the state. This
@@ -138,13 +181,13 @@ static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 	 * It also has a bug that if the CTRL-Release event is skipped, then
 	 * every further release will never perform a _real_ release. Kind of
 	 * buggy so we should fix it upstream. */
-	state = xkb_state_new(kbd->desc->uxkb.keymap);
+	state = xkb_state_new(dev->input->keymap);
 	if (!state) {
 		log_warning("cannot recreate xkb-state");
 		return;
 	}
-	xkb_state_unref(kbd->uxkb.state);
-	kbd->uxkb.state = state;
+	xkb_state_unref(dev->state);
+	dev->state = state;
 
 	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
 		if (!input_bit_is_set(ledbits, led_names[i].led))
@@ -158,144 +201,3 @@ static void uxkb_dev_reset(struct kbd_dev *kbd, const unsigned long *ledbits)
 		 */
 	}
 }
-
-static int uxkb_desc_init(struct kbd_desc **out,
-			  const char *layout,
-			  const char *variant,
-			  const char *options)
-{
-	int ret;
-	struct kbd_desc *desc;
-	struct xkb_rule_names rmlvo = {
-		.rules = "evdev",
-		.model = "evdev",
-		.layout = layout,
-		.variant = variant,
-		.options = options,
-	};
-
-	if (!out)
-		return -EINVAL;
-
-	desc = malloc(sizeof(*desc));
-	if (!desc)
-		return -ENOMEM;
-
-	memset(desc, 0, sizeof(*desc));
-	desc->ref = 1;
-	desc->ops = &uxkb_desc_ops;
-
-	desc->uxkb.ctx = xkb_context_new(0);
-	if (!desc->uxkb.ctx) {
-		ret = -ENOMEM;
-		goto err_desc;
-	}
-
-	desc->uxkb.keymap = xkb_map_new_from_names(desc->uxkb.ctx, &rmlvo, 0);
-	if (!desc->uxkb.keymap) {
-		log_warn("failed to create keymap (%s, %s, %s), "
-			 "reverting to default US keymap",
-			 layout, variant, options);
-
-		rmlvo.layout = "us";
-		rmlvo.variant = "";
-		rmlvo.options = "";
-
-		desc->uxkb.keymap = xkb_map_new_from_names(desc->uxkb.ctx,
-							   &rmlvo, 0);
-		if (!desc->uxkb.keymap) {
-			log_warn("failed to create keymap");
-			ret = -EFAULT;
-			goto err_ctx;
-		}
-	}
-
-	log_debug("new keyboard description (%s, %s, %s)",
-			layout, variant, options);
-	*out = desc;
-	return 0;
-
-err_ctx:
-	xkb_context_unref(desc->uxkb.ctx);
-err_desc:
-	free(desc);
-	return ret;
-}
-
-static void uxkb_desc_ref(struct kbd_desc *desc)
-{
-	if (!desc || !desc->ref)
-		return;
-
-	++desc->ref;
-}
-
-static void uxkb_desc_unref(struct kbd_desc *desc)
-{
-	if (!desc || !desc->ref || --desc->ref)
-		return;
-
-	log_debug("destroying keyboard description");
-	xkb_map_unref(desc->uxkb.keymap);
-	xkb_context_unref(desc->uxkb.ctx);
-	free(desc);
-}
-
-static int uxkb_desc_alloc(struct kbd_desc *desc, struct kbd_dev **out)
-{
-	struct kbd_dev *kbd;
-
-	kbd = malloc(sizeof(*kbd));
-	if (!kbd)
-		return -ENOMEM;
-
-	memset(kbd, 0, sizeof(*kbd));
-	kbd->ref = 1;
-	kbd->desc = desc;
-	kbd->ops = &uxkb_dev_ops;
-
-	kbd->uxkb.state = xkb_state_new(desc->uxkb.keymap);
-	if (!kbd->uxkb.state) {
-		free(kbd);
-		return -ENOMEM;
-	}
-
-	kbd_desc_ref(desc);
-	*out = kbd;
-	return 0;
-}
-
-static void uxkb_keysym_to_string(uint32_t keysym, char *str, size_t size)
-{
-	xkb_keysym_get_name(keysym, str, size);
-}
-
-int uxkb_string_to_keysym(const char *n, uint32_t *out)
-{
-	uint32_t keysym;
-
-	/* TODO: fix xkbcommon upstream to be case-insensitive if case-sensitive
-	 * match fails. */
-	keysym = xkb_keysym_from_name(n);
-	if (!keysym)
-		return -EFAULT;
-
-	*out = keysym;
-	return 0;
-}
-
-const struct kbd_desc_ops uxkb_desc_ops = {
-	.init = uxkb_desc_init,
-	.ref = uxkb_desc_ref,
-	.unref = uxkb_desc_unref,
-	.alloc = uxkb_desc_alloc,
-	.keysym_to_string = uxkb_keysym_to_string,
-	.string_to_keysym = uxkb_string_to_keysym,
-};
-
-const struct kbd_dev_ops uxkb_dev_ops = {
-	.ref = uxkb_dev_ref,
-	.unref = uxkb_dev_unref,
-	.reset = uxkb_dev_reset,
-	.process = uxkb_dev_process,
-};
