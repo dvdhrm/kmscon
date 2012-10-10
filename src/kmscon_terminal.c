@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "eloop.h"
-#include "kmscon_main.h"
+#include "kmscon_conf.h"
 #include "kmscon_terminal.h"
 #include "log.h"
 #include "pty.h"

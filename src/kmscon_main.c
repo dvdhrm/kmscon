@@ -33,7 +33,7 @@
 #include <sys/signalfd.h>
 #include "conf.h"
 #include "eloop.h"
-#include "kmscon_main.h"
+#include "kmscon_conf.h"
 #include "kmscon_ui.h"
 #include "log.h"
 #include "shl_dlist.h"

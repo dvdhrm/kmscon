@@ -420,7 +420,7 @@ kmscon_SOURCES = \
 	src/kmscon_terminal.c \
 	src/kmscon_ui.h \
 	src/kmscon_ui.c \
-	src/kmscon_main.h \
+	src/kmscon_conf.h \
 	src/kmscon_main.c
 kmscon_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
