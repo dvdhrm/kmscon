@@ -105,4 +105,7 @@ struct kmscon_conf_t {
 
 extern struct kmscon_conf_t kmscon_conf;
 
+int kmscon_load_config(int argc, char **argv);
+void kmscon_free_config(void);
+
 #endif /* KMSCON_MAIN_H */
