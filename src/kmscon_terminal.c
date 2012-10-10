@@ -336,6 +336,8 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	if (!len) {
 		if (term->cb)
 			term->cb(term, KMSCON_TERMINAL_HUP, term->data);
+		else
+			kmscon_terminal_open(term, term->cb, term->data);
 	} else {
 		tsm_vte_input(term->vte, u8, len);
 		schedule_redraw(term);
