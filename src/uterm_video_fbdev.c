@@ -845,6 +845,22 @@ static int display_fill(struct uterm_display *disp,
 	return 0;
 }
 
+static void intro_idle_event(struct ev_eloop *eloop, void *unused, void *data)
+{
+	struct uterm_display *disp = data;
+
+	if (!disp->fbdev.pending_intro)
+		return;
+
+	disp->fbdev.pending_intro = false;
+	ev_eloop_unregister_idle_cb(eloop, intro_idle_event, disp);
+
+	if (!disp->video)
+		return;
+
+	VIDEO_CB(disp->video, disp, UTERM_NEW);
+}
+
 static int video_init(struct uterm_video *video, const char *node)
 {
 	int ret;
@@ -854,11 +870,18 @@ static int video_init(struct uterm_video *video, const char *node)
 	if (ret)
 		return ret;
 
+	ret = ev_eloop_register_idle_cb(video->eloop, intro_idle_event, disp);
+	if (ret) {
+		log_error("cannot register idle event: %d", ret);
+		goto err_free;
+	}
+	disp->fbdev.pending_intro = true;
+
 	disp->fbdev.node = strdup(node);
 	if (!disp->fbdev.node) {
 		log_err("cannot dup node name");
 		ret = -ENOMEM;
-		goto err_free;
+		goto err_idle;
 	}
 
 	disp->fbdev.fd = open(node, O_RDWR | O_CLOEXEC);
@@ -877,6 +900,8 @@ static int video_init(struct uterm_video *video, const char *node)
 
 err_node:
 	free(disp->fbdev.node);
+err_idle:
+	ev_eloop_register_idle_cb(video->eloop, intro_idle_event, disp);
 err_free:
 	uterm_display_unref(disp);
 	return ret;
@@ -889,6 +914,13 @@ static void video_destroy(struct uterm_video *video)
 	log_info("free device %p", video);
 	disp = video->displays;
 	video->displays = disp->next;
+
+	if (disp->fbdev.pending_intro)
+		ev_eloop_unregister_idle_cb(video->eloop, intro_idle_event,
+					    disp);
+	else
+		VIDEO_CB(video, disp, UTERM_GONE);
+
 	close(disp->fbdev.fd);
 	free(disp->fbdev.node);
 	uterm_display_unref(disp);

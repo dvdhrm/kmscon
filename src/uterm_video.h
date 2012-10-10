@@ -243,6 +243,7 @@ struct fbdev_mode {
 struct fbdev_display {
 	char *node;
 	int fd;
+	bool pending_intro;
 
 	struct fb_fix_screeninfo finfo;
 	struct fb_var_screeninfo vinfo;
