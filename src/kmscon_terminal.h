@@ -34,41 +34,9 @@
 #define KMSCON_TERMINAL_H
 
 #include <stdlib.h>
-#include "eloop.h"
-#include "tsm_screen.h"
-#include "uterm.h"
+#include "kmscon_seat.h"
 
-struct kmscon_terminal;
-
-enum kmscon_terminal_etype {
-	KMSCON_TERMINAL_HUP,		/* child closed */
-	KMSCON_TERMINAL_NO_DISPLAY,	/* no more display connected */
-};
-
-typedef void (*kmscon_terminal_event_cb)
-		(struct kmscon_terminal *term,
-		enum kmscon_terminal_etype type,
-		void *data);
-
-int kmscon_terminal_new(struct kmscon_terminal **out,
-			struct ev_eloop *loop,
-			struct uterm_input *input,
-			const char *seat);
-void kmscon_terminal_ref(struct kmscon_terminal *term);
-void kmscon_terminal_unref(struct kmscon_terminal *term);
-
-int kmscon_terminal_open(struct kmscon_terminal *term,
-			kmscon_terminal_event_cb event_cb, void *data);
-void kmscon_terminal_close(struct kmscon_terminal *term);
-void kmscon_terminal_redraw(struct kmscon_terminal *term);
-
-int kmscon_terminal_add_display(struct kmscon_terminal *term,
-				struct uterm_display *disp);
-void kmscon_terminal_remove_display(struct kmscon_terminal *term,
-				    struct uterm_display *disp);
-
-void kmscon_terminal_wake_up(struct kmscon_terminal *term);
-void kmscon_terminal_sleep(struct kmscon_terminal *term);
-bool kmscon_terminal_is_awake(struct kmscon_terminal *term);
+int kmscon_terminal_register(struct kmscon_session **out,
+			     struct kmscon_seat *seat);
 
 #endif /* KMSCON_TERMINAL_H */

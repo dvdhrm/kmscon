@@ -34,12 +34,30 @@
 #include "conf.h"
 #include "eloop.h"
 #include "kmscon_conf.h"
-#include "kmscon_ui.h"
+#include "kmscon_seat.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_misc.h"
 #include "text.h"
 #include "uterm.h"
+
+struct app_video {
+	struct shl_dlist list;
+	struct app_seat *seat;
+
+	char *node;
+	struct uterm_video *video;
+};
+
+struct app_seat {
+	struct shl_dlist list;
+	struct kmscon_app *app;
+
+	bool awake;
+	char *name;
+	struct kmscon_seat *seat;
+	struct shl_dlist videos;
+};
 
 struct kmscon_app {
 	struct ev_eloop *eloop;
@@ -51,60 +69,28 @@ struct kmscon_app {
 	struct shl_dlist seats;
 };
 
-struct kmscon_seat {
-	struct shl_dlist list;
-	struct kmscon_app *app;
-
-	struct uterm_monitor_seat *useat;
-	char *sname;
-
-	bool awake;
-	struct uterm_vt *vt;
-	struct uterm_input *input;
-	struct kmscon_ui *ui;
-	struct shl_dlist videos;
-};
-
-struct kmscon_video {
-	struct shl_dlist list;
-	struct uterm_monitor_dev *vdev;
-	struct uterm_video *video;
-};
-
-static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-			void *data)
+static void app_seat_event(struct kmscon_seat *s, unsigned int event,
+			   void *data)
 {
-	struct kmscon_app *app = data;
-
-	ev_eloop_exit(app->eloop);
-	log_info("terminating due to caught signal %d", info->ssi_signo);
-}
-
-static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
-{
-	struct kmscon_seat *seat = data;
-	struct shl_dlist *iter;
-	struct kmscon_video *vid;
+	struct app_seat *seat = data;
 	struct kmscon_app *app = seat->app;
+	struct shl_dlist *iter;
+	struct app_video *vid;
 
-	if (action == UTERM_VT_ACTIVATE) {
+	switch (event) {
+	case KMSCON_SEAT_WAKE_UP:
 		seat->awake = true;
-		uterm_input_wake_up(seat->input);
 
 		shl_dlist_for_each(iter, &seat->videos) {
-			vid = shl_dlist_entry(iter, struct kmscon_video, list);
+			vid = shl_dlist_entry(iter, struct app_video, list);
 			uterm_video_wake_up(vid->video);
 		}
-		kmscon_ui_wake_up(seat->ui);
-	} else if (action == UTERM_VT_DEACTIVATE) {
-		kmscon_ui_sleep(seat->ui);
+		break;
+	case KMSCON_SEAT_SLEEP:
 		shl_dlist_for_each(iter, &seat->videos) {
-			vid = shl_dlist_entry(iter, struct kmscon_video, list);
+			vid = shl_dlist_entry(iter, struct app_video, list);
 			uterm_video_sleep(vid->video);
 		}
-
-		uterm_input_sleep(seat->input);
-		seat->awake = false;
 
 		if (app->vt_exit_count > 0) {
 			log_debug("deactivating VT on exit, %d to go",
@@ -112,16 +98,16 @@ static int vt_event(struct uterm_vt *vt, unsigned int action, void *data)
 			if (!--app->vt_exit_count)
 				ev_eloop_exit(app->vt_eloop);
 		}
-	}
 
-	return 0;
+		seat->awake = false;
+		break;
+	}
 }
 
-static void seat_new(struct kmscon_app *app,
-		     struct uterm_monitor_seat *useat,
-		     const char *sname)
+static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
+			const char *sname)
 {
-	struct kmscon_seat *seat;
+	struct app_seat *seat;
 	int ret;
 	unsigned int i;
 	bool found;
@@ -139,101 +125,116 @@ static void seat_new(struct kmscon_app *app,
 	}
 
 	if (!found) {
-		log_info("ignoring seat %s as not specified in seat-list",
+		log_info("ignoring new seat %s as not specified in seat-list",
 			 sname);
-		return;
+		return -ERANGE;
 	}
 
+	log_debug("new seat %s", sname);
+
 	seat = malloc(sizeof(*seat));
-	if (!seat)
-		return;
+	if (!seat) {
+		log_error("cannot allocate memory for seat %s", sname);
+		return -ENOMEM;
+	}
 	memset(seat, 0, sizeof(*seat));
 	seat->app = app;
-	seat->useat = useat;
 	shl_dlist_init(&seat->videos);
 
-	seat->sname = strdup(sname);
-	if (!seat->sname) {
-		log_err("cannot allocate memory for seat name");
+	seat->name = strdup(sname);
+	if (!seat->name) {
+		log_error("cannot copy seat name on seat %s", sname);
+		ret = -ENOMEM;
 		goto err_free;
 	}
 
-	ret = uterm_input_new(&seat->input, app->eloop,
-			      kmscon_conf.xkb_layout,
-			      kmscon_conf.xkb_variant,
-			      kmscon_conf.xkb_options,
-			      kmscon_conf.xkb_repeat_delay,
-			      kmscon_conf.xkb_repeat_rate);
-	if (ret)
+	ret = kmscon_seat_new(&seat->seat, app->eloop, app->vtm, sname,
+			      app_seat_event, seat);
+	if (ret) {
+		log_error("cannot create seat object on seat %s: %d",
+			  sname, ret);
 		goto err_name;
+	}
 
-	ret = uterm_vt_allocate(app->vtm, &seat->vt, seat->sname,
-				seat->input, kmscon_conf.vt, vt_event, seat);
-	if (ret)
-		goto err_input;
-
-	ret = kmscon_ui_new(&seat->ui, app->eloop, seat->input, seat->sname);
-	if (ret)
-		goto err_vt;
-
-	uterm_monitor_set_seat_data(seat->useat, seat);
 	shl_dlist_link(&app->seats, &seat->list);
+	*out = seat;
+	return 0;
 
-	log_info("new seat %s", seat->sname);
-	return;
-
-err_vt:
-	uterm_vt_deallocate(seat->vt);
-err_input:
-	uterm_input_unref(seat->input);
 err_name:
-	free(seat->sname);
+	free(seat->name);
 err_free:
 	free(seat);
+	return ret;
 }
 
-static void seat_free(struct kmscon_seat *seat)
+static void app_seat_free(struct app_seat *seat)
 {
-	log_info("free seat %s", seat->sname);
+	log_debug("free seat %s", seat->name);
 
 	shl_dlist_unlink(&seat->list);
-	uterm_monitor_set_seat_data(seat->useat, NULL);
-	kmscon_ui_free(seat->ui);
-	uterm_input_unref(seat->input);
-	uterm_vt_deallocate(seat->vt);
-	free(seat->sname);
+	kmscon_seat_free(seat->seat);
+	free(seat->name);
 	free(seat);
 }
 
-static void seat_add_video(struct kmscon_seat *seat,
-			   struct uterm_monitor_dev *dev,
-			   unsigned int type,
-			   const char *node)
+static void app_seat_video_event(struct uterm_video *video,
+				 struct uterm_video_hotplug *ev,
+				 void *data)
+{
+	struct app_video *vid = data;
+
+	switch (ev->action) {
+	case UTERM_NEW:
+		kmscon_seat_add_display(vid->seat->seat, ev->display);
+		break;
+	case UTERM_GONE:
+		kmscon_seat_remove_display(vid->seat->seat, ev->display);
+		break;
+	}
+}
+
+static int app_seat_add_video(struct app_seat *seat,
+			      struct app_video **out,
+			      unsigned int type,
+			      const char *node)
 {
 	int ret;
 	unsigned int mode;
-	struct kmscon_video *vid;
+	struct app_video *vid;
 
 	if (kmscon_conf.use_fbdev) {
 		if (type != UTERM_MONITOR_FBDEV &&
 		    type != UTERM_MONITOR_FBDEV_DRM) {
-			log_debug("ignoring %s as it is not fbdev device",
-				  node);
-			return;
+			log_info("ignoring video device %s on seat %s as it is not an fbdev device",
+				  node, seat->name);
+			return -ERANGE;
 		}
 	} else {
 		if (type == UTERM_MONITOR_FBDEV_DRM) {
-			log_debug("ignoring %s as it is a DRM-fbdev device",
-				  node);
-			return;
+			log_info("ignoring video device %s on seat %s as it is a DRM-fbdev device",
+				  node, seat->name);
+			return -ERANGE;
 		}
 	}
 
+	log_debug("new video device %s on seat %s", node, seat->name);
+
 	vid = malloc(sizeof(*vid));
-	if (!vid)
-		return;
+	if (!vid) {
+		log_error("cannot allocate memory for video device %s on seat %s",
+			  node, seat->name);
+		return -ENOMEM;
+	}
 	memset(vid, 0, sizeof(*vid));
-	vid->vdev = dev;
+	vid->seat = seat;
+
+	vid->node = strdup(node);
+	if (!vid->node) {
+		log_error("cannot copy video device name %s on seat %s",
+			  node, seat->name);
+		ret = -ENOMEM;
+		goto err_free;
+	}
 
 	if (type == UTERM_MONITOR_DRM) {
 		if (kmscon_conf.dumb)
@@ -247,122 +248,153 @@ static void seat_add_video(struct kmscon_seat *seat,
 	ret = uterm_video_new(&vid->video, seat->app->eloop, mode, node);
 	if (ret) {
 		if (mode == UTERM_VIDEO_DRM) {
-			log_info("cannot create drm device; trying dumb drm mode");
+			log_info("cannot create drm device %s on seat %s (%d); trying dumb drm mode",
+				 vid->node, seat->name, ret);
 			ret = uterm_video_new(&vid->video, seat->app->eloop,
 					      UTERM_VIDEO_DUMB, node);
 			if (ret)
-				goto err_free;
+				goto err_node;
 		} else {
-			goto err_free;
+			goto err_node;
 		}
 	}
 
-	kmscon_ui_add_video(seat->ui, vid->video);
+	ret = uterm_video_register_cb(vid->video, app_seat_video_event, vid);
+	if (ret) {
+		log_error("cannot register video callback for device %s on seat %s: %d",
+			  vid->node, seat->name, ret);
+		goto err_video;
+	}
+
 	if (seat->awake)
 		uterm_video_wake_up(vid->video);
+
 	shl_dlist_link(&seat->videos, &vid->list);
+	*out = vid;
+	return 0;
 
-	log_debug("new graphics device on seat %s", seat->sname);
-	return;
-
+err_video:
+	uterm_video_unref(vid->video);
+err_node:
+	free(vid->node);
 err_free:
 	free(vid);
-	log_warning("cannot add video object %s on %s", node, seat->sname);
-	return;
+	return ret;
 }
 
-static void seat_rm_video(struct kmscon_seat *seat,
-			  struct uterm_monitor_dev *dev)
+static void app_seat_remove_video(struct app_seat *seat, struct app_video *vid)
 {
-	struct shl_dlist *iter;
-	struct kmscon_video *vid;
+	log_debug("free video device %s on seat %s", vid->node, seat->name);
 
-	shl_dlist_for_each(iter, &seat->videos) {
-		vid = shl_dlist_entry(iter, struct kmscon_video, list);
-		if (vid->vdev != dev)
-			continue;
-
-		log_debug("free graphics device on seat %s", seat->sname);
-
-		kmscon_ui_remove_video(seat->ui, vid->video);
-		uterm_video_unref(vid->video);
-		shl_dlist_unlink(&vid->list);
-		free(vid);
-
-		break;
-	}
+	shl_dlist_unlink(&vid->list);
+	uterm_video_unregister_cb(vid->video, app_seat_video_event, vid);
+	uterm_video_unref(vid->video);
+	free(vid->node);
+	free(vid);
 }
 
-static void seat_hotplug_video(struct kmscon_seat *seat,
-			       struct uterm_monitor_dev *dev)
-{
-	struct shl_dlist *iter;
-	struct kmscon_video *vid;
-
-	shl_dlist_for_each(iter, &seat->videos) {
-		vid = shl_dlist_entry(iter, struct kmscon_video, list);
-		if (vid->vdev != dev)
-			continue;
-
-		uterm_video_poll(vid->video);
-		break;
-	}
-}
-
-static void monitor_event(struct uterm_monitor *mon,
-			  struct uterm_monitor_event *ev,
-			  void *data)
+static void app_monitor_event(struct uterm_monitor *mon,
+			      struct uterm_monitor_event *ev,
+			      void *data)
 {
 	struct kmscon_app *app = data;
-	struct kmscon_seat *seat;
+	struct app_seat *seat;
+	struct app_video *vid;
+	int ret;
 
 	switch (ev->type) {
 	case UTERM_MONITOR_NEW_SEAT:
-		seat_new(app, ev->seat, ev->seat_name);
+		ret = app_seat_new(app, &seat, ev->seat_name);
+		if (ret)
+			return;
+		uterm_monitor_set_seat_data(ev->seat, seat);
 		break;
 	case UTERM_MONITOR_FREE_SEAT:
 		if (ev->seat_data)
-			seat_free(ev->seat_data);
+			app_seat_free(ev->seat_data);
 		break;
 	case UTERM_MONITOR_NEW_DEV:
 		seat = ev->seat_data;
 		if (!seat)
+			return;
+
+		switch (ev->dev_type) {
+		case UTERM_MONITOR_DRM:
+		case UTERM_MONITOR_FBDEV:
+		case UTERM_MONITOR_FBDEV_DRM:
+			ret = app_seat_add_video(seat, &vid, ev->dev_type,
+						 ev->dev_node);
+			if (ret)
+				return;
+			uterm_monitor_set_dev_data(ev->dev, vid);
 			break;
-		if (ev->dev_type == UTERM_MONITOR_DRM ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV_DRM)
-			seat_add_video(seat, ev->dev, ev->dev_type,
-				       ev->dev_node);
-		else if (ev->dev_type == UTERM_MONITOR_INPUT)
-			uterm_input_add_dev(seat->input, ev->dev_node);
+		case UTERM_MONITOR_INPUT:
+			log_debug("new input device %s on seat %s",
+				  ev->dev_node, seat->name);
+			kmscon_seat_add_input(seat->seat, ev->dev_node);
+			break;
+		}
 		break;
 	case UTERM_MONITOR_FREE_DEV:
 		seat = ev->seat_data;
 		if (!seat)
+			return;
+
+		switch (ev->dev_type) {
+		case UTERM_MONITOR_DRM:
+		case UTERM_MONITOR_FBDEV:
+		case UTERM_MONITOR_FBDEV_DRM:
+			if (ev->dev_data)
+				app_seat_remove_video(seat, ev->dev_data);
 			break;
-		if (ev->dev_type == UTERM_MONITOR_DRM ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV ||
-		    ev->dev_type == UTERM_MONITOR_FBDEV_DRM)
-			seat_rm_video(seat, ev->dev);
-		else if (ev->dev_type == UTERM_MONITOR_INPUT)
-			uterm_input_remove_dev(seat->input, ev->dev_node);
+		case UTERM_MONITOR_INPUT:
+			log_debug("free input device %s on seat %s",
+				  ev->dev_node, seat->name);
+			kmscon_seat_remove_input(seat->seat, ev->dev_node);
+			break;
+		}
 		break;
 	case UTERM_MONITOR_HOTPLUG_DEV:
 		seat = ev->seat_data;
 		if (!seat)
+			return;
+
+		switch (ev->dev_type) {
+		case UTERM_MONITOR_DRM:
+		case UTERM_MONITOR_FBDEV:
+		case UTERM_MONITOR_FBDEV_DRM:
+			vid = ev->dev_data;
+			if (!vid)
+				return;
+
+			log_debug("video hotplug event on device %s on seat %s",
+				  vid->node, seat->name);
+			uterm_video_poll(vid->video);
 			break;
-		seat_hotplug_video(seat, ev->dev);
+		}
 		break;
 	}
+}
+
+static void app_sig_generic(struct ev_eloop *eloop,
+			    struct signalfd_siginfo *info,
+			    void *data)
+{
+	struct kmscon_app *app = data;
+
+	log_info("terminating due to caught signal %d", info->ssi_signo);
+	ev_eloop_exit(app->eloop);
 }
 
 static void destroy_app(struct kmscon_app *app)
 {
 	uterm_monitor_unref(app->mon);
 	uterm_vt_master_unref(app->vtm);
-	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, sig_generic, app);
-	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, sig_generic, app);
 	ev_eloop_rm_eloop(app->vt_eloop);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, app_sig_generic,
+				      app);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, app_sig_generic,
+				      app);
 	ev_eloop_unref(app->eloop);
 }
 
@@ -370,34 +402,47 @@ static int setup_app(struct kmscon_app *app)
 {
 	int ret;
 
-	ret = ev_eloop_new(&app->eloop, log_llog);
-	if (ret)
-		goto err_app;
-
-	ret = ev_eloop_register_signal_cb(app->eloop, SIGTERM,
-						sig_generic, app);
-	if (ret)
-		goto err_app;
-
-	ret = ev_eloop_register_signal_cb(app->eloop, SIGINT,
-						sig_generic, app);
-	if (ret)
-		goto err_app;
-
-	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
-	if (ret)
-		goto err_app;
-
-	ret = uterm_vt_master_new(&app->vtm, app->vt_eloop);
-	if (ret)
-		goto err_app;
-
 	shl_dlist_init(&app->seats);
 
-	ret = uterm_monitor_new(&app->mon, app->eloop, monitor_event, app);
-	if (ret)
+	ret = ev_eloop_new(&app->eloop, log_llog);
+	if (ret) {
+		log_error("cannot create eloop object: %d", ret);
 		goto err_app;
+	}
 
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGTERM,
+					  app_sig_generic, app);
+	if (ret) {
+		log_error("cannot register SIGTERM signal handler: %d", ret);
+		goto err_app;
+	}
+
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGINT,
+					  app_sig_generic, app);
+	if (ret) {
+		log_error("cannot register SIGINT signal handler: %d", ret);
+		goto err_app;
+	}
+
+	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
+	if (ret) {
+		log_error("cannot create VT eloop object: %d", ret);
+		goto err_app;
+	}
+
+	ret = uterm_vt_master_new(&app->vtm, app->vt_eloop);
+	if (ret) {
+		log_error("cannot create VT master: %d", ret);
+		goto err_app;
+	}
+
+	ret = uterm_monitor_new(&app->mon, app->eloop, app_monitor_event, app);
+	if (ret) {
+		log_error("cannot create device monitor: %d", ret);
+		goto err_app;
+	}
+
+	log_debug("scanning for devices...");
 	uterm_monitor_scan(app->mon);
 
 	return 0;

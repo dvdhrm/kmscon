@@ -418,8 +418,8 @@ kmscon_SOURCES = \
 	$(SHL_MISC) \
 	src/kmscon_terminal.h \
 	src/kmscon_terminal.c \
-	src/kmscon_ui.h \
-	src/kmscon_ui.c \
+	src/kmscon_seat.h \
+	src/kmscon_seat.c \
 	src/kmscon_conf.h \
 	src/kmscon_conf.c \
 	src/kmscon_main.c

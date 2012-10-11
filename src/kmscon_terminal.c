@@ -36,6 +36,7 @@
 #include <string.h>
 #include "eloop.h"
 #include "kmscon_conf.h"
+#include "kmscon_seat.h"
 #include "kmscon_terminal.h"
 #include "log.h"
 #include "pty.h"
@@ -62,6 +63,8 @@ struct kmscon_terminal {
 	bool opened;
 	bool awake;
 
+	struct kmscon_session *session;
+
 	struct shl_dlist screens;
 	unsigned int min_cols;
 	unsigned int min_rows;
@@ -73,9 +76,6 @@ struct kmscon_terminal {
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
 	struct ev_fd *ptyfd;
-
-	kmscon_terminal_event_cb cb;
-	void *data;
 };
 
 static void redraw(struct kmscon_terminal *term)
@@ -180,6 +180,7 @@ static void terminal_resize(struct kmscon_terminal *term,
 	/* shrinking always succeeds */
 	tsm_screen_resize(term->console, term->min_cols, term->min_rows);
 	kmscon_pty_resize(term->pty, term->min_cols, term->min_rows);
+	schedule_redraw(term);
 }
 
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
@@ -310,45 +311,6 @@ static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
 
 	log_debug("removed display %p from terminal %p", disp, term);
 	free_screen(term, scr, true);
-	if (shl_dlist_empty(&term->screens) && term->cb)
-		term->cb(term, KMSCON_TERMINAL_NO_DISPLAY, term->data);
-}
-
-static void rm_all_screens(struct kmscon_terminal *term)
-{
-	struct shl_dlist *iter;
-	struct screen *scr;
-
-	while ((iter = term->screens.next) != &term->screens) {
-		scr = shl_dlist_entry(iter, struct screen, list);
-		free_screen(term, scr, false);
-	}
-
-	term->min_cols = 0;
-	term->min_rows = 0;
-}
-
-static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
-								void *data)
-{
-	struct kmscon_terminal *term = data;
-
-	if (!len) {
-		if (term->cb)
-			term->cb(term, KMSCON_TERMINAL_HUP, term->data);
-		else
-			kmscon_terminal_open(term, term->cb, term->data);
-	} else {
-		tsm_vte_input(term->vte, u8, len);
-		schedule_redraw(term);
-	}
-}
-
-static void pty_event(struct ev_fd *fd, int mask, void *data)
-{
-	struct kmscon_terminal *term = data;
-
-	kmscon_pty_dispatch(term->pty);
 }
 
 static void input_event(struct uterm_input *input,
@@ -403,6 +365,111 @@ static void input_event(struct uterm_input *input,
 	}
 }
 
+static void rm_all_screens(struct kmscon_terminal *term)
+{
+	struct shl_dlist *iter;
+	struct screen *scr;
+
+	while ((iter = term->screens.next) != &term->screens) {
+		scr = shl_dlist_entry(iter, struct screen, list);
+		free_screen(term, scr, false);
+	}
+
+	term->min_cols = 0;
+	term->min_rows = 0;
+}
+
+static int terminal_open(struct kmscon_terminal *term)
+{
+	int ret;
+	unsigned short width, height;
+
+	kmscon_pty_close(term->pty);
+	tsm_vte_hard_reset(term->vte);
+	width = tsm_screen_get_width(term->console);
+	height = tsm_screen_get_height(term->console);
+	ret = kmscon_pty_open(term->pty, width, height);
+	if (ret) {
+		term->opened = false;
+		return ret;
+	}
+
+	term->opened = true;
+	schedule_redraw(term);
+	return 0;
+}
+
+static void terminal_close(struct kmscon_terminal *term)
+{
+	kmscon_pty_close(term->pty);
+	term->opened = false;
+}
+
+static void terminal_destroy(struct kmscon_terminal *term)
+{
+	log_debug("free terminal object %p", term);
+
+	terminal_close(term);
+	rm_all_screens(term);
+	ev_eloop_rm_timer(term->redraw_timer);
+	ev_timer_unref(term->redraw_timer);
+	uterm_input_unregister_cb(term->input, input_event, term);
+	ev_eloop_rm_fd(term->ptyfd);
+	kmscon_pty_unref(term->pty);
+	tsm_vte_unref(term->vte);
+	tsm_screen_unref(term->console);
+	uterm_input_unref(term->input);
+	ev_eloop_unref(term->eloop);
+	free(term);
+}
+
+static void session_event(struct kmscon_session *session, unsigned int event,
+			  struct uterm_display *disp, void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	switch (event) {
+	case KMSCON_SESSION_DISPLAY_NEW:
+		add_display(term, disp);
+		break;
+	case KMSCON_SESSION_DISPLAY_GONE:
+		rm_display(term, disp);
+		break;
+	case KMSCON_SESSION_WAKE_UP:
+		term->awake = true;
+		if (!term->opened)
+			terminal_open(term);
+		schedule_redraw(term);
+		break;
+	case KMSCON_SESSION_SLEEP:
+		term->awake = false;
+		break;
+	case KMSCON_SESSION_UNREGISTER:
+		terminal_destroy(term);
+		break;
+	}
+}
+
+static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
+								void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	if (!len) {
+		terminal_open(term);
+	} else {
+		tsm_vte_input(term->vte, u8, len);
+		schedule_redraw(term);
+	}
+}
+
+static void pty_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct kmscon_terminal *term = data;
+
+	kmscon_pty_dispatch(term->pty);
+}
+
 static void write_event(struct tsm_vte *vte, const char *u8, size_t len,
 			void *data)
 {
@@ -411,17 +478,15 @@ static void write_event(struct tsm_vte *vte, const char *u8, size_t len,
 	kmscon_pty_write(term->pty, u8, len);
 }
 
-int kmscon_terminal_new(struct kmscon_terminal **out,
-			struct ev_eloop *loop,
-			struct uterm_input *input,
-			const char *seat)
+int kmscon_terminal_register(struct kmscon_session **out,
+			     struct kmscon_seat *seat)
 {
 	struct kmscon_terminal *term;
 	int ret;
 	struct itimerspec spec;
 	unsigned long fps;
 
-	if (!out || !loop || !input)
+	if (!out || !seat)
 		return -EINVAL;
 
 	term = malloc(sizeof(*term));
@@ -430,8 +495,8 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 
 	memset(term, 0, sizeof(*term));
 	term->ref = 1;
-	term->eloop = loop;
-	term->input = input;
+	term->eloop = kmscon_seat_get_eloop(seat);
+	term->input = kmscon_seat_get_input(seat);
 	shl_dlist_init(&term->screens);
 
 	if (kmscon_conf.fps) {
@@ -473,7 +538,7 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_pty;
 
-	ret = kmscon_pty_set_seat(term->pty, seat);
+	ret = kmscon_pty_set_seat(term->pty, kmscon_seat_get_name(seat));
 	if (ret)
 		goto err_pty;
 
@@ -501,13 +566,21 @@ int kmscon_terminal_new(struct kmscon_terminal **out,
 	if (ret)
 		goto err_timer;
 
+	ret = kmscon_seat_register_session(seat, &term->session, session_event,
+					   term);
+	if (ret) {
+		log_error("cannot register session for terminal: %d", ret);
+		goto err_redraw;
+	}
+
 	ev_eloop_ref(term->eloop);
 	uterm_input_ref(term->input);
-	*out = term;
-
+	*out = term->session;
 	log_debug("new terminal object %p", term);
 	return 0;
 
+err_redraw:
+	ev_eloop_rm_timer(term->redraw_timer);
 err_timer:
 	ev_timer_unref(term->redraw_timer);
 err_input:
@@ -523,117 +596,4 @@ err_con:
 err_free:
 	free(term);
 	return ret;
-}
-
-void kmscon_terminal_ref(struct kmscon_terminal *term)
-{
-	if (!term)
-		return;
-
-	term->ref++;
-}
-
-void kmscon_terminal_unref(struct kmscon_terminal *term)
-{
-	if (!term || !term->ref)
-		return;
-
-	if (--term->ref)
-		return;
-
-	log_debug("free terminal object %p", term);
-	kmscon_terminal_close(term);
-	rm_all_screens(term);
-	ev_eloop_rm_timer(term->redraw_timer);
-	ev_timer_unref(term->redraw_timer);
-	uterm_input_unregister_cb(term->input, input_event, term);
-	ev_eloop_rm_fd(term->ptyfd);
-	kmscon_pty_unref(term->pty);
-	tsm_vte_unref(term->vte);
-	tsm_screen_unref(term->console);
-	uterm_input_unref(term->input);
-	ev_eloop_unref(term->eloop);
-	free(term);
-}
-
-int kmscon_terminal_open(struct kmscon_terminal *term,
-			kmscon_terminal_event_cb cb, void *data)
-{
-	int ret;
-	unsigned short width, height;
-
-	if (!term)
-		return -EINVAL;
-
-	kmscon_pty_close(term->pty);
-	tsm_vte_hard_reset(term->vte);
-	width = tsm_screen_get_width(term->console);
-	height = tsm_screen_get_height(term->console);
-	ret = kmscon_pty_open(term->pty, width, height);
-	if (ret)
-		return ret;
-
-	term->opened = true;
-	term->cb = cb;
-	term->data = data;
-	return 0;
-}
-
-void kmscon_terminal_close(struct kmscon_terminal *term)
-{
-	if (!term)
-		return;
-
-	kmscon_pty_close(term->pty);
-	term->data = NULL;
-	term->cb = NULL;
-	term->opened = false;
-}
-
-void kmscon_terminal_redraw(struct kmscon_terminal *term)
-{
-	if (!term)
-		return;
-
-	schedule_redraw(term);
-}
-
-int kmscon_terminal_add_display(struct kmscon_terminal *term,
-				struct uterm_display *disp)
-{
-	if (!term || !disp)
-		return -EINVAL;
-
-	return add_display(term, disp);
-}
-
-void kmscon_terminal_remove_display(struct kmscon_terminal *term,
-				    struct uterm_display *disp)
-{
-	if (!term || !disp)
-		return;
-
-	rm_display(term, disp);
-}
-
-void kmscon_terminal_wake_up(struct kmscon_terminal *term)
-{
-	if (!term || term->awake)
-		return;
-
-	term->awake = true;
-	schedule_redraw(term);
-}
-
-void kmscon_terminal_sleep(struct kmscon_terminal *term)
-{
-	if (!term || !term->awake)
-		return;
-
-	term->awake = false;
-}
-
-bool kmscon_terminal_is_awake(struct kmscon_terminal *term)
-{
-	return term && term->awake;
 }
