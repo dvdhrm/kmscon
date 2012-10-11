@@ -1412,10 +1412,9 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 				tsm_screen_set_flags(vte->con,
 						     TSM_SCREEN_ALTERNATE);
 			} else {
+				tsm_screen_erase_screen(vte->con, false);
 				tsm_screen_reset_flags(vte->con,
 						       TSM_SCREEN_ALTERNATE);
-				/* TODO: which screen to clear here? */
-				tsm_screen_erase_screen(vte->con, false);
 			}
 			continue;
 		case 1048: /* Set/Reset alternate-screen buffer cursor */
