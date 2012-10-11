@@ -869,18 +869,30 @@ void tsm_screen_reset(struct tsm_screen *con)
 
 void tsm_screen_set_flags(struct tsm_screen *con, unsigned int flags)
 {
+	unsigned int old;
+
 	if (!con || !flags)
 		return;
 
+	old = con->flags;
 	con->flags |= flags;
+
+	if (!(old & TSM_SCREEN_ALTERNATE) && (flags & TSM_SCREEN_ALTERNATE))
+		con->lines = con->alt_lines;
 }
 
 void tsm_screen_reset_flags(struct tsm_screen *con, unsigned int flags)
 {
+	unsigned int old;
+
 	if (!con || !flags)
 		return;
 
+	old = con->flags;
 	con->flags &= ~flags;
+
+	if ((old & TSM_SCREEN_ALTERNATE) && (flags & TSM_SCREEN_ALTERNATE))
+		con->lines = con->main_lines;
 }
 
 unsigned int tsm_screen_get_flags(struct tsm_screen *con)

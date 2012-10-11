@@ -71,6 +71,7 @@ typedef void (*tsm_log_t) (const char *file,
 #define TSM_SCREEN_INVERSE	0x08
 #define TSM_SCREEN_HIDE_CURSOR	0x10
 #define TSM_SCREEN_FIXED_POS	0x20
+#define TSM_SCREEN_ALTERNATE	0x40
 
 #define TSM_SCREEN_OPT_RENDER_TIMING	0x01
 
