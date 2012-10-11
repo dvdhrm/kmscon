@@ -2,4 +2,7 @@
 set -e
 mkdir -p m4
 autoreconf -i
-./configure --enable-debug "$@"
+
+if test ! "x$NOCONFIGURE" = "x1" ; then
+    exec ./configure --enable-debug "$@"
+fi
