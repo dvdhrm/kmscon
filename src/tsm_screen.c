@@ -269,7 +269,11 @@ static void screen_scroll_up(struct tsm_screen *con, unsigned int num)
 
 	for (i = 0; i < num; ++i) {
 		pos = con->margin_top + i;
-		ret = line_new(con, &cache[i], con->size_x);
+		if (!(con->flags & TSM_SCREEN_ALTERNATE))
+			ret = line_new(con, &cache[i], con->size_x);
+		else
+			ret = -EAGAIN;
+
 		if (!ret) {
 			link_to_scrollback(con, con->lines[pos]);
 		} else {
