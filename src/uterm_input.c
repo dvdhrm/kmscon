@@ -248,7 +248,7 @@ int uterm_input_new(struct uterm_input **out,
 	if (repeat_delay >= 1000)
 		repeat_delay = 999;
 	if (!repeat_rate)
-		repeat_rate = 25;
+		repeat_rate = 50;
 	if (repeat_rate >= 1000)
 		repeat_rate = 999;
 

@@ -100,7 +100,7 @@ static void print_help()
 		"\t    --xkb-options <options>    [-]  Set XkbOptions for input devices\n"
 		"\t    --xkb-repeat-delay <msecs> [250]\n"
 		"\t                                 Initial delay for key-repeat in ms\n"
-		"\t    --xkb-repeat-rate <msecs>  [25]\n"
+		"\t    --xkb-repeat-rate <msecs>  [50]\n"
 		"\t                                 Delay between two key-repeats in ms\n"
 		"\n"
 		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
@@ -277,7 +277,7 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
 	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &kmscon_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 25),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 50),
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),

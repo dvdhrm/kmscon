@@ -258,7 +258,7 @@ static void print_help()
 		"Input Options:\n"
 		"\t    --xkb-repeat-delay <msecs> [250]\n"
 		"\t                                 Initial delay for key-repeat in ms\n"
-		"\t    --xkb-repeat-rate <msecs>  [25]\n"
+		"\t    --xkb-repeat-rate <msecs>  [50]\n"
 		"\t                                 Delay between two key-repeats in ms\n",
 		"wlterm");
 	/*
@@ -390,7 +390,7 @@ struct conf_option options[] = {
 	CONF_OPTION_UINT(0, "font-dpi", NULL, &wlt_conf.font_ppi, 96),
 
 	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &wlt_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &wlt_conf.xkb_repeat_rate, 25),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &wlt_conf.xkb_repeat_rate, 50),
 };
 
 int main(int argc, char **argv)
