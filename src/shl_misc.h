@@ -93,19 +93,19 @@ static inline unsigned int shl_get_xkb_mods(struct xkb_state *state)
 	unsigned int mods = 0;
 
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
-					 XKB_STATE_EFFECTIVE))
+					 XKB_STATE_EFFECTIVE) > 0)
 		mods |= SHL_SHIFT_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
-					 XKB_STATE_EFFECTIVE))
+					 XKB_STATE_EFFECTIVE) > 0)
 		mods |= SHL_LOCK_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
-					 XKB_STATE_EFFECTIVE))
+					 XKB_STATE_EFFECTIVE) > 0)
 		mods |= SHL_CONTROL_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
-					 XKB_STATE_EFFECTIVE))
+					 XKB_STATE_EFFECTIVE) > 0)
 		mods |= SHL_ALT_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
-					 XKB_STATE_EFFECTIVE))
+					 XKB_STATE_EFFECTIVE) > 0)
 		mods |= SHL_LOGO_MASK;
 
 	return mods;
