@@ -160,7 +160,6 @@ static int line_resize(struct tsm_screen *con, struct line *line,
 			return -ENOMEM;
 
 		line->cells = tmp;
-		line->size = width;
 
 		while (line->size < width) {
 			cell_init(con, &line->cells[line->size]);
