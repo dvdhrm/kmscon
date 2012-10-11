@@ -136,22 +136,143 @@ enum {
 	KEY_REPEATED = 2,
 };
 
+static inline int uxkb_dev_resize_event(struct uterm_input_dev *dev, size_t s)
+{
+	uint32_t *tmp;
+
+	if (s > dev->num_syms) {
+		tmp = realloc(dev->event.keysyms,
+			      sizeof(uint32_t) * s);
+		if (!tmp) {
+			log_warning("cannot reallocate keysym buffer");
+			return -ENOKEY;
+		}
+		dev->event.keysyms = tmp;
+
+		tmp = realloc(dev->event.codepoints,
+			      sizeof(uint32_t) * s);
+		if (!tmp) {
+			log_warning("cannot reallocate codepoints buffer");
+			return -ENOKEY;
+		}
+		dev->event.codepoints = tmp;
+
+		tmp = realloc(dev->repeat_event.keysyms,
+			      sizeof(uint32_t) * s);
+		if (!tmp) {
+			log_warning("cannot reallocate keysym buffer");
+			return -ENOKEY;
+		}
+		dev->repeat_event.keysyms = tmp;
+
+		tmp = realloc(dev->repeat_event.codepoints,
+			      sizeof(uint32_t) * s);
+		if (!tmp) {
+			log_warning("cannot reallocate codepoints buffer");
+			return -ENOKEY;
+		}
+		dev->repeat_event.codepoints = tmp;
+
+		dev->num_syms = s;
+	}
+
+	return 0;
+}
+
+static int uxkb_dev_fill_event(struct uterm_input_dev *dev,
+			       struct uterm_input_event *ev,
+			       xkb_keycode_t code,
+			       int num_syms,
+			       const xkb_keysym_t *syms)
+{
+	int ret, i;
+
+	ret = uxkb_dev_resize_event(dev, num_syms);
+	if (ret)
+		return ret;
+
+	ev->keycode = code;
+	ev->ascii = shl_get_ascii(dev->state, code, syms, num_syms);
+	ev->mods = shl_get_xkb_mods(dev->state);
+	ev->num_syms = num_syms;
+	memcpy(ev->keysyms, syms, sizeof(uint32_t) * num_syms);
+
+	for (i = 0; i < num_syms; ++i) {
+		ev->codepoints[i] = xkb_keysym_to_utf32(syms[i]);
+		if (!ev->codepoints[i])
+			ev->codepoints[i] = UTERM_INPUT_INVALID;
+	}
+
+	return 0;
+}
+
+static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
+{
+	struct xkb_keymap *keymap = xkb_state_get_map(dev->state);
+	unsigned int i;
+	int num_keysyms, ret;
+	const uint32_t *keysyms;
+	struct itimerspec spec;
+
+	if (state == KEY_RELEASED &&
+	    dev->repeat_event.keycode == dev->event.keycode) {
+		dev->repeating = false;
+		ev_timer_update(dev->repeat_timer, NULL);
+		return;
+	}
+
+	if (state == KEY_PRESSED &&
+	    xkb_key_repeats(keymap, dev->event.keycode)) {
+		dev->repeat_event.keycode = dev->event.keycode;
+		dev->repeat_event.ascii = dev->event.ascii;
+		dev->repeat_event.mods = dev->event.mods;
+		dev->repeat_event.num_syms = dev->event.num_syms;
+
+		for (i = 0; i < dev->event.num_syms; ++i) {
+			dev->repeat_event.keysyms[i] = dev->event.keysyms[i];
+			dev->repeat_event.codepoints[i] =
+						dev->event.codepoints[i];
+		}
+	} else if (dev->repeating &&
+		   !xkb_key_repeats(keymap, dev->event.keycode)) {
+		num_keysyms = xkb_key_get_syms(dev->state,
+					       dev->repeat_event.keycode,
+					       &keysyms);
+		if (num_keysyms <= 0)
+			return;
+
+		ret = uxkb_dev_fill_event(dev, &dev->repeat_event,
+					  dev->repeat_event.keycode,
+					  num_keysyms, keysyms);
+		if (ret)
+			return;
+	} else {
+		return;
+	}
+
+	if (dev->repeating)
+		return;
+
+	dev->repeating = true;
+	spec.it_interval.tv_sec = 0;
+	spec.it_interval.tv_nsec = dev->input->repeat_rate * 1000000;
+	spec.it_value.tv_sec = 0;
+	spec.it_value.tv_nsec = dev->input->repeat_delay * 1000000;
+	ev_timer_update(dev->repeat_timer, &spec);
+}
+
 int uxkb_dev_process(struct uterm_input_dev *dev,
 		     uint16_t key_state, uint16_t code)
 {
 	struct xkb_state *state;
-	struct xkb_keymap *keymap;
 	xkb_keycode_t keycode;
 	const xkb_keysym_t *keysyms;
-	int num_keysyms, i;
-	uint32_t *tmp;
-	struct itimerspec spec;
+	int num_keysyms, ret;
 
 	if (key_state == KEY_REPEATED)
 		return -ENOKEY;
 
 	state = dev->state;
-	keymap = xkb_state_get_map(state);
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
 	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
@@ -164,81 +285,17 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	if (num_keysyms <= 0)
 		return -ENOKEY;
 
-	if (dev->num_syms < num_keysyms) {
-		tmp = realloc(dev->event.keysyms,
-			      sizeof(uint32_t) * num_keysyms);
-		if (!tmp) {
-			log_warning("cannot reallocate keysym buffer");
-			return -ENOKEY;
-		}
-		dev->event.keysyms = tmp;
+	ret = uxkb_dev_fill_event(dev, &dev->event, keycode, num_keysyms,
+				  keysyms);
+	if (ret)
+		return -ENOKEY;
 
-		tmp = realloc(dev->event.codepoints,
-			      sizeof(uint32_t) * num_keysyms);
-		if (!tmp) {
-			log_warning("cannot reallocate codepoints buffer");
-			return -ENOKEY;
-		}
-		dev->event.codepoints = tmp;
-
-		tmp = realloc(dev->repeat_event.keysyms,
-			      sizeof(uint32_t) * num_keysyms);
-		if (!tmp) {
-			log_warning("cannot reallocate keysym buffer");
-			return -ENOKEY;
-		}
-		dev->repeat_event.keysyms = tmp;
-
-		tmp = realloc(dev->repeat_event.codepoints,
-			      sizeof(uint32_t) * num_keysyms);
-		if (!tmp) {
-			log_warning("cannot reallocate codepoints buffer");
-			return -ENOKEY;
-		}
-		dev->repeat_event.codepoints = tmp;
-
-		dev->num_syms = num_keysyms;
-	}
-
-	dev->event.handled = false;
-	dev->event.keycode = code;
-	dev->event.ascii = shl_get_ascii(state, keycode, keysyms, num_keysyms);
-	dev->event.mods = shl_get_xkb_mods(state);
-	dev->event.num_syms = num_keysyms;
-	memcpy(dev->event.keysyms, keysyms, sizeof(uint32_t) * num_keysyms);
-
-	for (i = 0; i < num_keysyms; ++i) {
-		dev->event.codepoints[i] = xkb_keysym_to_utf32(keysyms[i]);
-		if (!dev->event.codepoints[i])
-			dev->event.codepoints[i] = UTERM_INPUT_INVALID;
-	}
-
-	if (key_state == KEY_RELEASED &&
-	    dev->repeat_event.keycode == code) {
-		ev_timer_update(dev->repeat_timer, NULL);
-	} else if (key_state == KEY_PRESSED &&
-		   xkb_key_repeats(keymap, keycode)) {
-		dev->repeat_event.keycode = code;
-		dev->repeat_event.ascii = dev->event.ascii;
-		dev->repeat_event.mods = dev->event.mods;
-		dev->repeat_event.num_syms = num_keysyms;
-
-		for (i = 0; i < num_keysyms; ++i) {
-			dev->repeat_event.keysyms[i] = dev->event.keysyms[i];
-			dev->repeat_event.codepoints[i] =
-						dev->event.codepoints[i];
-		}
-
-		spec.it_interval.tv_sec = 0;
-		spec.it_interval.tv_nsec = dev->input->repeat_rate * 1000000;
-		spec.it_value.tv_sec = 0;
-		spec.it_value.tv_nsec = dev->input->repeat_delay * 1000000;
-		ev_timer_update(dev->repeat_timer, &spec);
-	}
+	uxkb_dev_repeat(dev, key_state);
 
 	if (key_state == KEY_RELEASED)
 		return -ENOKEY;
 
+	dev->event.handled = false;
 	shl_hook_call(dev->input->hook, dev->input, &dev->event);
 
 	return 0;

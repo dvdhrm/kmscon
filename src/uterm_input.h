@@ -51,6 +51,7 @@ struct uterm_input_dev {
 	struct uterm_input_event event;
 	struct uterm_input_event repeat_event;
 
+	bool repeating;
 	struct ev_timer *repeat_timer;
 };
 
