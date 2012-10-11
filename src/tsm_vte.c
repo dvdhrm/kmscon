@@ -134,6 +134,7 @@ enum parser_action {
 #define FLAG_NATIONAL_CHARSET_MODE		0x00004000 /* Send keys from nation charsets; TODO: implement */
 #define FLAG_BACKGROUND_COLOR_ERASE_MODE	0x00008000 /* Set background color on erase (bce) */
 #define FLAG_PREPEND_ESCAPE			0x00010000 /* Prepend escape character to next output */
+#define FLAG_TITE_INHIBIT_MODE			0x00020000 /* Prevent switching to alternate screen buffer */
 
 struct vte_saved_state {
 	unsigned int cursor_x;
@@ -176,6 +177,8 @@ struct tsm_vte {
 	tsm_vte_charset *g3;
 
 	struct vte_saved_state saved_state;
+	unsigned int alt_cursor_x;
+	unsigned int alt_cursor_y;
 };
 
 enum vte_color {
@@ -1389,6 +1392,64 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 			continue;
 		case 42: /* DECNRCM */
 			set_reset_flag(vte, set, FLAG_NATIONAL_CHARSET_MODE);
+			continue;
+		case 47: /* Alternate screen buffer */
+			if (vte->flags & FLAG_TITE_INHIBIT_MODE)
+				continue;
+
+			if (set)
+				tsm_screen_set_flags(vte->con,
+						     TSM_SCREEN_ALTERNATE);
+			else
+				tsm_screen_reset_flags(vte->con,
+						       TSM_SCREEN_ALTERNATE);
+			continue;
+		case 1047: /* Alternate screen buffer with post-erase */
+			if (vte->flags & FLAG_TITE_INHIBIT_MODE)
+				continue;
+
+			if (set) {
+				tsm_screen_set_flags(vte->con,
+						     TSM_SCREEN_ALTERNATE);
+			} else {
+				tsm_screen_reset_flags(vte->con,
+						       TSM_SCREEN_ALTERNATE);
+				/* TODO: which screen to clear here? */
+				tsm_screen_erase_screen(vte->con, false);
+			}
+			continue;
+		case 1048: /* Set/Reset alternate-screen buffer cursor */
+			if (vte->flags & FLAG_TITE_INHIBIT_MODE)
+				continue;
+
+			if (set) {
+				vte->alt_cursor_x =
+					tsm_screen_get_cursor_x(vte->con);
+				vte->alt_cursor_y =
+					tsm_screen_get_cursor_y(vte->con);
+			} else {
+				tsm_screen_move_to(vte->con, vte->alt_cursor_x,
+						   vte->alt_cursor_y);
+			}
+			continue;
+		case 1049: /* Alternate screen buffer with pre-erase+cursor */
+			if (vte->flags & FLAG_TITE_INHIBIT_MODE)
+				continue;
+
+			if (set) {
+				vte->alt_cursor_x =
+					tsm_screen_get_cursor_x(vte->con);
+				vte->alt_cursor_y =
+					tsm_screen_get_cursor_y(vte->con);
+				tsm_screen_set_flags(vte->con,
+						     TSM_SCREEN_ALTERNATE);
+				tsm_screen_erase_screen(vte->con, false);
+			} else {
+				tsm_screen_reset_flags(vte->con,
+						       TSM_SCREEN_ALTERNATE);
+				tsm_screen_move_to(vte->con, vte->alt_cursor_x,
+						   vte->alt_cursor_y);
+			}
 			continue;
 		default:
 			llog_debug(vte, "unknown DEC %set-Mode %d",
