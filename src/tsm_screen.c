@@ -460,7 +460,8 @@ err_timer:
 		line_free(con->main_lines[i]);
 		line_free(con->alt_lines[i]);
 	}
-	free(con->lines);
+	free(con->main_lines);
+	free(con->alt_lines);
 	free(con->tab_ruler);
 err_free:
 	free(con);
@@ -488,7 +489,8 @@ void tsm_screen_unref(struct tsm_screen *con)
 		line_free(con->main_lines[i]);
 		line_free(con->alt_lines[i]);
 	}
-	free(con->lines);
+	free(con->main_lines);
+	free(con->alt_lines);
 	free(con->tab_ruler);
 	shl_timer_free(con->timer);
 	free(con);
