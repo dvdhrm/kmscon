@@ -214,10 +214,7 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	}
 
 	if (key_state == KEY_RELEASED &&
-	    dev->repeat_event.num_syms == num_keysyms &&
-	    !memcmp(dev->repeat_event.keysyms,
-	            keysyms,
-	            sizeof(uint32_t) * num_keysyms)) {
+	    dev->repeat_event.keycode == code) {
 		ev_timer_update(dev->repeat_timer, NULL);
 	} else if (key_state == KEY_PRESSED &&
 		   xkb_key_repeats(keymap, keycode)) {
