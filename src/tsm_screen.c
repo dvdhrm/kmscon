@@ -81,6 +81,8 @@ struct tsm_screen {
 	unsigned int margin_bottom;
 	unsigned int line_num;
 	struct line **lines;
+	struct line **main_lines;
+	struct line **alt_lines;
 
 	/* scroll-back buffer */
 	unsigned int sb_count;		/* number of lines in sb */
@@ -454,8 +456,10 @@ int tsm_screen_new(struct tsm_screen **out, tsm_log_t log)
 
 err_timer:
 	shl_timer_free(con->timer);
-	for (i = 0; i < con->line_num; ++i)
-		line_free(con->lines[i]);
+	for (i = 0; i < con->line_num; ++i) {
+		line_free(con->main_lines[i]);
+		line_free(con->alt_lines[i]);
+	}
 	free(con->lines);
 	free(con->tab_ruler);
 err_free:
@@ -480,8 +484,10 @@ void tsm_screen_unref(struct tsm_screen *con)
 
 	llog_debug(con, "destroying screen");
 
-	for (i = 0; i < con->line_num; ++i)
-		line_free(con->lines[i]);
+	for (i = 0; i < con->line_num; ++i) {
+		line_free(con->main_lines[i]);
+		line_free(con->alt_lines[i]);
+	}
 	free(con->lines);
 	free(con->tab_ruler);
 	shl_timer_free(con->timer);
@@ -529,7 +535,7 @@ unsigned int tsm_screen_get_height(struct tsm_screen *con)
 }
 
 int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
-			  unsigned int y)
+		      unsigned int y)
 {
 	struct line **cache;
 	unsigned int i, j, width, diff;
@@ -550,20 +556,43 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 	 * lines. Otherwise, if this function fails in later turns, we will have
 	 * invalid lines in the buffer. */
 	if (y > con->line_num) {
-		cache = realloc(con->lines, sizeof(struct line*) * y);
+		/* resize main buffer */
+		cache = realloc(con->main_lines, sizeof(struct line*) * y);
 		if (!cache)
 			return -ENOMEM;
 
-		con->lines = cache;
+		if (con->lines == con->main_lines)
+			con->lines = cache;
+		con->main_lines = cache;
+
+		/* resize alt buffer */
+		cache = realloc(con->alt_lines, sizeof(struct line*) * y);
+		if (!cache)
+			return -ENOMEM;
+
+		if (con->lines == con->alt_lines)
+			con->lines = cache;
+		con->alt_lines = cache;
+
+		/* allocate new lines */
 		if (x > con->size_x)
 			width = x;
 		else
 			width = con->size_x;
 
 		while (con->line_num < y) {
-			ret = line_new(con, &cache[con->line_num], width);
+			ret = line_new(con, &con->main_lines[con->line_num],
+				       width);
 			if (ret)
 				return ret;
+
+			ret = line_new(con, &con->alt_lines[con->line_num],
+				       width);
+			if (ret) {
+				line_free(con->main_lines[con->line_num]);
+				return ret;
+			}
+
 			++con->line_num;
 		}
 	}
@@ -578,7 +607,11 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 		con->tab_ruler = tab_ruler;
 
 		for (i = 0; i < con->line_num; ++i) {
-			ret = line_resize(con, con->lines[i], x);
+			ret = line_resize(con, con->main_lines[i], x);
+			if (ret)
+				return ret;
+
+			ret = line_resize(con, con->alt_lines[i], x);
 			if (ret)
 				return ret;
 		}
@@ -594,12 +627,20 @@ int tsm_screen_resize(struct tsm_screen *con, unsigned int x,
 			i = 0;
 		else
 			i = con->size_x;
-		if (x < con->lines[j]->size)
+
+		if (x < con->main_lines[j]->size)
 			width = x;
 		else
-			width = con->lines[j]->size;
+			width = con->main_lines[j]->size;
 		for (; i < width; ++i)
-			cell_init(con, &con->lines[j]->cells[i]);
+			cell_init(con, &con->main_lines[j]->cells[i]);
+
+		if (x < con->alt_lines[j]->size)
+			width = x;
+		else
+			width = con->alt_lines[j]->size;
+		for (; i < width; ++i)
+			cell_init(con, &con->alt_lines[j]->cells[i]);
 	}
 
 	/* xterm destroys margins on resize, so do we */
