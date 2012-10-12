@@ -494,3 +494,8 @@ void kmscon_session_deactivate(struct kmscon_session *sess)
 
 	session_deactivate(sess);
 }
+
+bool kmscon_session_is_active(struct kmscon_session *sess)
+{
+	return sess && sess->seat && sess->seat->cur_sess == sess;
+}
