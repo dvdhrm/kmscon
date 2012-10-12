@@ -32,8 +32,8 @@
 #ifndef KMSCON_SEAT_H
 #define KMSCON_SEAT_H
 
+#include <stdbool.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include "eloop.h"
 #include "uterm.h"
 
@@ -89,6 +89,7 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 void kmscon_session_ref(struct kmscon_session *sess);
 void kmscon_session_unref(struct kmscon_session *sess);
 void kmscon_session_unregister(struct kmscon_session *sess);
+bool kmscon_session_is_registered(struct kmscon_session *sess);
 
 void kmscon_session_activate(struct kmscon_session *sess);
 void kmscon_session_deactivate(struct kmscon_session *sess);

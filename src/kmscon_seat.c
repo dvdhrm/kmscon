@@ -474,6 +474,11 @@ void kmscon_session_unregister(struct kmscon_session *sess)
 	session_call(sess, KMSCON_SESSION_UNREGISTER, NULL);
 }
 
+bool kmscon_session_is_registered(struct kmscon_session *sess)
+{
+	return sess && sess->seat;
+}
+
 void kmscon_session_activate(struct kmscon_session *sess)
 {
 	if (!sess || !sess->seat)
