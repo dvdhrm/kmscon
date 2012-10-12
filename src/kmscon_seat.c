@@ -86,24 +86,24 @@ static void session_call(struct kmscon_session *sess, unsigned int event,
 	sess->cb(sess, event, disp, sess->data);
 }
 
-static void session_wake_up(struct kmscon_session *sess)
+static void session_call_activate(struct kmscon_session *sess)
 {
-	session_call(sess, KMSCON_SESSION_WAKE_UP, NULL);
+	session_call(sess, KMSCON_SESSION_ACTIVATE, NULL);
 }
 
-static void session_sleep(struct kmscon_session *sess)
+static void session_call_deactivate(struct kmscon_session *sess)
 {
-	session_call(sess, KMSCON_SESSION_SLEEP, NULL);
+	session_call(sess, KMSCON_SESSION_DEACTIVATE, NULL);
 }
 
-static void session_display_new(struct kmscon_session *sess,
-				struct uterm_display *disp)
+static void session_call_display_new(struct kmscon_session *sess,
+				     struct uterm_display *disp)
 {
 	session_call(sess, KMSCON_SESSION_DISPLAY_NEW, disp);
 }
 
-static void session_display_gone(struct kmscon_session *sess,
-				 struct uterm_display *disp)
+static void session_call_display_gone(struct kmscon_session *sess,
+				      struct uterm_display *disp)
 {
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
@@ -117,13 +117,13 @@ static void session_activate(struct kmscon_session *sess)
 
 	if (seat->cur_sess) {
 		if (seat->awake)
-			session_sleep(seat->cur_sess);
+			session_call_deactivate(seat->cur_sess);
 		seat->cur_sess = NULL;
 	}
 
 	seat->cur_sess = sess;
 	if (seat->awake)
-		session_wake_up(sess);
+		session_call_activate(sess);
 }
 
 static void session_deactivate(struct kmscon_session *sess)
@@ -134,7 +134,7 @@ static void session_deactivate(struct kmscon_session *sess)
 		return;
 
 	if (seat->awake)
-		session_sleep(sess);
+		session_call_deactivate(sess);
 
 	if (shl_dlist_empty(&seat->sessions)) {
 		seat->cur_sess = NULL;
@@ -143,7 +143,7 @@ static void session_deactivate(struct kmscon_session *sess)
 						 struct kmscon_session,
 						 list);
 		if (seat->awake)
-			session_wake_up(seat->cur_sess);
+			session_call_activate(seat->cur_sess);
 	}
 }
 
@@ -166,7 +166,7 @@ static void activate_display(struct kmscon_display *d)
 
 		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
 			s = shl_dlist_entry(iter, struct kmscon_session, list);
-			session_display_new(s, d->disp);
+			session_call_display_new(s, d->disp);
 		}
 
 		ret = uterm_display_set_dpms(d->disp, UTERM_DPMS_ON);
@@ -209,7 +209,7 @@ static void seat_remove_display(struct kmscon_seat *seat,
 	if (d->activated) {
 		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
 			s = shl_dlist_entry(iter, struct kmscon_session, list);
-			session_display_gone(s, d->disp);
+			session_call_display_gone(s, d->disp);
 		}
 	}
 
@@ -237,11 +237,11 @@ static int seat_vt_event(struct uterm_vt *vt, unsigned int event, void *data)
 		}
 
 		if (seat->cur_sess)
-			session_wake_up(seat->cur_sess);
+			session_call_activate(seat->cur_sess);
 		break;
 	case UTERM_VT_DEACTIVATE:
 		if (seat->cur_sess)
-			session_sleep(seat->cur_sess);
+			session_call_deactivate(seat->cur_sess);
 
 		uterm_input_sleep(seat->input);
 

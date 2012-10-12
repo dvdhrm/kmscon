@@ -435,13 +435,13 @@ static void session_event(struct kmscon_session *session, unsigned int event,
 	case KMSCON_SESSION_DISPLAY_GONE:
 		rm_display(term, disp);
 		break;
-	case KMSCON_SESSION_WAKE_UP:
+	case KMSCON_SESSION_ACTIVATE:
 		term->awake = true;
 		if (!term->opened)
 			terminal_open(term);
 		schedule_redraw(term);
 		break;
-	case KMSCON_SESSION_SLEEP:
+	case KMSCON_SESSION_DEACTIVATE:
 		term->awake = false;
 		break;
 	case KMSCON_SESSION_UNREGISTER:
