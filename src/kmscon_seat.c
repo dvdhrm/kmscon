@@ -129,21 +129,24 @@ static void session_activate(struct kmscon_session *sess)
 static void session_deactivate(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat = sess->seat;
+	struct shl_dlist *iter;
 
-	if (seat->cur_sess != sess || !sess->enabled)
+	if (seat->cur_sess != sess)
 		return;
 
 	if (seat->awake)
 		session_call_deactivate(sess);
 
-	if (shl_dlist_empty(&seat->sessions)) {
-		seat->cur_sess = NULL;
-	} else {
-		seat->cur_sess = shl_dlist_entry(seat->sessions.next,
-						 struct kmscon_session,
-						 list);
+	seat->cur_sess = NULL;
+	shl_dlist_for_each(iter, &seat->sessions) {
+		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!sess->enabled)
+			continue;
+
+		seat->cur_sess = sess;
 		if (seat->awake)
 			session_call_activate(seat->cur_sess);
+		break;
 	}
 }
 
