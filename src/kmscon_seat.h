@@ -95,4 +95,8 @@ void kmscon_session_activate(struct kmscon_session *sess);
 void kmscon_session_deactivate(struct kmscon_session *sess);
 bool kmscon_session_is_active(struct kmscon_session *sess);
 
+void kmscon_session_enable(struct kmscon_session *sess);
+void kmscon_session_disable(struct kmscon_session *sess);
+bool kmscon_session_is_enabled(struct kmscon_session *sess);
+
 #endif /* KMSCON_SEAT_H */

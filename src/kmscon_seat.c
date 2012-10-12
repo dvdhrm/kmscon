@@ -47,6 +47,8 @@ struct kmscon_session {
 	unsigned long ref;
 	struct kmscon_seat *seat;
 
+	bool enabled;
+
 	kmscon_session_cb_t cb;
 	void *data;
 };
@@ -110,7 +112,7 @@ static void session_activate(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat = sess->seat;
 
-	if (seat->cur_sess == sess)
+	if (seat->cur_sess == sess || !sess->enabled)
 		return;
 
 	if (seat->cur_sess) {
@@ -128,7 +130,7 @@ static void session_deactivate(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat = sess->seat;
 
-	if (seat->cur_sess != sess)
+	if (seat->cur_sess != sess || !sess->enabled)
 		return;
 
 	if (seat->awake)
@@ -302,6 +304,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	ret = kmscon_terminal_register(&s, seat);
 	if (ret)
 		goto err_vt;
+	kmscon_session_enable(s);
 
 	ev_eloop_ref(seat->eloop);
 	uterm_vt_master_ref(seat->vtm);
@@ -440,9 +443,6 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 	shl_dlist_link(&seat->sessions, &sess->list);
 	*out = sess;
 
-	if (!seat->cur_sess)
-		session_activate(sess);
-
 	return 0;
 }
 
@@ -498,4 +498,29 @@ void kmscon_session_deactivate(struct kmscon_session *sess)
 bool kmscon_session_is_active(struct kmscon_session *sess)
 {
 	return sess && sess->seat && sess->seat->cur_sess == sess;
+}
+
+void kmscon_session_enable(struct kmscon_session *sess)
+{
+	if (!sess)
+		return;
+
+	sess->enabled = true;
+	if (sess->seat && !sess->seat->cur_sess)
+		session_activate(sess);
+}
+
+void kmscon_session_disable(struct kmscon_session *sess)
+{
+	if (!sess)
+		return;
+
+	if (sess->seat)
+		session_deactivate(sess);
+	sess->enabled = false;
+}
+
+bool kmscon_session_is_enabled(struct kmscon_session *sess)
+{
+	return sess && sess->enabled;
 }
