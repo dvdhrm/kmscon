@@ -412,6 +412,28 @@ int uterm_display_swap(struct uterm_display *disp)
 	return VIDEO_CALL(disp->ops->swap, 0, disp);
 }
 
+int uterm_display_fill(struct uterm_display *disp,
+		       uint8_t r, uint8_t g, uint8_t b,
+		       unsigned int x, unsigned int y,
+		       unsigned int width, unsigned int height)
+{
+	if (!disp)
+		return -EINVAL;
+
+	return VIDEO_CALL(disp->ops->fill, -EOPNOTSUPP, disp, r, g, b, x, y,
+			  width, height);
+}
+
+int uterm_display_blit(struct uterm_display *disp,
+		       const struct uterm_video_buffer *buf,
+		       unsigned int x, unsigned int y)
+{
+	if (!disp)
+		return -EINVAL;
+
+	return VIDEO_CALL(disp->ops->blit, -EOPNOTSUPP, disp, buf, x, y);
+}
+
 int uterm_display_fake_blend(struct uterm_display *disp,
 			     const struct uterm_video_buffer *buf,
 			     unsigned int x, unsigned int y,

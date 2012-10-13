@@ -216,6 +216,13 @@ int uterm_display_get_dpms(const struct uterm_display *disp);
 int uterm_display_use(struct uterm_display *disp);
 int uterm_display_swap(struct uterm_display *disp);
 
+int uterm_display_fill(struct uterm_display *disp,
+		       uint8_t r, uint8_t g, uint8_t b,
+		       unsigned int x, unsigned int y,
+		       unsigned int width, unsigned int height);
+int uterm_display_blit(struct uterm_display *disp,
+		       const struct uterm_video_buffer *buf,
+		       unsigned int x, unsigned int y);
 int uterm_display_fake_blend(struct uterm_display *disp,
 			     const struct uterm_video_buffer *buf,
 			     unsigned int x, unsigned int y,
