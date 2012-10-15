@@ -255,12 +255,49 @@ unsigned int uterm_mode_get_height(const struct uterm_mode *mode)
 	return VIDEO_CALL(mode->ops->get_height, 0, mode);
 }
 
-int display_new(struct uterm_display **out, const struct display_ops *ops)
+int display_schedule_vblank_timer(struct uterm_display *disp)
+{
+	int ret;
+
+	if (disp->vblank_scheduled)
+		return 0;
+
+	ret = ev_timer_update(disp->vblank_timer, &disp->vblank_spec);
+	if (ret)
+		return ret;
+
+	disp->vblank_scheduled = true;
+	return 0;
+}
+
+void display_set_vblank_timer(struct uterm_display *disp,
+			      unsigned int msecs)
+{
+	if (msecs >= 1000)
+		msecs = 999;
+	else if (msecs == 0)
+		msecs = 15;
+
+	disp->vblank_spec.it_value.tv_nsec = msecs * 1000 * 1000;
+}
+
+static void display_vblank_timer_event(struct ev_timer *timer,
+				       uint64_t expirations,
+				       void *data)
+{
+	struct uterm_display *disp = data;
+
+	disp->vblank_scheduled = false;
+	DISPLAY_CB(disp, UTERM_PAGE_FLIP);
+}
+
+int display_new(struct uterm_display **out, const struct display_ops *ops,
+		struct uterm_video *video)
 {
 	struct uterm_display *disp;
 	int ret;
 
-	if (!out || !ops)
+	if (!out || !ops || !video)
 		return -EINVAL;
 
 	disp = malloc(sizeof(*disp));
@@ -269,19 +306,35 @@ int display_new(struct uterm_display **out, const struct display_ops *ops)
 	memset(disp, 0, sizeof(*disp));
 	disp->ref = 1;
 	disp->ops = ops;
+	disp->video = video;
 
 	ret = shl_hook_new(&disp->hook);
 	if (ret)
 		goto err_free;
 
-	ret = VIDEO_CALL(disp->ops->init, 0, disp);
+	disp->vblank_spec.it_value.tv_nsec = 15 * 1000 * 1000;
+
+	ret = ev_timer_new(&disp->vblank_timer, NULL,
+			   display_vblank_timer_event, disp, NULL);
 	if (ret)
 		goto err_hook;
+
+	ret = ev_eloop_add_timer(video->eloop, disp->vblank_timer);
+	if (ret)
+		goto err_timer;
+
+	ret = VIDEO_CALL(disp->ops->init, 0, disp);
+	if (ret)
+		goto err_eloop_timer;
 
 	log_info("new display %p", disp);
 	*out = disp;
 	return 0;
 
+err_eloop_timer:
+	ev_eloop_rm_timer(disp->vblank_timer);
+err_timer:
+	ev_timer_unref(disp->vblank_timer);
 err_hook:
 	shl_hook_free(disp->hook);
 err_free:
@@ -313,6 +366,8 @@ void uterm_display_unref(struct uterm_display *disp)
 		mode->next = NULL;
 		uterm_mode_unref(mode);
 	}
+	ev_eloop_rm_timer(disp->vblank_timer);
+	ev_timer_unref(disp->vblank_timer);
 	shl_hook_free(disp->hook);
 	free(disp);
 }

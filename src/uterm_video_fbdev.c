@@ -88,6 +88,7 @@ static int display_activate_force(struct uterm_display *disp,
 	int ret, i;
 	uint64_t quot;
 	size_t len;
+	unsigned int val;
 
 	if (!disp->video || !video_is_awake(disp->video))
 		return -EINVAL;
@@ -211,10 +212,26 @@ static int display_activate_force(struct uterm_display *disp,
 	quot = (vinfo->upper_margin + vinfo->lower_margin + vinfo->yres);
 	quot *= (vinfo->left_margin + vinfo->right_margin + vinfo->xres);
 	quot *= vinfo->pixclock;
-	if (quot)
+	if (quot) {
 		disp->fbdev.rate = 1000000000000000LLU / quot;
-	else
+	} else {
 		disp->fbdev.rate = 60 * 1000;
+		log_warning("cannot read monitor refresh rate, forcing 60 Hz");
+	}
+
+	if (disp->fbdev.rate == 0) {
+		log_warning("monitor refresh rate is 0 Hz, forcing it to 1 Hz");
+		disp->fbdev.rate = 1;
+	} else if (disp->fbdev.rate > 200000) {
+		log_warning("monitor refresh rate is >200 Hz (%u Hz), forcing it to 200 Hz",
+			    disp->fbdev.rate / 1000);
+		disp->fbdev.rate = 200000;
+	}
+
+	val = 1000000 / disp->fbdev.rate;
+	display_set_vblank_timer(disp, val);
+	log_debug("vblank timer: %u ms, monitor refresh rate: %u Hz", val,
+		  disp->fbdev.rate / 1000);
 
 	len = finfo->line_length * vinfo->yres;
 	if (disp->flags & DISPLAY_DBUF)
@@ -344,8 +361,7 @@ static int display_swap(struct uterm_display *disp)
 		return -EINVAL;
 
 	if (!(disp->flags & DISPLAY_DBUF)) {
-		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
-		return 0;
+		return display_schedule_vblank_timer(disp);
 	}
 
 	vinfo = &disp->fbdev.vinfo;
@@ -364,8 +380,7 @@ static int display_swap(struct uterm_display *disp)
 	}
 
 	disp->fbdev.bufid ^= 1;
-	DISPLAY_CB(disp, UTERM_PAGE_FLIP);
-	return 0;
+	return display_schedule_vblank_timer(disp);
 }
 
 static int clamp_value(int val, int low, int up)
@@ -869,7 +884,7 @@ static int video_init(struct uterm_video *video, const char *node)
 	int ret;
 	struct uterm_display *disp;
 
-	ret = display_new(&disp, &fbdev_display_ops);
+	ret = display_new(&disp, &fbdev_display_ops, video);
 	if (ret)
 		return ret;
 
@@ -894,7 +909,6 @@ static int video_init(struct uterm_video *video, const char *node)
 		goto err_node;
 	}
 
-	disp->video = video;
 	disp->dpms = UTERM_DPMS_UNKNOWN;
 	video->displays = disp;
 

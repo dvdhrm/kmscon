@@ -928,7 +928,7 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 	struct uterm_mode *mode;
 	int ret, i;
 
-	ret = display_new(&disp, &drm_display_ops);
+	ret = display_new(&disp, &drm_display_ops, video);
 	if (ret)
 		return;
 
@@ -951,7 +951,6 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 		return;
 	}
 
-	disp->video = video;
 	disp->drm.conn_id = conn->connector_id;
 	disp->flags |= DISPLAY_AVAILABLE;
 	disp->next = video->displays;

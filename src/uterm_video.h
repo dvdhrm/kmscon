@@ -343,6 +343,10 @@ struct uterm_display {
 	struct uterm_mode *current_mode;
 	int dpms;
 
+	bool vblank_scheduled;
+	struct itimerspec vblank_spec;
+	struct ev_timer *vblank_timer;
+
 	const struct display_ops *ops;
 	union {
 		struct drm_display drm;
@@ -351,7 +355,11 @@ struct uterm_display {
 	};
 };
 
-int display_new(struct uterm_display **out, const struct display_ops *ops);
+int display_new(struct uterm_display **out, const struct display_ops *ops,
+		struct uterm_video *video);
+void display_set_vblank_timer(struct uterm_display *disp,
+			      unsigned int msecs);
+int display_schedule_vblank_timer(struct uterm_display *disp);
 
 #define DISPLAY_CB(disp, act) shl_hook_call((disp)->hook, (disp), \
 		&(struct uterm_display_event){ \
