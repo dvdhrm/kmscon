@@ -187,9 +187,7 @@ libuterm_la_SOURCES = \
 	src/uterm_monitor.c \
 	src/uterm_vt.c \
 	src/uterm_input.c \
-	src/uterm_input_uxkb.c \
-	external/imKStoUCS.h \
-	external/imKStoUCS.c
+	src/uterm_input_uxkb.c
 nodist_libuterm_la_SOURCES =
 
 libuterm_la_CPPFLAGS = \
