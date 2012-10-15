@@ -45,8 +45,10 @@
 
 void conf_free_value(struct conf_option *opt)
 {
-	if (*(void**)opt->mem != opt->def)
+	if (*(void**)opt->mem && *(void**)opt->mem != opt->def) {
 		free(*(void**)opt->mem);
+		*(void**)opt->mem = NULL;
+	}
 }
 
 int conf_parse_bool(struct conf_option *opt, bool on, const char *arg)
@@ -100,44 +102,12 @@ void conf_default_string(struct conf_option *opt)
 
 int conf_parse_string_list(struct conf_option *opt, bool on, const char *arg)
 {
-	unsigned int i;
-	unsigned int num, len, size, pos;
-	char **list, *off;
+	int ret;
+	char **list;
 
-	num = 0;
-	size = 0;
-	len = 0;
-	for (i = 0; arg[i]; ++i) {
-		if (arg[i] != ',') {
-			++len;
-			continue;
-		}
-
-		++num;
-		size += len + 1;
-		len = 0;
-	}
-
-	if (len > 0 || !i || (i > 0 && arg[i - 1] == ',')) {
-		++num;
-		size += len + 1;
-	}
-
-	list = malloc(sizeof(char*) * (num + 1) + size);
-	if (!list)
-		return -ENOMEM;
-
-	off = (void*)(((char*)list) + (sizeof(char*) * (num + 1)));
-	i = 0;
-	for (pos = 0; pos < num; ++pos) {
-		list[pos] = off;
-		while (arg[i] && arg[i] != ',')
-			*off++ = arg[i++];
-		if (arg[i])
-			++i;
-		*off++ = 0;
-	}
-	list[pos] = NULL;
+	ret = shl_split_string(arg, &list, NULL, ',', true);
+	if (ret)
+		return ret;
 
 	opt->type->free(opt);
 	*(void**)opt->mem = list;
@@ -149,77 +119,193 @@ void conf_default_string_list(struct conf_option *opt)
 	*(void**)opt->mem = opt->def;
 }
 
-int conf_parse_grab(struct conf_option *opt, bool on, const char *arg)
+static int parse_single_grab(char *arg, unsigned int *mods,
+			     uint32_t *keysym, bool allow_mods)
 {
-	char *buf, *tmp, *start;
-	struct conf_grab grab, *gnew;
+	char *tmp, *start, *end;
 
-	memset(&grab, 0, sizeof(grab));
+	tmp = arg;
+	do {
+		while (*tmp == ' ')
+			++tmp;
+		if (!allow_mods)
+			break;
+		if (*tmp != '<')
+			break;
 
-	buf = strdup(arg);
-	if (!buf)
-		return -ENOMEM;
-	tmp = buf;
-
-next_mod:
-	if (*tmp == '<') {
 		start = tmp;
 		while (*tmp && *tmp != '>')
 			++tmp;
 
 		if (*tmp != '>') {
-			log_error("missing '>' in grab '%s' near '%s'",
-				  arg, start);
-			goto err_free;
+			log_error("missing '>' near '%s'", start);
+			return -EFAULT;
 		}
 
 		*tmp++ = 0;
 		++start;
 		if (!strcasecmp(start, "shift")) {
-			grab.mods |= SHL_SHIFT_MASK;
+			*mods |= SHL_SHIFT_MASK;
 		} else if (!strcasecmp(start, "lock")) {
-			grab.mods |= SHL_LOCK_MASK;
+			*mods |= SHL_LOCK_MASK;
 		} else if (!strcasecmp(start, "control") ||
 			   !strcasecmp(start, "ctrl")) {
-			grab.mods |= SHL_CONTROL_MASK;
+			*mods |= SHL_CONTROL_MASK;
 		} else if (!strcasecmp(start, "alt")) {
-			grab.mods |= SHL_ALT_MASK;
+			*mods |= SHL_ALT_MASK;
 		} else if (!strcasecmp(start, "logo")) {
-			grab.mods |= SHL_LOGO_MASK;
+			*mods |= SHL_LOGO_MASK;
 		} else {
-			log_error("invalid modifier '%s' in grab '%s'",
-				  start, arg);
-			goto err_free;
+			log_error("invalid modifier '%s'", start);
+			return -EFAULT;
+		}
+	} while (1);
+
+	while (*tmp == ' ')
+		++tmp;
+
+	start = tmp;
+	end = start;
+	do {
+		while (*tmp && *tmp != ' ')
+			++tmp;
+		end = tmp;
+		if (!*tmp)
+			break;
+		while (*tmp == ' ')
+			++tmp;
+	} while (1);
+
+	if (start == end)
+		return 0;
+	if (*end)
+		*end = 0;
+
+	*keysym = xkb_keysym_from_name(start);
+	if (!*keysym) {
+		log_error("invalid key '%s'", start);
+		return -EFAULT;
+	}
+
+	return 1;
+}
+
+int conf_parse_grab(struct conf_option *opt, bool on, const char *arg)
+{
+	char **list, **keys;
+	unsigned int list_num, key_num, i, j, k, l;
+	int ret;
+	struct conf_grab *grab;
+
+	ret = shl_split_string(arg, &list, &list_num, ',', false);
+	if (ret)
+		return ret;
+
+	grab = malloc(sizeof(*grab));
+	if (!grab) {
+		ret = -ENOMEM;
+		goto err_list;
+	}
+	memset(grab, 0, sizeof(*grab));
+
+	if (list_num) {
+		grab->mods = malloc(sizeof(*grab->mods) * list_num);
+		if (!grab->mods) {
+			ret = -ENOMEM;
+			goto err_grab;
+		}
+		memset(grab->mods, 0, sizeof(*grab->mods) * list_num);
+
+		grab->num_syms = malloc(sizeof(*grab->num_syms) * list_num);
+		if (!grab->num_syms) {
+			ret = -ENOMEM;
+			goto err_grab;
+		}
+		memset(grab->num_syms, 0, sizeof(*grab->num_syms) * list_num);
+
+		grab->keysyms = malloc(sizeof(*grab->keysyms) * list_num);
+		if (!grab->keysyms) {
+			ret = -ENOMEM;
+			goto err_grab;
+		}
+		memset(grab->keysyms, 0, sizeof(*grab->keysyms) * list_num);
+	}
+
+	l = 0;
+	for (i = 0; i < list_num; ++i) {
+		ret = shl_split_string(list[i], &keys, &key_num, '+', false);
+		if (ret)
+			goto err_all;
+		if (!key_num) {
+			free(keys);
+			continue;
 		}
 
-		goto next_mod;
+		grab->keysyms[l] = malloc(sizeof(*grab->keysyms[l] * key_num));
+		if (!grab->keysyms[l]) {
+			ret = -ENOMEM;
+			free(keys);
+			goto err_all;
+		}
+
+		k = 0;
+		for (j = 0; j < key_num; ++j) {
+			ret = parse_single_grab(keys[j], &grab->mods[l],
+						&grab->keysyms[l][k],
+						j == 0);
+			if (ret < 0) {
+				log_error("cannot parse grab '%s' in '%s'",
+					  list[i], arg);
+				free(keys);
+				goto err_all;
+			}
+			k += ret;
+		}
+
+		free(keys);
+		if (!k)
+			continue;
+		grab->num_syms[l] = k;
+		++l;
+		++grab->num;
 	}
 
-	if (!*tmp) {
-		log_error("missing key in grab '%s'", arg);
-		goto err_free;
-	}
-
-	grab.keysym = xkb_keysym_from_name(tmp);
-	if (!grab.keysym) {
-		log_error("invalid key '%s' in grab '%s'", tmp, arg);
-		goto err_free;
-	}
-
-	gnew = malloc(sizeof(*gnew));
-	if (!gnew)
-		goto err_free;
-	memcpy(gnew, &grab, sizeof(*gnew));
-
+	free(list);
 	opt->type->free(opt);
-	*(void**)opt->mem = gnew;
-	free(buf);
-
+	*(void**)opt->mem = grab;
 	return 0;
 
-err_free:
-	free(buf);
-	return -EFAULT;
+err_all:
+	for (i = 0; i < list_num; ++i)
+		free(grab->keysyms[i]);
+err_grab:
+	free(grab->keysyms);
+	free(grab->num_syms);
+	free(grab->mods);
+	free(grab);
+err_list:
+	free(list);
+	return ret;
+}
+
+void conf_free_grab(struct conf_option *opt)
+{
+	struct conf_grab *grab;
+	unsigned int i;
+
+	if (!*(void**)opt->mem || *(void**)opt->mem == opt->def)
+		return;
+
+	grab = *(void**)opt->mem;
+	*(void**)opt->mem = NULL;
+
+	for (i = 0; i < grab->num; ++i)
+		free(grab->keysyms[i]);
+
+	free(grab->keysyms);
+	free(grab->num_syms);
+	free(grab->mods);
+	free(grab);
 }
 
 void conf_default_grab(struct conf_option *opt)
@@ -265,7 +351,7 @@ const struct conf_type conf_string_list = {
 const struct conf_type conf_grab = {
 	.flags = CONF_HAS_ARG,
 	.parse = conf_parse_grab,
-	.free = conf_free_value,
+	.free = conf_free_grab,
 	.set_default = conf_default_grab,
 };
 

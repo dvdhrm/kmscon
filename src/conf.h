@@ -35,13 +35,33 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "shl_misc.h"
 
 /* parsed types */
 
 struct conf_grab {
-	unsigned int mods;
-	uint32_t keysym;
+	unsigned int num;
+	unsigned int *mods;
+	unsigned int *num_syms;
+	uint32_t **keysyms;
 };
+
+static inline bool conf_grab_matches(const struct conf_grab *grab,
+				     unsigned int ev_mods,
+				     unsigned int ev_num_syms,
+				     const uint32_t *ev_syms)
+{
+	return shl_grab_has_match(ev_mods, ev_num_syms, ev_syms,
+				  grab->num, grab->mods, grab->num_syms,
+				  grab->keysyms);
+}
+
+#define CONF_SINGLE_GRAB(_mods, _sym) { \
+		.num = 1, \
+		.mods = (unsigned int[]) { (_mods) }, \
+		.num_syms = (unsigned int[]) { 1 }, \
+		.keysyms = (uint32_t*[]) { (uint32_t[]) { (_sym) } }, \
+	}
 
 /* configuration parser */
 

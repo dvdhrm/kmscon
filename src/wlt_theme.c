@@ -539,8 +539,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 	if (handled || state != WL_KEYBOARD_KEY_STATE_PRESSED)
 		return false;
 
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_fullscreen->mods) &&
-	    sym == wlt_conf.grab_fullscreen->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_fullscreen,
+			      mask, 1, &sym)) {
 		wlt_window_toggle_fullscreen(theme->wnd);
 		return true;
 	}

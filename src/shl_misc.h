@@ -77,6 +77,69 @@ static inline int shl_dup(void **out, const void *data, size_t size)
 	return 0;
 }
 
+/* This parses \arg and splits the string into a new allocated array. The array
+ * is stored in \out and is NULL terminated. Empty entries are removed from the
+ * array if \keep_empty is false. \out_num is the number of entries in the
+ * array. You can set it to NULL to not retrieve this value.
+ * \sep is the separator character which must be a valid ASCII character,
+ * otherwise this will not be UTF8 safe. */
+static inline int shl_split_string(const char *arg, char ***out,
+				   unsigned int *out_num, char sep,
+				   bool keep_empty)
+{
+	unsigned int i;
+	unsigned int num, len, size, pos;
+	char **list, *off;
+
+	if (!arg || !out || !sep)
+		return -EINVAL;
+
+	num = 0;
+	size = 0;
+	len = 0;
+	for (i = 0; arg[i]; ++i) {
+		if (arg[i] != sep) {
+			++len;
+			continue;
+		}
+
+		if (keep_empty || len) {
+			++num;
+			size += len + 1;
+			len = 0;
+		}
+	}
+
+	if (len > 0 || (keep_empty && (!i || arg[i - 1] == sep))) {
+		++num;
+		size += len + 1;
+	}
+
+	list = malloc(sizeof(char*) * (num + 1) + size);
+	if (!list)
+		return -ENOMEM;
+
+	off = (void*)(((char*)list) + (sizeof(char*) * (num + 1)));
+	i = 0;
+	for (pos = 0; pos < num; ) {
+		list[pos] = off;
+		while (arg[i] && arg[i] != sep)
+			*off++ = arg[i++];
+		if (arg[i])
+			++i;
+		if (list[pos] == off && !keep_empty)
+			continue;
+		*off++ = 0;
+		pos++;
+	}
+	list[pos] = NULL;
+
+	*out = list;
+	if (out_num)
+		*out_num = num;
+	return 0;
+}
+
 /* TODO: xkbcommon should provide these flags!
  * We currently copy them into each library API we use so we need  to keep
  * them in sync. Currently, they're used in uterm-input and tsm-vte. */
@@ -140,6 +203,46 @@ static inline uint32_t shl_get_ascii(struct xkb_state *state, uint32_t keycode,
 	}
 
 	return XKB_KEY_NoSymbol;
+}
+
+static inline bool shl_grab_matches(unsigned int ev_mods,
+				    unsigned int ev_num_syms,
+				    const uint32_t *ev_syms,
+				    unsigned int grab_mods,
+				    unsigned int grab_num_syms,
+				    const uint32_t *grab_syms)
+{
+	if (!SHL_HAS_BITS(ev_mods, grab_mods))
+		return false;
+
+	if (grab_num_syms != 0) {
+		if (ev_num_syms != grab_num_syms)
+			return false;
+		if (memcmp(ev_syms, grab_syms, sizeof(uint32_t) * ev_num_syms))
+			return false;
+	}
+
+	return true;
+}
+
+static inline bool shl_grab_has_match(unsigned int ev_mods,
+				      unsigned int ev_num_syms,
+				      const uint32_t *ev_syms,
+				      unsigned int grab_num,
+				      const unsigned int *grab_mods,
+				      const unsigned int *grab_num_syms,
+				      uint32_t **grab_syms)
+{
+	unsigned int i;
+
+	for (i = 0; i < grab_num; ++i) {
+		if (shl_grab_matches(ev_mods, ev_num_syms, ev_syms,
+				     grab_mods[i], grab_num_syms[i],
+				     grab_syms[i]))
+			return true;
+	}
+
+	return false;
 }
 
 #endif /* SHL_MISC_H */

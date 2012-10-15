@@ -411,33 +411,33 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 
 	ucs4 = xkb_keysym_to_utf32(sym) ? : TSM_VTE_INVALID;
 
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_scroll_up->mods) &&
-	    sym == wlt_conf.grab_scroll_up->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_scroll_up,
+			      mask, 1, &sym)) {
 		tsm_screen_sb_up(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
 		return true;
 	}
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_scroll_down->mods) &&
-	    sym == wlt_conf.grab_scroll_down->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_scroll_down,
+			      mask, 1, &sym)) {
 		tsm_screen_sb_down(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
 		return true;
 	}
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_up->mods) &&
-	    sym == wlt_conf.grab_page_up->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_page_up,
+			      mask, 1, &sym)) {
 		tsm_screen_sb_page_up(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
 		return true;
 	}
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_page_down->mods) &&
-	    sym == wlt_conf.grab_page_down->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_page_down,
+			      mask, 1, &sym)) {
 		tsm_screen_sb_page_down(term->scr, 1);
 		wlt_window_schedule_redraw(term->wnd);
 		return true;
 	}
 
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_zoom_in->mods) &&
-	    sym == wlt_conf.grab_zoom_in->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_zoom_in,
+			      mask, 1, &sym)) {
 		if (term->font_attr.points + 1 < term->font_attr.points)
 			return true;
 
@@ -454,8 +454,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		}
 		return true;
 	}
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_zoom_out->mods) &&
-	    sym == wlt_conf.grab_zoom_out->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_zoom_out,
+			      mask, 1, &sym)) {
 		if (term->font_attr.points - 1 < 1)
 			return true;
 
@@ -473,8 +473,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		return true;
 	}
 
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_paste->mods) &&
-	    sym == wlt_conf.grab_paste->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_paste,
+			      mask, 1, &sym)) {
 		if (term->paste) {
 			log_debug("cannot paste selection, previous paste still in progress");
 			return true;
@@ -505,8 +505,8 @@ static bool widget_key(struct wlt_widget *widget, unsigned int mask,
 		return true;
 	}
 
-	if (SHL_HAS_BITS(mask, wlt_conf.grab_copy->mods) &&
-	    sym == wlt_conf.grab_copy->keysym) {
+	if (conf_grab_matches(wlt_conf.grab_copy,
+			      mask, 1, &sym)) {
 		if (term->copy) {
 			wl_data_source_destroy(term->copy);
 			free(term->copy_buf);

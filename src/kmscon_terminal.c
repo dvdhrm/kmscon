@@ -322,29 +322,29 @@ static void input_event(struct uterm_input *input,
 	if (!term->opened || !term->awake || ev->handled)
 		return;
 
-	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_up->mods) &&
-	    ev->keysyms[0] == kmscon_conf.grab_scroll_up->keysym) {
+	if (conf_grab_matches(kmscon_conf.grab_scroll_up,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_scroll_down->mods) &&
-	    ev->keysyms[0] == kmscon_conf.grab_scroll_down->keysym) {
+	if (conf_grab_matches(kmscon_conf.grab_scroll_down,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_down(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_up->mods) &&
-	    ev->keysyms[0] == kmscon_conf.grab_page_up->keysym) {
+	if (conf_grab_matches(kmscon_conf.grab_page_up,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (UTERM_INPUT_HAS_MODS(ev, kmscon_conf.grab_page_down->mods) &&
-	    ev->keysyms[0] == kmscon_conf.grab_page_down->keysym) {
+	if (conf_grab_matches(kmscon_conf.grab_page_down,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_down(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;

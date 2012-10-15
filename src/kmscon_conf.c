@@ -233,25 +233,17 @@ static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 
 static char *def_seats[] = { "seat0", NULL };
 
-static struct conf_grab def_grab_scroll_up = {
-	.mods = SHL_SHIFT_MASK,
-	.keysym = XKB_KEY_Up,
-};
+static struct conf_grab def_grab_scroll_up =
+		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Up);
 
-static struct conf_grab def_grab_scroll_down = {
-	.mods = SHL_SHIFT_MASK,
-	.keysym = XKB_KEY_Down,
-};
+static struct conf_grab def_grab_scroll_down =
+		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Down);
 
-static struct conf_grab def_grab_page_up = {
-	.mods = SHL_SHIFT_MASK,
-	.keysym = XKB_KEY_Prior,
-};
+static struct conf_grab def_grab_page_up =
+		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Prior);
 
-static struct conf_grab def_grab_page_down = {
-	.mods = SHL_SHIFT_MASK,
-	.keysym = XKB_KEY_Next,
-};
+static struct conf_grab def_grab_page_down =
+		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Next);
 
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
