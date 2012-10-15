@@ -214,10 +214,11 @@ static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
 	const uint32_t *keysyms;
 	struct itimerspec spec;
 
-	if (state == KEY_RELEASED &&
-	    dev->repeat_event.keycode == dev->event.keycode) {
-		dev->repeating = false;
-		ev_timer_update(dev->repeat_timer, NULL);
+	if (dev->repeating && dev->repeat_event.keycode == dev->event.keycode) {
+		if (state == KEY_RELEASED) {
+			dev->repeating = false;
+			ev_timer_update(dev->repeat_timer, NULL);
+		}
 		return;
 	}
 
@@ -246,12 +247,11 @@ static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
 					  num_keysyms, keysyms);
 		if (ret)
 			return;
+
+		return;
 	} else {
 		return;
 	}
-
-	if (dev->repeating)
-		return;
 
 	dev->repeating = true;
 	spec.it_interval.tv_sec = 0;
