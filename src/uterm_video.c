@@ -270,14 +270,20 @@ int display_new(struct uterm_display **out, const struct display_ops *ops)
 	disp->ref = 1;
 	disp->ops = ops;
 
-	ret = VIDEO_CALL(disp->ops->init, 0, disp);
+	ret = shl_hook_new(&disp->hook);
 	if (ret)
 		goto err_free;
+
+	ret = VIDEO_CALL(disp->ops->init, 0, disp);
+	if (ret)
+		goto err_hook;
 
 	log_info("new display %p", disp);
 	*out = disp;
 	return 0;
 
+err_hook:
+	shl_hook_free(disp->hook);
 err_free:
 	free(disp);
 	return ret;
@@ -307,6 +313,7 @@ void uterm_display_unref(struct uterm_display *disp)
 		mode->next = NULL;
 		uterm_mode_unref(mode);
 	}
+	shl_hook_free(disp->hook);
 	free(disp);
 }
 
@@ -316,6 +323,24 @@ struct uterm_display *uterm_display_next(struct uterm_display *disp)
 		return NULL;
 
 	return disp->next;
+}
+
+int uterm_display_register_cb(struct uterm_display *disp, uterm_display_cb cb,
+			      void *data)
+{
+	if (!disp)
+		return -EINVAL;
+
+	return shl_hook_add_cast(disp->hook, cb, data);
+}
+
+void uterm_display_unregister_cb(struct uterm_display *disp,
+				 uterm_display_cb cb, void *data)
+{
+	if (!disp)
+		return;
+
+	shl_hook_rm_cast(disp->hook, cb, data);
 }
 
 struct uterm_mode *uterm_display_get_modes(struct uterm_display *disp)

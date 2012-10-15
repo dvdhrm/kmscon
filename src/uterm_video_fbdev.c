@@ -343,8 +343,10 @@ static int display_swap(struct uterm_display *disp)
 	if (!(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 
-	if (!(disp->flags & DISPLAY_DBUF))
+	if (!(disp->flags & DISPLAY_DBUF)) {
+		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 		return 0;
+	}
 
 	vinfo = &disp->fbdev.vinfo;
 	vinfo->activate = FB_ACTIVATE_VBL;
@@ -362,6 +364,7 @@ static int display_swap(struct uterm_display *disp)
 	}
 
 	disp->fbdev.bufid ^= 1;
+	DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 	return 0;
 }
 

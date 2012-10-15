@@ -742,8 +742,11 @@ static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
 {
 	struct uterm_display *disp = data;
 
-	disp->flags &= ~DISPLAY_VSYNC;
 	uterm_display_unref(disp);
+	if (disp->flags & DISPLAY_VSYNC) {
+		disp->flags &= ~DISPLAY_VSYNC;
+		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
+	}
 }
 
 static void event(struct ev_fd *fd, int mask, void *data)

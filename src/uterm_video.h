@@ -337,6 +337,7 @@ struct uterm_display {
 	struct uterm_display *next;
 	struct uterm_video *video;
 
+	struct shl_hook *hook;
 	struct uterm_mode *modes;
 	struct uterm_mode *default_mode;
 	struct uterm_mode *current_mode;
@@ -351,6 +352,11 @@ struct uterm_display {
 };
 
 int display_new(struct uterm_display **out, const struct display_ops *ops);
+
+#define DISPLAY_CB(disp, act) shl_hook_call((disp)->hook, (disp), \
+		&(struct uterm_display_event){ \
+			.action = (act), \
+		})
 
 static inline bool display_is_conn(const struct uterm_display *disp)
 {

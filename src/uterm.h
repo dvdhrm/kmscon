@@ -127,6 +127,14 @@ struct uterm_video_hotplug {
 	int action;
 };
 
+enum uterm_display_action {
+	UTERM_PAGE_FLIP,
+};
+
+struct uterm_display_event {
+	int action;
+};
+
 enum uterm_video_format {
 	UTERM_FORMAT_GREY,
 	UTERM_FORMAT_XRGB32,
@@ -155,6 +163,9 @@ struct uterm_video_blend_req {
 typedef void (*uterm_video_cb) (struct uterm_video *video,
 				struct uterm_video_hotplug *arg,
 				void *data);
+typedef void (*uterm_display_cb) (struct uterm_display *disp,
+				  struct uterm_display_event *arg,
+				  void *data);
 
 /* misc */
 
@@ -202,6 +213,11 @@ unsigned int uterm_mode_get_height(const struct uterm_mode *mode);
 void uterm_display_ref(struct uterm_display *disp);
 void uterm_display_unref(struct uterm_display *disp);
 struct uterm_display *uterm_display_next(struct uterm_display *disp);
+
+int uterm_display_register_cb(struct uterm_display *disp, uterm_display_cb cb,
+			      void *data);
+void uterm_display_unregister_cb(struct uterm_display *disp,
+				 uterm_display_cb cb, void *data);
 
 struct uterm_mode *uterm_display_get_modes(struct uterm_display *disp);
 struct uterm_mode *uterm_display_get_current(struct uterm_display *disp);
