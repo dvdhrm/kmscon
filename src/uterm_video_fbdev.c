@@ -274,14 +274,16 @@ static int display_activate_force(struct uterm_display *disp,
 	/* TODO: make dithering configurable */
 	disp->flags |= DISPLAY_DITHERING;
 
-	ret = mode_new(&disp->modes, &fbdev_mode_ops);
-	if (ret) {
-		munmap(disp->fbdev.map, disp->fbdev.len);
-		return ret;
+	if (!disp->current_mode) {
+		ret = mode_new(&disp->modes, &fbdev_mode_ops);
+		if (ret) {
+			munmap(disp->fbdev.map, disp->fbdev.len);
+			return ret;
+		}
+		disp->modes->fbdev.width = disp->fbdev.xres;
+		disp->modes->fbdev.height = disp->fbdev.yres;
+		disp->current_mode = disp->modes;
 	}
-	disp->modes->fbdev.width = disp->fbdev.xres;
-	disp->modes->fbdev.height = disp->fbdev.yres;
-	disp->current_mode = disp->modes;
 
 	disp->flags |= DISPLAY_ONLINE;
 	return 0;
@@ -298,7 +300,9 @@ static void display_deactivate_force(struct uterm_display *disp, bool force)
 		return;
 
 	log_info("deactivating device %s", disp->fbdev.node);
-	uterm_mode_unref(disp->modes);
+
+	if (!force)
+		uterm_mode_unref(disp->current_mode);
 	disp->modes = NULL;
 	disp->current_mode = NULL;
 	munmap(disp->fbdev.map, disp->fbdev.len);
