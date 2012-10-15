@@ -390,7 +390,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	if (ret == -EOPNOTSUPP)
 		log_notice("compositor support not compiled in");
 	else if (ret)
-		goto err_sessions;
+		log_error("cannot register kmscon compositor: %d", ret);
 
 	return 0;
 
