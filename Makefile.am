@@ -425,13 +425,21 @@ kmscon_SOURCES = \
 	src/kmscon_main.c
 kmscon_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	$(WAYLAND_CFLAGS) \
 	$(XKBCOMMON_CFLAGS)
 kmscon_LDADD = \
+	$(WAYLAND_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	libuterm.la \
 	libeloop.la \
 	libtext-font.la \
 	libkmscon-core.la
+
+if BUILD_ENABLE_WAYLAND
+kmscon_SOURCES += \
+	src/kmscon_compositor.h \
+	src/kmscon_compositor.c
+endif
 
 test_output_SOURCES = tests/test_output.c tests/test_include.h
 test_output_LDADD = libkmscon-core.la

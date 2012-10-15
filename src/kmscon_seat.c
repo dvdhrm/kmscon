@@ -34,6 +34,7 @@
 #include <string.h>
 #include "conf.h"
 #include "eloop.h"
+#include "kmscon_compositor.h"
 #include "kmscon_conf.h"
 #include "kmscon_seat.h"
 #include "kmscon_terminal.h"
@@ -384,6 +385,12 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_sessions;
 	else
 		kmscon_session_enable(s);
+
+	ret = kmscon_compositor_register(&s, seat);
+	if (ret == -EOPNOTSUPP)
+		log_notice("compositor support not compiled in");
+	else if (ret)
+		goto err_sessions;
 
 	return 0;
 

@@ -136,6 +136,12 @@ AC_ARG_ENABLE([dbus],
                               [enable dbus IPC])])
 AC_MSG_RESULT([ok])
 
+AC_MSG_CHECKING([whether to enable wayland features])
+AC_ARG_ENABLE([wayland],
+              [AS_HELP_STRING([--enable-wayland],
+                              [enable wayland features])])
+AC_MSG_RESULT([ok])
+
 AC_MSG_CHECKING([whether to use uterm fbdev video backend])
 AC_ARG_ENABLE([fbdev],
               [AS_HELP_STRING([--enable-fbdev],
@@ -641,6 +647,8 @@ else
         WAYLAND_LIBS=""
 fi
 
+AM_CONDITIONAL([BUILD_ENABLE_WAYLAND], [test x$wayland_enabled = xyes])
+
 #
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
@@ -696,6 +704,7 @@ AC_MSG_NOTICE([Build configuration:
 	      systemd: $systemd_enabled
 	         udev: $udev_enabled
 	         dbus: $dbus_enabled
+	      wayland: $wayland_enabled
 
   libuterm video backends:
 	        fbdev: $fbdev_enabled
