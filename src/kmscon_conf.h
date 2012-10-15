@@ -72,6 +72,7 @@ struct kmscon_conf_t {
 	char **argv;
 	/* terminal scroll-back buffer size */
 	unsigned int sb_size;
+
 	/* scroll-up grab */
 	struct conf_grab *grab_scroll_up;
 	/* scroll-down grab */
@@ -80,6 +81,10 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_page_up;
 	/* page-down grab */
 	struct conf_grab *grab_page_down;
+	/* session-next grab */
+	struct conf_grab *grab_session_next;
+	/* session-prev grab */
+	struct conf_grab *grab_session_prev;
 
 	/* seats */
 	char **seats;

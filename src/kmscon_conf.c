@@ -103,14 +103,18 @@ static void print_help()
 		"\t    --xkb-repeat-rate <msecs>  [50]\n"
 		"\t                                 Delay between two key-repeats in ms\n"
 		"\n"
-		"\t    --grab-scroll-up <grab>   [<Shift>Up]\n"
-		"\t                                Shortcut to scroll up\n"
-		"\t    --grab-scroll-down <grab> [<Shift>Down]\n"
-		"\t                                Shortcut to scroll down\n"
-		"\t    --grab-page-up <grab>     [<Shift>Prior]\n"
-		"\t                                Shortcut to scroll page up\n"
-		"\t    --grab-page-down <grab>   [<Shift>Next]\n"
-		"\t                                Shortcut to scroll page down\n"
+		"\t    --grab-scroll-up <grab>    [<Shift>Up]\n"
+		"\t                                 Shortcut to scroll up\n"
+		"\t    --grab-scroll-down <grab>  [<Shift>Down]\n"
+		"\t                                 Shortcut to scroll down\n"
+		"\t    --grab-page-up <grab>      [<Shift>Prior]\n"
+		"\t                                 Shortcut to scroll page up\n"
+		"\t    --grab-page-down <grab>    [<Shift>Next]\n"
+		"\t                                 Shortcut to scroll page down\n"
+		"\t    --grab-session-next <grab> [<Ctrl><Alt>Right]\n"
+		"\t                                 Switch to next session\n"
+		"\t    --grab-session-prev <grab> [<Ctrl><Alt>Left]\n"
+		"\t                                 Switch to previous session\n"
 		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
@@ -245,6 +249,12 @@ static struct conf_grab def_grab_page_up =
 static struct conf_grab def_grab_page_down =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Next);
 
+static struct conf_grab def_grab_session_next =
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Right);
+
+static struct conf_grab def_grab_session_prev =
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Left);
+
 struct conf_option options[] = {
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
@@ -265,6 +275,8 @@ struct conf_option options[] = {
 	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &kmscon_conf.grab_scroll_down, &def_grab_scroll_down),
 	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &kmscon_conf.grab_page_up, &def_grab_page_up),
 	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &kmscon_conf.grab_page_down, &def_grab_page_down),
+	CONF_OPTION_GRAB(0, "grab-session-next", NULL, &kmscon_conf.grab_session_next, &def_grab_session_next),
+	CONF_OPTION_GRAB(0, "grab-session-prev", NULL, &kmscon_conf.grab_session_prev, &def_grab_session_prev),
 	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),

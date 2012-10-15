@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include "conf.h"
 #include "eloop.h"
 #include "kmscon_conf.h"
 #include "kmscon_seat.h"
@@ -88,11 +89,13 @@ static void session_call(struct kmscon_session *sess, unsigned int event,
 
 static void session_call_activate(struct kmscon_session *sess)
 {
+	log_debug("activate session %p", sess);
 	session_call(sess, KMSCON_SESSION_ACTIVATE, NULL);
 }
 
 static void session_call_deactivate(struct kmscon_session *sess)
 {
+	log_debug("deactivate session %p", sess);
 	session_call(sess, KMSCON_SESSION_DEACTIVATE, NULL);
 }
 
@@ -108,12 +111,14 @@ static void session_call_display_gone(struct kmscon_session *sess,
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
 
-static void session_activate(struct kmscon_session *sess)
+static int session_activate(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat = sess->seat;
 
-	if (seat->cur_sess == sess || !sess->enabled)
-		return;
+	if (seat->cur_sess == sess)
+		return 0;
+	if (!sess->enabled)
+		return -EINVAL;
 
 	if (seat->cur_sess) {
 		if (seat->awake)
@@ -124,12 +129,15 @@ static void session_activate(struct kmscon_session *sess)
 	seat->cur_sess = sess;
 	if (seat->awake)
 		session_call_activate(sess);
+
+	return 0;
 }
 
 static void session_deactivate(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat = sess->seat;
 	struct shl_dlist *iter;
+	struct kmscon_session *s;
 
 	if (seat->cur_sess != sess)
 		return;
@@ -138,15 +146,47 @@ static void session_deactivate(struct kmscon_session *sess)
 		session_call_deactivate(sess);
 
 	seat->cur_sess = NULL;
-	shl_dlist_for_each(iter, &seat->sessions) {
-		sess = shl_dlist_entry(iter, struct kmscon_session, list);
-		if (!sess->enabled)
+	shl_dlist_for_each_but_one(iter, &sess->list, &seat->sessions) {
+		s = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!s->enabled)
 			continue;
 
-		seat->cur_sess = sess;
+		seat->cur_sess = s;
 		if (seat->awake)
 			session_call_activate(seat->cur_sess);
 		break;
+	}
+}
+
+static void seat_activate_next(struct kmscon_seat *seat)
+{
+	struct shl_dlist *iter;
+	struct kmscon_session *sess;
+
+	if (!seat->cur_sess)
+		return;
+
+	shl_dlist_for_each_but_one(iter, &seat->cur_sess->list,
+				   &seat->sessions) {
+		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!session_activate(sess))
+			break;
+	}
+}
+
+static void seat_activate_prev(struct kmscon_seat *seat)
+{
+	struct shl_dlist *iter;
+	struct kmscon_session *sess;
+
+	if (!seat->cur_sess)
+		return;
+
+	shl_dlist_for_each_reverse_but_one(iter, &seat->cur_sess->list,
+					   &seat->sessions) {
+		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!session_activate(sess))
+			break;
 	}
 }
 
@@ -257,6 +297,29 @@ static int seat_vt_event(struct uterm_vt *vt, unsigned int event, void *data)
 	return 0;
 }
 
+static void seat_input_event(struct uterm_input *input,
+			     struct uterm_input_event *ev,
+			     void *data)
+{
+	struct kmscon_seat *seat = data;
+
+	if (ev->handled)
+		return;
+
+	if (conf_grab_matches(kmscon_conf.grab_session_next,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		seat_activate_next(seat);
+		return;
+	}
+	if (conf_grab_matches(kmscon_conf.grab_session_prev,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		seat_activate_prev(seat);
+		return;
+	}
+}
+
 int kmscon_seat_new(struct kmscon_seat **out,
 		    struct ev_eloop *eloop,
 		    struct uterm_vt_master *vtm,
@@ -298,24 +361,38 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	if (ret)
 		goto err_name;
 
+	ret = uterm_input_register_cb(seat->input, seat_input_event, seat);
+	if (ret)
+		goto err_input;
+
 	ret = uterm_vt_allocate(seat->vtm, &seat->vt, seat->name,
 				seat->input, kmscon_conf.vt, seat_vt_event,
 				seat);
 	if (ret)
-		goto err_input;
-
-	ret = kmscon_terminal_register(&s, seat);
-	if (ret)
-		goto err_vt;
-	kmscon_session_enable(s);
+		goto err_input_cb;
 
 	ev_eloop_ref(seat->eloop);
 	uterm_vt_master_ref(seat->vtm);
 	*out = seat;
+
+	/* register built-in sessions */
+
+	ret = kmscon_terminal_register(&s, seat);
+	if (ret == -EOPNOTSUPP)
+		log_notice("terminal support not compiled in");
+	else if (ret)
+		goto err_sessions;
+	else
+		kmscon_session_enable(s);
+
 	return 0;
 
-err_vt:
-	uterm_vt_deallocate(seat->vt);
+err_sessions:
+	kmscon_seat_free(seat);
+	return ret;
+
+err_input_cb:
+	uterm_input_unregister_cb(seat->input, seat_input_event, seat);
 err_input:
 	uterm_input_unref(seat->input);
 err_name:
@@ -348,6 +425,7 @@ void kmscon_seat_free(struct kmscon_seat *seat)
 	}
 
 	uterm_vt_deallocate(seat->vt);
+	uterm_input_unregister_cb(seat->input, seat_input_event, seat);
 	uterm_input_unref(seat->input);
 	free(seat->name);
 	uterm_vt_master_unref(seat->vtm);
@@ -437,13 +515,16 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 			  seat->name);
 		return -ENOMEM;
 	}
+
+	log_debug("register session %p", sess);
+
 	memset(sess, 0, sizeof(*sess));
 	sess->ref = 1;
 	sess->seat = seat;
 	sess->cb = cb;
 	sess->data = data;
 
-	shl_dlist_link(&seat->sessions, &sess->list);
+	shl_dlist_link_tail(&seat->sessions, &sess->list);
 	*out = sess;
 
 	return 0;
@@ -471,8 +552,10 @@ void kmscon_session_unregister(struct kmscon_session *sess)
 	if (!sess || !sess->seat)
 		return;
 
-	shl_dlist_unlink(&sess->list);
+	log_debug("unregister session %p", sess);
+
 	session_deactivate(sess);
+	shl_dlist_unlink(&sess->list);
 	sess->seat = NULL;
 	session_call(sess, KMSCON_SESSION_UNREGISTER, NULL);
 }
@@ -508,6 +591,8 @@ void kmscon_session_enable(struct kmscon_session *sess)
 	if (!sess)
 		return;
 
+	log_debug("enable session %p", sess);
+
 	sess->enabled = true;
 	if (sess->seat && !sess->seat->cur_sess)
 		session_activate(sess);
@@ -517,6 +602,8 @@ void kmscon_session_disable(struct kmscon_session *sess)
 {
 	if (!sess)
 		return;
+
+	log_debug("disable session %p", sess);
 
 	if (sess->seat)
 		session_deactivate(sess);
