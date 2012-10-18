@@ -416,6 +416,8 @@ kmscon_SOURCES = \
 	$(SHL_MISC) \
 	src/kmscon_terminal.h \
 	src/kmscon_terminal.c \
+	src/kmscon_dummy.h \
+	src/kmscon_dummy.c \
 	src/kmscon_seat.h \
 	src/kmscon_seat.c \
 	src/kmscon_conf.h \
