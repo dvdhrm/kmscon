@@ -36,43 +36,57 @@
 #include "conf.h"
 
 struct kmscon_conf_t {
+	/* General Options */
 	/* show help/usage information */
 	bool help;
 	/* exit application after parsing options */
 	bool exit;
-	/* enable debug messages */
-	bool debug;
 	/* enable verbose info messages */
 	bool verbose;
+	/* enable debug messages */
+	bool debug;
 	/* disable notices and warnings */
 	bool silent;
+
+	/* Seat Options */
 	/* VT number to run on on seat0 */
 	char *vt;
 	/* enter new VT directly */
 	bool switchvt;
-	/* use framebuffers instead of DRM */
-	bool use_fbdev;
-	/* use dumb DRM devices */
-	bool dumb;
-	/* render engine */
-	char *render_engine;
+	/* seats */
+	char **seats;
+	/* true if \seats is "all" */
+	bool all_seats;
 
-	/* input KBD layout */
-	char *xkb_layout;
-	char *xkb_variant;
-	char *xkb_options;
-	unsigned int xkb_repeat_delay;
-	unsigned int xkb_repeat_rate;
+	/* Session Options */
+	/* sessions */
+	unsigned int session_max;
 
-	/* TERM value */
-	char *term;
+	/* Terminal Options */
 	/* custom login process */
 	bool login;
 	/* argv for login process */
 	char **argv;
+	/* TERM value */
+	char *term;
+	/* color palette */
+	char *palette;
 	/* terminal scroll-back buffer size */
 	unsigned int sb_size;
 
+	/* Input Options */
+	/* input KBD layout */
+	char *xkb_layout;
+	/* input KBD variant */
+	char *xkb_variant;
+	/* input KBD options */
+	char *xkb_options;
+	/* keyboard key-repeat delay */
+	unsigned int xkb_repeat_delay;
+	/* keyboard key-repeat rate */
+	unsigned int xkb_repeat_rate;
+
+	/* Grabs / Keyboard-Shortcuts */
 	/* scroll-up grab */
 	struct conf_grab *grab_scroll_up;
 	/* scroll-down grab */
@@ -90,13 +104,19 @@ struct kmscon_conf_t {
 	/* terminal-new grab */
 	struct conf_grab *grab_terminal_new;
 
-	/* seats */
-	char **seats;
-	bool all_seats;
+	/* Video Options */
+	/* use framebuffers instead of DRM */
+	bool fbdev;
+	/* use dumb DRM devices */
+	bool dumb;
+	/* frame-rate limit */
+	unsigned int fps;
+	/* render engine */
+	char *render_engine;
+	/* print rendering engine timing information */
+	bool render_timing;
 
-	/* sessions */
-	unsigned int session_max;
-
+	/* Font Options */
 	/* font engine */
 	char *font_engine;
 	/* font size */
@@ -105,14 +125,6 @@ struct kmscon_conf_t {
 	char *font_name;
 	/* font ppi (overrides per monitor PPI) */
 	unsigned int font_ppi;
-
-	/* color palette */
-	char *palette;
-
-	/* frame-rate limit */
-	unsigned int fps;
-	/* print rendering engine timing information */
-	bool render_timing;
 };
 
 extern struct kmscon_conf_t kmscon_conf;

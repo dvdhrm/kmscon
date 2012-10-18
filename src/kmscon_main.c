@@ -202,7 +202,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	unsigned int mode;
 	struct app_video *vid;
 
-	if (kmscon_conf.use_fbdev) {
+	if (kmscon_conf.fbdev) {
 		if (type != UTERM_MONITOR_FBDEV &&
 		    type != UTERM_MONITOR_FBDEV_DRM) {
 			log_info("ignoring video device %s on seat %s as it is not an fbdev device",

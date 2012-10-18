@@ -57,7 +57,7 @@ static void print_help()
 		"\t%1$s -h [options]\n"
 		"\t%1$s -l [options] -- /bin/sh [sh-arguments]\n"
 		"\n"
-		"You can prefix boolean options with \"no-\" to negate it. If an argument is\n"
+		"You can prefix boolean options with \"no-\" to negate them. If an argument is\n"
 		"given multiple times, only the last argument matters if not otherwise stated.\n"
 		"\n"
 		"General Options:\n"
@@ -65,10 +65,15 @@ static void print_help()
 		"\t-v, --verbose               [off]   Print verbose messages\n"
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
-		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
+		"\n"
+		"Seat Options:\n"
 		"\t    --vt <vt-number>        [auto]  Select which VT to run on on seat0\n"
+		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
+		"\n"
+		"Session Options:\n"
+		"\t    --session-max <max>         [50] Maximum number of sessions\n"
 		"\n"
 		"Terminal Options:\n"
 		"\t-l, --login                 [/bin/sh]\n"
@@ -86,15 +91,7 @@ static void print_help()
 		"\t    --sb-size <num>         [1000]\n"
 		"\t                              Size of the scrollback-buffer in lines\n"
 		"\n"
-		"Video Options:\n"
-		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
-		"\t    --dumb                  [off]   Use dumb DRM instead of hardware-\n"
-		"\t                                    accelerated DRM devices\n"
-		"\t    --fps                   [50]    Limit frame-rate\n"
-		"\t    --render-engine <eng>   [-]     Console renderer\n"
-		"\t    --render-timing         [off]   Print renderer timing information\n"
-		"\n"
-		"Input Device Options:\n"
+		"Input Options:\n"
 		"\t    --xkb-layout <layout>      [us] Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant>    [-]  Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options>    [-]  Set XkbOptions for input devices\n"
@@ -103,6 +100,7 @@ static void print_help()
 		"\t    --xkb-repeat-rate <msecs>  [50]\n"
 		"\t                                 Delay between two key-repeats in ms\n"
 		"\n"
+		"Grabs / Keyboard-Shortcuts:\n"
 		"\t    --grab-scroll-up <grab>     [<Shift>Up]\n"
 		"\t                                  Shortcut to scroll up\n"
 		"\t    --grab-scroll-down <grab>   [<Shift>Down]\n"
@@ -120,8 +118,13 @@ static void print_help()
 		"\t    --grab-terminal-new <grab>  [<Ctrl><Alt>Return]\n"
 		"\t                                  Create new terminal session\n"
 		"\n"
-		"Session Options:\n"
-		"\t    --session-max <max>         [50] Maximum number of sessions\n"
+		"Video Options:\n"
+		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
+		"\t    --dumb                  [off]   Use dumb DRM instead of hardware-\n"
+		"\t                                    accelerated DRM devices\n"
+		"\t    --fps                   [50]    Limit frame-rate\n"
+		"\t    --render-engine <eng>   [-]     Console renderer\n"
+		"\t    --render-timing         [off]   Print renderer timing information\n"
 		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
@@ -269,21 +272,34 @@ static struct conf_grab def_grab_terminal_new =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
 
 struct conf_option options[] = {
+	/* Global Options */
 	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
 	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
 	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &kmscon_conf.debug, false),
 	CONF_OPTION_BOOL(0, "silent", NULL, &kmscon_conf.silent, false),
-	CONF_OPTION_BOOL(0, "fbdev", NULL, &kmscon_conf.use_fbdev, false),
-	CONF_OPTION_BOOL(0, "dumb", NULL, &kmscon_conf.dumb, false),
-	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
-	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
-	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
+
+	/* Seat Options */
 	CONF_OPTION(0, 0, "vt", &conf_vt, NULL, &kmscon_conf.vt, NULL),
 	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
+	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
+
+	/* Session Options */
+	CONF_OPTION_UINT(0, "session-max", NULL, &kmscon_conf.session_max, 50),
+
+	/* Terminal Options */
 	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
 	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "xterm-256color"),
 	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
 	CONF_OPTION_UINT(0, "sb-size", NULL, &kmscon_conf.sb_size, 1000),
+
+	/* Input Options */
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
+	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &kmscon_conf.xkb_repeat_delay, 250),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 50),
+
+	/* Grabs / Keyboard-Shortcuts */
 	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &kmscon_conf.grab_scroll_up, &def_grab_scroll_up),
 	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &kmscon_conf.grab_scroll_down, &def_grab_scroll_down),
 	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &kmscon_conf.grab_page_up, &def_grab_page_up),
@@ -292,17 +308,19 @@ struct conf_option options[] = {
 	CONF_OPTION_GRAB(0, "grab-session-prev", NULL, &kmscon_conf.grab_session_prev, &def_grab_session_prev),
 	CONF_OPTION_GRAB(0, "grab-session-close", NULL, &kmscon_conf.grab_session_close, &def_grab_session_close),
 	CONF_OPTION_GRAB(0, "grab-terminal-new", NULL, &kmscon_conf.grab_terminal_new, &def_grab_terminal_new),
-	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
-	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
-	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
-	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &kmscon_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 50),
+
+	/* Video Options */
+	CONF_OPTION_BOOL(0, "fbdev", NULL, &kmscon_conf.fbdev, false),
+	CONF_OPTION_BOOL(0, "dumb", NULL, &kmscon_conf.dumb, false),
+	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
+	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
+	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
+
+	/* Font Options */
 	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
 	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),
 	CONF_OPTION_UINT(0, "font-dpi", NULL, &kmscon_conf.font_ppi, 96),
-	CONF_OPTION_UINT(0, "session-max", NULL, &kmscon_conf.session_max, 50),
-	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
 };
 
 int kmscon_load_config(int argc, char **argv)
