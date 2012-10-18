@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "conf.h"
 #include "kmscon_conf.h"
@@ -344,9 +345,17 @@ int kmscon_load_config(int argc, char **argv)
 
 	log_print_init("kmscon");
 
-	ret = conf_parse_standard_files(options, onum, "kmscon");
+	ret = conf_parse_file_f(options, onum, "/etc/kmscon/kmscon.conf");
 	if (ret)
 		return ret;
+
+	/* TODO: Deprecated! Remove this! */
+	if (!access("/etc/kmscon.conf", F_OK)) {
+		log_error("/etc/kmscon.conf is deprecated, please use /etc/kmscon/kmscon.conf");
+		ret = conf_parse_file_f(options, onum, "/etc/kmscon.conf");
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

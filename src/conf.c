@@ -779,23 +779,3 @@ int conf_parse_file_f(struct conf_option *opts, size_t len,
 	free(path);
 	return ret;
 }
-
-int conf_parse_standard_files(struct conf_option *opts, size_t len,
-			      const char *fname)
-{
-	int ret;
-	const char *home;
-
-	ret = conf_parse_file_f(opts, len, "/etc/%s.conf", fname);
-	if (ret)
-		return ret;
-
-	home = getenv("HOME");
-	if (home) {
-		ret = conf_parse_file_f(opts, len, "%s/.%s.conf", home, fname);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
