@@ -36,6 +36,7 @@
 #include "eloop.h"
 #include "kmscon_compositor.h"
 #include "kmscon_conf.h"
+#include "kmscon_dummy.h"
 #include "kmscon_seat.h"
 #include "kmscon_terminal.h"
 #include "log.h"
@@ -74,6 +75,7 @@ struct kmscon_seat {
 
 	struct shl_dlist sessions;
 	struct kmscon_session *cur_sess;
+	struct kmscon_session *dummy;
 
 	kmscon_seat_cb_t cb;
 	void *data;
@@ -145,18 +147,22 @@ static void session_deactivate(struct kmscon_session *sess)
 
 	if (seat->awake)
 		session_call_deactivate(sess);
-
 	seat->cur_sess = NULL;
+
 	shl_dlist_for_each_but_one(iter, &sess->list, &seat->sessions) {
 		s = shl_dlist_entry(iter, struct kmscon_session, list);
-		if (!s->enabled)
+		if (!s->enabled || s == seat->dummy)
 			continue;
 
 		seat->cur_sess = s;
-		if (seat->awake)
-			session_call_activate(seat->cur_sess);
 		break;
 	}
+
+	if (!seat->cur_sess && seat->dummy)
+		seat->cur_sess = seat->dummy;
+
+	if (seat->cur_sess && seat->awake)
+		session_call_activate(seat->cur_sess);
 }
 
 static void seat_activate_next(struct kmscon_seat *seat)
@@ -170,6 +176,8 @@ static void seat_activate_next(struct kmscon_seat *seat)
 	shl_dlist_for_each_but_one(iter, &seat->cur_sess->list,
 				   &seat->sessions) {
 		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (sess == seat->dummy)
+			continue;
 		if (!session_activate(sess))
 			break;
 	}
@@ -186,6 +194,8 @@ static void seat_activate_prev(struct kmscon_seat *seat)
 	shl_dlist_for_each_reverse_but_one(iter, &seat->cur_sess->list,
 					   &seat->sessions) {
 		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (sess == seat->dummy)
+			continue;
 		if (!session_activate(sess))
 			break;
 	}
@@ -399,6 +409,16 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	*out = seat;
 
 	/* register built-in sessions */
+
+	ret = kmscon_dummy_register(&s, seat);
+	if (ret == -EOPNOTSUPP) {
+		log_notice("dummy sessions not compiled in");
+	} else if (ret) {
+		log_error("cannot register dummy session: %d", ret);
+	} else {
+		seat->dummy = s;
+		kmscon_session_enable(s);
+	}
 
 	ret = kmscon_terminal_register(&s, seat);
 	if (ret == -EOPNOTSUPP)
@@ -624,13 +644,19 @@ bool kmscon_session_is_active(struct kmscon_session *sess)
 
 void kmscon_session_enable(struct kmscon_session *sess)
 {
+	struct kmscon_seat *seat;
+
 	if (!sess)
 		return;
 
 	log_debug("enable session %p", sess);
 
+	seat = sess->seat;
 	sess->enabled = true;
-	if (sess->seat && !sess->seat->cur_sess)
+	if (!sess->seat)
+		return;
+
+	if (!seat->cur_sess || seat->cur_sess == seat->dummy)
 		session_activate(sess);
 }
 
