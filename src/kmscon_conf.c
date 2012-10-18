@@ -38,6 +38,8 @@
 #include "shl_misc.h"
 
 struct kmscon_conf_t kmscon_conf;
+static struct conf_option *kmscon_opt;
+static size_t kmscon_onum;
 
 static void print_help()
 {
@@ -191,9 +193,11 @@ static const struct conf_type conf_vt = {
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, debug);
+
 	/* --debug implies --verbose */
-	if (kmscon_conf.debug)
-		kmscon_conf.verbose = 1;
+	if (conf->debug)
+		conf->verbose = 1;
 
 	return 0;
 }
@@ -201,10 +205,12 @@ static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 			   int idx)
 {
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, help);
+
 	/* exit after printing --help information */
-	if (kmscon_conf.help) {
+	if (conf->help) {
 		print_help();
-		kmscon_conf.exit = true;
+		conf->exit = true;
 	}
 
 	return 0;
@@ -216,19 +222,20 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
 	int ret;
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
 
 	/* parse "--login [...] -- args" arguments */
-	if (kmscon_conf.login) {
+	if (conf->login) {
 		if (idx >= argc) {
 			fprintf(stderr, "Arguments for --login missing\n");
 			return -EFAULT;
 		}
 
-		kmscon_conf.argv = &argv[idx];
+		conf->argv = &argv[idx];
 		ret = argc - idx;
 	} else {
 		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
-		kmscon_conf.argv = def_argv;
+		conf->argv = def_argv;
 		ret = 0;
 	}
 
@@ -238,10 +245,12 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
-	if (kmscon_conf.seats[0] &&
-	    !kmscon_conf.seats[1] &&
-	    !strcmp(kmscon_conf.seats[0], "all"))
-		kmscon_conf.all_seats = true;
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, seats);
+
+	if (conf->seats[0] &&
+	    !conf->seats[1] &&
+	    !strcmp(conf->seats[0], "all"))
+		conf->all_seats = true;
 
 	return 0;
 }
@@ -272,87 +281,139 @@ static struct conf_grab def_grab_session_close =
 static struct conf_grab def_grab_terminal_new =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
 
-struct conf_option options[] = {
-	/* Global Options */
-	CONF_OPTION_BOOL('h', "help", aftercheck_help, &kmscon_conf.help, false),
-	CONF_OPTION_BOOL('v', "verbose", NULL, &kmscon_conf.verbose, false),
-	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &kmscon_conf.debug, false),
-	CONF_OPTION_BOOL(0, "silent", NULL, &kmscon_conf.silent, false),
+void kmscon_conf_init(struct kmscon_conf_t *conf)
+{
+	if (!conf)
+		return;
 
-	/* Seat Options */
-	CONF_OPTION(0, 0, "vt", &conf_vt, NULL, &kmscon_conf.vt, NULL),
-	CONF_OPTION_BOOL('s', "switchvt", NULL, &kmscon_conf.switchvt, false),
-	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
+	memset(conf, 0, sizeof(*conf));
+}
 
-	/* Session Options */
-	CONF_OPTION_UINT(0, "session-max", NULL, &kmscon_conf.session_max, 50),
+int kmscon_conf_new(struct conf_option **out, size_t *size_out,
+		    struct kmscon_conf_t *conf)
+{
+	struct conf_option *opt;
 
-	/* Terminal Options */
-	CONF_OPTION_BOOL('l', "login", aftercheck_login, &kmscon_conf.login, false),
-	CONF_OPTION_STRING('t', "term", NULL, &kmscon_conf.term, "xterm-256color"),
-	CONF_OPTION_STRING(0, "palette", NULL, &kmscon_conf.palette, NULL),
-	CONF_OPTION_UINT(0, "sb-size", NULL, &kmscon_conf.sb_size, 1000),
+	if (!out || !size_out || !conf)
+		return -EINVAL;
 
-	/* Input Options */
-	CONF_OPTION_STRING(0, "xkb-layout", NULL, &kmscon_conf.xkb_layout, "us"),
-	CONF_OPTION_STRING(0, "xkb-variant", NULL, &kmscon_conf.xkb_variant, ""),
-	CONF_OPTION_STRING(0, "xkb-options", NULL, &kmscon_conf.xkb_options, ""),
-	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &kmscon_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &kmscon_conf.xkb_repeat_rate, 50),
+	struct conf_option options[] = {
+		/* Global Options */
+		CONF_OPTION_BOOL('h', "help", aftercheck_help, &conf->help, false),
+		CONF_OPTION_BOOL('v', "verbose", NULL, &conf->verbose, false),
+		CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &conf->debug, false),
+		CONF_OPTION_BOOL(0, "silent", NULL, &conf->silent, false),
 
-	/* Grabs / Keyboard-Shortcuts */
-	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &kmscon_conf.grab_scroll_up, &def_grab_scroll_up),
-	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &kmscon_conf.grab_scroll_down, &def_grab_scroll_down),
-	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &kmscon_conf.grab_page_up, &def_grab_page_up),
-	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &kmscon_conf.grab_page_down, &def_grab_page_down),
-	CONF_OPTION_GRAB(0, "grab-session-next", NULL, &kmscon_conf.grab_session_next, &def_grab_session_next),
-	CONF_OPTION_GRAB(0, "grab-session-prev", NULL, &kmscon_conf.grab_session_prev, &def_grab_session_prev),
-	CONF_OPTION_GRAB(0, "grab-session-close", NULL, &kmscon_conf.grab_session_close, &def_grab_session_close),
-	CONF_OPTION_GRAB(0, "grab-terminal-new", NULL, &kmscon_conf.grab_terminal_new, &def_grab_terminal_new),
+		/* Seat Options */
+		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, &conf->vt, NULL),
+		CONF_OPTION_BOOL('s', "switchvt", NULL, &conf->switchvt, false),
+		CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &conf->seats, def_seats),
 
-	/* Video Options */
-	CONF_OPTION_BOOL(0, "fbdev", NULL, &kmscon_conf.fbdev, false),
-	CONF_OPTION_BOOL(0, "dumb", NULL, &kmscon_conf.dumb, false),
-	CONF_OPTION_UINT(0, "fps", NULL, &kmscon_conf.fps, 50),
-	CONF_OPTION_STRING(0, "render-engine", NULL, &kmscon_conf.render_engine, NULL),
-	CONF_OPTION_BOOL(0, "render-timing", NULL, &kmscon_conf.render_timing, false),
+		/* Session Options */
+		CONF_OPTION_UINT(0, "session-max", NULL, &conf->session_max, 50),
 
-	/* Font Options */
-	CONF_OPTION_STRING(0, "font-engine", NULL, &kmscon_conf.font_engine, "pango"),
-	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 12),
-	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),
-	CONF_OPTION_UINT(0, "font-dpi", NULL, &kmscon_conf.font_ppi, 96),
-};
+		/* Terminal Options */
+		CONF_OPTION_BOOL('l', "login", aftercheck_login, &conf->login, false),
+		CONF_OPTION_STRING('t', "term", NULL, &conf->term, "xterm-256color"),
+		CONF_OPTION_STRING(0, "palette", NULL, &conf->palette, NULL),
+		CONF_OPTION_UINT(0, "sb-size", NULL, &conf->sb_size, 1000),
+
+		/* Input Options */
+		CONF_OPTION_STRING(0, "xkb-layout", NULL, &conf->xkb_layout, "us"),
+		CONF_OPTION_STRING(0, "xkb-variant", NULL, &conf->xkb_variant, ""),
+		CONF_OPTION_STRING(0, "xkb-options", NULL, &conf->xkb_options, ""),
+		CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &conf->xkb_repeat_delay, 250),
+		CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &conf->xkb_repeat_rate, 50),
+
+		/* Grabs / Keyboard-Shortcuts */
+		CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &conf->grab_scroll_up, &def_grab_scroll_up),
+		CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &conf->grab_scroll_down, &def_grab_scroll_down),
+		CONF_OPTION_GRAB(0, "grab-page-up", NULL, &conf->grab_page_up, &def_grab_page_up),
+		CONF_OPTION_GRAB(0, "grab-page-down", NULL, &conf->grab_page_down, &def_grab_page_down),
+		CONF_OPTION_GRAB(0, "grab-session-next", NULL, &conf->grab_session_next, &def_grab_session_next),
+		CONF_OPTION_GRAB(0, "grab-session-prev", NULL, &conf->grab_session_prev, &def_grab_session_prev),
+		CONF_OPTION_GRAB(0, "grab-session-close", NULL, &conf->grab_session_close, &def_grab_session_close),
+		CONF_OPTION_GRAB(0, "grab-terminal-new", NULL, &conf->grab_terminal_new, &def_grab_terminal_new),
+
+		/* Video Options */
+		CONF_OPTION_BOOL(0, "fbdev", NULL, &conf->fbdev, false),
+		CONF_OPTION_BOOL(0, "dumb", NULL, &conf->dumb, false),
+		CONF_OPTION_UINT(0, "fps", NULL, &conf->fps, 50),
+		CONF_OPTION_STRING(0, "render-engine", NULL, &conf->render_engine, NULL),
+		CONF_OPTION_BOOL(0, "render-timing", NULL, &conf->render_timing, false),
+
+		/* Font Options */
+		CONF_OPTION_STRING(0, "font-engine", NULL, &conf->font_engine, "pango"),
+		CONF_OPTION_UINT(0, "font-size", NULL, &conf->font_size, 12),
+		CONF_OPTION_STRING(0, "font-name", NULL, &conf->font_name, "monospace"),
+		CONF_OPTION_UINT(0, "font-dpi", NULL, &conf->font_ppi, 96),
+	};
+
+	opt = malloc(sizeof(options));
+	if (!opt)
+		return -ENOMEM;
+	memcpy(opt, options, sizeof(options));
+
+	*out = opt;
+	*size_out = sizeof(options) / sizeof(*options);
+	return 0;
+}
+
+void kmscon_conf_free(struct conf_option *opt, size_t onum)
+{
+	if (!opt || !onum)
+		return;
+
+	conf_free(opt, onum);
+	free(opt);
+}
+
+int kmscon_conf_parse_argv(struct conf_option *opt, size_t onum,
+			   int argc, char **argv)
+{
+	if (!opt || !onum)
+		return -EINVAL;
+
+	return conf_parse_argv(opt, onum, argc, argv);
+}
 
 int kmscon_load_config(int argc, char **argv)
 {
-	size_t onum;
 	int ret;
 
-	onum = sizeof(options) / sizeof(*options);
-	ret = conf_parse_argv(options, onum, argc, argv);
+	if (!kmscon_opt || !kmscon_onum) {
+		kmscon_conf_init(&kmscon_conf);
+		ret = kmscon_conf_new(&kmscon_opt, &kmscon_onum, &kmscon_conf);
+		if (ret)
+			return ret;
+	}
+
+	ret = kmscon_conf_parse_argv(kmscon_opt, kmscon_onum, argc, argv);
 	if (ret)
 		return ret;
 
-	if (kmscon_conf.exit)
+	if (KMSCON_CONF_BOOL(exit))
 		return 0;
 
-	if (!kmscon_conf.debug && !kmscon_conf.verbose && kmscon_conf.silent)
+	if (!KMSCON_CONF_BOOL(debug) && !KMSCON_CONF_BOOL(verbose) &&
+	    KMSCON_CONF_BOOL(silent))
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
 	else
-		log_set_config(&LOG_CONFIG_INFO(kmscon_conf.debug,
-						kmscon_conf.verbose));
+		log_set_config(&LOG_CONFIG_INFO(KMSCON_CONF_BOOL(debug),
+						KMSCON_CONF_BOOL(verbose)));
 
 	log_print_init("kmscon");
 
-	ret = conf_parse_file_f(options, onum, "/etc/kmscon/kmscon.conf");
+	ret = conf_parse_file_f(kmscon_opt, kmscon_onum,
+				"/etc/kmscon/kmscon.conf");
 	if (ret)
 		return ret;
 
 	/* TODO: Deprecated! Remove this! */
 	if (!access("/etc/kmscon.conf", F_OK)) {
 		log_error("/etc/kmscon.conf is deprecated, please use /etc/kmscon/kmscon.conf");
-		ret = conf_parse_file_f(options, onum, "/etc/kmscon.conf");
+		ret = conf_parse_file_f(kmscon_opt, kmscon_onum,
+					"/etc/kmscon.conf");
 		if (ret)
 			return ret;
 	}
@@ -362,5 +423,10 @@ int kmscon_load_config(int argc, char **argv)
 
 void kmscon_free_config(void)
 {
-	conf_free(options, sizeof(options) / sizeof(*options));
+	if (!kmscon_opt || !kmscon_onum)
+		return;
+
+	kmscon_conf_free(kmscon_opt, kmscon_onum);
+	kmscon_opt = NULL;
+	kmscon_onum = 0;
 }

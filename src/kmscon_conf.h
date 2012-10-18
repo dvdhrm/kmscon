@@ -35,6 +35,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "conf.h"
+#include "shl_dlist.h"
 
 struct kmscon_conf_t {
 	/* General Options */
@@ -130,9 +131,19 @@ struct kmscon_conf_t {
 
 extern struct kmscon_conf_t kmscon_conf;
 
+void kmscon_conf_init(struct kmscon_conf_t *conf);
+int kmscon_conf_new(struct conf_option **out, size_t *size_out,
+		    struct kmscon_conf_t *conf);
+void kmscon_conf_free(struct conf_option *opt, size_t onum);
+
+int kmscon_conf_parse_argv(struct conf_option *opt, size_t onum,
+			   int argc, char **argv);
+
 int kmscon_load_config(int argc, char **argv);
 void kmscon_free_config(void);
 
+#define KMSCON_CONF_FROM_FIELD(_ptr, _field) \
+	shl_offsetof(_ptr, struct kmscon_conf_t, _field)
 #define KMSCON_CONF_OFFSET(_name) \
 	offsetof(struct kmscon_conf_t, _name)
 #define KMSCON_CONF(_name, _type) \
