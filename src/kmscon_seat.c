@@ -73,6 +73,7 @@ struct kmscon_seat {
 	struct uterm_vt *vt;
 	struct shl_dlist displays;
 
+	size_t session_count;
 	struct shl_dlist sessions;
 	struct kmscon_session *cur_sess;
 	struct kmscon_session *dummy;
@@ -560,6 +561,13 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 	if (!seat || !out)
 		return -EINVAL;
 
+	if (kmscon_conf.session_max &&
+	    seat->session_count >= kmscon_conf.session_max) {
+		log_warning("maximum number of sessions reached (%d), dropping new session",
+			    kmscon_conf.session_max);
+		return -EOVERFLOW;
+	}
+
 	sess = malloc(sizeof(*sess));
 	if (!sess) {
 		log_error("cannot allocate memory for new session on seat %s",
@@ -576,6 +584,7 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 	sess->data = data;
 
 	shl_dlist_link_tail(&seat->sessions, &sess->list);
+	++seat->session_count;
 	*out = sess;
 
 	shl_dlist_for_each(iter, &seat->displays) {
@@ -612,6 +621,7 @@ void kmscon_session_unregister(struct kmscon_session *sess)
 
 	session_deactivate(sess);
 	shl_dlist_unlink(&sess->list);
+	--sess->seat->session_count;
 	sess->seat = NULL;
 	session_call(sess, KMSCON_SESSION_UNREGISTER, NULL);
 }

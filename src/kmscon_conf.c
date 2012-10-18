@@ -120,6 +120,9 @@ static void print_help()
 		"\t    --grab-terminal-new <grab>  [<Ctrl><Alt>Return]\n"
 		"\t                                  Create new terminal session\n"
 		"\n"
+		"Session Options:\n"
+		"\t    --session-max <max>         [50] Maximum number of sessions\n"
+		"\n"
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
 		"\t                              Font engine\n"
@@ -298,6 +301,7 @@ struct conf_option options[] = {
 	CONF_OPTION_UINT(0, "font-size", NULL, &kmscon_conf.font_size, 12),
 	CONF_OPTION_STRING(0, "font-name", NULL, &kmscon_conf.font_name, "monospace"),
 	CONF_OPTION_UINT(0, "font-dpi", NULL, &kmscon_conf.font_ppi, 96),
+	CONF_OPTION_UINT(0, "session-max", NULL, &kmscon_conf.session_max, 50),
 	CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &kmscon_conf.seats, def_seats),
 };
 

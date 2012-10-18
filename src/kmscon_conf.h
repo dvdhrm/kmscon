@@ -94,6 +94,9 @@ struct kmscon_conf_t {
 	char **seats;
 	bool all_seats;
 
+	/* sessions */
+	unsigned int session_max;
+
 	/* font engine */
 	char *font_engine;
 	/* font size */
