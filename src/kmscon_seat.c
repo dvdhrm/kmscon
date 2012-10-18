@@ -512,6 +512,8 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 				 void *data)
 {
 	struct kmscon_session *sess;
+	struct shl_dlist *iter;
+	struct kmscon_display *d;
 
 	if (!seat || !out)
 		return -EINVAL;
@@ -533,6 +535,11 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 
 	shl_dlist_link_tail(&seat->sessions, &sess->list);
 	*out = sess;
+
+	shl_dlist_for_each(iter, &seat->displays) {
+		d = shl_dlist_entry(iter, struct kmscon_display, list);
+		session_call_display_new(sess, d->disp);
+	}
 
 	return 0;
 }
