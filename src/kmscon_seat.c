@@ -303,6 +303,8 @@ static void seat_input_event(struct uterm_input *input,
 			     void *data)
 {
 	struct kmscon_seat *seat = data;
+	struct kmscon_session *s;
+	int ret;
 
 	if (ev->handled)
 		return;
@@ -317,6 +319,26 @@ static void seat_input_event(struct uterm_input *input,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
 		seat_activate_prev(seat);
+		return;
+	}
+	if (conf_grab_matches(kmscon_conf.grab_session_close,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		kmscon_session_unregister(seat->cur_sess);
+		return;
+	}
+	if (conf_grab_matches(kmscon_conf.grab_terminal_new,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		ret = kmscon_terminal_register(&s, seat);
+		if (ret == -EOPNOTSUPP) {
+			log_notice("terminal support not compiled in");
+		} else if (ret) {
+			log_error("cannot register terminal session: %d", ret);
+		} else {
+			kmscon_session_enable(s);
+			kmscon_session_activate(s);
+		}
 		return;
 	}
 }

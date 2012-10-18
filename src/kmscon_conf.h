@@ -85,6 +85,10 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_session_next;
 	/* session-prev grab */
 	struct conf_grab *grab_session_prev;
+	/* session-close grab */
+	struct conf_grab *grab_session_close;
+	/* terminal-new grab */
+	struct conf_grab *grab_terminal_new;
 
 	/* seats */
 	char **seats;
