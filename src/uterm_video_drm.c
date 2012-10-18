@@ -1032,7 +1032,6 @@ static int video_init(struct uterm_video *video, const char *node)
 		goto err_close;
 	}
 
-	setenv("EGL_DISPLAY", "drm", 1);
 	drm->disp = eglGetDisplay((EGLNativeDisplayType) drm->gbm);
 	if (!drm->disp) {
 		log_err("cannot retrieve egl display for %s", node);
