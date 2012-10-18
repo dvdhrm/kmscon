@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -701,8 +702,16 @@ int conf_parse_file(struct conf_option *opts, size_t len, const char *path)
 	size_t size, pos;
 	char *buf, *tmp;
 
-	if (!path)
+	if (!opts || !len || !path)
 		return -EINVAL;
+
+	if (access(path, F_OK))
+		return 0;
+
+	if (access(path, R_OK)) {
+		log_error("read access to config file %s denied", path);
+		return -EACCES;
+	}
 
 	log_info("reading config file %s", path);
 	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOCTTY);
@@ -747,45 +756,46 @@ out_free:
 	return ret;
 }
 
-int conf_parse_all_files(struct conf_option *opts, size_t len)
+int conf_parse_file_f(struct conf_option *opts, size_t len,
+		      const char *format, ...)
 {
-	int ret;
-	const char *file, *home;
+	va_list list;
 	char *path;
+	int ret;
 
-	ret = 0;
+	if (!opts || !len || !format)
+		return -EINVAL;
 
-	file = "/etc/kmscon.conf";
-	if (!access(file, F_OK)) {
-		if (access(file, R_OK))
-			log_warning("config file %s exists but read access was denied",
-				    file);
-		else
-			ret = conf_parse_file(opts, len, file);
+	va_start(list, format);
+	ret = vasprintf(&path, format, list);
+	va_end(list);
+
+	if (ret < 0) {
+		log_error("cannot allocate memory for config-file path");
+		return -ENOMEM;
 	}
 
+	ret = conf_parse_file(opts, len, path);
+	free(path);
+	return ret;
+}
+
+int conf_parse_standard_files(struct conf_option *opts, size_t len,
+			      const char *fname)
+{
+	int ret;
+	const char *home;
+
+	ret = conf_parse_file_f(opts, len, "/etc/%s.conf", fname);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	home = getenv("HOME");
 	if (home) {
-		ret = asprintf(&path, "%s/.kmscon.conf", home);
-		if (ret < 0) {
-			log_warning("cannot allocate enough resources to build a config-path");
-			ret = -ENOMEM;
-		} else {
-			ret = 0;
-			if (!access(path, F_OK)) {
-				if (access(path, R_OK))
-					log_warning("config file %s exists but read access was denied",
-						    path);
-				else
-					ret = conf_parse_file(opts, len, path);
-			}
-			free(path);
-		}
+		ret = conf_parse_file_f(opts, len, "%s/.%s.conf", home, fname);
+		if (ret)
+			return ret;
 	}
 
-err_out:
-	return ret;
+	return 0;
 }

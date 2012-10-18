@@ -169,6 +169,9 @@ void conf_free(struct conf_option *opts, size_t len);
 int conf_parse_argv(struct conf_option *opts, size_t len,
 		    int argc, char **argv);
 int conf_parse_file(struct conf_option *opts, size_t len, const char *path);
-int conf_parse_all_files(struct conf_option *opts, size_t len);
+int conf_parse_file_f(struct conf_option *opts, size_t len,
+		      const char *format, ...);
+int conf_parse_standard_files(struct conf_option *opts, size_t len,
+			      const char *fname);
 
 #endif /* CONFIG_CONFIG_H */

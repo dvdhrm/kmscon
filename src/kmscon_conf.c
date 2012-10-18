@@ -344,7 +344,7 @@ int kmscon_load_config(int argc, char **argv)
 
 	log_print_init("kmscon");
 
-	ret = conf_parse_all_files(options, onum);
+	ret = conf_parse_standard_files(options, onum, "kmscon");
 	if (ret)
 		return ret;
 
