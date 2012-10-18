@@ -32,6 +32,7 @@
 #define KMSCON_MAIN_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include "conf.h"
 
@@ -131,5 +132,20 @@ extern struct kmscon_conf_t kmscon_conf;
 
 int kmscon_load_config(int argc, char **argv);
 void kmscon_free_config(void);
+
+#define KMSCON_CONF_OFFSET(_name) \
+	offsetof(struct kmscon_conf_t, _name)
+#define KMSCON_CONF(_name, _type) \
+	(*((_type*)(((char*)&kmscon_conf) + KMSCON_CONF_OFFSET(_name))))
+#define KMSCON_CONF_BOOL(_name) \
+	KMSCON_CONF(_name, bool)
+#define KMSCON_CONF_UINT(_name) \
+	KMSCON_CONF(_name, unsigned int)
+#define KMSCON_CONF_STRING(_name) \
+	KMSCON_CONF(_name, char*)
+#define KMSCON_CONF_GRAB(_name) \
+	KMSCON_CONF(_name, struct conf_grab*)
+#define KMSCON_CONF_STRINGLIST(_name) \
+	KMSCON_CONF(_name, char**)
 
 #endif /* KMSCON_MAIN_H */

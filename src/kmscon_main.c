@@ -113,11 +113,11 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	bool found;
 
 	found = false;
-	if (kmscon_conf.all_seats) {
+	if (KMSCON_CONF_BOOL(all_seats)) {
 		found = true;
 	} else {
-		for (i = 0; kmscon_conf.seats[i]; ++i) {
-			if (!strcmp(kmscon_conf.seats[i], sname)) {
+		for (i = 0; KMSCON_CONF_STRINGLIST(seats)[i]; ++i) {
+			if (!strcmp(KMSCON_CONF_STRINGLIST(seats)[i], sname)) {
 				found = true;
 				break;
 			}
@@ -202,7 +202,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	unsigned int mode;
 	struct app_video *vid;
 
-	if (kmscon_conf.fbdev) {
+	if (KMSCON_CONF_BOOL(fbdev)) {
 		if (type != UTERM_MONITOR_FBDEV &&
 		    type != UTERM_MONITOR_FBDEV_DRM) {
 			log_info("ignoring video device %s on seat %s as it is not an fbdev device",
@@ -237,7 +237,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	}
 
 	if (type == UTERM_MONITOR_DRM) {
-		if (kmscon_conf.dumb)
+		if (KMSCON_CONF_BOOL(dumb))
 			mode = UTERM_VIDEO_DUMB;
 		else
 			mode = UTERM_VIDEO_DRM;
@@ -463,7 +463,7 @@ int main(int argc, char **argv)
 		goto err_out;
 	}
 
-	if (kmscon_conf.exit) {
+	if (KMSCON_CONF_BOOL(exit)) {
 		kmscon_free_config();
 		return 0;
 	}
@@ -476,14 +476,14 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_unload;
 
-	if (kmscon_conf.switchvt) {
+	if (KMSCON_CONF_BOOL(switchvt)) {
 		log_debug("activating VTs during startup");
 		uterm_vt_master_activate_all(app.vtm);
 	}
 
 	ev_eloop_run(app.eloop, -1);
 
-	if (kmscon_conf.switchvt) {
+	if (KMSCON_CONF_BOOL(switchvt)) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it
 		 * returns -EINPROGRESS we need to wait for the VT-leave SIGUSR2
 		 * signal to arrive. Therefore, we use a separate eloop object
