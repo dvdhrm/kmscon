@@ -38,6 +38,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "log.h"
+#include "shl_dlist.h"
 #include "shl_misc.h"
 #include "text.h"
 #include "wlt_main.h"
@@ -180,6 +181,8 @@ err_app:
 }
 
 struct wlt_conf_t wlt_conf;
+#define WLT_CONF_FROM_FIELD(_mem, _name) \
+	shl_offsetof((_mem), struct wlt_conf_t, _name)
 
 static void print_help()
 {
@@ -274,9 +277,11 @@ static void print_help()
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
+	struct wlt_conf_t *conf = WLT_CONF_FROM_FIELD(opt->mem, debug);
+
 	/* --debug implies --verbose */
-	if (wlt_conf.debug)
-		wlt_conf.verbose = 1;
+	if (conf->debug)
+		conf->verbose = true;
 
 	return 0;
 }
@@ -284,10 +289,12 @@ static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 			   int idx)
 {
+	struct wlt_conf_t *conf = WLT_CONF_FROM_FIELD(opt->mem, help);
+
 	/* exit after printing --help information */
-	if (wlt_conf.help) {
+	if (conf->help) {
 		print_help();
-		wlt_conf.exit = true;
+		conf->exit = true;
 	}
 
 	return 0;
@@ -298,24 +305,42 @@ static char *def_argv[] = { NULL, "-i", NULL };
 static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
+	struct wlt_conf_t *conf = WLT_CONF_FROM_FIELD(opt->mem, login);
 	int ret;
 
 	/* parse "--login [...] -- args" arguments */
-	if (wlt_conf.login) {
+	if (conf->login) {
 		if (idx >= argc) {
 			fprintf(stderr, "Arguments for --login missing\n");
 			return -EFAULT;
 		}
 
-		wlt_conf.argv = &argv[idx];
+		conf->argv = &argv[idx];
 		ret = argc - idx;
 	} else {
 		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
-		wlt_conf.argv = def_argv;
+		conf->argv = def_argv;
 		ret = 0;
 	}
 
 	return ret;
+}
+
+static int copy_login(struct conf_option *opt, const struct conf_option *src)
+{
+	struct wlt_conf_t *conf = WLT_CONF_FROM_FIELD(opt->mem, login);
+	struct wlt_conf_t *s = WLT_CONF_FROM_FIELD(src->mem, login);
+	int ret;
+	char **t;
+
+	ret = shl_dup_array(&t, s->argv);
+	if (ret)
+		return ret;
+
+	free(conf->argv);
+	conf->argv = t;
+
+	return 0;
 }
 
 static struct conf_grab def_grab_scroll_up =
@@ -346,48 +371,52 @@ static struct conf_grab def_grab_paste =
 		CONF_SINGLE_GRAB(SHL_LOGO_MASK, XKB_KEY_v);
 
 struct conf_option options[] = {
-	CONF_OPTION_BOOL('h', "help", aftercheck_help, &wlt_conf.help, false),
-	CONF_OPTION_BOOL('v', "verbose", NULL, &wlt_conf.verbose, false),
-	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &wlt_conf.debug, false),
-	CONF_OPTION_BOOL(0, "silent", NULL, &wlt_conf.silent, false),
+	CONF_OPTION_BOOL('h', "help", aftercheck_help, NULL, &wlt_conf.help, false),
+	CONF_OPTION_BOOL('v', "verbose", NULL, NULL, &wlt_conf.verbose, false),
+	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, NULL, &wlt_conf.debug, false),
+	CONF_OPTION_BOOL(0, "silent", NULL, NULL, &wlt_conf.silent, false),
 
-	CONF_OPTION_BOOL('l', "login", aftercheck_login, &wlt_conf.login, false),
-	CONF_OPTION_STRING('t', "term", NULL, &wlt_conf.term, "xterm-256color"),
-	CONF_OPTION_STRING(0, "palette", NULL, &wlt_conf.palette, NULL),
-	CONF_OPTION_UINT(0, "sb-size", NULL, &wlt_conf.sb_size, 1000),
+	CONF_OPTION_BOOL('l', "login", aftercheck_login, copy_login, &wlt_conf.login, false),
+	CONF_OPTION_STRING('t', "term", NULL, NULL, &wlt_conf.term, "xterm-256color"),
+	CONF_OPTION_STRING(0, "palette", NULL, NULL, &wlt_conf.palette, NULL),
+	CONF_OPTION_UINT(0, "sb-size", NULL, NULL, &wlt_conf.sb_size, 1000),
 
-	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
-	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
-	CONF_OPTION_GRAB(0, "grab-page-up", NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
-	CONF_OPTION_GRAB(0, "grab-page-down", NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
-	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
-	CONF_OPTION_GRAB(0, "grab-zoom-in", NULL, &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
-	CONF_OPTION_GRAB(0, "grab-zoom-out", NULL, &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
-	CONF_OPTION_GRAB(0, "grab-copy", NULL, &wlt_conf.grab_copy, &def_grab_copy),
-	CONF_OPTION_GRAB(0, "grab-paste", NULL, &wlt_conf.grab_paste, &def_grab_paste),
+	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, NULL, &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
+	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
+	CONF_OPTION_GRAB(0, "grab-page-up", NULL, NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
+	CONF_OPTION_GRAB(0, "grab-page-down", NULL, NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
+	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
+	CONF_OPTION_GRAB(0, "grab-zoom-in", NULL, NULL, &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
+	CONF_OPTION_GRAB(0, "grab-zoom-out", NULL, NULL, &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
+	CONF_OPTION_GRAB(0, "grab-copy", NULL, NULL, &wlt_conf.grab_copy, &def_grab_copy),
+	CONF_OPTION_GRAB(0, "grab-paste", NULL, NULL, &wlt_conf.grab_paste, &def_grab_paste),
 
-	CONF_OPTION_STRING(0, "font-engine", NULL, &wlt_conf.font_engine, "pango"),
-	CONF_OPTION_UINT(0, "font-size", NULL, &wlt_conf.font_size, 12),
-	CONF_OPTION_STRING(0, "font-name", NULL, &wlt_conf.font_name, "monospace"),
-	CONF_OPTION_UINT(0, "font-dpi", NULL, &wlt_conf.font_ppi, 96),
+	CONF_OPTION_STRING(0, "font-engine", NULL, NULL, &wlt_conf.font_engine, "pango"),
+	CONF_OPTION_UINT(0, "font-size", NULL, NULL, &wlt_conf.font_size, 12),
+	CONF_OPTION_STRING(0, "font-name", NULL, NULL, &wlt_conf.font_name, "monospace"),
+	CONF_OPTION_UINT(0, "font-dpi", NULL, NULL, &wlt_conf.font_ppi, 96),
 
-	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &wlt_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &wlt_conf.xkb_repeat_rate, 50),
+	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, NULL, &wlt_conf.xkb_repeat_delay, 250),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, NULL, &wlt_conf.xkb_repeat_rate, 50),
 };
 
 int main(int argc, char **argv)
 {
 	int ret;
 	struct wlt_app app;
-	size_t onum;
+	struct conf_ctx *conf;
 
-	onum = sizeof(options) / sizeof(*options);
-	ret = conf_parse_argv(options, onum, argc, argv);
+	ret = conf_ctx_new(&conf, options, sizeof(options) / sizeof(*options),
+			   &wlt_conf);
 	if (ret)
 		goto err_out;
 
+	ret = conf_ctx_parse_argv(conf, argc, argv);
+	if (ret)
+		goto err_conf;
+
 	if (wlt_conf.exit) {
-		conf_free(options, onum);
+		conf_ctx_free(conf);
 		return EXIT_SUCCESS;
 	}
 
@@ -410,15 +439,16 @@ int main(int argc, char **argv)
 
 	destroy_app(&app);
 	kmscon_font_unload_all();
-	conf_free(options, onum);
+	conf_ctx_free(conf);
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
 err_unload:
 	kmscon_font_unload_all();
+err_conf:
+	conf_ctx_free(conf);
 err_out:
-	conf_free(options, onum);
 	log_err("cannot initialize wlterm, errno %d: %s", ret, strerror(-ret));
 	return -ret;
 }

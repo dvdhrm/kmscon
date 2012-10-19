@@ -160,58 +160,65 @@ struct conf_option {
 	const struct conf_type *type;
 	int (*aftercheck) (struct conf_option *opt, int argc,
 			   char **argv, int idx);
+	int (*copy) (struct conf_option *opt, const struct conf_option *src);
 	void *mem;
 	void *def;
 };
 
-#define CONF_OPTION(_flags, _short, _long, _type, _aftercheck, _mem, _def) \
-	{ _flags, _short, "no-" _long, _type, _aftercheck, _mem, _def }
-#define CONF_OPTION_BOOL(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION(_flags, _short, _long, _type, _aftercheck, _copy, _mem, _def) \
+	{ _flags, _short, "no-" _long, _type, _aftercheck, _copy, _mem, _def }
+#define CONF_OPTION_BOOL(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_bool, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    _def)
-#define CONF_OPTION_INT(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION_INT(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_int, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    (void*)(unsigned long)_def)
-#define CONF_OPTION_UINT(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION_UINT(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_uint, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    (void*)(unsigned long)_def)
-#define CONF_OPTION_STRING(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION_STRING(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_string, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    _def)
-#define CONF_OPTION_STRING_LIST(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION_STRING_LIST(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_string_list, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    _def)
-#define CONF_OPTION_GRAB(_short, _long, _aftercheck, _mem, _def) \
+#define CONF_OPTION_GRAB(_short, _long, _aftercheck, _copy, _mem, _def) \
 	CONF_OPTION(0, \
 		    _short, \
 		    _long, \
 		    &conf_grab, \
 		    _aftercheck, \
+		    _copy, \
 		    _mem, \
 		    _def)
 

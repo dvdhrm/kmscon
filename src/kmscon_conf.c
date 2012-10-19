@@ -272,6 +272,23 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 	return ret;
 }
 
+static int copy_login(struct conf_option *opt, const struct conf_option *src)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+	struct kmscon_conf_t *s = KMSCON_CONF_FROM_FIELD(src->mem, login);
+	int ret;
+	char **t;
+
+	ret = shl_dup_array(&t, s->argv);
+	if (ret)
+		return ret;
+
+	free(conf->argv);
+	conf->argv = t;
+
+	return 0;
+}
+
 static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
@@ -282,6 +299,15 @@ static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 	    !strcmp(conf->seats[0], "all"))
 		conf->all_seats = true;
 
+	return 0;
+}
+
+static int copy_seats(struct conf_option *opt, const struct conf_option *src)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, seats);
+	struct kmscon_conf_t *s = KMSCON_CONF_FROM_FIELD(src->mem, seats);
+
+	conf->all_seats = s->all_seats;
 	return 0;
 }
 
@@ -321,54 +347,54 @@ int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf)
 
 	struct conf_option options[] = {
 		/* Global Options */
-		CONF_OPTION_BOOL('h', "help", aftercheck_help, &conf->help, false),
-		CONF_OPTION_BOOL('v', "verbose", NULL, &conf->verbose, false),
-		CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &conf->debug, false),
-		CONF_OPTION_BOOL(0, "silent", NULL, &conf->silent, false),
+		CONF_OPTION_BOOL('h', "help", aftercheck_help, NULL, &conf->help, false),
+		CONF_OPTION_BOOL('v', "verbose", NULL, NULL, &conf->verbose, false),
+		CONF_OPTION_BOOL(0, "debug", aftercheck_debug, NULL, &conf->debug, false),
+		CONF_OPTION_BOOL(0, "silent", NULL, NULL, &conf->silent, false),
 
 		/* Seat Options */
-		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, &conf->vt, NULL),
-		CONF_OPTION_BOOL('s', "switchvt", NULL, &conf->switchvt, false),
-		CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, &conf->seats, def_seats),
+		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, &conf->vt, NULL),
+		CONF_OPTION_BOOL('s', "switchvt", NULL, NULL, &conf->switchvt, false),
+		CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, copy_seats, &conf->seats, def_seats),
 
 		/* Session Options */
-		CONF_OPTION_UINT(0, "session-max", NULL, &conf->session_max, 50),
+		CONF_OPTION_UINT(0, "session-max", NULL, NULL, &conf->session_max, 50),
 
 		/* Terminal Options */
-		CONF_OPTION_BOOL('l', "login", aftercheck_login, &conf->login, false),
-		CONF_OPTION_STRING('t', "term", NULL, &conf->term, "xterm-256color"),
-		CONF_OPTION_STRING(0, "palette", NULL, &conf->palette, NULL),
-		CONF_OPTION_UINT(0, "sb-size", NULL, &conf->sb_size, 1000),
+		CONF_OPTION_BOOL('l', "login", aftercheck_login, copy_login, &conf->login, false),
+		CONF_OPTION_STRING('t', "term", NULL, NULL, &conf->term, "xterm-256color"),
+		CONF_OPTION_STRING(0, "palette", NULL, NULL, &conf->palette, NULL),
+		CONF_OPTION_UINT(0, "sb-size", NULL, NULL, &conf->sb_size, 1000),
 
 		/* Input Options */
-		CONF_OPTION_STRING(0, "xkb-layout", NULL, &conf->xkb_layout, "us"),
-		CONF_OPTION_STRING(0, "xkb-variant", NULL, &conf->xkb_variant, ""),
-		CONF_OPTION_STRING(0, "xkb-options", NULL, &conf->xkb_options, ""),
-		CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, &conf->xkb_repeat_delay, 250),
-		CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, &conf->xkb_repeat_rate, 50),
+		CONF_OPTION_STRING(0, "xkb-layout", NULL, NULL, &conf->xkb_layout, "us"),
+		CONF_OPTION_STRING(0, "xkb-variant", NULL, NULL, &conf->xkb_variant, ""),
+		CONF_OPTION_STRING(0, "xkb-options", NULL, NULL, &conf->xkb_options, ""),
+		CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, NULL, &conf->xkb_repeat_delay, 250),
+		CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, NULL, &conf->xkb_repeat_rate, 50),
 
 		/* Grabs / Keyboard-Shortcuts */
-		CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, &conf->grab_scroll_up, &def_grab_scroll_up),
-		CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, &conf->grab_scroll_down, &def_grab_scroll_down),
-		CONF_OPTION_GRAB(0, "grab-page-up", NULL, &conf->grab_page_up, &def_grab_page_up),
-		CONF_OPTION_GRAB(0, "grab-page-down", NULL, &conf->grab_page_down, &def_grab_page_down),
-		CONF_OPTION_GRAB(0, "grab-session-next", NULL, &conf->grab_session_next, &def_grab_session_next),
-		CONF_OPTION_GRAB(0, "grab-session-prev", NULL, &conf->grab_session_prev, &def_grab_session_prev),
-		CONF_OPTION_GRAB(0, "grab-session-close", NULL, &conf->grab_session_close, &def_grab_session_close),
-		CONF_OPTION_GRAB(0, "grab-terminal-new", NULL, &conf->grab_terminal_new, &def_grab_terminal_new),
+		CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, NULL, &conf->grab_scroll_up, &def_grab_scroll_up),
+		CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, NULL, &conf->grab_scroll_down, &def_grab_scroll_down),
+		CONF_OPTION_GRAB(0, "grab-page-up", NULL, NULL, &conf->grab_page_up, &def_grab_page_up),
+		CONF_OPTION_GRAB(0, "grab-page-down", NULL, NULL, &conf->grab_page_down, &def_grab_page_down),
+		CONF_OPTION_GRAB(0, "grab-session-next", NULL, NULL, &conf->grab_session_next, &def_grab_session_next),
+		CONF_OPTION_GRAB(0, "grab-session-prev", NULL, NULL, &conf->grab_session_prev, &def_grab_session_prev),
+		CONF_OPTION_GRAB(0, "grab-session-close", NULL, NULL, &conf->grab_session_close, &def_grab_session_close),
+		CONF_OPTION_GRAB(0, "grab-terminal-new", NULL, NULL, &conf->grab_terminal_new, &def_grab_terminal_new),
 
 		/* Video Options */
-		CONF_OPTION_BOOL(0, "fbdev", NULL, &conf->fbdev, false),
-		CONF_OPTION_BOOL(0, "dumb", NULL, &conf->dumb, false),
-		CONF_OPTION_UINT(0, "fps", NULL, &conf->fps, 50),
-		CONF_OPTION_STRING(0, "render-engine", NULL, &conf->render_engine, NULL),
-		CONF_OPTION_BOOL(0, "render-timing", NULL, &conf->render_timing, false),
+		CONF_OPTION_BOOL(0, "fbdev", NULL, NULL, &conf->fbdev, false),
+		CONF_OPTION_BOOL(0, "dumb", NULL, NULL, &conf->dumb, false),
+		CONF_OPTION_UINT(0, "fps", NULL, NULL, &conf->fps, 50),
+		CONF_OPTION_STRING(0, "render-engine", NULL, NULL, &conf->render_engine, NULL),
+		CONF_OPTION_BOOL(0, "render-timing", NULL, NULL, &conf->render_timing, false),
 
 		/* Font Options */
-		CONF_OPTION_STRING(0, "font-engine", NULL, &conf->font_engine, "pango"),
-		CONF_OPTION_UINT(0, "font-size", NULL, &conf->font_size, 12),
-		CONF_OPTION_STRING(0, "font-name", NULL, &conf->font_name, "monospace"),
-		CONF_OPTION_UINT(0, "font-dpi", NULL, &conf->font_ppi, 96),
+		CONF_OPTION_STRING(0, "font-engine", NULL, NULL, &conf->font_engine, "pango"),
+		CONF_OPTION_UINT(0, "font-size", NULL, NULL, &conf->font_size, 12),
+		CONF_OPTION_STRING(0, "font-name", NULL, NULL, &conf->font_name, "monospace"),
+		CONF_OPTION_UINT(0, "font-dpi", NULL, NULL, &conf->font_ppi, 96),
 	};
 
 	ret = conf_ctx_new(&ctx, options, sizeof(options) / sizeof(*options),

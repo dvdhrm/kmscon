@@ -141,12 +141,17 @@ int conf_ctx_parse_ctx(struct conf_ctx *ctx, const struct conf_ctx *src)
 		if (s->flags & CONF_LOCKED)
 			d->flags |= CONF_LOCKED;
 
-		if (!d->type->copy)
-			continue;
+		if (d->type->copy) {
+			ret = d->type->copy(d, s);
+			if (ret)
+				return ret;
+		}
 
-		ret = d->type->copy(d, s);
-		if (ret)
-			return ret;
+		if (d->copy) {
+			ret = d->copy(d, s);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
