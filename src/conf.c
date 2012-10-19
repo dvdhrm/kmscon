@@ -135,6 +135,12 @@ int conf_ctx_parse_ctx(struct conf_ctx *ctx, const struct conf_ctx *src)
 
 		if (d->type != s->type)
 			continue;
+		if (d->flags & CONF_LOCKED)
+			continue;
+
+		if (s->flags & CONF_LOCKED)
+			d->flags |= CONF_LOCKED;
+
 		if (!d->type->copy)
 			continue;
 
