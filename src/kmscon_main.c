@@ -62,7 +62,8 @@ struct app_seat {
 };
 
 struct kmscon_app {
-	struct conf_ctx *conf;
+	struct conf_ctx *conf_ctx;
+	struct kmscon_conf_t *conf;
 
 	struct ev_eloop *eloop;
 	struct ev_eloop *vt_eloop;
@@ -117,11 +118,11 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	bool found;
 
 	found = false;
-	if (kmscon_conf.all_seats) {
+	if (app->conf->all_seats) {
 		found = true;
 	} else {
-		for (i = 0; kmscon_conf.seats[i]; ++i) {
-			if (!strcmp(kmscon_conf.seats[i], sname)) {
+		for (i = 0; app->conf->seats[i]; ++i) {
+			if (!strcmp(app->conf->seats[i], sname)) {
 				found = true;
 				break;
 			}
@@ -152,7 +153,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 		goto err_free;
 	}
 
-	ret = kmscon_seat_new(&seat->seat, app->conf, app->eloop, app->vtm,
+	ret = kmscon_seat_new(&seat->seat, app->conf_ctx, app->eloop, app->vtm,
 			      sname, app_seat_event, seat);
 	if (ret) {
 		log_error("cannot create seat object on seat %s: %d",
@@ -404,11 +405,10 @@ static void destroy_app(struct kmscon_app *app)
 	ev_eloop_unref(app->eloop);
 }
 
-static int setup_app(struct kmscon_app *app, struct conf_ctx *conf)
+static int setup_app(struct kmscon_app *app)
 {
 	int ret;
 
-	app->conf = conf;
 	shl_dlist_init(&app->seats);
 
 	ret = ev_eloop_new(&app->eloop, log_llog);
@@ -462,23 +462,25 @@ err_app:
 int main(int argc, char **argv)
 {
 	int ret;
-	struct conf_ctx *conf;
+	struct conf_ctx *conf_ctx;
+	struct kmscon_conf_t *conf;
 	struct kmscon_app app;
 
-	ret = kmscon_conf_new(&conf, &kmscon_conf);
+	ret = kmscon_conf_new(&conf_ctx);
 	if (ret) {
 		log_error("cannot create configuration: %d", ret);
 		goto err_out;
 	}
+	conf = conf_ctx_get_mem(conf_ctx);
 
-	ret = kmscon_conf_load_main(conf, argc, argv);
+	ret = kmscon_conf_load_main(conf_ctx, argc, argv);
 	if (ret) {
 		log_error("cannot load configuration: %d", ret);
 		goto err_conf;
 	}
 
-	if (kmscon_conf.exit) {
-		kmscon_conf_free(conf);
+	if (conf->exit) {
+		kmscon_conf_free(conf_ctx);
 		return 0;
 	}
 
@@ -486,18 +488,21 @@ int main(int argc, char **argv)
 	kmscon_text_load_all();
 
 	memset(&app, 0, sizeof(app));
-	ret = setup_app(&app, conf);
+	app.conf_ctx = conf_ctx;
+	app.conf = conf;
+
+	ret = setup_app(&app);
 	if (ret)
 		goto err_unload;
 
-	if (kmscon_conf.switchvt) {
+	if (app.conf->switchvt) {
 		log_debug("activating VTs during startup");
 		uterm_vt_master_activate_all(app.vtm);
 	}
 
 	ev_eloop_run(app.eloop, -1);
 
-	if (kmscon_conf.switchvt) {
+	if (app.conf->switchvt) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it
 		 * returns -EINPROGRESS we need to wait for the VT-leave SIGUSR2
 		 * signal to arrive. Therefore, we use a separate eloop object
@@ -524,7 +529,7 @@ err_unload:
 	kmscon_text_unload_all();
 	kmscon_font_unload_all();
 err_conf:
-	kmscon_conf_free(conf);
+	kmscon_conf_free(conf_ctx);
 err_out:
 	if (ret)
 		log_err("cannot initialize kmscon, errno %d: %s",

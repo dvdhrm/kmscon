@@ -37,8 +37,6 @@
 #include "log.h"
 #include "shl_misc.h"
 
-struct kmscon_conf_t kmscon_conf;
-
 static void print_help()
 {
 	/*
@@ -337,13 +335,19 @@ static struct conf_grab def_grab_session_close =
 static struct conf_grab def_grab_terminal_new =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
 
-int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf)
+int kmscon_conf_new(struct conf_ctx **out)
 {
 	struct conf_ctx *ctx;
 	int ret;
+	struct kmscon_conf_t *conf;
 
-	if (!out || !conf)
+	if (!out)
 		return -EINVAL;
+
+	conf = malloc(sizeof(*conf));
+	if (!conf)
+		return -ENOMEM;
+	memset(conf, 0, sizeof(*conf));
 
 	struct conf_option options[] = {
 		/* Global Options */
@@ -399,8 +403,10 @@ int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf)
 
 	ret = conf_ctx_new(&ctx, options, sizeof(options) / sizeof(*options),
 			   conf);
-	if (ret)
+	if (ret) {
+		free(conf);
 		return ret;
+	}
 
 	*out = ctx;
 	return 0;
@@ -408,25 +414,37 @@ int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf)
 
 void kmscon_conf_free(struct conf_ctx *ctx)
 {
+	void *conf;
+	if (!ctx)
+		return;
+
+	conf = conf_ctx_get_mem(ctx);
 	conf_ctx_free(ctx);
+	free(conf);
 }
 
 int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv)
 {
 	int ret;
+	struct kmscon_conf_t *conf;
+
+	if (!ctx)
+		return -EINVAL;
+
+	conf = conf_ctx_get_mem(ctx);
 
 	ret = conf_ctx_parse_argv(ctx, argc, argv);
 	if (ret)
 		return ret;
 
-	if (kmscon_conf.exit)
+	if (conf->exit)
 		return 0;
 
-	if (!kmscon_conf.debug && !kmscon_conf.verbose && kmscon_conf.silent)
+	if (!conf->debug && !conf->verbose && conf->silent)
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
 	else
-		log_set_config(&LOG_CONFIG_INFO(kmscon_conf.debug,
-						kmscon_conf.verbose));
+		log_set_config(&LOG_CONFIG_INFO(conf->debug,
+						conf->verbose));
 
 	log_print_init("kmscon");
 

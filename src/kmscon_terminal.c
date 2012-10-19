@@ -34,6 +34,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include "conf.h"
 #include "eloop.h"
 #include "kmscon_conf.h"
 #include "kmscon_seat.h"
@@ -63,6 +64,8 @@ struct kmscon_terminal {
 	bool opened;
 	bool awake;
 
+	struct conf_ctx *conf_ctx;
+	struct kmscon_conf_t *conf;
 	struct kmscon_session *session;
 
 	struct shl_dlist screens;
@@ -192,9 +195,9 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 	const char *be;
 
-	attr.ppi = kmscon_conf.font_ppi;
-	attr.points = kmscon_conf.font_size;
-	strncpy(attr.name, kmscon_conf.font_name, KMSCON_FONT_MAX_NAME - 1);
+	attr.ppi = term->conf->font_ppi;
+	attr.points = term->conf->font_size;
+	strncpy(attr.name, term->conf->font_name, KMSCON_FONT_MAX_NAME - 1);
 	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
 
 	shl_dlist_for_each(iter, &term->screens) {
@@ -217,15 +220,15 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_free;
 	}
 
-	ret = kmscon_font_find(&scr->font, &attr, kmscon_conf.font_engine);
+	ret = kmscon_font_find(&scr->font, &attr, term->conf->font_engine);
 	if (ret) {
 		log_error("cannot create font");
 		goto err_screen;
 	}
 
 	ret = uterm_screen_use(scr->screen);
-	if (kmscon_conf.render_engine)
-		be = kmscon_conf.render_engine;
+	if (term->conf->render_engine)
+		be = term->conf->render_engine;
 	else if (!ret)
 		be = "gltex";
 	else
@@ -322,28 +325,28 @@ static void input_event(struct uterm_input *input,
 	if (!term->opened || !term->awake || ev->handled)
 		return;
 
-	if (conf_grab_matches(kmscon_conf.grab_scroll_up,
+	if (conf_grab_matches(term->conf->grab_scroll_up,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_scroll_down,
+	if (conf_grab_matches(term->conf->grab_scroll_down,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_down(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_page_up,
+	if (conf_grab_matches(term->conf->grab_page_up,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_up(term->console, 1);
 		schedule_redraw(term);
 		ev->handled = true;
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_page_down,
+	if (conf_grab_matches(term->conf->grab_page_down,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_down(term->console, 1);
 		schedule_redraw(term);
@@ -499,8 +502,11 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	term->input = kmscon_seat_get_input(seat);
 	shl_dlist_init(&term->screens);
 
-	if (kmscon_conf.fps) {
-		fps = 1000000000ULL / kmscon_conf.fps;
+	term->conf_ctx = kmscon_seat_get_conf(seat);
+	term->conf = conf_ctx_get_mem(term->conf_ctx);
+
+	if (term->conf->fps) {
+		fps = 1000000000ULL / term->conf->fps;
 		if (fps == 0)
 			fps = 1000000000ULL / 100;
 		else if (fps > 200000000ULL)
@@ -515,8 +521,8 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	ret = tsm_screen_new(&term->console, log_llog);
 	if (ret)
 		goto err_free;
-	tsm_screen_set_max_sb(term->console, kmscon_conf.sb_size);
-	if (kmscon_conf.render_timing)
+	tsm_screen_set_max_sb(term->console, term->conf->sb_size);
+	if (term->conf->render_timing)
 		tsm_screen_set_opts(term->console,
 				    TSM_SCREEN_OPT_RENDER_TIMING);
 
@@ -524,17 +530,17 @@ int kmscon_terminal_register(struct kmscon_session **out,
 			  log_llog);
 	if (ret)
 		goto err_con;
-	tsm_vte_set_palette(term->vte, kmscon_conf.palette);
+	tsm_vte_set_palette(term->vte, term->conf->palette);
 
 	ret = kmscon_pty_new(&term->pty, pty_input, term);
 	if (ret)
 		goto err_vte;
 
-	ret = kmscon_pty_set_term(term->pty, kmscon_conf.term);
+	ret = kmscon_pty_set_term(term->pty, term->conf->term);
 	if (ret)
 		goto err_pty;
 
-	ret = kmscon_pty_set_argv(term->pty, kmscon_conf.argv);
+	ret = kmscon_pty_set_argv(term->pty, term->conf->argv);
 	if (ret)
 		goto err_pty;
 

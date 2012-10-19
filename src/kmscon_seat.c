@@ -67,8 +67,8 @@ struct kmscon_seat {
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
 
-	struct kmscon_conf_t conf;
 	struct conf_ctx *conf_ctx;
+	struct kmscon_conf_t *conf;
 
 	char *name;
 	bool awake;
@@ -323,25 +323,25 @@ static void seat_input_event(struct uterm_input *input,
 	if (ev->handled)
 		return;
 
-	if (conf_grab_matches(kmscon_conf.grab_session_next,
+	if (conf_grab_matches(seat->conf->grab_session_next,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
 		seat_activate_next(seat);
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_session_prev,
+	if (conf_grab_matches(seat->conf->grab_session_prev,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
 		seat_activate_prev(seat);
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_session_close,
+	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
 		kmscon_session_unregister(seat->cur_sess);
 		return;
 	}
-	if (conf_grab_matches(kmscon_conf.grab_terminal_new,
+	if (conf_grab_matches(seat->conf->grab_terminal_new,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
 		ret = kmscon_terminal_register(&s, seat);
@@ -390,11 +390,12 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_free;
 	}
 
-	ret = kmscon_conf_new(&seat->conf_ctx, &seat->conf);
+	ret = kmscon_conf_new(&seat->conf_ctx);
 	if (ret) {
 		log_error("cannot create seat configuration object: %d", ret);
 		goto err_name;
 	}
+	seat->conf = conf_ctx_get_mem(seat->conf_ctx);
 
 	ret = kmscon_conf_load_seat(seat->conf_ctx, main_conf, seat->name);
 	if (ret) {
@@ -404,11 +405,11 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	}
 
 	ret = uterm_input_new(&seat->input, seat->eloop,
-			      kmscon_conf.xkb_layout,
-			      kmscon_conf.xkb_variant,
-			      kmscon_conf.xkb_options,
-			      kmscon_conf.xkb_repeat_delay,
-			      kmscon_conf.xkb_repeat_rate);
+			      seat->conf->xkb_layout,
+			      seat->conf->xkb_variant,
+			      seat->conf->xkb_options,
+			      seat->conf->xkb_repeat_delay,
+			      seat->conf->xkb_repeat_rate);
 	if (ret)
 		goto err_conf;
 
@@ -417,7 +418,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_input;
 
 	ret = uterm_vt_allocate(seat->vtm, &seat->vt, seat->name,
-				seat->input, kmscon_conf.vt, seat_vt_event,
+				seat->input, seat->conf->vt, seat_vt_event,
 				seat);
 	if (ret)
 		goto err_input_cb;
@@ -589,10 +590,10 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 	if (!seat || !out)
 		return -EINVAL;
 
-	if (kmscon_conf.session_max &&
-	    seat->session_count >= kmscon_conf.session_max) {
+	if (seat->conf->session_max &&
+	    seat->session_count >= seat->conf->session_max) {
 		log_warning("maximum number of sessions reached (%d), dropping new session",
-			    kmscon_conf.session_max);
+			    seat->conf->session_max);
 		return -EOVERFLOW;
 	}
 

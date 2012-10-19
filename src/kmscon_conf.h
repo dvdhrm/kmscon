@@ -129,9 +129,7 @@ struct kmscon_conf_t {
 	unsigned int font_ppi;
 };
 
-extern struct kmscon_conf_t kmscon_conf;
-
-int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf);
+int kmscon_conf_new(struct conf_ctx **out);
 void kmscon_conf_free(struct conf_ctx *ctx);
 int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv);
 int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
