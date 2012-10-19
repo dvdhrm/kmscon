@@ -34,6 +34,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "conf.h"
 #include "eloop.h"
 #include "uterm.h"
 
@@ -63,6 +64,7 @@ typedef void (*kmscon_session_cb_t) (struct kmscon_session *session,
 				     void *data);
 
 int kmscon_seat_new(struct kmscon_seat **out,
+		    struct conf_ctx *main_conf,
 		    struct ev_eloop *eloop,
 		    struct uterm_vt_master *vtm,
 		    const char *seatname,
@@ -80,6 +82,7 @@ void kmscon_seat_remove_input(struct kmscon_seat *seat, const char *node);
 const char *kmscon_seat_get_name(struct kmscon_seat *seat);
 struct uterm_input *kmscon_seat_get_input(struct kmscon_seat *seat);
 struct ev_eloop *kmscon_seat_get_eloop(struct kmscon_seat *seat);
+struct conf_ctx *kmscon_seat_get_conf(struct kmscon_seat *seat);
 
 int kmscon_seat_register_session(struct kmscon_seat *seat,
 				 struct kmscon_session **out,

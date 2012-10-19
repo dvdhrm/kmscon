@@ -38,8 +38,6 @@
 #include "shl_misc.h"
 
 struct kmscon_conf_t kmscon_conf;
-static struct conf_option *kmscon_opt;
-static size_t kmscon_onum;
 
 static void print_help()
 {
@@ -149,6 +147,21 @@ static void print_help()
 	 */
 }
 
+static void conf_default_vt(struct conf_option *opt)
+{
+	opt->type->free(opt);
+	*(void**)opt->mem = opt->def;
+}
+
+static void conf_free_vt(struct conf_option *opt)
+{
+	if (*(void**)opt->mem) {
+		if (*(void**)opt->mem != opt->def)
+			free(*(void**)opt->mem);
+		*(void**)opt->mem = NULL;
+	}
+}
+
 static int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
 {
 	static const char prefix[] = "/dev/";
@@ -178,17 +191,34 @@ static int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
 	return 0;
 }
 
-static void conf_default_vt(struct conf_option *opt)
+static int conf_copy_vt(struct conf_option *opt,
+			const struct conf_option *src)
 {
-	*(void**)opt->mem = opt->def;
+	char *val;
+
+	if (!*(void**)src->mem) {
+		val = NULL;
+	} else {
+		val = strdup(*(void**)src->mem);
+		if (!val)
+			return -ENOMEM;
+	}
+
+	opt->type->free(opt);
+	*(void**)opt->mem = val;
+	return 0;
 }
 
 static const struct conf_type conf_vt = {
 	.flags = CONF_HAS_ARG,
-	.parse = conf_parse_vt,
-	.free = conf_free_value,
 	.set_default = conf_default_vt,
+	.free = conf_free_vt,
+	.parse = conf_parse_vt,
+	.copy = conf_copy_vt,
 };
+
+#define KMSCON_CONF_FROM_FIELD(_mem, _name) \
+	shl_offsetof((_mem), struct kmscon_conf_t, _name)
 
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
@@ -281,20 +311,12 @@ static struct conf_grab def_grab_session_close =
 static struct conf_grab def_grab_terminal_new =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
 
-void kmscon_conf_init(struct kmscon_conf_t *conf)
+int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf)
 {
-	if (!conf)
-		return;
+	struct conf_ctx *ctx;
+	int ret;
 
-	memset(conf, 0, sizeof(*conf));
-}
-
-int kmscon_conf_new(struct conf_option **out, size_t *size_out,
-		    struct kmscon_conf_t *conf)
-{
-	struct conf_option *opt;
-
-	if (!out || !size_out || !conf)
+	if (!out || !conf)
 		return -EINVAL;
 
 	struct conf_option options[] = {
@@ -349,71 +371,47 @@ int kmscon_conf_new(struct conf_option **out, size_t *size_out,
 		CONF_OPTION_UINT(0, "font-dpi", NULL, &conf->font_ppi, 96),
 	};
 
-	opt = malloc(sizeof(options));
-	if (!opt)
-		return -ENOMEM;
-	memcpy(opt, options, sizeof(options));
-
-	*out = opt;
-	*size_out = sizeof(options) / sizeof(*options);
-	return 0;
-}
-
-void kmscon_conf_free(struct conf_option *opt, size_t onum)
-{
-	if (!opt || !onum)
-		return;
-
-	conf_free(opt, onum);
-	free(opt);
-}
-
-int kmscon_conf_parse_argv(struct conf_option *opt, size_t onum,
-			   int argc, char **argv)
-{
-	if (!opt || !onum)
-		return -EINVAL;
-
-	return conf_parse_argv(opt, onum, argc, argv);
-}
-
-int kmscon_load_config(int argc, char **argv)
-{
-	int ret;
-
-	if (!kmscon_opt || !kmscon_onum) {
-		kmscon_conf_init(&kmscon_conf);
-		ret = kmscon_conf_new(&kmscon_opt, &kmscon_onum, &kmscon_conf);
-		if (ret)
-			return ret;
-	}
-
-	ret = kmscon_conf_parse_argv(kmscon_opt, kmscon_onum, argc, argv);
+	ret = conf_ctx_new(&ctx, options, sizeof(options) / sizeof(*options),
+			   conf);
 	if (ret)
 		return ret;
 
-	if (KMSCON_CONF_BOOL(exit))
+	*out = ctx;
+	return 0;
+}
+
+void kmscon_conf_free(struct conf_ctx *ctx)
+{
+	conf_ctx_free(ctx);
+}
+
+int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv)
+{
+	int ret;
+
+	ret = conf_ctx_parse_argv(ctx, argc, argv);
+	if (ret)
+		return ret;
+
+	if (kmscon_conf.exit)
 		return 0;
 
-	if (!KMSCON_CONF_BOOL(debug) && !KMSCON_CONF_BOOL(verbose) &&
-	    KMSCON_CONF_BOOL(silent))
+	if (!kmscon_conf.debug && !kmscon_conf.verbose && kmscon_conf.silent)
 		log_set_config(&LOG_CONFIG_WARNING(0, 0, 0, 0));
 	else
-		log_set_config(&LOG_CONFIG_INFO(KMSCON_CONF_BOOL(debug),
-						KMSCON_CONF_BOOL(verbose)));
+		log_set_config(&LOG_CONFIG_INFO(kmscon_conf.debug,
+						kmscon_conf.verbose));
 
 	log_print_init("kmscon");
 
-	ret = conf_parse_file_f(kmscon_opt, kmscon_onum,
-				"/etc/kmscon/kmscon.conf");
+	ret = conf_ctx_parse_file(ctx, "/etc/kmscon/kmscon.conf");
 	if (ret)
 		return ret;
 
 	/* TODO: Deprecated! Remove this! */
 	if (!access("/etc/kmscon.conf", F_OK)) {
 		log_error("/etc/kmscon.conf is deprecated, please use /etc/kmscon/kmscon.conf");
-		ret = conf_parse_file_f(kmscon_opt, kmscon_onum,
-					"/etc/kmscon.conf");
+		ret = conf_ctx_parse_file(ctx, "/etc/kmscon.conf");
 		if (ret)
 			return ret;
 	}
@@ -421,12 +419,23 @@ int kmscon_load_config(int argc, char **argv)
 	return 0;
 }
 
-void kmscon_free_config(void)
+int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
+			  const char *seat)
 {
-	if (!kmscon_opt || !kmscon_onum)
-		return;
+	int ret;
 
-	kmscon_conf_free(kmscon_opt, kmscon_onum);
-	kmscon_opt = NULL;
-	kmscon_onum = 0;
+	if (!ctx || !main || !seat)
+		return -EINVAL;
+
+	log_debug("parsing seat configuration for seat %s", seat);
+
+	ret = conf_ctx_parse_ctx(ctx, main);
+	if (ret)
+		return ret;
+
+	ret = conf_ctx_parse_file(ctx, "/etc/kmscon/%s.seat.conf", seat);
+	if (ret)
+		return ret;
+
+	return 0;
 }

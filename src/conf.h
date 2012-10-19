@@ -37,7 +37,67 @@
 #include <stdlib.h>
 #include "shl_misc.h"
 
-/* parsed types */
+struct conf_type;
+struct conf_option;
+struct conf_ctx;
+
+/* Conf Types */
+
+#define CONF_HAS_ARG		0x0001
+
+struct conf_type {
+	unsigned int flags;
+	void (*set_default) (struct conf_option *opt);
+	void (*free) (struct conf_option *opt);
+	int (*parse) (struct conf_option *opt, bool on, const char *arg);
+	int (*copy) (struct conf_option *opt, const struct conf_option *src);
+};
+
+/*
+ * Bool: expects "mem" to point to a "bool"
+ * Initial state is "false".
+ */
+
+extern const struct conf_type conf_bool;
+
+/*
+ * Int: expects "mem" to point to an "int"
+ * Initial state is "0".
+ */
+
+extern const struct conf_type conf_int;
+
+/*
+ * Uint: expects "mem" to point to an "uint"
+ * Initial state is "0"
+ */
+
+extern const struct conf_type conf_uint;
+
+/*
+ * String: expects "mem" to point to an "char*"
+ * Initial state is NULL. Memory is allocated by the parser and a string is
+ * always zero-terminated.
+ */
+
+extern const struct conf_type conf_string;
+
+/*
+ * Stringlist: expects "mem" to point to an "char**"
+ * Initial state is NULL. The list is NULL-terminated and each entry is a
+ * zero-terminated string. Memory is allocated by the parser.
+ */
+
+extern const struct conf_type conf_string_list;
+
+/*
+ * Grabs: expects "mem" to point to an "struct conf_grab*"
+ * Initial state is NULL. See below for the type definition. The memory for the
+ * type is allocated by the parser.
+ * Two small helpers are available to ease the use.
+ */
+
+extern const struct conf_type conf_grab;
 
 struct conf_grab {
 	unsigned int num;
@@ -63,24 +123,35 @@ static inline bool conf_grab_matches(const struct conf_grab *grab,
 		.keysyms = (uint32_t*[]) { (uint32_t[]) { (_sym) } }, \
 	}
 
-/* configuration parser */
+/*
+ * Configuration Context
+ * A configuration context is initialized with an array of config-options and
+ * then can be used to parse different sources. The backing memory is managed by
+ * the user, not by this context.
+ * All options are set to their default values on startup and reset.
+ */
 
-struct conf_type;
-struct conf_option;
+struct conf_ctx;
 
-/* config option flags */
+int conf_ctx_new(struct conf_ctx **out, const struct conf_option *opts,
+		 size_t onum, void *mem);
+void conf_ctx_free(struct conf_ctx *ctx);
+void conf_ctx_reset(struct conf_ctx *ctx);
+void *conf_ctx_get_mem(struct conf_ctx *ctx);
+
+int conf_ctx_parse_ctx(struct conf_ctx *ctx, const struct conf_ctx *src);
+int conf_ctx_parse_argv(struct conf_ctx *ctx, int argc, char **argv);
+int conf_ctx_parse_file(struct conf_ctx *ctx, const char *format, ...);
+
+/*
+ * Configuration Options
+ * A configuration option specifies the name of the option, the type, the
+ * backing memory, the default value and more. Each option is represented by
+ * this structure.
+ */
+
 #define CONF_DONE		0x0001
 #define CONF_LOCKED		0x0002
-
-/* config type flags */
-#define CONF_HAS_ARG		0x0001
-
-struct conf_type {
-	unsigned int flags;
-	int (*parse) (struct conf_option *opt, bool on, const char *arg);
-	void (*free) (struct conf_option *opt);
-	void (*set_default) (struct conf_option *opt);
-};
 
 struct conf_option {
 	unsigned int flags;
@@ -143,33 +214,5 @@ struct conf_option {
 		    _aftercheck, \
 		    _mem, \
 		    _def)
-
-void conf_free_value(struct conf_option *opt);
-int conf_parse_bool(struct conf_option *opt, bool on, const char *arg);
-void conf_default_bool(struct conf_option *opt);
-int conf_parse_int(struct conf_option *opt, bool on, const char *arg);
-void conf_default_int(struct conf_option *opt);
-int conf_parse_uint(struct conf_option *opt, bool on, const char *arg);
-void conf_default_uint(struct conf_option *opt);
-int conf_parse_string(struct conf_option *opt, bool on, const char *arg);
-void conf_default_string(struct conf_option *opt);
-int conf_parse_string_list(struct conf_option *opt, bool on, const char *arg);
-void conf_default_string_list(struct conf_option *opt);
-int conf_parse_grab(struct conf_option *opt, bool on, const char *arg);
-void conf_default_grab(struct conf_option *opt);
-
-extern const struct conf_type conf_bool;
-extern const struct conf_type conf_int;
-extern const struct conf_type conf_uint;
-extern const struct conf_type conf_string;
-extern const struct conf_type conf_string_list;
-extern const struct conf_type conf_grab;
-
-void conf_free(struct conf_option *opts, size_t len);
-int conf_parse_argv(struct conf_option *opts, size_t len,
-		    int argc, char **argv);
-int conf_parse_file(struct conf_option *opts, size_t len, const char *path);
-int conf_parse_file_f(struct conf_option *opts, size_t len,
-		      const char *format, ...);
 
 #endif /* CONFIG_CONFIG_H */

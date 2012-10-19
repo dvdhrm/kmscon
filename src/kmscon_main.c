@@ -56,10 +56,14 @@ struct app_seat {
 	bool awake;
 	char *name;
 	struct kmscon_seat *seat;
+	struct conf_ctx *conf_ctx;
+	struct kmscon_conf_t *conf;
 	struct shl_dlist videos;
 };
 
 struct kmscon_app {
+	struct conf_ctx *conf;
+
 	struct ev_eloop *eloop;
 	struct ev_eloop *vt_eloop;
 	unsigned int vt_exit_count;
@@ -113,11 +117,11 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	bool found;
 
 	found = false;
-	if (KMSCON_CONF_BOOL(all_seats)) {
+	if (kmscon_conf.all_seats) {
 		found = true;
 	} else {
-		for (i = 0; KMSCON_CONF_STRINGLIST(seats)[i]; ++i) {
-			if (!strcmp(KMSCON_CONF_STRINGLIST(seats)[i], sname)) {
+		for (i = 0; kmscon_conf.seats[i]; ++i) {
+			if (!strcmp(kmscon_conf.seats[i], sname)) {
 				found = true;
 				break;
 			}
@@ -148,13 +152,15 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 		goto err_free;
 	}
 
-	ret = kmscon_seat_new(&seat->seat, app->eloop, app->vtm, sname,
-			      app_seat_event, seat);
+	ret = kmscon_seat_new(&seat->seat, app->conf, app->eloop, app->vtm,
+			      sname, app_seat_event, seat);
 	if (ret) {
 		log_error("cannot create seat object on seat %s: %d",
 			  sname, ret);
 		goto err_name;
 	}
+	seat->conf_ctx = kmscon_seat_get_conf(seat->seat);
+	seat->conf = conf_ctx_get_mem(seat->conf_ctx);
 
 	shl_dlist_link(&app->seats, &seat->list);
 	*out = seat;
@@ -202,7 +208,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	unsigned int mode;
 	struct app_video *vid;
 
-	if (KMSCON_CONF_BOOL(fbdev)) {
+	if (seat->conf->fbdev) {
 		if (type != UTERM_MONITOR_FBDEV &&
 		    type != UTERM_MONITOR_FBDEV_DRM) {
 			log_info("ignoring video device %s on seat %s as it is not an fbdev device",
@@ -237,7 +243,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	}
 
 	if (type == UTERM_MONITOR_DRM) {
-		if (KMSCON_CONF_BOOL(dumb))
+		if (seat->conf->dumb)
 			mode = UTERM_VIDEO_DUMB;
 		else
 			mode = UTERM_VIDEO_DRM;
@@ -398,10 +404,11 @@ static void destroy_app(struct kmscon_app *app)
 	ev_eloop_unref(app->eloop);
 }
 
-static int setup_app(struct kmscon_app *app)
+static int setup_app(struct kmscon_app *app, struct conf_ctx *conf)
 {
 	int ret;
 
+	app->conf = conf;
 	shl_dlist_init(&app->seats);
 
 	ret = ev_eloop_new(&app->eloop, log_llog);
@@ -455,16 +462,23 @@ err_app:
 int main(int argc, char **argv)
 {
 	int ret;
+	struct conf_ctx *conf;
 	struct kmscon_app app;
 
-	ret = kmscon_load_config(argc, argv);
+	ret = kmscon_conf_new(&conf, &kmscon_conf);
 	if (ret) {
-		log_error("cannot parse configuration: %d", ret);
+		log_error("cannot create configuration: %d", ret);
 		goto err_out;
 	}
 
-	if (KMSCON_CONF_BOOL(exit)) {
-		kmscon_free_config();
+	ret = kmscon_conf_load_main(conf, argc, argv);
+	if (ret) {
+		log_error("cannot load configuration: %d", ret);
+		goto err_conf;
+	}
+
+	if (kmscon_conf.exit) {
+		kmscon_conf_free(conf);
 		return 0;
 	}
 
@@ -472,18 +486,18 @@ int main(int argc, char **argv)
 	kmscon_text_load_all();
 
 	memset(&app, 0, sizeof(app));
-	ret = setup_app(&app);
+	ret = setup_app(&app, conf);
 	if (ret)
 		goto err_unload;
 
-	if (KMSCON_CONF_BOOL(switchvt)) {
+	if (kmscon_conf.switchvt) {
 		log_debug("activating VTs during startup");
 		uterm_vt_master_activate_all(app.vtm);
 	}
 
 	ev_eloop_run(app.eloop, -1);
 
-	if (KMSCON_CONF_BOOL(switchvt)) {
+	if (kmscon_conf.switchvt) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it
 		 * returns -EINPROGRESS we need to wait for the VT-leave SIGUSR2
 		 * signal to arrive. Therefore, we use a separate eloop object
@@ -509,9 +523,9 @@ int main(int argc, char **argv)
 err_unload:
 	kmscon_text_unload_all();
 	kmscon_font_unload_all();
+err_conf:
+	kmscon_conf_free(conf);
 err_out:
-	kmscon_free_config();
-
 	if (ret)
 		log_err("cannot initialize kmscon, errno %d: %s",
 			ret, strerror(-ret));

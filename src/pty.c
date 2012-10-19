@@ -39,6 +39,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "pty.h"
+#include "shl_misc.h"
 #include "shl_ring.h"
 
 #define LOG_SUBSYSTEM "pty"
@@ -141,35 +142,18 @@ int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term)
 
 int kmscon_pty_set_argv(struct kmscon_pty *pty, char **argv)
 {
-	char **t, *off;
-	unsigned int size, i;
+	char **t;
+	int ret;
 
 	if (!pty || !argv || !*argv || !**argv)
 		return -EINVAL;
 
-	size = 0;
-	for (i = 0; argv[i]; ++i)
-		size += strlen(argv[i]) + 1;
-	++i;
+	ret = shl_dup_array(&t, argv);
+	if (ret)
+		return ret;
 
-	size += i * sizeof(char*);
-
-	t = malloc(size);
-	if (!t)
-		return -ENOMEM;
 	free(pty->argv);
 	pty->argv = t;
-
-	off = (char*)t + i * sizeof(char*);
-	while (*argv) {
-		*t++ = off;
-		for (i = 0; argv[0][i]; ++i)
-			*off++ = argv[0][i];
-		*off++ = 0;
-		argv++;
-	}
-	*t = NULL;
-
 	return 0;
 }
 

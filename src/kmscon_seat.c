@@ -67,6 +67,9 @@ struct kmscon_seat {
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
 
+	struct kmscon_conf_t conf;
+	struct conf_ctx *conf_ctx;
+
 	char *name;
 	bool awake;
 	struct uterm_input *input;
@@ -355,6 +358,7 @@ static void seat_input_event(struct uterm_input *input,
 }
 
 int kmscon_seat_new(struct kmscon_seat **out,
+		    struct conf_ctx *main_conf,
 		    struct ev_eloop *eloop,
 		    struct uterm_vt_master *vtm,
 		    const char *seatname,
@@ -386,6 +390,19 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_free;
 	}
 
+	ret = kmscon_conf_new(&seat->conf_ctx, &seat->conf);
+	if (ret) {
+		log_error("cannot create seat configuration object: %d", ret);
+		goto err_name;
+	}
+
+	ret = kmscon_conf_load_seat(seat->conf_ctx, main_conf, seat->name);
+	if (ret) {
+		log_error("cannot parse seat configuration on seat %s: %d",
+			  seat->name, ret);
+		goto err_conf;
+	}
+
 	ret = uterm_input_new(&seat->input, seat->eloop,
 			      kmscon_conf.xkb_layout,
 			      kmscon_conf.xkb_variant,
@@ -393,7 +410,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 			      kmscon_conf.xkb_repeat_delay,
 			      kmscon_conf.xkb_repeat_rate);
 	if (ret)
-		goto err_name;
+		goto err_conf;
 
 	ret = uterm_input_register_cb(seat->input, seat_input_event, seat);
 	if (ret)
@@ -445,6 +462,8 @@ err_input_cb:
 	uterm_input_unregister_cb(seat->input, seat_input_event, seat);
 err_input:
 	uterm_input_unref(seat->input);
+err_conf:
+	kmscon_conf_free(seat->conf_ctx);
 err_name:
 	free(seat->name);
 err_free:
@@ -477,6 +496,7 @@ void kmscon_seat_free(struct kmscon_seat *seat)
 	uterm_vt_deallocate(seat->vt);
 	uterm_input_unregister_cb(seat->input, seat_input_event, seat);
 	uterm_input_unref(seat->input);
+	kmscon_conf_free(seat->conf_ctx);
 	free(seat->name);
 	uterm_vt_master_unref(seat->vtm);
 	ev_eloop_unref(seat->eloop);
@@ -547,6 +567,14 @@ struct ev_eloop *kmscon_seat_get_eloop(struct kmscon_seat *seat)
 		return NULL;
 
 	return seat->eloop;
+}
+
+struct conf_ctx *kmscon_seat_get_conf(struct kmscon_seat *seat)
+{
+	if (!seat)
+		return NULL;
+
+	return seat->conf_ctx;
 }
 
 int kmscon_seat_register_session(struct kmscon_seat *seat,

@@ -140,6 +140,39 @@ static inline int shl_split_string(const char *arg, char ***out,
 	return 0;
 }
 
+static inline int shl_dup_array(char ***out, char **argv)
+{
+	char **t, *off;
+	unsigned int size, i;
+
+	if (!out || !argv)
+		return -EINVAL;
+
+	size = 0;
+	for (i = 0; argv[i]; ++i)
+		size += strlen(argv[i]) + 1;
+	++i;
+
+	size += i * sizeof(char*);
+
+	t = malloc(size);
+	if (!t)
+		return -ENOMEM;
+	*out = t;
+
+	off = (char*)t + i * sizeof(char*);
+	while (*argv) {
+		*t++ = off;
+		for (i = 0; argv[0][i]; ++i)
+			*off++ = argv[0][i];
+		*off++ = 0;
+		argv++;
+	}
+	*t = NULL;
+
+	return 0;
+}
+
 /* TODO: xkbcommon should provide these flags!
  * We currently copy them into each library API we use so we need  to keep
  * them in sync. Currently, they're used in uterm-input and tsm-vte. */

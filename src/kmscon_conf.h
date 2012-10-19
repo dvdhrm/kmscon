@@ -131,32 +131,10 @@ struct kmscon_conf_t {
 
 extern struct kmscon_conf_t kmscon_conf;
 
-void kmscon_conf_init(struct kmscon_conf_t *conf);
-int kmscon_conf_new(struct conf_option **out, size_t *size_out,
-		    struct kmscon_conf_t *conf);
-void kmscon_conf_free(struct conf_option *opt, size_t onum);
-
-int kmscon_conf_parse_argv(struct conf_option *opt, size_t onum,
-			   int argc, char **argv);
-
-int kmscon_load_config(int argc, char **argv);
-void kmscon_free_config(void);
-
-#define KMSCON_CONF_FROM_FIELD(_ptr, _field) \
-	shl_offsetof(_ptr, struct kmscon_conf_t, _field)
-#define KMSCON_CONF_OFFSET(_name) \
-	offsetof(struct kmscon_conf_t, _name)
-#define KMSCON_CONF(_name, _type) \
-	(*((_type*)(((char*)&kmscon_conf) + KMSCON_CONF_OFFSET(_name))))
-#define KMSCON_CONF_BOOL(_name) \
-	KMSCON_CONF(_name, bool)
-#define KMSCON_CONF_UINT(_name) \
-	KMSCON_CONF(_name, unsigned int)
-#define KMSCON_CONF_STRING(_name) \
-	KMSCON_CONF(_name, char*)
-#define KMSCON_CONF_GRAB(_name) \
-	KMSCON_CONF(_name, struct conf_grab*)
-#define KMSCON_CONF_STRINGLIST(_name) \
-	KMSCON_CONF(_name, char**)
+int kmscon_conf_new(struct conf_ctx **out, struct kmscon_conf_t *conf);
+void kmscon_conf_free(struct conf_ctx *ctx);
+int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv);
+int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
+			  const char *seat);
 
 #endif /* KMSCON_MAIN_H */
