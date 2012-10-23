@@ -338,6 +338,9 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (seat->cur_sess == seat->dummy)
+			return;
+
 		kmscon_session_unregister(seat->cur_sess);
 		return;
 	}
@@ -647,6 +650,9 @@ void kmscon_session_unregister(struct kmscon_session *sess)
 		return;
 
 	log_debug("unregister session %p", sess);
+
+	if (sess->seat->dummy == sess)
+		sess->seat->dummy = NULL;
 
 	session_deactivate(sess);
 	shl_dlist_unlink(&sess->list);
