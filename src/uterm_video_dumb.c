@@ -110,6 +110,7 @@ static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
 		ret = -EFAULT;
 		goto err_fb;
 	}
+	memset(rb->map, 0, rb->size);
 
 	return 0;
 
