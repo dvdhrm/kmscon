@@ -59,7 +59,7 @@ int uxkb_desc_init(struct uterm_input *input,
 		return -ENOMEM;
 	}
 
-	input->keymap = xkb_map_new_from_names(input->ctx, &rmlvo, 0);
+	input->keymap = xkb_keymap_new_from_names(input->ctx, &rmlvo, 0);
 	if (!input->keymap) {
 		log_warn("failed to create keymap (%s, %s, %s), "
 			 "reverting to default US keymap",
@@ -69,7 +69,8 @@ int uxkb_desc_init(struct uterm_input *input,
 		rmlvo.variant = "";
 		rmlvo.options = "";
 
-		input->keymap = xkb_map_new_from_names(input->ctx, &rmlvo, 0);
+		input->keymap = xkb_keymap_new_from_names(input->ctx,
+							  &rmlvo, 0);
 		if (!input->keymap) {
 			log_warn("failed to create XKB keymap");
 			ret = -EFAULT;
@@ -88,7 +89,7 @@ err_ctx:
 
 void uxkb_desc_destroy(struct uterm_input *input)
 {
-	xkb_map_unref(input->keymap);
+	xkb_keymap_unref(input->keymap);
 	xkb_context_unref(input->ctx);
 }
 
@@ -208,7 +209,7 @@ static int uxkb_dev_fill_event(struct uterm_input_dev *dev,
 
 static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
 {
-	struct xkb_keymap *keymap = xkb_state_get_map(dev->state);
+	struct xkb_keymap *keymap = xkb_state_get_keymap(dev->state);
 	unsigned int i;
 	int num_keysyms, ret;
 	const uint32_t *keysyms;
@@ -223,7 +224,7 @@ static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
 	}
 
 	if (state == KEY_PRESSED &&
-	    xkb_key_repeats(keymap, dev->event.keycode)) {
+	    xkb_keymap_key_repeats(keymap, dev->event.keycode)) {
 		dev->repeat_event.keycode = dev->event.keycode;
 		dev->repeat_event.ascii = dev->event.ascii;
 		dev->repeat_event.mods = dev->event.mods;
@@ -235,10 +236,10 @@ static void uxkb_dev_repeat(struct uterm_input_dev *dev, unsigned int state)
 						dev->event.codepoints[i];
 		}
 	} else if (dev->repeating &&
-		   !xkb_key_repeats(keymap, dev->event.keycode)) {
-		num_keysyms = xkb_key_get_syms(dev->state,
-					       dev->repeat_event.keycode,
-					       &keysyms);
+		   !xkb_keymap_key_repeats(keymap, dev->event.keycode)) {
+		num_keysyms = xkb_state_key_get_syms(dev->state,
+						     dev->repeat_event.keycode,
+						     &keysyms);
 		if (num_keysyms <= 0)
 			return;
 
@@ -275,7 +276,7 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	state = dev->state;
 	keycode = code + EVDEV_KEYCODE_OFFSET;
 
-	num_keysyms = xkb_key_get_syms(state, keycode, &keysyms);
+	num_keysyms = xkb_state_key_get_syms(state, keycode, &keysyms);
 
 	if (key_state == KEY_PRESSED)
 		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
