@@ -86,7 +86,7 @@ struct video_ops {
 
 /* drm */
 
-#ifdef BUILD_ENABLE_DRM
+#ifdef BUILD_ENABLE_VIDEO_DRM
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -148,7 +148,7 @@ extern const struct mode_ops drm_mode_ops;
 extern const struct display_ops drm_display_ops;
 extern const struct video_ops drm_video_ops;
 
-#else /* !BUILD_ENABLE_DRM */
+#else /* !BUILD_ENABLE_VIDEO_DRM */
 
 struct drm_mode {
 	int unused;
@@ -167,11 +167,11 @@ static const struct mode_ops drm_mode_ops;
 static const struct display_ops drm_display_ops;
 static const struct video_ops drm_video_ops;
 
-#endif /* BUILD_ENABLE_DRM */
+#endif /* BUILD_ENABLE_VIDEO_DRM */
 
 /* dumb drm */
 
-#ifdef BUILD_ENABLE_DUMB
+#ifdef BUILD_ENABLE_VIDEO_DUMB
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
@@ -208,7 +208,7 @@ extern const struct mode_ops dumb_mode_ops;
 extern const struct display_ops dumb_display_ops;
 extern const struct video_ops dumb_video_ops;
 
-#else /* !BUILD_ENABLE_DUMB */
+#else /* !BUILD_ENABLE_VIDEO_DUMB */
 
 struct dumb_mode {
 	int unused;
@@ -227,11 +227,11 @@ static const struct mode_ops dumb_mode_ops;
 static const struct display_ops dumb_display_ops;
 static const struct video_ops dumb_video_ops;
 
-#endif /* BUILD_ENABLE_DUMB */
+#endif /* BUILD_ENABLE_VIDEO_DUMB */
 
 /* fbdev */
 
-#ifdef BUILD_ENABLE_FBDEV
+#ifdef BUILD_ENABLE_VIDEO_FBDEV
 
 #include <linux/fb.h>
 
@@ -278,7 +278,7 @@ extern const struct mode_ops fbdev_mode_ops;
 extern const struct display_ops fbdev_display_ops;
 extern const struct video_ops fbdev_video_ops;
 
-#else /* !BUILD_ENABLE_FBDEV */
+#else /* !BUILD_ENABLE_VIDEO_FBDEV */
 
 struct fbdev_mode {
 	int unused;
@@ -297,7 +297,7 @@ static const struct mode_ops fbdev_mode_ops;
 static const struct display_ops fbdev_display_ops;
 static const struct video_ops fbdev_video_ops;
 
-#endif /* BUILD_ENABLE_FBDEV */
+#endif /* BUILD_ENABLE_VIDEO_FBDEV */
 
 /* uterm_screen */
 

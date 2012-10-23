@@ -43,205 +43,915 @@ LT_INIT
 # ourself.
 #
 
-PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login],
-                  [have_systemd=yes], [have_systemd=no])
-
-PKG_CHECK_MODULES([UDEV], [libudev],
-                  [have_udev=yes], [have_udev=no])
-
-PKG_CHECK_MODULES([DBUS], [dbus-1],
-                  [have_dbus=yes], [have_dbus=no])
-
-PKG_CHECK_MODULES([DRM], [libdrm],
-                  [have_drm=yes], [have_drm=no])
-
-PKG_CHECK_MODULES([GBM], [gbm],
-                  [have_gbm=yes], [have_gbm=no])
-
-PKG_CHECK_MODULES([EGL], [egl],
-                  [have_egl=yes], [have_egl=no])
-
-PKG_CHECK_MODULES([GLES2], [glesv2],
-                  [have_gles2=yes], [have_gles2=no])
-
 PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
                   [have_xkbcommon=yes], [have_xkbcommon=no])
-
-PKG_CHECK_MODULES([FREETYPE2], [freetype2 fontconfig],
-                  [have_freetype2=yes], [have_freetype2=no])
-
-PKG_CHECK_MODULES([PANGO], [pango pangoft2],
-                  [have_pango=yes], [have_pango=no])
+AC_SUBST(XKBCOMMON_CFLAGS)
+AC_SUBST(XKBCOMMON_LIBS)
 
 PKG_CHECK_MODULES([WAYLAND], [wayland-client wayland-server wayland-cursor],
                   [have_wayland=yes], [have_wayland=no])
+AC_SUBST(WAYLAND_CFLAGS)
+AC_SUBST(WAYLAND_LIBS)
+
+PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login],
+                  [have_systemd=yes], [have_systemd=no])
+AC_SUBST(SYSTEMD_CFLAGS)
+AC_SUBST(SYSTEMD_LIBS)
+
+PKG_CHECK_MODULES([UDEV], [libudev],
+                  [have_udev=yes], [have_udev=no])
+AC_SUBST(UDEV_CFLAGS)
+AC_SUBST(UDEV_LIBS)
+
+PKG_CHECK_MODULES([DBUS], [dbus-1],
+                  [have_dbus=yes], [have_dbus=no])
+AC_SUBST(DBUS_CFLAGS)
+AC_SUBST(DBUS_LIBS)
+
+PKG_CHECK_MODULES([DRM], [libdrm],
+                  [have_drm=yes], [have_drm=no])
+AC_SUBST(DRM_CFLAGS)
+AC_SUBST(DRM_LIBS)
+
+PKG_CHECK_MODULES([GBM], [gbm],
+                  [have_gbm=yes], [have_gbm=no])
+AC_SUBST(GBM_CFLAGS)
+AC_SUBST(GBM_LIBS)
+
+PKG_CHECK_MODULES([EGL], [egl],
+                  [have_egl=yes], [have_egl=no])
+AC_SUBST(EGL_CFLAGS)
+AC_SUBST(EGL_LIBS)
+
+PKG_CHECK_MODULES([GLES2], [glesv2],
+                  [have_gles2=yes], [have_gles2=no])
+AC_SUBST(GLES2_CFLAGS)
+AC_SUBST(GLES2_LIBS)
+
+PKG_CHECK_MODULES([FREETYPE2], [freetype2 fontconfig],
+                  [have_freetype2=yes], [have_freetype2=no])
+AC_SUBST(FREETYPE2_CFLAGS)
+AC_SUBST(FREETYPE2_LIBS)
+
+PKG_CHECK_MODULES([PANGO], [pango pangoft2],
+                  [have_pango=yes], [have_pango=no])
+AC_SUBST(PANGO_CFLAGS)
+AC_SUBST(PANGO_LIBS)
 
 #
-# Parse arguments for applications
-# Parse all command-line arguments that enable or disable build of applications.
-# This allows us to compute which dependencies we need.
+# Parse arguments
+# This parses all arguments that are given via "--enable-XY" or "--with-XY" and
+# saves the results in local variables. This does not check dependencies or
+# similar but does only parse the arguments.
 #
 
-AC_MSG_CHECKING([whether to compile eloop])
+# eloop
+AC_MSG_CHECKING([whether user wants eloop])
 AC_ARG_ENABLE([eloop],
               [AS_HELP_STRING([--enable-eloop],
                               [build eloop library])])
-AC_MSG_RESULT([ok])
+if test "x$enable_eloop" = "x" ; then
+        enable_eloop="no (default)"
+fi
+AC_MSG_RESULT([$enable_eloop])
 
-AC_MSG_CHECKING([whether to compile TSM])
+# TSM
+AC_MSG_CHECKING([whether user wants TSM])
 AC_ARG_ENABLE([tsm],
               [AS_HELP_STRING([--enable-tsm],
                               [build tsm library])])
-AC_MSG_RESULT([ok])
+if test "x$enable_tsm" = "x" ; then
+        enable_tsm="no (default)"
+fi
+AC_MSG_RESULT([$enable_tsm])
 
-AC_MSG_CHECKING([whether to compile uterm])
+# uterm
+AC_MSG_CHECKING([whether user wants uterm])
 AC_ARG_ENABLE([uterm],
               [AS_HELP_STRING([--enable-uterm],
                               [build uterm library])])
-AC_MSG_RESULT([ok])
+if test "x$enable_uterm" = "x" ; then
+        enable_uterm="no (default)"
+fi
+AC_MSG_RESULT([$enable_uterm])
 
-AC_MSG_CHECKING([whether to compile kmscon])
+# kmscon
+AC_MSG_CHECKING([whether user wants kmscon])
 AC_ARG_ENABLE([kmscon],
               [AS_HELP_STRING([--disable-kmscon],
                               [do not build kmscon])])
-AC_MSG_RESULT([ok])
+if test "x$enable_kmscon" = "x" ; then
+        enable_kmscon="yes (default)"
+fi
+AC_MSG_RESULT([$enable_kmscon])
 
-AC_MSG_CHECKING([whether to build wlterm])
+# wlterm
+AC_MSG_CHECKING([whether user wants wlterm])
 AC_ARG_ENABLE([wlterm],
               [AS_HELP_STRING([--enable-wlterm],
                               [build wlterm])])
-AC_MSG_RESULT([ok])
+if test "x$enable_wlterm" = "x" ; then
+        enable_wlterm="yes (default)"
+fi
+AC_MSG_RESULT([$enable_wlterm])
 
-#
-# Parse depedency arguments
-# This parses all command-line arguments to check for which dependencies should
-# be used and how the applications should be built.
-#
-
-AC_MSG_CHECKING([whether to use systemd for multi-seat support])
-AC_ARG_ENABLE([systemd],
-              [AS_HELP_STRING([--enable-systemd],
-                              [enable multi-seat support with systemd])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use udev for device hotplug support])
-AC_ARG_ENABLE([udev],
-              [AS_HELP_STRING([--enable-udev],
-                              [enable device hotplug support with udev])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use dbus for IPC])
-AC_ARG_ENABLE([dbus],
-              [AS_HELP_STRING([--enable-dbus],
-                              [enable dbus IPC])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to enable wayland features])
-AC_ARG_ENABLE([wayland],
-              [AS_HELP_STRING([--enable-wayland],
-                              [enable wayland features])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use uterm fbdev video backend])
-AC_ARG_ENABLE([fbdev],
-              [AS_HELP_STRING([--enable-fbdev],
-                              [enable uterm fbdev video backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use uterm drm video backend])
-AC_ARG_ENABLE([drm],
-              [AS_HELP_STRING([--enable-drm],
-                              [enable uterm drm video backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to provide OpenGLES2 support])
-AC_ARG_ENABLE([gles2],
-              [AS_HELP_STRING([--enable-gles2],
-                              [provide uterm OpenGLES2 support])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use static unifont backend])
-AC_ARG_ENABLE([unifont],
-              [AS_HELP_STRING([--enable-unifont],
-                              [enable static unifont font backend (GPL)])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use static 8x16 font backend])
-AC_ARG_ENABLE([f8x16],
-              [AS_HELP_STRING([--disable-f8x16],
-                              [disable static 8x16 font backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use freetype2 font backend])
-AC_ARG_ENABLE([freetype2],
-              [AS_HELP_STRING([--disable-freetype2],
-                              [disable freetype2 font backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use pango font backend])
-AC_ARG_ENABLE([pango],
-              [AS_HELP_STRING([--disable-pango],
-                              [disable pango font backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use bblit rendering backend])
-AC_ARG_ENABLE([bblit],
-              [AS_HELP_STRING([--disable-bblit],
-                              [disable bblit rendering backend])])
-AC_MSG_RESULT([ok])
-
-AC_MSG_CHECKING([whether to use bbulk rendering backend])
-AC_ARG_ENABLE([bbulk],
-              [AS_HELP_STRING([--disable-bbulk],
-                              [disable bbulk rendering backend])])
-AC_MSG_RESULT([ok])
-
-#
-# Parse miscellaneous arguments
-# These don't belong into the categories above for several reason so they are
-# handled specially.
-# They configure compiler options and similar.
-#
-
+# debug
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug],
                               [whether to build with debugging on])])
-AC_MSG_RESULT([ok])
+if test "x$enable_debug" = "x" ; then
+        enable_debug="yes (default)"
+fi
+AC_MSG_RESULT([$enable_debug])
 
+# optimizations
 AC_MSG_CHECKING([whether to disable code optimizations])
 AC_ARG_ENABLE([optimizations],
               [AS_HELP_STRING([--disable-optimizations],
                               [whether to disable code optimizations])])
-AC_MSG_RESULT([ok])
+if test "x$enable_optimizations" = "x" ; then
+        enable_optimizations="yes (default)"
+fi
+AC_MSG_RESULT([$enable_optimizations])
+
+# multi-seat
+AC_MSG_CHECKING([whether user wants systemd for multi-seat support])
+AC_ARG_ENABLE([multi-seat],
+              [AS_HELP_STRING([--enable-multi-seat],
+                              [enable multi-seat support with systemd])])
+if test "x$enable_multi_seat" = "x" ; then
+        enable_multi_seat="yes (default)"
+fi
+AC_MSG_RESULT([$enable_multi_seat])
+
+# hotplug
+AC_MSG_CHECKING([whether user wants udev for device hotplug support])
+AC_ARG_ENABLE([hotplug],
+              [AS_HELP_STRING([--enable-hotplug],
+                              [enable device hotplug support with udev])])
+if test "x$enable_hotplug" = "x" ; then
+        enable_hotplug="yes (default)"
+fi
+AC_MSG_RESULT([$enable_hotplug])
+
+# eloop-dbus
+AC_MSG_CHECKING([whether user wants eloop dbus support])
+AC_ARG_ENABLE([eloop-dbus],
+              [AS_HELP_STRING([--enable-eloop-dbus],
+                              [enable eloop dbus support])])
+if test "x$enable_eloop_dbus" = "x" ; then
+        enable_eloop_dbus="no (default)"
+fi
+AC_MSG_RESULT([$enable_eloop_dbus])
+
+# video backends
+AC_MSG_CHECKING([which video backends the user wants])
+AC_ARG_WITH([video],
+            [AS_HELP_STRING([--with-video],
+              [specify list of optional video backends])])
+enable_video_fbdev="no"
+enable_video_dumb="no"
+enable_video_drm="no"
+if test "x$with_video" = "x" ; then
+        enable_video_fbdev="yes (default)"
+        enable_video_dumb="yes (default)"
+        enable_video_drm="yes (default)"
+        with_video="fbdev,dumb,drm (default)"
+else
+        SAVEIFS="$IFS"
+        IFS=","
+        for i in $with_video ; do
+                if test "x$i" = "xfbdev" ; then
+                        enable_video_fbdev="yes"
+                elif test "x$i" = "xdumb" ; then
+                        enable_video_dumb="yes"
+                elif test "x$i" = "xdrm" ; then
+                        enable_video_drm="yes"
+                else
+                        IFS="$SAVEIFS"
+                        AC_ERROR([Invalid video backend $i])
+                fi
+        done
+        IFS="$SAVEIFS"
+fi
+AC_MSG_RESULT([$with_video])
+
+# renderers
+AC_MSG_CHECKING([which render backends the user wants])
+AC_ARG_WITH([renderers],
+            [AS_HELP_STRING([--with-renderers],
+              [specify list of optional render backends])])
+enable_renderer_bblit="no"
+enable_renderer_bbulk="no"
+enable_renderer_gltex="no"
+if test "x$with_renderers" = "x" ; then
+        enable_renderer_bblit="yes (default)"
+        enable_renderer_bbulk="yes (default)"
+        enable_renderer_gltex="yes (default)"
+        with_renderers="bblit,bbulk,gltex (default)"
+else
+        SAVEIFS="$IFS"
+        IFS=","
+        for i in $with_renderers ; do
+                if test "x$i" = "xbblit" ; then
+                        enable_renderer_bblit="yes"
+                elif test "x$i" = "xbbulk" ; then
+                        enable_renderer_bbulk="yes"
+                elif test "x$i" = "xgltex" ; then
+                        enable_renderer_gltex="yes"
+                else
+                        IFS="$SAVEIFS"
+                        AC_ERROR([Unknown renderer $i])
+                fi
+        done
+        IFS="$SAVEIFS"
+fi
+AC_MSG_RESULT([$with_renderers])
+
+# font backends
+AC_MSG_CHECKING([which font backends the user wants])
+AC_ARG_WITH([fonts],
+            [AS_HELP_STRING([--with-fonts],
+              [specify list of optional font backends])])
+enable_font_8x16="no"
+enable_font_unifont="no"
+enable_font_freetype2="no"
+enable_font_pango="no"
+if test "x$with_fonts" = "x" ; then
+        enable_font_8x16="yes (default)"
+        enable_font_unifont="no (default)"
+        enable_font_freetype2="yes (default)"
+        enable_font_pango="yes (default)"
+        with_fonts="8x16,freetype2,pango (default)"
+else
+        SAVEIFS="$IFS"
+        IFS=","
+        for i in $with_fonts ; do
+                if test "x$i" = "x8x16" ; then
+                        enable_font_8x16="yes"
+                elif test "x$i" = "xunifont" ; then
+                        enable_font_unifont="yes"
+                elif test "x$i" = "xfreetype2" ; then
+                        enable_font_freetype2="yes"
+                elif test "x$i" = "xpango" ; then
+                        enable_font_pango="yes"
+                else
+                        IFS="$SAVEIFS"
+                        AC_ERROR([Unknown font backend $i])
+                fi
+        done
+        IFS="$SAVEIFS"
+fi
+AC_MSG_RESULT([$with_fonts])
+
+# kmscon sessions
+AC_MSG_CHECKING([which sessions the user wants])
+AC_ARG_WITH([sessions],
+            [AS_HELP_STRING([--with-sessions],
+              [specify list of optional sessions])])
+enable_session_dummy="no"
+enable_session_terminal="no"
+enable_session_compositor="no"
+if test "x$with_sessions" = "x" ; then
+        enable_session_dummy="yes (default)"
+        enable_session_terminal="yes (default)"
+        enable_session_compositor="no (default)"
+        with_sessions="dummy,terminal (default)"
+else
+        SAVEIFS="$IFS"
+        IFS=","
+        for i in $with_sessions ; do
+                if test "x$i" = "xdummy" ; then
+                        enable_session_dummy="yes"
+                elif test "x$i" = "xterminal" ; then
+                        enable_session_terminal="yes"
+                elif test "x$i" = "xcompositor" ; then
+                        enable_session_compositor="yes"
+                else
+                        IFS="$SAVEIFS"
+                        AC_ERROR([Unknown session type $i])
+                fi
+        done
+        IFS="$SAVEIFS"
+fi
+AC_MSG_RESULT([$with_sessions])
 
 #
-# Debug mode and code optimizations
-# In debug mode we compile with -g and enable several debug-messages and flags.
-# With optimizations (default), we add -O2 to compile-flags.
+# Check what can be built
+# This checks each configuration option and tests whether all dependencies are
+# met. This is done from bottom up to ensure the right order.
 #
 
-debug_enabled=no
-if test x$enable_debug = xyes ; then
-        debug_enabled=yes
+# debug
+debug_avail=no
+if test ! "x$enable_debug" = "xno" ; then
+        debug_avail=yes
 fi
 
+# optimizations
+optimizations_avail=no
+if test ! "x$enable_optimizations" = "xno" ; then
+        optimizations_avail=yes
+fi
+
+# eloop-dbus
+eloop_dbus_avail=no
+if test ! "x$enable_eloop_dbus" = "xno" ; then
+        if test "x$have_dbus" = "xyes" ; then
+                eloop_dbus_avail=yes
+        elif test "x$enable_eloop_dbus" = "xyes" ; then
+                AC_ERROR([DBus libraries not found for eloop-dbus])
+        fi
+fi
+
+# eloop
+eloop_avail=no
+if test ! "x$enable_eloop" = "xno" ; then
+        eloop_avail=yes
+fi
+
+# TSM
+tsm_avail=no
+if test ! "x$enable_tsm" = "xno" ; then
+        if test "x$have_xkbcommon" = "xyes" ; then
+                tsm_avail=yes
+        elif test "x$enable_tsm" = "xyes" ; then
+                AC_ERROR([xkbcommon libraries not found for TSM])
+        fi
+fi
+
+# video fbdev
+video_fbdev_avail=no
+if test ! "x$enable_video_fbdev" = "xno" ; then
+        # TODO: check for kernel headers
+        video_fbdev_avail=yes
+fi
+
+# video dumb
+video_dumb_avail=no
+if test ! "x$enable_video_dumb" = "xno" ; then
+        if test "x$have_drm" = "xyes" ; then
+                video_dumb_avail=yes
+        elif test "x$enable_video_dumb" = "xyes" ; then
+                AC_ERROR([DRM libraries not found for dumb video backend])
+        fi
+fi
+
+# video drm
+video_drm_avail=no
+if test ! "x$enable_video_drm" = "xno" ; then
+        if test "x$have_drm" = "xno" ; then
+                video_drm_avail=no
+        elif test "x$have_gbm" = "xno" ; then
+                video_drm_avail=no
+        elif test "x$have_egl" = "xno" ; then
+                video_drm_avail=no
+        elif test "x$have_gles2" = "xno" ; then
+                video_drm_avail=no
+        else
+                video_drm_avail=yes
+        fi
+
+        if test "x$video_drm_avail" = "xno" ; then
+                if test "x$enable_video_drm" = "xyes" ; then
+                        AC_ERROR([DRM, gbm or EGL libraries not found for DRM video backend])
+                fi
+        fi
+fi
+
+# uterm
+uterm_avail=no
+if test ! "x$enable_uterm" = "xno" ; then
+        uterm_avail=yes
+fi
+
+# multi-seat
+multi_seat_avail=no
+if test ! "x$enable_multi_seat" = "xno" ; then
+        if test "x$have_systemd" = "xyes" ; then
+                multi_seat_avail=yes
+        elif test "x$enable_multi_seat" = "xyes" ; then
+                AC_ERROR([systemd libraries not found for multi-seat support])
+        fi
+fi
+
+# hotplug
+hotplug_avail=no
+if test ! "x$enable_hotplug" = "xno" ; then
+        if test "x$have_udev" = "xyes" ; then
+                hotplug_avail=yes
+        elif test "x$enable_hotplug" = "xyes" ; then
+                AC_ERROR([udev libraries not found for hotplug support])
+        fi
+fi
+
+# renderer bblit
+renderer_bblit_avail=no
+if test ! "x$enable_renderer_bblit" = "xno" ; then
+        renderer_bblit_avail=yes
+fi
+
+# renderer bbulk
+renderer_bbulk_avail=no
+if test ! "x$enable_renderer_bbulk" = "xno" ; then
+        renderer_bbulk_avail=yes
+fi
+
+# renderer gltex
+renderer_gltex_avail=no
+if test ! "x$enable_renderer_gltex" = "xno" ; then
+        if test "x$have_gles2" = "xyes" ; then
+                renderer_gltex_avail=yes
+        elif test "x$enable_renderer_gltex" = "xyes" ; then
+                AC_ERROR([OpenGLESv2 libraries not found for gltex renderer])
+        fi
+fi
+
+# font 8x16
+font_8x16_avail=no
+if test ! "x$enable_font_8x16" = "xno" ; then
+        font_8x16_avail=yes
+fi
+
+# font unifont
+font_unifont_avail=no
+if test ! "x$enable_font_unifont" = "xno" ; then
+        font_unifont_avail=yes
+fi
+
+# font freetype2
+font_freetype2_avail=no
+if test ! "x$enable_font_freetype2" = "xno" ; then
+        if test "x$have_freetype2" ; then
+                font_freetype2_avail=yes
+        elif test "x$enable_font_freetype2" = "xyes" ; then
+                AC_ERROR([freetype2 or fontconfig libs not found for freetype2 font backend])
+        fi
+fi
+
+# font pango
+font_pango_avail=no
+if test ! "x$enable_font_pango" = "xno" ; then
+        if test "x$have_pango" ; then
+                font_pango_avail=yes
+        elif test "x$enable_font_pango" = "xyes" ; then
+                AC_ERROR([pango libraries not found for pango font backend])
+        fi
+fi
+
+# session dummy
+session_dummy_avail=no
+if test ! "x$enable_session_dummy" = "xno" ; then
+        session_dummy_avail=yes
+fi
+
+# session terminal
+session_terminal_avail=no
+if test ! "x$enable_session_terminal" = "xno" ; then
+        if test "x$tsm_avail" = "xyes" ; then
+                session_terminal_avail=yes
+        elif test "x$enable_session_terminal" = "xyes" ; then
+                AC_ERROR([TSM cannot be built for kmscon terminal session])
+        fi
+fi
+
+# session compositor
+session_compositor_avail=no
+if test ! "x$enable_session_compositor" = "xno" ; then
+        if test "x$have_wayland" = "xyes" ; then
+                session_compositor_avail=yes
+        elif test "x$enable_session_compositor" = "xyes" ; then
+                AC_ERROR([wayland libraries not found for kmscon compositor session])
+        fi
+fi
+
+# kmscon
+kmscon_avail=no
+if test ! "x$enable_kmscon" = "xno" ; then
+        if test "x$eloop_avail" = "xno" ; then
+                kmscon_avail=no
+        elif test "x$tsm_avail" = "xno" ; then
+                kmscon_avail=no
+        elif test "x$uterm_avail" = "xno" ; then
+                kmscon_avail=no
+        else
+                kmscon_avail=yes
+        fi
+
+        if test "x$enable_kmscon" = "xyes" ; then
+                if test "x$kmscon_avail" = "xno" ; then
+                        AC_ERROR([eloop, TSM or uterm cannot be built for kmscon])
+                fi
+        fi
+fi
+
+# wlterm
+wlterm_avail=no
+if test ! "x$enable_wlterm" = "xno" ; then
+        if test "x$tsm_avail" = "xno" ; then
+                wlterm_avail=no
+        elif test "x$eloop_avail" = "xno" ; then
+                wlterm_avail=no
+        fi
+
+        if test "x$enable_wlterm" = "xyes" ; then
+                if test "x$wlterm_avail" = "xno" ; then
+                        AC_ERROR([eloop or TSM cannot be built for wlterm])
+                fi
+        fi
+
+        if test "x$have_wayland" = "xyes" ; then
+                wlterm_avail=yes
+        elif test "x$enable_wlterm" = "xyes" ; then
+                AC_ERROR([wayland libraries not found for wlterm])
+        fi
+fi
+
+#
+# Enable all required modules
+# We now know which modules can be built by checking the *_avail variables set
+# above. We now only have to disable all modules that are disabled by default
+# and the user didn't force-enable them and no other module that is enabled
+# needs them. This is done top-down of course.
+#
+
+# wlterm
+wlterm_enabled=no
+if test "x$wltem_avail" = "xyes" ; then
+        if test "x${enable_wlterm% *}" = "xyes" ; then
+                wlterm_enabled=yes
+                enable_eloop=yes
+                enable_tsm=yes
+        fi
+fi
+
+# kmscon
+kmscon_enabled=no
+if test "x$kmscon_avail" = "xyes" ; then
+        if test "x${enable_kmscon% *}" = "xyes" ; then
+                kmscon_enabled=yes
+                enable_eloop=yes
+                enable_uterm=yes
+        fi
+fi
+
+# session compositor
+session_compositor_enabled=no
+if test "x$session_compositor_avail" = "xyes" ; then
+        if test "x${enable_session_compositor% *}" = "xyes" ; then
+                session_compositor_enabled=yes
+        fi
+fi
+
+# session terminal
+session_terminal_enabled=no
+if test "x$session_terminal_avail" = "xyes" ; then
+        if test "x${enable_session_terminal% *}" = "xyes" ; then
+                session_terminal_enabled=yes
+                enable_tsm=yes
+        fi
+fi
+
+# session dummy
+session_dummy_enabled=no
+if test "x$session_dummy_avail" = "xyes" ; then
+        if test "x${enable_session_dummy% *}" = "xyes" ; then
+                session_dummy_enabled=yes
+        fi
+fi
+
+# font pango
+font_pango_enabled=no
+if test "x$font_pango_avail" = "xyes" ; then
+        if test "x${enable_font_pango% *}" = "xyes" ; then
+                font_pango_enabled=yes
+        fi
+fi
+
+# font freetype2
+font_freetype2_enabled=no
+if test "x$font_freetype2_avail" = "xyes" ; then
+        if test "x${enable_font_freetype2% *}" = "xyes" ; then
+                font_freetype2_enabled=yes
+        fi
+fi
+
+# font unifont
+font_unifont_enabled=no
+if test "x$font_unifont_avail" = "xyes" ; then
+        if test "x${enable_font_unifont% *}" = "xyes" ; then
+                font_unifont_enabled=yes
+        fi
+fi
+
+# font 8x16
+font_8x16_enabled=no
+if test "x$font_8x16_avail" = "xyes" ; then
+        if test "x${enable_font_8x16% *}" = "xyes" ; then
+                font_8x16_enabled=yes
+        fi
+fi
+
+# renderer gltex
+renderer_gltex_enabled=no
+if test "x$renderer_gltex_avail" = "xyes" ; then
+        if test "x${enable_renderer_gltex% *}" = "xyes" ; then
+                renderer_gltex_enabled=yes
+        fi
+fi
+
+# renderer bbulk
+renderer_bbulk_enabled=no
+if test "x$renderer_bbulk_avail" = "xyes" ; then
+        if test "x${enable_renderer_bbulk% *}" = "xyes" ; then
+                renderer_bbulk_enabled=yes
+        fi
+fi
+
+# renderer bblit
+renderer_bblit_enabled=no
+if test "x$renderer_bblit_avail" = "xyes" ; then
+        if test "x${enable_renderer_bblit% *}" = "xyes" ; then
+                renderer_bblit_enabled=yes
+        fi
+fi
+
+# hotplug
+hotplug_enabled=no
+if test "x$hotplug_avail" = "xyes" ; then
+        if test "x${enable_hotplug% *}" = "xyes" ; then
+                hotplug_enabled=yes
+        fi
+fi
+
+# multi-seat
+multi_seat_enabled=no
+if test "x$multi_seat_avail" = "xyes" ; then
+        if test "x${enable_multi_seat% *}" = "xyes" ; then
+                multi_seat_enabled=yes
+        fi
+fi
+
+# uterm
+uterm_enabled=no
+if test "x$uterm_avail" = "xyes" ; then
+        if test "x${enable_uterm% *}" = "xyes" ; then
+                uterm_enabled=yes
+        fi
+fi
+
+# video drm
+video_drm_enabled=no
+if test "x$video_drm_avail" = "xyes" ; then
+        if test "x${enable_video_drm% *}" = "xyes" ; then
+                video_drm_enabled=yes
+        fi
+fi
+
+# video dumb
+video_dumb_enabled=no
+if test "x$video_dumb_avail" = "xyes" ; then
+        if test "x${enable_video_dumb% *}" = "xyes" ; then
+                video_dumb_enabled=yes
+        fi
+fi
+
+# video fbdev
+video_fbdev_enabled=no
+if test "x$video_fbdev_avail" = "xyes" ; then
+        if test "x${enable_video_fbdev% *}" = "xyes" ; then
+                video_fbdev_enabled=yes
+        fi
+fi
+
+# tsm
+tsm_enabled=no
+if test "x$tsm_avail" = "xyes" ; then
+        if test "x${enable_tsm% *}" = "xyes" ; then
+                tsm_enabled=yes
+        fi
+fi
+
+# eloop
+eloop_enabled=no
+if test "x$eloop_avail" = "xyes" ; then
+        if test "x${enable_eloop% *}" = "xyes" ; then
+                eloop_enabled=yes
+        fi
+fi
+
+# eloop-dbus
+eloop_dbus_enabled=no
+if test "x$eloop_dbus_avail" = "xyes" ; then
+        if test "x${enable_eloop_dbus% *}" = "xyes" ; then
+                eloop_dbus_enabled=yes
+        fi
+fi
+
+# optimizations
 optimizations_enabled=no
-if test ! x$enable_optimizations = xno ; then
-        optimizations_enabled=yes
+if test "x$optimizations_avail" = "xyes" ; then
+        if test "x${enable_optimizations% *}" = "xyes" ; then
+                optimizations_enabled=yes
+        fi
 fi
 
-if test x$debug_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_DEBUG], [1],
-                  [Enable debug mode])
+# debug
+debug_enabled=no
+if test "x$debug_avail" = "xyes" ; then
+        if test "x${enable_debug% *}" = "xyes" ; then
+                debug_enabled=yes
+        fi
+fi
+
+#
+# Module Configuration
+# We have now done all dependency checking and default-value validation and we
+# now know which modules are enabled via the *_enabled variables.
+# Everything below is related to the configuration of each module and setting
+# the correct flags for the build process.
+#
+
+# debug
+if test "x$debug_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_DEBUG], [1], [Enable debug mode])
 else
         AC_DEFINE([NDEBUG], [1], [No Debug])
 fi
 
 AM_CONDITIONAL([BUILD_ENABLE_DEBUG],
-               [test x$debug_enabled = xyes])
+               [test "x$debug_enabled" = "xyes"])
+
+# optimizations
 AM_CONDITIONAL([BUILD_ENABLE_OPTIMIZATIONS],
-               [test x$optimizations_enabled = xyes])
+               [test "x$optimizations_enabled" = "xyes"])
+
+# eloop-dbus
+AM_CONDITIONAL([BUILD_ENABLE_ELOOP_DBUS],
+               [test "x$eloop_dbus_enabled" = "xyes"])
+
+# eloop
+AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
+               [test "x$eloop_enabled" = "xyes"])
+
+# TSM
+AM_CONDITIONAL([BUILD_ENABLE_TSM],
+               [test "x$tsm_enabled" = "xyes"])
+
+# video fbdev
+if test "x$video_fbdev_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_VIDEO_FBDEV], [1],
+                  [Build uterm fbdev video backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_VIDEO_FBDEV],
+               [test "x$video_fbdev_enabled" = "xyes"])
+
+# video dumb
+if test "x$video_dumb_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_VIDEO_DUMB], [1],
+                  [Build uterm dumb drm video backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DUMB],
+               [test "x$video_dumb_enabled" = "xyes"])
+
+# video drm
+if test "x$video_drm_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_VIDEO_DRM], [1],
+                  [Build uterm drm video backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DRM],
+               [test "x$video_drm_enabled" = "xyes"])
+
+# uterm
+AM_CONDITIONAL([BUILD_ENABLE_UTERM],
+               [test "x$uterm_enabled" = "xyes"])
+
+# multi-seat
+if test "x$multi_seat_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_MULTI_SEAT], [1],
+                  [Use systemd for multi-seat support])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_MULTI_SEAT],
+               [test "x$multi_seat_enabled" = "xyes"])
+
+# hotplug
+if test "x$hotplug_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_HOTPLUG], [1],
+                  [Use udev for hotplug support])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_HOTPLUG],
+               [test "x$hotplug_enabled" = "xyes"])
+
+# renderer bblit
+if test "x$renderer_bblit_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_RENDERER_BBLIT], [1],
+                  [Build bblit rendering backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_RENDERER_BBLIT],
+               [test "x$renderer_bblit_enabled" = "xyes"])
+
+# renderer bbulk
+if test "x$renderer_bbulk_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_RENDERER_BBULK], [1],
+                  [Build bbulk rendering backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_RENDERER_BBULK],
+               [test "x$renderer_bbulk_enabled" = "xyes"])
+
+# renderer gltex
+if test "x$renderer_gltex_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_RENDERER_GLTEX], [1],
+                  [Build gltex rendering backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_RENDERER_GLTEX],
+               [test "x$renderer_gltex_enabled" = "xyes"])
+
+# font 8x16
+if test "x$font_8x16_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_FONT_8X16], [1],
+                  [Build static 8x16 font backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_FONT_8X16],
+               [test "x$font_8x16_enabled" = "xyes"])
+
+# font unifont
+if test "x$font_unifont_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_FONT_UNIFONT], [1],
+                  [Build static unifont backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_FONT_UNIFONT],
+               [test "x$font_unifont_enabled" = "xyes"])
+
+# font freetype2
+if test "x$font_freetype2_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_FONT_FREETYPE2], [1],
+                  [Build freetype2 font backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_FONT_FREETYPE2],
+               [test "x$font_freetype2_enabled" = "xyes"])
+
+# font pango
+if test "x$font_pango_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_FONT_PANGO], [1],
+                  [Build pango font backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_FONT_PANGO],
+               [test "x$font_pango_enabled" = "xyes"])
+
+# session dummy
+if test "x$session_dummy_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_SESSION_DUMMY], [1],
+                  [Build dummy session])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_SESSION_DUMMY],
+               [test "x$session_dummy_enabled" = "xyes"])
+
+# session terminal
+if test "x$session_terminal_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_SESSION_TERMINAL], [1],
+                  [Build terminal session])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_SESSION_TERMINAL],
+               [test "x$session_terminal_enabled" = "xyes"])
+
+# session compositor
+if test "x$session_compositor_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_SESSION_COMPOSITOR], [1],
+                  [Build compositor session])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_SESSION_COMPOSITOR],
+               [test "x$session_compositor_enabled" = "xyes"])
+
+# kmscon
+AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
+               [test "x$kmscon_enabled" = "xyes"])
+
+# wlterm
+AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
+               [test "x$wlterm_enabled" = "xyes"])
+
+#
+# Miscellaneous Checks
+# All checks below are independent of module checking or depend on the results
+# of it. They do not have any dependencies themself so they are not part of the
+# module infrastructure.
+#
 
 # check for _Static_assert
 AC_MSG_CHECKING([whether _Static_assert() is supported])
@@ -253,232 +963,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[_Static_assert(1, "What?");]])],
                              [Define to 1 if _Static_assert() is supported])],
                   [have_static_assert=no])
 AC_MSG_RESULT([$have_static_assert])
-
-#
-# Main applications
-# This checks which applications to build so we can optionally disable unused
-# dependencies below.
-#
-# Dependency Calculations
-# The first thing we do is checking which applications to build. Then we
-# forcibly enable all libraries that are needed by these and then we forcibly
-# enable all other source-code dependecies.
-#
-# The "enable_XY" flag is user input that is set to "yes" if they enabled it
-# explicitly, "no" if they disabled it explicitly or "" (empty) if they did
-# not specify it explicitly. In the latter case we enable it if all dependencies
-# are met, otherwise, we disable it. This does not work for applications,
-# though. If an application is not specified explicitly by the user, then we
-# force the default value.
-# An application also forces all _hard_ dependencies to "yes" and so fails if
-# they cannot be met.
-#
-
-kmscon_enabled=no
-if test ! x$enable_kmscon = xno ; then
-        kmscon_enabled=yes
-        enable_eloop=yes
-        enable_tsm=yes
-        enable_uterm=yes
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
-               [test x$kmscon_enabled = xyes])
-
-wlterm_enabled=no
-if test x$enable_wlterm = xyes ; then
-        wlterm_enabled=yes
-        enable_eloop=yes
-        enable_tsm=yes
-        enable_wayland=yes
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
-               [test x$wlterm_enabled = xyes])
-
-uterm_enabled=no
-if test x$enable_uterm = xyes ; then
-        uterm_enabled=yes
-        eloop_enabled=yes
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_UTERM],
-               [test x$uterm_enabled = xyes])
-
-eloop_enabled=no
-if test x$enable_eloop = xyes ; then
-        eloop_enabled=yes
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
-               [test x$eloop_enabled = xyes])
-
-tsm_enabled=no
-if test x$enable_tsm = xyes ; then
-        tsm_enabled=yes
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_TSM],
-               [test x$tsm_enabled = xyes])
-
-#
-# Systemd dependency
-# We can optionally use systemd for multi-seat support. If systemd is not
-# available or the system was not started with systemd, we simply fall back to
-# single-seat mode.
-#
-
-systemd_enabled=no
-if test ! x$enable_systemd = xno ; then
-        if test x$have_systemd = xyes ; then
-                systemd_enabled=yes
-        elif test x$enable_systemd = xyes ; then
-                AC_ERROR([systemd libraries not found for multi-seat support])
-        fi
-fi
-
-if test x$systemd_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_SYSTEMD], [1],
-                  [Use systemd for multi-seat support])
-else
-        SYSTEMD_CFLAGS=""
-        SYSTEMD_LIBS=""
-fi
-
-#
-# Udev dependency
-# For hotplugging support we need udev to notify us about system events. If udev
-# is not available, we simply fall back to static mode. Periodic scanning is
-# also supported.
-#
-
-udev_enabled=no
-if test ! x$enable_udev = xno ; then
-        if test x$have_udev = xyes ; then
-                udev_enabled=yes
-        elif test x$enable_udev = xyes ; then
-                AC_ERROR([udev libraries not found for device hotplug support])
-        fi
-fi
-
-if test x$udev_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_UDEV], [1],
-                  [Use udev for device hotplug support])
-else
-        UDEV_CFLAGS=""
-        UDEV_LIBS=""
-fi
-
-#
-# DBus dependency
-# For IPC mechanisms we use DBus. Especially multi-seat enabled multi-session
-# capable applications need DBus to manage application and terminal switching.
-#
-
-dbus_enabled=no
-if test x$enable_dbus = xyes ; then
-        if test x$have_dbus = xyes ; then
-                dbus_enabled=yes
-        elif test x$enable_dbus = xyes; then
-                AC_ERROR([dbus libraries not found])
-        fi
-fi
-
-if test x$dbus_enabled = xyes; then
-        AC_DEFINE([BUILD_ENABLE_DBUS], [1],
-                  [Use dbus for IPC])
-else
-        DBUS_CFLAGS=""
-        DBUS_LIBS=""
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_DBUS], [test x$dbus_enabled = xyes])
-
-#
-# Uterm fbdev backend
-# This checks whether the fbdev backend was requested and enables it then. There
-# are no special dependencies for it except the kernel headers.
-# TODO: check for kernel headers here
-#
-
-fbdev_enabled=no
-if test ! x$enable_fbdev = xno ; then
-        fbdev_enabled=yes
-fi
-
-if test x$fbdev_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_FBDEV], [1],
-                  [Use uterm fbdev video backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_FBDEV], [test x$fbdev_enabled = xyes])
-
-#
-# Uterm drm backend
-# This checks whether libdrm is available and some combination of libgbm, egl
-# and gl or glesv2. If it is not available, then the drm backend is simply not
-# built.
-#
-
-dumb_enabled=no
-drm_enabled=no
-gles2_enabled=no
-if test ! x$enable_drm = xno ; then
-        if test x$have_drm = xyes ; then
-                dumb_enabled=yes
-        fi
-
-        if test ! x$enable_gles2 = xno ; then
-                if test x$have_drm = xyes -a x$have_gbm = xyes -a x$have_egl = xyes ; then
-                        if test x$have_gles2 = xyes ; then
-                                drm_enabled=yes
-                                gles2_enabled=yes
-                        fi
-                fi
-        fi
-
-        if test x$enable_drm = xyes -a x$dumb_enabled = xno ; then
-                AC_ERROR([drm library not found for uterm dumb drm backend])
-        fi
-
-        if test x$enable_gles2 = xyes -a x$drm_enabled = xno ; then
-                AC_ERROR([drm, gbm, egl, gl or gles2 libraries not found for uterm drm backend])
-        fi
-fi
-
-if test x$dumb_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_DUMB], [1],
-                  [Use uterm dumb drm video backend])
-
-        if test x$drm_enabled = xyes ; then
-                AC_DEFINE([BUILD_ENABLE_DRM], [1],
-                          [Use uterm DRM video backend])
-        else
-                GBM_CFLAGS=""
-                GBM_LIBS=""
-                EGL_CFLAGS=""
-                EGL_LIBS=""
-        fi
-else
-        DRM_CFLAGS=""
-        DRM_LIBS=""
-        GBM_CFLAGS=""
-        GBM_LIBS=""
-        EGL_CFLAGS=""
-        EGL_LIBS=""
-fi
-
-if test x$gles2_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_GLES2], [1],
-                  [Use OpenGLESv2 as drawing backend])
-else
-        GLES2_CFLAGS=""
-        GLES2_LIBS=""
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_DUMB], [test x$dumb_enabled = xyes])
-AM_CONDITIONAL([BUILD_ENABLE_DRM], [test x$drm_enabled = xyes])
-AM_CONDITIONAL([BUILD_ENABLE_GLES2], [test x$gles2_enabled = xyes])
 
 # check for gbm_bo_get_pitch() function, otherwise gbm_bo_get_stride() is used
 if test x$have_gbm = xyes ; then
@@ -499,186 +983,15 @@ if test x$have_gbm = xyes ; then
 fi
 
 #
-# xkbcommon keyboard backend
-# This checks for the xkbcommon library for keyboard handling in uterm. We
-# require this library as there is no other way to handle keyboard input
-# properly.
-#
-
-if test x$have_xkbcommon = xno ; then
-        AC_ERROR([xkbcommon not found for keyboard backend])
-fi
-
-#
-# Font backends
-# This checks for the unifont, 8x16, freetype2 and pango font backends and
-# enables them if requested and available.
-#
-# Please note that the Unifont-data is GPL'ed and we compile this statically
-# into our application. I do not consider this a "derivative" but a lawyer may
-# disagree. So please make sure you enable this only if you use the GPL as
-# license for kmscon.
-#
-
-unifont_enabled=no
-if test x$enable_unifont = xyes ; then
-        unifont_enabled=yes
-fi
-
-if test x$unifont_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_UNIFONT], [1],
-                  [Use static unifont backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_UNIFONT], [test x$unifont_enabled = xyes])
-
-f8x16_enabled=no
-if test ! x$enable_f8x16 = xno ; then
-        f8x16_enabled=yes
-fi
-
-if test x$f8x16_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_8X16], [1],
-                  [Use static 8x16 font backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_8X16], [test x$f8x16_enabled = xyes])
-
-freetype2_enabled=no
-if test ! x$enable_freetype2 = xno ; then
-        if test x$have_freetype2 = xyes ; then
-                freetype2_enabled=yes
-        elif test x$enable_freetype2 = xyes ; then
-                AC_ERROR([freetype2/fontconfig not found for freetype2 backend])
-        fi
-fi
-
-if test x$freetype2_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_FREETYPE2], [1],
-                  [Use freetype2 as font backend])
-else
-        FREETYPE2_CFLAGS=""
-        FREETYPE2_LIBS=""
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_FREETYPE2], [test x$freetype2_enabled = xyes])
-
-pango_enabled=no
-if test ! x$enable_pango = xno ; then
-        if test x$have_pango = xyes ; then
-                pango_enabled=yes
-        elif test x$enable_pango = xyes ; then
-                AC_ERROR([pango not found for pango font backend])
-        fi
-fi
-
-if test x$pango_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_PANGO], [1],
-                  [Use pango as font backend])
-else
-        PANGO_CFLAGS=""
-        PANGO_LIBS=""
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_PANGO], [test x$pango_enabled = xyes])
-
-#
-# BBlit Rendering backend
-#
-
-bblit_enabled=no
-if test ! x$enable_bblit = xno ; then
-        bblit_enabled=yes
-fi
-
-if test x$bblit_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_BBLIT], [1],
-                  [Use bblit rendering backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_BBLIT], [test x$bblit_enabled = xyes])
-
-#
-# BBulk Rendering backend
-#
-
-bbulk_enabled=no
-if test ! x$enable_bbulk = xno ; then
-        bbulk_enabled=yes
-fi
-
-if test x$bbulk_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_BBULK], [1],
-                  [Use bbulk rendering backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_BBULK], [test x$bbulk_enabled = xyes])
-
-#
-# OpenGL Texture rendering backend
-# This is not really an option but automatically enabled if OpenGLES2 support
-# was selected.
-#
-
-gltex_enabled=no
-if test x$gles2_enabled = xyes ; then
-        gltex_enabled=yes
-fi
-
-#
-# Wayland
-# This checks whether the wayland libraries are needed and available.
-#
-
-wayland_enabled=no
-if test ! x$enable_wayland = xno ; then
-        if test x$have_wayland = xyes ; then
-                wayland_enabled=yes
-        elif test x$enable_wayland = xyes ; then
-                AC_ERROR([wayland libraries not found])
-        fi
-fi
-
-if test x$wayland_enabled = xyes ; then
-        AC_DEFINE([BUILD_ENABLE_WAYLAND], [1],
-                  [Enable wayland backends])
-else
-        WAYLAND_CFLAGS=""
-        WAYLAND_LIBS=""
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_WAYLAND], [test x$wayland_enabled = xyes])
-
-#
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
 # makefiles.
 #
 
-AC_SUBST(SYSTEMD_CFLAGS)
-AC_SUBST(SYSTEMD_LIBS)
-AC_SUBST(DBUS_CFLAGS)
-AC_SUBST(DBUS_LIBS)
-AC_SUBST(DRM_CFLAGS)
-AC_SUBST(DRM_LIBS)
-AC_SUBST(EGL_CFLAGS)
-AC_SUBST(EGL_LIBS)
-AC_SUBST(GBM_CFLAGS)
-AC_SUBST(GBM_LIBS)
-AC_SUBST(GLES2_CFLAGS)
-AC_SUBST(GLES2_LIBS)
-AC_SUBST(UDEV_CFLAGS)
-AC_SUBST(UDEV_LIBS)
-AC_SUBST(XKBCOMMON_CFLAGS)
-AC_SUBST(XKBCOMMON_LIBS)
-AC_SUBST(FREETYPE2_CFLAGS)
-AC_SUBST(FREETYPE2_LIBS)
-AC_SUBST(PANGO_CFLAGS)
-AC_SUBST(PANGO_LIBS)
-AC_SUBST(WAYLAND_CFLAGS)
-AC_SUBST(WAYLAND_LIBS)
-
-AC_CONFIG_FILES([Makefile libeloop.pc libtsm.pc libuterm.pc])
+AC_CONFIG_FILES([Makefile
+                 src/libeloop.pc
+                 src/libtsm.pc
+                 src/libuterm.pc])
 AC_OUTPUT
 
 #
@@ -689,38 +1002,39 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([Build configuration:
 
-  Applications and libraries:
-	       kmscon: $kmscon_enabled
-	       wlterm: $wlterm_enabled
-	        uterm: $uterm_enabled
-	        eloop: $eloop_enabled
-	          tsm: $tsm_enabled
+  Applications and Libraries:
+               kmscon: $kmscon_enabled ($kmscon_avail)
+               wlterm: $wlterm_enabled ($wlterm_avail)
+                uterm: $uterm_enabled ($uterm_avail)
+                  tsm: $tsm_enabled ($tsm_avail)
+                eloop: $eloop_enabled ($eloop_avail)
 
-  Miscellaneous options:
-	        debug: $debug_enabled
-	optimizations: $optimizations_enabled
+  Miscellaneous Options:
+                debug: $debug_enabled ($debug_avail)
+        optimizations: $optimizations_enabled ($optimizations_avail)
+           multi-seat: $multi_seat_enabled ($multi_seat_avail)
+              hotplug: $hotplug_enabled ($hotplug_avail)
+           eloop-dbus: $eloop_dbus_enabled ($eloop_dbus_avail)
 
-  Optional dependencies:
-	      systemd: $systemd_enabled
-	         udev: $udev_enabled
-	         dbus: $dbus_enabled
-	      wayland: $wayland_enabled
+  Video Backends:
+                fbdev: $video_fbdev_enabled ($video_fbdev_avail)
+             dumb drm: $video_dumb_enabled ($video_dumb_avail)
+                  drm: $video_drm_enabled ($video_drm_avail)
 
-  libuterm video backends:
-	        fbdev: $fbdev_enabled
-	     dumb drm: $dumb_enabled
-	          drm: $drm_enabled
-	    OpenGLES2: $gles2_enabled
+  Font Backends:
+                 8x16: $font_8x16_enabled ($font_8x16_avail)
+              unifont: $font_unifont_enabled ($font_unifont_avail)
+            freetype2: $font_freetype2_enabled ($font_freetype2_avail)
+                pango: $font_pango_enabled ($font_pango_avail)
 
-  font backends:
-	      unifont: $unifont_enabled
-	         8x16: $f8x16_enabled
-	    freetype2: $freetype2_enabled
-	        pango: $pango_enabled
+  Renderers:
+                bblit: $renderer_bblit_enabled ($renderer_bblit_avail)
+                bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail)
+                gltex: $renderer_gltex_enabled ($renderer_gltex_avail)
 
-  rendering backends:
-	        bblit: $bblit_enabled
-	        bbulk: $bbulk_enabled
-	        gltex: $gltex_enabled
+  Session Types:
+                dummy: $session_dummy_enabled ($session_dummy_avail)
+             terminal: $session_terminal_enabled ($session_terminal_avail)
+           compositor: $session_compositor_enabled ($session_compositor_avail)
 
-	Run "make" to start compilation process])
+        Run "make" to start compilation process])

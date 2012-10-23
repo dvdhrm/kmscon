@@ -175,26 +175,7 @@ int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 
 /* modularized backends */
 
-#ifdef BUILD_ENABLE_UNIFONT
-
-int kmscon_font_unifont_load(void);
-void kmscon_font_unifont_unload(void);
-
-#else
-
-static inline int kmscon_font_unifont_load(void)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void kmscon_font_unifont_unload(void)
-{
-}
-
-#endif
-
-
-#ifdef BUILD_ENABLE_8X16
+#ifdef BUILD_ENABLE_FONT_8X16
 
 int kmscon_font_8x16_load(void);
 void kmscon_font_8x16_unload(void);
@@ -212,7 +193,25 @@ static inline void kmscon_font_8x16_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_FREETYPE2
+#ifdef BUILD_ENABLE_FONT_UNIFONT
+
+int kmscon_font_unifont_load(void);
+void kmscon_font_unifont_unload(void);
+
+#else
+
+static inline int kmscon_font_unifont_load(void)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void kmscon_font_unifont_unload(void)
+{
+}
+
+#endif
+
+#ifdef BUILD_ENABLE_FONT_FREETYPE2
 
 int kmscon_font_freetype2_load(void);
 void kmscon_font_freetype2_unload(void);
@@ -230,7 +229,7 @@ static inline void kmscon_font_freetype2_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_PANGO
+#ifdef BUILD_ENABLE_FONT_PANGO
 
 int kmscon_font_pango_load(void);
 void kmscon_font_pango_unload(void);
@@ -248,7 +247,7 @@ static inline void kmscon_font_pango_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_BBLIT
+#ifdef BUILD_ENABLE_RENDERER_BBLIT
 
 int kmscon_text_bblit_load(void);
 void kmscon_text_bblit_unload(void);
@@ -266,7 +265,7 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_BBULK
+#ifdef BUILD_ENABLE_RENDERER_BBULK
 
 int kmscon_text_bbulk_load(void);
 void kmscon_text_bbulk_unload(void);
@@ -284,7 +283,7 @@ static inline void kmscon_text_bbulk_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_GLES2
+#ifdef BUILD_ENABLE_RENDERER_GLTEX
 
 int kmscon_text_gltex_load(void);
 void kmscon_text_gltex_unload(void);
@@ -304,8 +303,8 @@ static inline void kmscon_text_gltex_unload(void)
 
 static inline void kmscon_font_load_all(void)
 {
-	kmscon_font_unifont_load();
 	kmscon_font_8x16_load();
+	kmscon_font_unifont_load();
 	kmscon_font_pango_load();
 	kmscon_font_freetype2_load();
 }
@@ -314,8 +313,8 @@ static inline void kmscon_font_unload_all(void)
 {
 	kmscon_font_freetype2_unload();
 	kmscon_font_pango_unload();
-	kmscon_font_8x16_unload();
 	kmscon_font_unifont_unload();
+	kmscon_font_8x16_unload();
 }
 
 static inline void kmscon_text_load_all(void)

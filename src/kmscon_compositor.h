@@ -33,12 +33,12 @@
 #include <stdlib.h>
 #include "kmscon_seat.h"
 
-#if BUILD_ENABLE_WAYLAND
+#if BUILD_ENABLE_SESSION_COMPOSITOR
 
 int kmscon_compositor_register(struct kmscon_session **out,
 			       struct kmscon_seat *seat);
 
-#else /* !BUILD_ENABLE_WAYLAND */
+#else /* !BUILD_ENABLE_SESSION_COMPOSITOR */
 
 static inline int kmscon_compositor_register(struct kmscon_session **out,
 					     struct kmscon_seat *seat)
@@ -46,6 +46,6 @@ static inline int kmscon_compositor_register(struct kmscon_session **out,
 	return -EOPNOTSUPP;
 }
 
-#endif /* BUILD_ENABLE_WAYLAND */
+#endif /* BUILD_ENABLE_SESSION_COMPOSITOR */
 
 #endif /* KMSCON_COMPOSITOR_H */
