@@ -205,19 +205,19 @@ static inline unsigned int shl_get_xkb_mods(struct xkb_state *state)
 	unsigned int mods = 0;
 
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_SHIFT,
-					 XKB_STATE_EFFECTIVE) > 0)
+					 XKB_STATE_MODS_EFFECTIVE) > 0)
 		mods |= SHL_SHIFT_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CAPS,
-					 XKB_STATE_EFFECTIVE) > 0)
+					 XKB_STATE_MODS_EFFECTIVE) > 0)
 		mods |= SHL_LOCK_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_CTRL,
-					 XKB_STATE_EFFECTIVE) > 0)
+					 XKB_STATE_MODS_EFFECTIVE) > 0)
 		mods |= SHL_CONTROL_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_ALT,
-					 XKB_STATE_EFFECTIVE) > 0)
+					 XKB_STATE_MODS_EFFECTIVE) > 0)
 		mods |= SHL_ALT_MASK;
 	if (xkb_state_mod_name_is_active(state, XKB_MOD_NAME_LOGO,
-					 XKB_STATE_EFFECTIVE) > 0)
+					 XKB_STATE_MODS_EFFECTIVE) > 0)
 		mods |= SHL_LOGO_MASK;
 
 	return mods;
@@ -237,7 +237,7 @@ static inline uint32_t shl_get_ascii(struct xkb_state *state, uint32_t keycode,
 	if (num_keysyms == 1 && keysyms[0] < 128)
 		return keysyms[0];
 
-	keymap = xkb_state_get_map(state);
+	keymap = xkb_state_get_keymap(state);
 	num_layouts = xkb_keymap_num_layouts_for_key(keymap, keycode);
 
 	for (layout = 0; layout < num_layouts; layout++) {

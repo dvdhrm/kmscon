@@ -584,9 +584,9 @@ static void keyboard_keymap(void *data, struct wl_keyboard *keyboard,
 		return;
 	}
 
-	disp->xkb_keymap = xkb_map_new_from_string(disp->xkb_ctx, map,
-						   XKB_KEYMAP_FORMAT_TEXT_V1,
-						   0);
+	disp->xkb_keymap = xkb_keymap_new_from_string(disp->xkb_ctx, map,
+						      XKB_KEYMAP_FORMAT_TEXT_V1,
+						      0);
 	munmap(map, size);
 	close(fd);
 
@@ -598,7 +598,7 @@ static void keyboard_keymap(void *data, struct wl_keyboard *keyboard,
 	disp->xkb_state = xkb_state_new(disp->xkb_keymap);
 	if (!disp->xkb_state) {
 		log_error("cannot create XKB state object");
-		xkb_map_unref(disp->xkb_keymap);
+		xkb_keymap_unref(disp->xkb_keymap);
 		disp->xkb_keymap = NULL;
 		return;
 	}
@@ -666,7 +666,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 		return;
 
 	mask = shl_get_xkb_mods(disp->xkb_state);
-	num_syms = xkb_key_get_syms(disp->xkb_state, code, &syms);
+	num_syms = xkb_state_key_get_syms(disp->xkb_state, code, &syms);
 	ascii = shl_get_ascii(disp->xkb_state, code, syms, num_syms);
 	sym = XKB_KEY_NoSymbol;
 	if (num_syms == 1)
