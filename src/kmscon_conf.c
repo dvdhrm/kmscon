@@ -357,7 +357,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_BOOL(0, "silent", NULL, NULL, &conf->silent, false),
 
 		/* Seat Options */
-		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, &conf->vt, NULL),
+		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, NULL, &conf->vt, NULL),
 		CONF_OPTION_BOOL('s', "switchvt", NULL, NULL, &conf->switchvt, false),
 		CONF_OPTION_STRING_LIST(0, "seats", aftercheck_seats, copy_seats, &conf->seats, def_seats),
 

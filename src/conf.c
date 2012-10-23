@@ -338,6 +338,18 @@ static int parse_kv_pair(struct conf_option *opts, size_t len,
 		else
 			continue;
 
+		/* ignore if already set by command-line arguments */
+		if (opt->flags & CONF_LOCKED)
+			return 0;
+
+		if (opt->file) {
+			ret = opt->file(opt, set, value);
+			if (ret)
+				return ret;
+			opt->flags |= CONF_DONE;
+			return 0;
+		}
+
 		if (opt->type->flags & CONF_HAS_ARG && !value) {
 			log_error("config option '%s' requires an argument",
 				  key);
@@ -347,10 +359,6 @@ static int parse_kv_pair(struct conf_option *opts, size_t len,
 				  key);
 			return -EFAULT;
 		}
-
-		/* ignore if already set by command-line arguments */
-		if (opt->flags & CONF_LOCKED)
-			return 0;
 
 		if (opt->type->parse) {
 			ret = opt->type->parse(opt, set, value);
