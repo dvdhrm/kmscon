@@ -140,7 +140,7 @@ static inline int shl_split_string(const char *arg, char ***out,
 	return 0;
 }
 
-static inline int shl_dup_array(char ***out, char **argv)
+static inline int shl_dup_array_size(char ***out, char **argv, size_t len)
 {
 	char **t, *off;
 	unsigned int size, i;
@@ -149,8 +149,11 @@ static inline int shl_dup_array(char ***out, char **argv)
 		return -EINVAL;
 
 	size = 0;
-	for (i = 0; argv[i]; ++i)
-		size += strlen(argv[i]) + 1;
+	for (i = 0; i < len; ++i) {
+		++size;
+		if (argv[i])
+			size += strlen(argv[i]);
+	}
 	++i;
 
 	size += i * sizeof(char*);
@@ -161,9 +164,9 @@ static inline int shl_dup_array(char ***out, char **argv)
 	*out = t;
 
 	off = (char*)t + i * sizeof(char*);
-	while (*argv) {
+	while (len--) {
 		*t++ = off;
-		for (i = 0; argv[0][i]; ++i)
+		for (i = 0; *argv && argv[0][i]; ++i)
 			*off++ = argv[0][i];
 		*off++ = 0;
 		argv++;
@@ -171,6 +174,19 @@ static inline int shl_dup_array(char ***out, char **argv)
 	*t = NULL;
 
 	return 0;
+}
+
+static inline int shl_dup_array(char ***out, char **argv)
+{
+	unsigned int i;
+
+	if (!out || !argv)
+		return -EINVAL;
+
+	for (i = 0; argv[i]; ++i)
+		/* empty */ ;
+
+	return shl_dup_array_size(out, argv, i);
 }
 
 /* TODO: xkbcommon should provide these flags!
