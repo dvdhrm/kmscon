@@ -145,19 +145,24 @@ static void print_help()
 	 */
 }
 
+#define KMSCON_CONF_FROM_FIELD(_mem, _name) \
+	shl_offsetof((_mem), struct kmscon_conf_t, _name)
+
+/*
+ * VT Type
+ * The --vt option is special in that it can be an integer, a string or a path.
+ * We use the string-handling of conf_string but the parser is different. See
+ * below for more information on the parser.
+ */
+
 static void conf_default_vt(struct conf_option *opt)
 {
-	opt->type->free(opt);
-	*(void**)opt->mem = opt->def;
+	conf_string.set_default(opt);
 }
 
 static void conf_free_vt(struct conf_option *opt)
 {
-	if (*(void**)opt->mem) {
-		if (*(void**)opt->mem != opt->def)
-			free(*(void**)opt->mem);
-		*(void**)opt->mem = NULL;
-	}
+	conf_string.free(opt);
 }
 
 static int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
@@ -192,19 +197,7 @@ static int conf_parse_vt(struct conf_option *opt, bool on, const char *arg)
 static int conf_copy_vt(struct conf_option *opt,
 			const struct conf_option *src)
 {
-	char *val;
-
-	if (!*(void**)src->mem) {
-		val = NULL;
-	} else {
-		val = strdup(*(void**)src->mem);
-		if (!val)
-			return -ENOMEM;
-	}
-
-	opt->type->free(opt);
-	*(void**)opt->mem = val;
-	return 0;
+	return conf_string.copy(opt, src);
 }
 
 static const struct conf_type conf_vt = {
@@ -215,8 +208,6 @@ static const struct conf_type conf_vt = {
 	.copy = conf_copy_vt,
 };
 
-#define KMSCON_CONF_FROM_FIELD(_mem, _name) \
-	shl_offsetof((_mem), struct kmscon_conf_t, _name)
 
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
