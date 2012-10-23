@@ -376,33 +376,33 @@ static struct conf_grab def_grab_paste =
 		CONF_SINGLE_GRAB(SHL_LOGO_MASK, XKB_KEY_v);
 
 struct conf_option options[] = {
-	CONF_OPTION_BOOL('h', "help", aftercheck_help, NULL, &wlt_conf.help, false),
-	CONF_OPTION_BOOL('v', "verbose", NULL, NULL, &wlt_conf.verbose, false),
-	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, NULL, &wlt_conf.debug, false),
-	CONF_OPTION_BOOL(0, "silent", NULL, NULL, &wlt_conf.silent, false),
+	CONF_OPTION_BOOL_FULL('h', "help", aftercheck_help, NULL, NULL, &wlt_conf.help, false),
+	CONF_OPTION_BOOL('v', "verbose", &wlt_conf.verbose, false),
+	CONF_OPTION_BOOL_FULL(0, "debug", aftercheck_debug, NULL, NULL, &wlt_conf.debug, false),
+	CONF_OPTION_BOOL(0, "silent", &wlt_conf.silent, false),
 
-	CONF_OPTION_BOOL('l', "login", aftercheck_login, copy_login, &wlt_conf.login, false),
-	CONF_OPTION_STRING('t', "term", NULL, NULL, &wlt_conf.term, "xterm-256color"),
-	CONF_OPTION_STRING(0, "palette", NULL, NULL, &wlt_conf.palette, NULL),
-	CONF_OPTION_UINT(0, "sb-size", NULL, NULL, &wlt_conf.sb_size, 1000),
+	CONF_OPTION_BOOL_FULL('l', "login", aftercheck_login, copy_login, NULL, &wlt_conf.login, false),
+	CONF_OPTION_STRING('t', "term", &wlt_conf.term, "xterm-256color"),
+	CONF_OPTION_STRING(0, "palette", &wlt_conf.palette, NULL),
+	CONF_OPTION_UINT(0, "sb-size", &wlt_conf.sb_size, 1000),
 
-	CONF_OPTION_GRAB(0, "grab-scroll-up", NULL, NULL, &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
-	CONF_OPTION_GRAB(0, "grab-scroll-down", NULL, NULL, &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
-	CONF_OPTION_GRAB(0, "grab-page-up", NULL, NULL, &wlt_conf.grab_page_up, &def_grab_page_up),
-	CONF_OPTION_GRAB(0, "grab-page-down", NULL, NULL, &wlt_conf.grab_page_down, &def_grab_page_down),
-	CONF_OPTION_GRAB(0, "grab-fullscreen", NULL, NULL, &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
-	CONF_OPTION_GRAB(0, "grab-zoom-in", NULL, NULL, &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
-	CONF_OPTION_GRAB(0, "grab-zoom-out", NULL, NULL, &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
-	CONF_OPTION_GRAB(0, "grab-copy", NULL, NULL, &wlt_conf.grab_copy, &def_grab_copy),
-	CONF_OPTION_GRAB(0, "grab-paste", NULL, NULL, &wlt_conf.grab_paste, &def_grab_paste),
+	CONF_OPTION_GRAB(0, "grab-scroll-up", &wlt_conf.grab_scroll_up, &def_grab_scroll_up),
+	CONF_OPTION_GRAB(0, "grab-scroll-down", &wlt_conf.grab_scroll_down, &def_grab_scroll_down),
+	CONF_OPTION_GRAB(0, "grab-page-up", &wlt_conf.grab_page_up, &def_grab_page_up),
+	CONF_OPTION_GRAB(0, "grab-page-down", &wlt_conf.grab_page_down, &def_grab_page_down),
+	CONF_OPTION_GRAB(0, "grab-fullscreen", &wlt_conf.grab_fullscreen, &def_grab_fullscreen),
+	CONF_OPTION_GRAB(0, "grab-zoom-in", &wlt_conf.grab_zoom_in, &def_grab_zoom_in),
+	CONF_OPTION_GRAB(0, "grab-zoom-out", &wlt_conf.grab_zoom_out, &def_grab_zoom_out),
+	CONF_OPTION_GRAB(0, "grab-copy", &wlt_conf.grab_copy, &def_grab_copy),
+	CONF_OPTION_GRAB(0, "grab-paste", &wlt_conf.grab_paste, &def_grab_paste),
 
-	CONF_OPTION_STRING(0, "font-engine", NULL, NULL, &wlt_conf.font_engine, "pango"),
-	CONF_OPTION_UINT(0, "font-size", NULL, NULL, &wlt_conf.font_size, 12),
-	CONF_OPTION_STRING(0, "font-name", NULL, NULL, &wlt_conf.font_name, "monospace"),
-	CONF_OPTION_UINT(0, "font-dpi", NULL, NULL, &wlt_conf.font_ppi, 96),
+	CONF_OPTION_STRING(0, "font-engine", &wlt_conf.font_engine, "pango"),
+	CONF_OPTION_UINT(0, "font-size", &wlt_conf.font_size, 12),
+	CONF_OPTION_STRING(0, "font-name", &wlt_conf.font_name, "monospace"),
+	CONF_OPTION_UINT(0, "font-dpi", &wlt_conf.font_ppi, 96),
 
-	CONF_OPTION_UINT(0, "xkb-repeat-delay", NULL, NULL, &wlt_conf.xkb_repeat_delay, 250),
-	CONF_OPTION_UINT(0, "xkb-repeat-rate", NULL, NULL, &wlt_conf.xkb_repeat_rate, 50),
+	CONF_OPTION_UINT(0, "xkb-repeat-delay", &wlt_conf.xkb_repeat_delay, 250),
+	CONF_OPTION_UINT(0, "xkb-repeat-rate", &wlt_conf.xkb_repeat_rate, 50),
 };
 
 int main(int argc, char **argv)
