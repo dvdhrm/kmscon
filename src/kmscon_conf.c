@@ -208,6 +208,142 @@ static const struct conf_type conf_vt = {
 	.copy = conf_copy_vt,
 };
 
+/*
+ * Login handling
+ * The --login option is special in that it can have an unlimited number of
+ * arguments on the command-line. So on the command-line it is an boolean option
+ * that specifies whether default login or custom login is used.
+ * However, the file-parser does simple string-parsing as it does not need the
+ * special handling that the command-line does.
+ */
+
+static char *def_argv[] = { "/bin/login", NULL };
+
+static void conf_default_login(struct conf_option *opt)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+
+	opt->type->free(opt);
+	conf->login = false;
+	conf->argv = def_argv;
+}
+
+static void conf_free_login(struct conf_option *opt)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+
+	if (conf->argv != def_argv)
+		free(conf->argv);
+	conf->argv = NULL;
+	conf->login = false;
+}
+
+static int conf_parse_login(struct conf_option *opt, bool on, const char *arg)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+
+	opt->type->free(opt);
+	conf->login = on;
+	return 0;
+}
+
+static int conf_copy_login(struct conf_option *opt,
+			   const struct conf_option *src)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+	struct kmscon_conf_t *s = KMSCON_CONF_FROM_FIELD(src->mem, login);
+	int ret;
+	char **t;
+
+	if (s->argv) {
+		ret = shl_dup_array(&t, s->argv);
+		if (ret)
+			return ret;
+	} else {
+		t = NULL;
+	}
+
+	opt->type->free(opt);
+	conf->argv = t;
+	conf->login = s->login;
+	return 0;
+}
+
+static const struct conf_type conf_login = {
+	.flags = 0,
+	.set_default = conf_default_login,
+	.free = conf_free_login,
+	.parse = conf_parse_login,
+	.copy = conf_copy_login,
+};
+
+static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
+			    int idx)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+	int ret = 0;
+	char **t;
+
+	/* parse "--login [...] -- args" arguments */
+	if (argv && conf->login) {
+		if (idx >= argc) {
+			fprintf(stderr, "Arguments for --login missing\n");
+			return -EFAULT;
+		}
+
+		ret = shl_dup_array_size(&t, &argv[idx], argc - idx);
+		if (ret)
+			return ret;
+
+		conf->argv = t;
+		ret = argc - idx;
+	} else if (!conf->argv) {
+		ret = shl_dup_array_size(&t, def_argv,
+					 sizeof(def_argv) / sizeof(*def_argv));
+		if (ret)
+			return ret;
+
+		conf->argv = t;
+	}
+
+	return ret;
+}
+
+static int file_login(struct conf_option *opt, bool on, const char *arg)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
+	char **t;
+	unsigned int size;
+	int ret;
+
+	if (!arg) {
+		log_error("no arguments for 'login' config-option");
+		return -EFAULT;
+	}
+
+	ret = shl_split_string(arg, &t, &size, ' ', false);
+	if (ret) {
+		log_error("cannot split 'login' config-option argument");
+		return ret;
+	}
+
+	if (size < 1) {
+		log_error("empty argument given for 'login' config-option");
+		return -EFAULT;
+	}
+
+	opt->type->free(opt);
+	conf->login = on;
+	conf->argv = t;
+	return 0;
+}
+
+/*
+ * Custom Afterchecks
+ * Several other options have side-effects on other options. We use afterchecks
+ * to enforce these. They're pretty simple. See below.
+ * Some of them also need copy-helpers because they copy more than one value.
+ */
 
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
@@ -235,51 +371,6 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
-static char *def_argv[] = { NULL, "-i", NULL };
-
-static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
-			    int idx)
-{
-	int ret;
-	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
-
-	/* parse "--login [...] -- args" arguments */
-	if (argv && conf->login) {
-		if (idx >= argc) {
-			fprintf(stderr, "Arguments for --login missing\n");
-			return -EFAULT;
-		}
-
-		conf->argv = &argv[idx];
-		ret = argc - idx;
-	} else if (!conf->argv) {
-		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
-		conf->argv = def_argv;
-		ret = 0;
-	} else {
-		ret = 0;
-	}
-
-	return ret;
-}
-
-static int copy_login(struct conf_option *opt, const struct conf_option *src)
-{
-	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
-	struct kmscon_conf_t *s = KMSCON_CONF_FROM_FIELD(src->mem, login);
-	int ret;
-	char **t;
-
-	ret = shl_dup_array(&t, s->argv);
-	if (ret)
-		return ret;
-
-	free(conf->argv);
-	conf->argv = t;
-
-	return 0;
-}
-
 static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
 			    int idx)
 {
@@ -301,6 +392,12 @@ static int copy_seats(struct conf_option *opt, const struct conf_option *src)
 	conf->all_seats = s->all_seats;
 	return 0;
 }
+
+/*
+ * Default Values
+ * We use static default values to avoid allocating memory for these. This
+ * speeds up config-parser considerably.
+ */
 
 static char *def_seats[] = { "seat0", NULL };
 
@@ -358,7 +455,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_UINT(0, "session-max", &conf->session_max, 50),
 
 		/* Terminal Options */
-		CONF_OPTION_BOOL_FULL('l', "login", aftercheck_login, copy_login, NULL, &conf->login, false),
+		CONF_OPTION(0, 'l', "login", &conf_login, aftercheck_login, NULL, file_login, &conf->login, false),
 		CONF_OPTION_STRING('t', "term", &conf->term, "xterm-256color"),
 		CONF_OPTION_STRING(0, "palette", &conf->palette, NULL),
 		CONF_OPTION_UINT(0, "sb-size", &conf->sb_size, 1000),
