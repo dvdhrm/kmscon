@@ -496,11 +496,25 @@ static int parse_buffer(struct conf_option *opts, size_t len,
 			char *buf, size_t size)
 {
 	int ret = 0;
+	struct conf_option *o;
+	unsigned int i;
 
 	while (!ret && size > 0)
 		ret = parse_line(opts, len, &buf, &size);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	for (i = 0; i < len; ++i) {
+		o = &opts[i];
+		if (o->aftercheck) {
+			ret = o->aftercheck(o, 0, NULL, 0);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 /* chunk size when reading config files */

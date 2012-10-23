@@ -253,7 +253,7 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, login);
 
 	/* parse "--login [...] -- args" arguments */
-	if (conf->login) {
+	if (argv && conf->login) {
 		if (idx >= argc) {
 			fprintf(stderr, "Arguments for --login missing\n");
 			return -EFAULT;
@@ -261,9 +261,11 @@ static int aftercheck_login(struct conf_option *opt, int argc, char **argv,
 
 		conf->argv = &argv[idx];
 		ret = argc - idx;
-	} else {
+	} else if (!conf->argv) {
 		def_argv[0] = getenv("SHELL") ? : _PATH_BSHELL;
 		conf->argv = def_argv;
+		ret = 0;
+	} else {
 		ret = 0;
 	}
 
