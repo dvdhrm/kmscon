@@ -553,6 +553,8 @@ if test ! "x$enable_wlterm" = "xno" ; then
                 wlterm_avail=no
         elif test "x$eloop_avail" = "xno" ; then
                 wlterm_avail=no
+        else
+                wlterm_avail=yes
         fi
 
         if test "x$enable_wlterm" = "xyes" ; then
@@ -578,7 +580,7 @@ fi
 
 # wlterm
 wlterm_enabled=no
-if test "x$wltem_avail" = "xyes" ; then
+if test "x$wlterm_avail" = "xyes" ; then
         if test "x${enable_wlterm% *}" = "xyes" ; then
                 wlterm_enabled=yes
                 enable_eloop=yes
