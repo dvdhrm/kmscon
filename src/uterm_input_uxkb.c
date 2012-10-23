@@ -47,7 +47,7 @@ int uxkb_desc_init(struct uterm_input *input,
 	int ret;
 	struct xkb_rule_names rmlvo = {
 		.rules = "evdev",
-		.model = "evdev",
+		.model = "",
 		.layout = layout,
 		.variant = variant,
 		.options = options,
@@ -62,10 +62,10 @@ int uxkb_desc_init(struct uterm_input *input,
 	input->keymap = xkb_keymap_new_from_names(input->ctx, &rmlvo, 0);
 	if (!input->keymap) {
 		log_warn("failed to create keymap (%s, %s, %s), "
-			 "reverting to default US keymap",
+			 "reverting to default system keymap",
 			 layout, variant, options);
 
-		rmlvo.layout = "us";
+		rmlvo.layout = "";
 		rmlvo.variant = "";
 		rmlvo.options = "";
 
