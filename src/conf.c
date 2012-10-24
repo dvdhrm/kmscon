@@ -860,6 +860,7 @@ static int parse_single_grab(char *arg, unsigned int *mods,
 			     uint32_t *keysym, bool allow_mods)
 {
 	char *tmp, *start, *end;
+	char buf[128];
 
 	tmp = arg;
 	do {
@@ -920,7 +921,16 @@ static int parse_single_grab(char *arg, unsigned int *mods,
 
 	*keysym = xkb_keysym_from_name(start, 0);
 	if (!*keysym) {
-		log_error("invalid key '%s'", start);
+		*keysym = xkb_keysym_from_name(start,
+					       XKB_KEYSYM_CASE_INSENSITIVE);
+		if (!*keysym) {
+			log_error("invalid key '%s'", start);
+			return -EFAULT;
+		}
+
+		xkb_keysym_get_name(*keysym, buf, sizeof(buf));
+		log_warning("invalid keysym '%s', did you mean '%s'? (keysyms are case-sensitive)",
+			    start, buf);
 		return -EFAULT;
 	}
 
