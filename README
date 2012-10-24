@@ -9,13 +9,6 @@ console.
   Kmscon requires the following software:
     - libudev: providing input, video, etc. device hotplug support
     - libxkbcommon: providing internationalized keyboard handling
-      libxkbcommon has no public release, yet, but is available on freedesktop.org.
-      Building libxkbcommon from Git without root:
-       - You can fetch it from Git using: git clone git://anongit.freedesktop.org/xorg/lib/libxkbcommon
-       - You can then ``./autogen.sh && make`` in its directory
-       - You configure kmscon using:
-           PKG_CONFIG_PATH="libxkbcommon/" ./configure --enable-debug
-         assuming you cloned it into a subfolder of kmscon called libxkbcommon.
 
   Everything else is optional:
 
@@ -50,7 +43,7 @@ console.
 
   If you want only a very basic kmscon program without any major dependencies,
   use:
-    $ ./configure --disable-debug --disable-drm --disable-xkbcommon --disable-systemd --disable-pango --disable-freetype2
+    $ ./configure --disable-debug --disable-drm --disable-systemd --disable-pango --disable-freetype2
   However, you will loose a lot of functionality by dropping all dependencies.
 
   The following configure options are available. If build-time dependencies
