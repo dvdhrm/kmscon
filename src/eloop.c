@@ -1300,6 +1300,8 @@ int ev_fd_update(struct ev_fd *fd, int mask)
 
 	if (!fd)
 		return -EINVAL;
+	if (fd->mask == mask)
+		return 0;
 
 	omask = fd->mask;
 	fd->mask = mask;
