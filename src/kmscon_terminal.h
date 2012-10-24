@@ -33,10 +33,23 @@
 #ifndef KMSCON_TERMINAL_H
 #define KMSCON_TERMINAL_H
 
+#include <errno.h>
 #include <stdlib.h>
 #include "kmscon_seat.h"
 
+#ifdef BUILD_ENABLE_SESSION_TERMINAL
+
 int kmscon_terminal_register(struct kmscon_session **out,
 			     struct kmscon_seat *seat);
+
+#else /* !BUILD_ENABLE_SESSION_TERMINAL */
+
+static inline int kmscon_terminal_register(struct kmscon_session **out,
+					   struct kmscon_seat *seat)
+{
+	return -EOPNOTSUPP;
+}
+
+#endif /* BUILD_ENABLE_SESSION_TERMINAL */
 
 #endif /* KMSCON_TERMINAL_H */

@@ -30,10 +30,11 @@
 #ifndef KMSCON_COMPOSITOR_H
 #define KMSCON_COMPOSITOR_H
 
+#include <errno.h>
 #include <stdlib.h>
 #include "kmscon_seat.h"
 
-#if BUILD_ENABLE_SESSION_COMPOSITOR
+#ifdef BUILD_ENABLE_SESSION_COMPOSITOR
 
 int kmscon_compositor_register(struct kmscon_session **out,
 			       struct kmscon_seat *seat);

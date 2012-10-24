@@ -30,10 +30,23 @@
 #ifndef KMSCON_DUMMY_H
 #define KMSCON_DUMMY_H
 
+#include <errno.h>
 #include <stdlib.h>
 #include "kmscon_seat.h"
 
+#ifdef BUILD_ENABLE_SESSION_DUMMY
+
 int kmscon_dummy_register(struct kmscon_session **out,
 			  struct kmscon_seat *seat);
+
+#else /* !BUILD_ENABLE_SESSION_DUMMY */
+
+static inline int kmscon_dummy_register(struct kmscon_session **out,
+					struct kmscon_seat *seat)
+{
+	return -EOPNOTSUPP;
+}
+
+#endif /* BUILD_ENABLE_SESSION_DUMMY */
 
 #endif /* KMSCON_DUMMY_H */
