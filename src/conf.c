@@ -918,7 +918,7 @@ static int parse_single_grab(char *arg, unsigned int *mods,
 	if (*end)
 		*end = 0;
 
-	*keysym = xkb_keysym_from_name(start);
+	*keysym = xkb_keysym_from_name(start, 0);
 	if (!*keysym) {
 		log_error("invalid key '%s'", start);
 		return -EFAULT;
