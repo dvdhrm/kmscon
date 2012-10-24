@@ -75,6 +75,7 @@ struct wlt_display {
 	struct wl_global_listener *dp_listener;
 	struct shl_hook *listeners;
 	unsigned int state;
+	struct wl_registry *w_registry;
 
 	struct shl_dlist window_list;
 
@@ -397,35 +398,45 @@ static void set_cursor(struct wlt_display *disp, unsigned int cursor)
 	wl_surface_attach(disp->w_cursor_surface, buffer, 0, 0);
 	wl_surface_damage(disp->w_cursor_surface, 0, 0,
 			  image->width, image->height);
+	wl_surface_commit(disp->w_cursor_surface);
 }
 
-static int dp_mask_update(uint32_t mask, void *data)
+static void dp_dispatch(struct wlt_display *disp, bool nonblock)
+{
+	int ret;
+
+	errno = 0;
+	if (nonblock)
+		ret = wl_display_dispatch_pending(disp->dp);
+	else
+		ret = wl_display_dispatch(disp->dp);
+
+	if (ret == -1) {
+		log_error("error during wayland dispatch (%d): %m", errno);
+		return;
+	} else if (errno == EAGAIN) {
+		ret = ev_fd_update(disp->dp_fd, EV_READABLE | EV_WRITEABLE);
+		if (ret)
+			log_warning("cannot update wayland-fd event-polling modes (%d)",
+				    ret);
+	} else {
+		ret = ev_fd_update(disp->dp_fd, EV_READABLE);
+		if (ret)
+			log_warning("cannot update wayland-fd event-polling modes (%d)",
+				    ret);
+	}
+}
+
+static void dp_pre_event(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct wlt_display *disp = data;
-	int ret;
-	int mode;
 
-	if (!disp->dp_fd)
-		return 0;
-
-	mode = 0;
-	if (mask & WL_DISPLAY_READABLE)
-		mode |= EV_READABLE;
-	if (mask & WL_DISPLAY_WRITABLE)
-		mode |= EV_WRITEABLE;
-
-	ret = ev_fd_update(disp->dp_fd, mode);
-	if (ret)
-		log_warning("cannot update wayland-fd event-polling modes (%d)",
-			    ret);
-
-	return 0;
+	dp_dispatch(disp, true);
 }
 
 static void dp_event(struct ev_fd *fd, int mask, void *data)
 {
 	struct wlt_display *disp = data;
-	int mode;
 
 	if (mask & (EV_HUP | EV_ERR)) {
 		log_warning("HUP/ERR on wayland socket");
@@ -436,14 +447,10 @@ static void dp_event(struct ev_fd *fd, int mask, void *data)
 		return;
 	}
 
-	mode = 0;
 	if (mask & EV_READABLE)
-		mode |= WL_DISPLAY_READABLE;
-	if (mask & EV_WRITEABLE)
-		mode |= WL_DISPLAY_WRITABLE;
-
-	if (mode)
-		wl_display_iterate(disp->dp, mode);
+		dp_dispatch(disp, false);
+	else
+		dp_dispatch(disp, true);
 }
 
 static void pointer_enter(void *data, struct wl_pointer *w_pointer,
@@ -984,8 +991,8 @@ static const struct wl_seat_listener seat_listener = {
 	.capabilities = seat_capabilities,
 };
 
-static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
-		      uint32_t version, void *data)
+static void dp_global(void *data, struct wl_registry *registry, uint32_t id,
+		      const char *iface, uint32_t version)
 {
 	struct wlt_display *disp = data;
 
@@ -997,9 +1004,10 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 			log_error("global wl_compositor advertised twice");
 			return;
 		}
-		disp->w_comp = wl_display_bind(disp->dp,
-					       id,
-					       &wl_compositor_interface);
+		disp->w_comp = wl_registry_bind(disp->w_registry,
+						id,
+						&wl_compositor_interface,
+						1);
 		if (!disp->w_comp) {
 			log_error("cannot bind wl_compositor object");
 			return;
@@ -1009,9 +1017,10 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 			log_error("global wl_seat advertised twice");
 			return;
 		}
-		disp->w_seat = wl_display_bind(disp->dp,
-					       id,
-					       &wl_seat_interface);
+		disp->w_seat = wl_registry_bind(disp->w_registry,
+						id,
+						&wl_seat_interface,
+						1);
 		if (!disp->w_seat) {
 			log_error("cannot bind wl_seat object");
 			return;
@@ -1023,9 +1032,10 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 			log_error("global wl_shell advertised twice");
 			return;
 		}
-		disp->w_shell = wl_display_bind(disp->dp,
-					        id,
-					        &wl_shell_interface);
+		disp->w_shell = wl_registry_bind(disp->w_registry,
+						 id,
+						 &wl_shell_interface,
+						 1);
 		if (!disp->w_shell) {
 			log_error("cannot bind wl_shell object");
 			return;
@@ -1035,9 +1045,10 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 			log_error("global wl_shm advertised twice");
 			return;
 		}
-		disp->w_shm = wl_display_bind(disp->dp,
-					      id,
-					      &wl_shm_interface);
+		disp->w_shm = wl_registry_bind(disp->w_registry,
+					       id,
+					       &wl_shm_interface,
+					       1);
 		if (!disp->w_shm) {
 			log_error("cannot bind wl_shm object");
 			return;
@@ -1047,8 +1058,10 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 			log_error("global wl_data_device_manager advertised twice");
 			return;
 		}
-		disp->w_manager = wl_display_bind(disp->dp, id,
-						  &wl_data_device_manager_interface);
+		disp->w_manager = wl_registry_bind(disp->w_registry,
+						   id,
+						   &wl_data_device_manager_interface,
+						   1);
 		if (!disp->w_manager) {
 			log_error("cannot bind wl_data_device_manager_object");
 			return;
@@ -1063,11 +1076,16 @@ static void dp_global(struct wl_display *dp, uint32_t id, const char *iface,
 	check_ready(disp);
 }
 
+static const struct wl_registry_listener registry_listener = {
+	.global = dp_global,
+	/* TODO: handle .global_remove */
+};
+
 int wlt_display_new(struct wlt_display **out,
 		    struct ev_eloop *eloop)
 {
 	struct wlt_display *disp;
-	int ret;
+	int ret, fd;
 
 	if (!out || !eloop)
 		return -EINVAL;
@@ -1095,11 +1113,36 @@ int wlt_display_new(struct wlt_display **out,
 		goto err_listener;
 	}
 
+	fd = wl_display_get_fd(disp->dp);
+	if (fd < 0) {
+		log_error("cannot retrieve wayland FD");
+		ret = -EFAULT;
+		goto err_dp;
+	}
+
+	/* TODO: nonblocking wl_display doesn't work, yet. fix that upstream */
+	/*
+	int set;
+	set = fcntl(fd, F_GETFL);
+	if (set < 0) {
+		log_error("cannot retrieve file flags for wayland FD (%d): %m",
+			  errno);
+		ret = -EFAULT;
+		goto err_dp;
+	}
+
+	set |= O_NONBLOCK;
+	ret = fcntl(fd, F_SETFL, set);
+	if (ret) {
+		log_error("cannot set file flags for wayland FD (%d): %m",
+			  errno);
+		ret = -EFAULT;
+		goto err_dp;
+	}*/
+
 	ret = ev_eloop_new_fd(eloop,
 			      &disp->dp_fd,
-			      wl_display_get_fd(disp->dp,
-			                        dp_mask_update,
-			                        disp),
+			      fd,
 			      EV_READABLE,
 			      dp_event,
 			      disp);
@@ -1109,20 +1152,26 @@ int wlt_display_new(struct wlt_display **out,
 		goto err_dp;
 	}
 
+	ret = ev_eloop_register_pre_cb(eloop, dp_pre_event, disp);
+	if (ret) {
+		log_error("cannot register pre-cb (%d)", ret);
+		goto err_dp_fd;
+	}
+
 	ret = ev_eloop_new_timer(eloop, &disp->repeat_timer, NULL,
 				 repeat_event, disp);
 	if (ret) {
 		log_error("cannot create repeat-timer");
-		goto err_dp_fd;
+		goto err_pre_cb;
 	}
 
-	disp->dp_listener = wl_display_add_global_listener(disp->dp,
-							   dp_global,
-							   disp);
-	if (!disp->dp_listener) {
-		log_error("cannot add wayland global listener (%d)", errno);
+	disp->w_registry = wl_display_get_registry(disp->dp);
+	if (!disp->w_registry) {
+		log_error("cannot get wayland registry object");
 		goto err_timer;
 	}
+
+	wl_registry_add_listener(disp->w_registry, &registry_listener, disp);
 
 	disp->xkb_ctx = xkb_context_new(0);
 	if (!disp->xkb_ctx) {
@@ -1138,6 +1187,8 @@ int wlt_display_new(struct wlt_display **out,
 
 err_timer:
 	ev_eloop_rm_timer(disp->repeat_timer);
+err_pre_cb:
+	ev_eloop_unregister_pre_cb(disp->eloop, dp_pre_event, disp);
 err_dp_fd:
 	ev_eloop_rm_fd(disp->dp_fd);
 err_dp:
@@ -1163,10 +1214,10 @@ void wlt_display_unref(struct wlt_display *disp)
 		return;
 
 	unload_cursors(disp);
-	wl_display_remove_global_listener(disp->dp, disp->dp_listener);
 	wl_display_flush(disp->dp);
 	wl_display_disconnect(disp->dp);
 	ev_eloop_rm_timer(disp->repeat_timer);
+	ev_eloop_unregister_pre_cb(disp->eloop, dp_pre_event, disp);
 	ev_eloop_rm_fd(disp->dp_fd);
 	xkb_context_unref(disp->xkb_ctx);
 	shl_hook_free(disp->listeners);
@@ -1250,6 +1301,7 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 
 	wl_surface_damage(wnd->w_surface, 0, 0, wnd->buffer.width,
 			  wnd->buffer.height);
+	wl_surface_commit(wnd->w_surface);
 }
 
 static int resize_window(struct wlt_window *wnd, unsigned int width,
@@ -1378,20 +1430,20 @@ static void do_frame(struct wlt_window *wnd)
 		wnd->need_frame = true;
 		wnd->need_resize = false;
 		wnd->need_redraw = false;
+		wnd->w_frame = wl_surface_frame(wnd->w_surface);
+		wl_callback_add_listener(wnd->w_frame,
+					 &frame_callback_listener, wnd);
 		resize_window(wnd, wnd->new_width, wnd->new_height, force);
 	}
 
 	if (wnd->need_redraw) {
 		wnd->need_frame = true;
 		wnd->need_redraw = false;
-		wlt_window_do_redraw(wnd, wnd->buffer.width,
-				     wnd->buffer.height);
-	}
-
-	if (wnd->need_frame) {
 		wnd->w_frame = wl_surface_frame(wnd->w_surface);
 		wl_callback_add_listener(wnd->w_frame,
 					 &frame_callback_listener, wnd);
+		wlt_window_do_redraw(wnd, wnd->buffer.width,
+				     wnd->buffer.height);
 	}
 }
 
@@ -1634,6 +1686,7 @@ void wlt_window_damage(struct wlt_window *wnd,
 
 	wl_surface_damage(wnd->w_surface, damage->x, damage->y,
 			  damage->width, damage->height);
+	wl_surface_commit(wnd->w_surface);
 }
 
 void wlt_window_get_buffer(struct wlt_window *wnd,
