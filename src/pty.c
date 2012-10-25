@@ -367,7 +367,7 @@ static int send_buf(struct kmscon_pty *pty)
 	size_t len;
 	int ret;
 
-	while ((buf = shl_ring_peek(pty->msgbuf, &len))) {
+	while ((buf = shl_ring_peek(pty->msgbuf, &len, 0))) {
 		ret = write(pty->fd, buf, len);
 		if (ret > 0) {
 			shl_ring_drop(pty->msgbuf, ret);

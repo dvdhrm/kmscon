@@ -131,13 +131,30 @@ next:
 	return 0;
 }
 
-static inline const char *shl_ring_peek(struct shl_ring *ring, size_t *len)
+static inline const char *shl_ring_peek(struct shl_ring *ring, size_t *len,
+					size_t offset)
 {
-	if (!ring || !ring->first)
-		return NULL;
+	struct shl_ring_entry *iter;
 
-	*len = ring->first->len;
-	return ring->first->buf;
+	if (!ring || !ring->first || !len) {
+		if (len)
+			*len = 0;
+		return NULL;
+	}
+
+	iter = ring->first;
+	while (iter->len <= offset) {
+		if (!iter->next) {
+			*len = 0;
+			return NULL;
+		}
+
+		offset -= iter->len;
+		iter = iter->next;
+	}
+
+	*len = ring->first->len - offset;
+	return &ring->first->buf[offset];
 }
 
 static inline void shl_ring_drop(struct shl_ring *ring, size_t len)
