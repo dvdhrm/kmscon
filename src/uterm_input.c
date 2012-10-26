@@ -105,7 +105,6 @@ static void input_data_dev(struct ev_fd *fd, int mask, void *data)
 static int input_wake_up_dev(struct uterm_input_dev *dev)
 {
 	int ret;
-	unsigned long ledbits[NLONGS(LED_CNT)] = { 0 };
 
 	if (dev->rfd >= 0)
 		return 0;
@@ -117,16 +116,8 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 	}
 
 	if (dev->features & FEATURE_HAS_KEYS) {
-		if (dev->features & FEATURE_HAS_LEDS) {
-			ret = ioctl(dev->rfd, EVIOCGLED(sizeof(ledbits)),
-								&ledbits);
-			if (ret == -1)
-				log_warn("cannot read LED state of %s (%d): %m",
-					 dev->node, errno);
-		}
-
 		/* rediscover the keyboard state if sth changed during sleep */
-		uxkb_dev_reset(dev, ledbits);
+		uxkb_dev_reset(dev);
 
 		ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd,
 						dev->rfd, EV_READABLE,
