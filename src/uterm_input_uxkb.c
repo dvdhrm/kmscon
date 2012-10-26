@@ -304,21 +304,11 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 
 /*
  * Call this when we regain control of the keyboard after losing it.
- * We don't reset the locked group, this should survive a VT switch, etc. The
- * locked modifiers are reset according to the keyboard LEDs.
+ * We don't reset the locked group, this should survive a VT switch, etc.
  */
-void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits)
+void uxkb_dev_reset(struct uterm_input_dev *dev)
 {
-	unsigned int i;
 	struct xkb_state *state;
-	static const struct {
-		int led;
-		const char *name;
-	} led_names[] = {
-		{ LED_NUML, XKB_LED_NAME_NUM },
-		{ LED_CAPSL, XKB_LED_NAME_CAPS },
-		{ LED_SCROLLL, XKB_LED_NAME_SCROLL },
-	};
 
 	/* TODO: Urghs, while the input device was closed we might have missed
 	 * some events that affect internal state. As xkbcommon does not provide
@@ -334,16 +324,4 @@ void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits)
 	}
 	xkb_state_unref(dev->state);
 	dev->state = state;
-
-	for (i = 0; i < sizeof(led_names) / sizeof(*led_names); i++) {
-		if (!input_bit_is_set(ledbits, led_names[i].led))
-			continue;
-
-		/*
-		 * TODO: Add support in xkbcommon for setting the led state,
-		 * and updating the modifier state accordingly. E.g., something
-		 * like this:
-		 *	xkb_state_led_name_set_active(state, led_names[i].led);
-		 */
-	}
 }
