@@ -34,6 +34,7 @@
 #include <string.h>
 #include "conf.h"
 #include "eloop.h"
+#include "kmscon_cdev.h"
 #include "kmscon_compositor.h"
 #include "kmscon_conf.h"
 #include "kmscon_dummy.h"
@@ -449,6 +450,12 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_sessions;
 	else
 		kmscon_session_enable(s);
+
+	ret = kmscon_cdev_register(&s, seat);
+	if (ret == -EOPNOTSUPP)
+		log_notice("cdev sessions not compiled in");
+	else if (ret)
+		log_error("cannot register cdev session: %d", ret);
 
 	ret = kmscon_compositor_register(&s, seat);
 	if (ret == -EOPNOTSUPP)

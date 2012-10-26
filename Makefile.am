@@ -386,6 +386,12 @@ kmscon_SOURCES += src/kmscon_terminal.c
 kmscon_LDADD += libtsm.la
 endif
 
+if BUILD_ENABLE_SESSION_CDEV
+kmscon_SOURCES += src/kmscon_cdev.c
+kmscon_CPPFLAGS += $(FUSE_CFLAGS)
+kmscon_LDADD += $(FUSE_LIBS)
+endif
+
 if BUILD_ENABLE_SESSION_COMPOSITOR
 kmscon_SOURCES += src/kmscon_compositor.c
 kmscon_CPPFLAGS += $(WAYLAND_CFLAGS)

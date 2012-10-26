@@ -98,6 +98,11 @@ PKG_CHECK_MODULES([PANGO], [pango pangoft2],
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
+PKG_CHECK_MODULES([FUSE], [fuse],
+                  [have_fuse=yes], [have_fuse=no])
+AC_SUBST(FUSE_CFLAGS)
+AC_SUBST(FUSE_LIBS)
+
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -312,12 +317,14 @@ AC_ARG_WITH([sessions],
               [specify list of optional sessions])])
 enable_session_dummy="no"
 enable_session_terminal="no"
+enable_session_cdev="no"
 enable_session_compositor="no"
 if test "x$with_sessions" = "x" ; then
         enable_session_dummy="yes (default)"
         enable_session_terminal="yes (default)"
+        enable_session_cdev="yes (default)"
         enable_session_compositor="no (default)"
-        with_sessions="dummy,terminal (default)"
+        with_sessions="dummy,terminal,cdev (default)"
 else
         SAVEIFS="$IFS"
         IFS=","
@@ -326,6 +333,8 @@ else
                         enable_session_dummy="yes"
                 elif test "x$i" = "xterminal" ; then
                         enable_session_terminal="yes"
+                elif test "x$i" = "xcdev" ; then
+                        enable_session_cdev="yes"
                 elif test "x$i" = "xcompositor" ; then
                         enable_session_compositor="yes"
                 else
@@ -516,6 +525,24 @@ if test ! "x$enable_session_terminal" = "xno" ; then
         fi
 fi
 
+# session cdev
+session_cdev_avail=no
+if test ! "x$enable_session_cdev" = "xno" ; then
+        if test "x$have_fuse" = "xno" ; then
+                session_cdev_avail=no
+        elif test "x$tsm_avail" = "xno" ; then
+                session_cdev_avail=no
+        else
+                session_cdev_avail=yes
+        fi
+
+        if "x$session_cdev_avail" = "xno" ; then
+                if test "x$enable_session_cdev" = "xyes" ; then
+                        AC_ERROR([TSM or FUSE libraries not built/found for kmscon cdev session])
+                fi
+        fi
+fi
+
 # session compositor
 session_compositor_avail=no
 if test ! "x$enable_session_compositor" = "xno" ; then
@@ -603,6 +630,14 @@ session_compositor_enabled=no
 if test "x$session_compositor_avail" = "xyes" ; then
         if test "x${enable_session_compositor% *}" = "xyes" ; then
                 session_compositor_enabled=yes
+        fi
+fi
+
+# session cdev
+session_cdev_enabled=no
+if test "x$session_cdev_avail" = "xyes" ; then
+        if test "x${enable_session_cdev% *}" = "xyes" ; then
+                session_cdev_enabled=yes
         fi
 fi
 
@@ -931,6 +966,15 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_SESSION_TERMINAL],
                [test "x$session_terminal_enabled" = "xyes"])
 
+# session cdev
+if test "x$session_cdev_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_SESSION_CDEV], [1],
+                  [Build cdev session])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_SESSION_CDEV],
+               [test "x$session_cdev_enabled" = "xyes"])
+
 # session compositor
 if test "x$session_compositor_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_SESSION_COMPOSITOR], [1],
@@ -1037,6 +1081,7 @@ AC_MSG_NOTICE([Build configuration:
   Session Types:
                 dummy: $session_dummy_enabled ($session_dummy_avail)
              terminal: $session_terminal_enabled ($session_terminal_avail)
+                 cdev: $session_cdev_enabled ($session_cdev_avail)
            compositor: $session_compositor_enabled ($session_compositor_avail)
 
         Run "make" to start compilation process])
