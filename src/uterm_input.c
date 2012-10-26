@@ -104,7 +104,7 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 	if (dev->rfd >= 0)
 		return 0;
 
-	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (dev->rfd < 0) {
 		log_warn("cannot open device %s (%d): %m", dev->node, errno);
 		return -EFAULT;
@@ -310,7 +310,7 @@ static unsigned int probe_device_capabilities(const char *node)
 	unsigned long evbits[NLONGS(EV_CNT)] = { 0 };
 	unsigned long keybits[NLONGS(KEY_CNT)] = { 0 };
 
-	fd = open(node, O_NONBLOCK | O_CLOEXEC | O_RDONLY);
+	fd = open(node, O_NONBLOCK | O_CLOEXEC | O_RDWR);
 	if (fd < 0)
 		return 0;
 
