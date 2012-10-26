@@ -104,7 +104,7 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 	if (dev->rfd >= 0)
 		return 0;
 
-	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (dev->rfd < 0) {
 		log_warn("cannot open device %s (%d): %m", dev->node, errno);
 		return -EFAULT;

@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 #include "log.h"
 #include "shl_hook.h"
@@ -136,6 +137,35 @@ enum {
 	KEY_PRESSED = 1,
 	KEY_REPEATED = 2,
 };
+
+static void uxkb_dev_update_keyboard_leds(struct uterm_input_dev *dev)
+{
+	static const struct {
+		int evdev_led;
+		const char *xkb_led;
+	} leds[] = {
+		{ LED_NUML, XKB_LED_NAME_NUM },
+		{ LED_CAPSL, XKB_LED_NAME_CAPS },
+		{ LED_SCROLLL, XKB_LED_NAME_SCROLL },
+	};
+	struct input_event events[sizeof(leds) / sizeof(*leds)];
+	int i;
+
+	if (!(dev->capabilities & UTERM_DEVICE_HAS_LEDS))
+		return;
+
+	memset(events, 0, sizeof(events));
+
+	for (i = 0; i < sizeof(leds) / sizeof(*leds); i++) {
+		events[i].type = EV_LED;
+		events[i].code = leds[i].evdev_led;
+		if (xkb_state_led_name_is_active(dev->state,
+						leds[i].xkb_led) > 0)
+			events[i].value = 1;
+	}
+
+	write(dev->rfd, events, sizeof(events));
+}
 
 static inline int uxkb_dev_resize_event(struct uterm_input_dev *dev, size_t s)
 {
@@ -269,6 +299,7 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	xkb_keycode_t keycode;
 	const xkb_keysym_t *keysyms;
 	int num_keysyms, ret;
+	enum xkb_state_component changed;
 
 	if (key_state == KEY_REPEATED)
 		return -ENOKEY;
@@ -278,10 +309,14 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 
 	num_keysyms = xkb_state_key_get_syms(state, keycode, &keysyms);
 
+	changed = 0;
 	if (key_state == KEY_PRESSED)
-		xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
+		changed = xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 	else if (key_state == KEY_RELEASED)
-		xkb_state_update_key(state, keycode, XKB_KEY_UP);
+		changed = xkb_state_update_key(state, keycode, XKB_KEY_UP);
+
+	if (changed & XKB_STATE_LEDS)
+		uxkb_dev_update_keyboard_leds(dev);
 
 	if (num_keysyms <= 0)
 		return -ENOKEY;
@@ -324,4 +359,6 @@ void uxkb_dev_reset(struct uterm_input_dev *dev)
 	}
 	xkb_state_unref(dev->state);
 	dev->state = state;
+
+	uxkb_dev_update_keyboard_leds(dev);
 }
