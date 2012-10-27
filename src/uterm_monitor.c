@@ -43,6 +43,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "uterm.h"
+#include "uterm_pci.h"
 
 #ifdef BUILD_ENABLE_MULTI_SEAT
 	#include <systemd/sd-login.h>
@@ -76,6 +77,8 @@ struct uterm_monitor {
 	sd_login_monitor *sd_mon;
 	struct ev_fd *sd_mon_fd;
 #endif
+
+	char *pci_primary_id;
 
 	struct udev *udev;
 	struct udev_monitor *umon;
@@ -669,6 +672,10 @@ int uterm_monitor_new(struct uterm_monitor **out,
 	mon->data = data;
 	shl_dlist_init(&mon->seats);
 
+	ret = uterm_pci_get_primary_id(&mon->pci_primary_id);
+	if (ret)
+		log_warning("cannot get PCI primary ID");
+
 	ret = monitor_sd_init(mon);
 	if (ret)
 		goto err_free;
@@ -760,6 +767,7 @@ err_udev:
 err_sd:
 	monitor_sd_deinit(mon);
 err_free:
+	free(mon->pci_primary_id);
 	free(mon);
 	return ret;
 }
@@ -791,6 +799,7 @@ void uterm_monitor_unref(struct uterm_monitor *mon)
 	udev_unref(mon->udev);
 	monitor_sd_deinit(mon);
 	ev_eloop_unref(mon->eloop);
+	free(mon->pci_primary_id);
 	free(mon);
 }
 
