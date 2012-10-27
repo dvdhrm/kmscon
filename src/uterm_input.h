@@ -37,11 +37,16 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 
+enum uterm_input_device_capability {
+	UTERM_DEVICE_HAS_KEYS = (1 << 0),
+	UTERM_DEVICE_HAS_LEDS = (1 << 1),
+};
+
 struct uterm_input_dev {
 	struct shl_dlist list;
 	struct uterm_input *input;
 
-	unsigned int features;
+	unsigned int capabilities;
 	int rfd;
 	char *node;
 	struct ev_fd *fd;
@@ -85,6 +90,6 @@ void uxkb_dev_destroy(struct uterm_input_dev *dev);
 int uxkb_dev_process(struct uterm_input_dev *dev,
 		     uint16_t key_state,
 		     uint16_t code);
-void uxkb_dev_reset(struct uterm_input_dev *dev, const unsigned long *ledbits);
+void uxkb_dev_reset(struct uterm_input_dev *dev);
 
 #endif /* UTERM_INPUT_H */

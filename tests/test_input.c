@@ -160,7 +160,7 @@ static void print_help()
 		TEST_HELP
 		"\n"
 		"Input Device Options:\n"
-		"\t    --xkb-layout <layout>   [us]    Set XkbLayout for input devices\n"
+		"\t    --xkb-layout <layout>   [-]     Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
 		"test_input");
@@ -176,7 +176,7 @@ static void print_help()
 
 struct conf_option options[] = {
 	TEST_OPTIONS,
-	CONF_OPTION_STRING(0, "xkb-layout", NULL, &input_conf.xkb_layout, "us"),
+	CONF_OPTION_STRING(0, "xkb-layout", NULL, &input_conf.xkb_layout, ""),
 	CONF_OPTION_STRING(0, "xkb-variant", NULL, &input_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", NULL, &input_conf.xkb_options, ""),
 };

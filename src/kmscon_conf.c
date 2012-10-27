@@ -91,7 +91,7 @@ static void print_help()
 		"\t                              Size of the scrollback-buffer in lines\n"
 		"\n"
 		"Input Options:\n"
-		"\t    --xkb-layout <layout>      [us] Set XkbLayout for input devices\n"
+		"\t    --xkb-layout <layout>      [-]  Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant>    [-]  Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options>    [-]  Set XkbOptions for input devices\n"
 		"\t    --xkb-repeat-delay <msecs> [250]\n"
@@ -461,7 +461,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_UINT(0, "sb-size", &conf->sb_size, 1000),
 
 		/* Input Options */
-		CONF_OPTION_STRING(0, "xkb-layout", &conf->xkb_layout, "us"),
+		CONF_OPTION_STRING(0, "xkb-layout", &conf->xkb_layout, ""),
 		CONF_OPTION_STRING(0, "xkb-variant", &conf->xkb_variant, ""),
 		CONF_OPTION_STRING(0, "xkb-options", &conf->xkb_options, ""),
 		CONF_OPTION_UINT(0, "xkb-repeat-delay", &conf->xkb_repeat_delay, 250),

@@ -48,11 +48,6 @@
 /* How many longs are needed to hold \n bits. */
 #define NLONGS(n) (((n) + LONG_BIT - 1) / LONG_BIT)
 
-enum device_feature {
-	FEATURE_HAS_KEYS = 0x01,
-	FEATURE_HAS_LEDS = 0x02,
-};
-
 static void input_free_dev(struct uterm_input_dev *dev);
 
 static void notify_key(struct uterm_input_dev *dev,
@@ -105,28 +100,19 @@ static void input_data_dev(struct ev_fd *fd, int mask, void *data)
 static int input_wake_up_dev(struct uterm_input_dev *dev)
 {
 	int ret;
-	unsigned long ledbits[NLONGS(LED_CNT)] = { 0 };
 
 	if (dev->rfd >= 0)
 		return 0;
 
-	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (dev->rfd < 0) {
 		log_warn("cannot open device %s (%d): %m", dev->node, errno);
 		return -EFAULT;
 	}
 
-	if (dev->features & FEATURE_HAS_KEYS) {
-		if (dev->features & FEATURE_HAS_LEDS) {
-			ret = ioctl(dev->rfd, EVIOCGLED(sizeof(ledbits)),
-								&ledbits);
-			if (ret == -1)
-				log_warn("cannot read LED state of %s (%d): %m",
-					 dev->node, errno);
-		}
-
+	if (dev->capabilities & UTERM_DEVICE_HAS_KEYS) {
 		/* rediscover the keyboard state if sth changed during sleep */
-		uxkb_dev_reset(dev, ledbits);
+		uxkb_dev_reset(dev);
 
 		ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd,
 						dev->rfd, EV_READABLE,
@@ -154,7 +140,7 @@ static void input_sleep_dev(struct uterm_input_dev *dev)
 
 static void input_new_dev(struct uterm_input *input,
 				const char *node,
-				unsigned int features)
+				unsigned int capabilities)
 {
 	struct uterm_input_dev *dev;
 	int ret;
@@ -165,7 +151,7 @@ static void input_new_dev(struct uterm_input *input,
 	memset(dev, 0, sizeof(*dev));
 	dev->input = input;
 	dev->rfd = -1;
-	dev->features = features;
+	dev->capabilities = capabilities;
 
 	dev->node = strdup(node);
 	if (!dev->node)
@@ -314,12 +300,13 @@ void uterm_input_unref(struct uterm_input *input)
 
 /*
  * See if the device has anything useful to offer.
- * We go over the desired features and return a mask of enum device_feature's.
+ * We go over the possible capabilities and return a mask of enum
+ * uterm_input_device_capability's.
  */
-static unsigned int probe_device_features(const char *node)
+static unsigned int probe_device_capabilities(const char *node)
 {
 	int i, fd, ret;
-	unsigned int features = 0;
+	unsigned int capabilities = 0;
 	unsigned long evbits[NLONGS(EV_CNT)] = { 0 };
 	unsigned long keybits[NLONGS(KEY_CNT)] = { 0 };
 
@@ -345,38 +332,39 @@ static unsigned int probe_device_features(const char *node)
 		 */
 		for (i = KEY_RESERVED; i <= KEY_MIN_INTERESTING; i++) {
 			if (input_bit_is_set(keybits, i)) {
-				features |= FEATURE_HAS_KEYS;
+				capabilities |= UTERM_DEVICE_HAS_KEYS;
 				break;
 			}
 		}
 	}
 
 	if (input_bit_is_set(evbits, EV_LED))
-		features |= FEATURE_HAS_LEDS;
+		capabilities |= UTERM_DEVICE_HAS_LEDS;
 
 	close(fd);
-	return features;
+	return capabilities;
 
 err_ioctl:
-	log_warn("cannot probe features of device %s (%d): %m", node, errno);
+	log_warn("cannot probe capabilities of device %s (%d): %m",
+							node, errno);
 	close(fd);
 	return 0;
 }
 
 void uterm_input_add_dev(struct uterm_input *input, const char *node)
 {
-	unsigned int features;
+	unsigned int capabilities;
 
 	if (!input || !node)
 		return;
 
-	features = probe_device_features(node);
-	if (!(features & FEATURE_HAS_KEYS)) {
+	capabilities = probe_device_capabilities(node);
+	if (!(capabilities & UTERM_DEVICE_HAS_KEYS)) {
 		log_debug("ignoring non-useful device %s", node);
 		return;
 	}
 
-	input_new_dev(input, node, features);
+	input_new_dev(input, node, capabilities);
 }
 
 void uterm_input_remove_dev(struct uterm_input *input, const char *node)

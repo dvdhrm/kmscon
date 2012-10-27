@@ -2398,12 +2398,8 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		case XKB_KEY_Clear:
 			vte_write(vte, "\x0b", 1);
 			return true;
-		case XKB_KEY_Pause:
-			vte_write(vte, "\x13", 1);
-			return true;
 		case XKB_KEY_Scroll_Lock:
 			/* TODO: do we need scroll lock impl.? */
-			vte_write(vte, "\x14", 1);
 			return true;
 		case XKB_KEY_Sys_Req:
 			vte_write(vte, "\x15", 1);
@@ -2436,30 +2432,36 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			vte_write(vte, "\e[4~", 4);
 			return true;
 		case XKB_KEY_Page_Up:
+		case XKB_KEY_KP_Page_Up:
 			vte_write(vte, "\e[5~", 4);
 			return true;
+		case XKB_KEY_KP_Page_Down:
 		case XKB_KEY_Page_Down:
 			vte_write(vte, "\e[6~", 4);
 			return true;
 		case XKB_KEY_Up:
+		case XKB_KEY_KP_Up:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOA", 3);
 			else
 				vte_write(vte, "\e[A", 3);
 			return true;
 		case XKB_KEY_Down:
+		case XKB_KEY_KP_Down:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOB", 3);
 			else
 				vte_write(vte, "\e[B", 3);
 			return true;
 		case XKB_KEY_Right:
+		case XKB_KEY_KP_Right:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOC", 3);
 			else
 				vte_write(vte, "\e[C", 3);
 			return true;
 		case XKB_KEY_Left:
+		case XKB_KEY_KP_Left:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOD", 3);
 			else
@@ -2472,63 +2474,54 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			else
 				vte_write(vte, "0", 1);
 			return true;
-		case XKB_KEY_KP_End:
 		case XKB_KEY_KP_1:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOq", 3);
 			else
 				vte_write(vte, "1", 1);
 			return true;
-		case XKB_KEY_KP_Down:
 		case XKB_KEY_KP_2:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOr", 3);
 			else
 				vte_write(vte, "2", 1);
 			return true;
-		case XKB_KEY_KP_Page_Down:
 		case XKB_KEY_KP_3:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOs", 3);
 			else
 				vte_write(vte, "3", 1);
 			return true;
-		case XKB_KEY_KP_Left:
 		case XKB_KEY_KP_4:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOt", 3);
 			else
 				vte_write(vte, "4", 1);
 			return true;
-		case XKB_KEY_KP_Begin:
 		case XKB_KEY_KP_5:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOu", 3);
 			else
 				vte_write(vte, "5", 1);
 			return true;
-		case XKB_KEY_KP_Right:
 		case XKB_KEY_KP_6:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOv", 3);
 			else
 				vte_write(vte, "6", 1);
 			return true;
-		case XKB_KEY_KP_Home:
 		case XKB_KEY_KP_7:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOw", 3);
 			else
 				vte_write(vte, "7", 1);
 			return true;
-		case XKB_KEY_KP_Up:
 		case XKB_KEY_KP_8:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOx", 3);
 			else
 				vte_write(vte, "8", 1);
 			return true;
-		case XKB_KEY_KP_Page_Up:
 		case XKB_KEY_KP_9:
 			if (vte->flags & FLAG_KEYPAD_APPLICATION_MODE)
 				vte_write(vte, "\eOy", 3);
@@ -2574,12 +2567,14 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 				vte_write(vte, "+", 1);
 			return true;
 		case XKB_KEY_Home:
+		case XKB_KEY_KP_Home:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOH", 3);
 			else
 				vte_write(vte, "\e[H", 3);
 			return true;
 		case XKB_KEY_End:
+		case XKB_KEY_KP_End:
 			if (vte->flags & FLAG_CURSOR_KEY_MODE)
 				vte_write(vte, "\eOF", 3);
 			else
