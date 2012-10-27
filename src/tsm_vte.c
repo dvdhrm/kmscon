@@ -2403,7 +2403,6 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			return true;
 		case XKB_KEY_Scroll_Lock:
 			/* TODO: do we need scroll lock impl.? */
-			vte_write(vte, "\x14", 1);
 			return true;
 		case XKB_KEY_Sys_Req:
 			vte_write(vte, "\x15", 1);
