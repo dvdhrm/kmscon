@@ -67,7 +67,7 @@ static void print_help()
 		"\n"
 		"Seat Options:\n"
 		"\t    --vt <vt-number>        [auto]  Select which VT to run on on seat0\n"
-		"\t-s, --switchvt              [off]   Automatically switch to VT\n"
+		"\t-s, --switchvt              [on]   Automatically switch to VT\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
 		"\n"
@@ -450,7 +450,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 
 		/* Seat Options */
 		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, NULL, &conf->vt, NULL),
-		CONF_OPTION_BOOL('s', "switchvt", &conf->switchvt, false),
+		CONF_OPTION_BOOL('s', "switchvt", &conf->switchvt, true),
 		CONF_OPTION_STRING_LIST_FULL(0, "seats", aftercheck_seats, copy_seats, NULL, &conf->seats, def_seats),
 
 		/* Session Options */
