@@ -176,9 +176,9 @@ static void print_help()
 
 struct conf_option options[] = {
 	TEST_OPTIONS,
-	CONF_OPTION_STRING(0, "xkb-layout", NULL, &input_conf.xkb_layout, ""),
-	CONF_OPTION_STRING(0, "xkb-variant", NULL, &input_conf.xkb_variant, ""),
-	CONF_OPTION_STRING(0, "xkb-options", NULL, &input_conf.xkb_options, ""),
+	CONF_OPTION_STRING(0, "xkb-layout", &input_conf.xkb_layout, ""),
+	CONF_OPTION_STRING(0, "xkb-variant", &input_conf.xkb_variant, ""),
+	CONF_OPTION_STRING(0, "xkb-options", &input_conf.xkb_options, ""),
 };
 
 int main(int argc, char **argv)

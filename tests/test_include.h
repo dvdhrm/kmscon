@@ -39,13 +39,15 @@
 	"\t    --debug                 [off]   Enable debug mode\n" \
 	"\t    --silent                [off]   Suppress notices and warnings\n"
 
-struct {
+static struct {
 	bool help;
 	bool exit;
 	bool verbose;
 	bool debug;
 	bool silent;
 } test_conf;
+
+static struct conf_ctx *test_ctx;
 
 static int aftercheck_debug(struct conf_option *opt, int argc, char **argv,
 			    int idx)
@@ -70,10 +72,10 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 }
 
 #define TEST_OPTIONS \
-	CONF_OPTION_BOOL('h', "help", aftercheck_help, &test_conf.help, false), \
-	CONF_OPTION_BOOL('v', "verbose", NULL, &test_conf.verbose, false), \
-	CONF_OPTION_BOOL(0, "debug", aftercheck_debug, &test_conf.debug, false), \
-	CONF_OPTION_BOOL(0, "silent", NULL, &test_conf.silent, false)
+	CONF_OPTION_BOOL_FULL('h', "help", aftercheck_help, NULL, NULL, &test_conf.help, false), \
+	CONF_OPTION_BOOL('v', "verbose", &test_conf.verbose, false), \
+	CONF_OPTION_BOOL_FULL(0, "debug", aftercheck_debug, NULL, NULL, &test_conf.debug, false), \
+	CONF_OPTION_BOOL(0, "silent", &test_conf.silent, false)
 
 static void sig_generic(struct ev_eloop *p, struct signalfd_siginfo *info,
 			void *data)
@@ -90,7 +92,11 @@ static int test_prepare(struct conf_option *opts, size_t len,
 	int ret;
 	struct ev_eloop *eloop;
 
-	ret = conf_parse_argv(opts, len, argc, argv);
+	ret = conf_ctx_new(&test_ctx, opts, len, &test_conf);
+	if (ret)
+		return ret;
+
+	ret = conf_ctx_parse_argv(test_ctx, argc, argv);
 	if (ret)
 		goto err_out;
 
@@ -128,7 +134,7 @@ static int test_prepare(struct conf_option *opts, size_t len,
 err_unref:
 	ev_eloop_unref(eloop);
 err_out:
-	conf_free(opts, len);
+	conf_ctx_free(test_ctx);
 	return ret;
 }
 
@@ -144,5 +150,5 @@ static void test_exit(struct conf_option *opts, size_t len,
 	ev_eloop_unregister_signal_cb(eloop, SIGINT, sig_generic, eloop);
 	ev_eloop_unregister_signal_cb(eloop, SIGTERM, sig_generic, eloop);
 	ev_eloop_unref(eloop);
-	conf_free(opts, len);
+	conf_ctx_free(test_ctx);
 }

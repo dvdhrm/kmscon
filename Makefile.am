@@ -467,16 +467,53 @@ wlterm_LDADD = \
 # Tests
 #
 
+test_sources = \
+	src/log.h \
+	src/log.c \
+	src/conf.h \
+	src/conf.c \
+	tests/test_include.h
+test_cflags = \
+	$(XKBCOMMON_CFLAGS)
+test_libs = \
+	$(XKBCOMMON_LIBS) \
+	libeloop.la
+
 test_output_SOURCES = \
-	tests/test_include.h \
+	$(test_sources) \
 	tests/test_output.c
+test_output_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(test_cflags)
 test_output_LDADD = \
+	$(test_libs) \
 	libuterm.la
 
-test_vt_SOURCES = tests/test_vt.c
-test_vt_LDADD =
+test_vt_SOURCES = \
+	$(test_sources) \
+	tests/test_vt.c
+test_vt_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(test_cflags)
+test_vt_LDADD = \
+	$(test_libs) \
+	libuterm.la
 
-test_input_SOURCES = tests/test_input.c
-test_input_LDADD =
+test_input_SOURCES = \
+	$(test_sources) \
+	tests/test_input.c
+test_input_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(test_cflags)
+test_input_LDADD = \
+	$(test_libs) \
+	libuterm.la
 
-test_key_SOURCES = tests/test_key.c
+test_key_SOURCES = \
+	$(test_sources) \
+	tests/test_key.c
+test_key_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(test_cflags)
+test_key_LDADD = \
+	$(test_libs)

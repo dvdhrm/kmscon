@@ -192,9 +192,9 @@ static void print_help()
 
 struct conf_option options[] = {
 	TEST_OPTIONS,
-	CONF_OPTION_BOOL(0, "fbdev", NULL, &output_conf.fbdev, false),
-	CONF_OPTION_BOOL(0, "test", NULL, &output_conf.test, false),
-	CONF_OPTION_STRING(0, "dev", NULL, &output_conf.dev, NULL),
+	CONF_OPTION_BOOL(0, "fbdev", &output_conf.fbdev, false),
+	CONF_OPTION_BOOL(0, "test", &output_conf.test, false),
+	CONF_OPTION_STRING(0, "dev",  &output_conf.dev, NULL),
 };
 
 int main(int argc, char **argv)
