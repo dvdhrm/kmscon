@@ -403,6 +403,7 @@ enum uterm_monitor_dev_type {
 enum uterm_monitor_dev_flag {
 	UTERM_MONITOR_DRM_BACKED	= 0x01,
 	UTERM_MONITOR_PRIMARY		= 0x02,
+	UTERM_MONITOR_AUX		= 0x04,
 };
 
 struct uterm_monitor_event {

@@ -422,6 +422,8 @@ static inline int video_do_use(struct uterm_video *video)
 
 char *video_drm_get_id(int fd);
 void video_drm_free_id(char *id);
+char *video_drm_get_name(int fd);
+void video_drm_free_name(char *name);
 
 #else
 
@@ -431,6 +433,15 @@ static inline char *video_drm_get_id(int fd)
 }
 
 static inline void video_drm_free_id(char *id)
+{
+}
+
+static inline char *video_drm_get_name(int fd)
+{
+	return NULL;
+}
+
+static inline void video_drm_free_name(char *name)
 {
 }
 

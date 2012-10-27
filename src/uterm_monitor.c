@@ -402,32 +402,48 @@ static int get_fb_id(struct udev_device *dev)
 }
 
 /*
+ * UTERM_MONITOR_DRM_BACKED:
  * Nearly all DRM drivers do also create fbdev nodes which refer to the same
  * hardware as the DRM devices. So we shouldn't advertise these fbdev nodes as
  * real devices. Otherwise, the user might use these and the DRM devices
  * simultaneously, thinking that they deal with two different hardware devices.
- *
  * We also report that it is a drm-device if we actually cannot verify that it
  * is not some DRM device.
+ *
+ * UTERM_MONITOR_AUX:
+ * Auxiliary devices are devices that are not the main GPU but rather some kind
+ * of hotpluggable helpers that provide additional display controllers. This is
+ * some kind of whitelist that tells the application that this GPU can safely be
+ * used as additional GPU together with but also independent of the primary GPU.
+ *
+ * UTERM_MONITOR_PRIMARY:
+ * The primary GPU is the GPU that was used to boot the system. An application
+ * can always use this CPU without getting into troubles. For instance, under
+ * dual-GPU systems, there is often only one display controller but both DRM
+ * devices advertice modesetting capability. The application can now rely on
+ * this flag to mark the GPU that actually should be used for modesetting. The
+ * other GPU is neither PRIMARY nor AUX and shouldn't be used by the application
+ * except for offloading rendering-work or similar.
  */
-static bool is_drm_fbdev(const char *node)
+
+static unsigned int get_fbdev_flags(struct uterm_monitor *mon, const char *node)
 {
 	int fd, ret, len;
 	struct fb_fix_screeninfo finfo;
-	bool res = true;
+	unsigned int flags = UTERM_MONITOR_DRM_BACKED;
 
 	fd = open(node, O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
 		log_warning("cannot open fbdev node %s for drm-device verification (%d): %m",
 			    node, errno);
-		return true;
+		return flags;
 	}
 
 	ret = ioctl(fd, FBIOGET_FSCREENINFO, &finfo);
 	if (ret) {
 		log_warning("cannot retrieve finfo from fbdev node %s for drm-device verification (%d): %m",
 			    node, errno);
-		goto err_close;
+		goto out_close;
 	}
 
 	/* TODO: we really need some reliable flag here that tells us that we
@@ -437,51 +453,83 @@ static bool is_drm_fbdev(const char *node)
 	 * checking whether the parent udev device node does also provide a DRM
 	 * device. */
 	len = strlen(finfo.id);
-	if (len > 5 && !strcmp(&finfo.id[len - 5], "drmfb"))
-		goto err_close;
-	if (!strcmp(finfo.id, "nouveaufb"))
-		goto err_close;
-	if (!strcmp(finfo.id, "psbfb"))
-		goto err_close;
+	if ((len < 5 || strcmp(&finfo.id[len - 5], "drmfb")) &&
+	    strcmp(finfo.id, "nouveaufb") &&
+	    strcmp(finfo.id, "psbfb"))
+		flags &= ~UTERM_MONITOR_DRM_BACKED;
 
-	res = false;
+	if (!strcmp(finfo.id, "udlfb"))
+		flags |= UTERM_MONITOR_AUX;
 
-err_close:
+out_close:
 	close(fd);
-	return res;
+	return flags;
 }
 
-static bool is_drm_primary(struct uterm_monitor *mon, const char *node)
+static bool is_drm_primary(struct uterm_monitor *mon, const char *node, int fd)
 {
-	int fd;
 	char *id;
 	bool res;
 
 	if (!mon->pci_primary_id)
 		return false;
 
-	fd = open(node, O_RDWR | O_CLOEXEC);
-	if (fd < 0) {
-		log_warning("cannot open DRM device %s for primary-detection (%d): %m",
-			    node, errno);
-		return false;
-	}
-
 	id = video_drm_get_id(fd);
 	if (!id) {
 		log_warning("cannot get bus-id for DRM device %s (%d): %m",
 			    node, errno);
-		close(fd);
 		return false;
 	}
 
-	close(fd);
 	res = !strcmp(id, mon->pci_primary_id);
 	video_drm_free_id(id);
 
 	if (res)
 		log_debug("DRM device %s is primary PCI GPU", node);
 	return res;
+}
+
+static bool is_drm_usb(struct uterm_monitor *mon, const char *node, int fd)
+{
+	char *name;
+	bool res;
+
+	name = video_drm_get_name(fd);
+	if (!name) {
+		log_warning("cannot get driver name for DRM device %s (%d): %m",
+			    node, errno);
+		return false;
+	}
+
+	if (!strcmp(name, "udl"))
+		res = true;
+	else
+		res = false;
+
+	log_debug("DRM device %s uses driver %s", node, name);
+	video_drm_free_name(name);
+	return res;
+}
+
+static unsigned int get_drm_flags(struct uterm_monitor *mon, const char *node)
+{
+	int fd;
+	unsigned int flags = 0;
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		log_warning("cannot open DRM device %s for primary-detection (%d): %m",
+			    node, errno);
+		return flags;
+	}
+
+	if (is_drm_primary(mon, node, fd))
+		flags |= UTERM_MONITOR_PRIMARY;
+	if (is_drm_usb(mon, node, fd))
+		flags |= UTERM_MONITOR_AUX;
+
+	close(fd);
+	return flags;
 }
 
 static void monitor_udev_add(struct uterm_monitor *mon,
@@ -529,9 +577,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
-		flags = 0;
-		if (is_drm_primary(mon, node))
-			flags |= UTERM_MONITOR_PRIMARY;
+		flags = get_drm_flags(mon, node);
 	} else if (!strcmp(subs, "graphics")) {
 #ifdef BUILD_ENABLE_MULTI_SEAT
 		if (udev_device_has_tag(dev, "seat") != 1) {
@@ -546,9 +592,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_FBDEV;
-		flags = 0;
-		if (is_drm_fbdev(node))
-			flags |= UTERM_MONITOR_DRM_BACKED;
+		flags = get_fbdev_flags(mon, node);
 	} else if (!strcmp(subs, "input")) {
 		sysname = udev_device_get_sysname(dev);
 		if (!sysname || strncmp(sysname, "event", 5)) {
