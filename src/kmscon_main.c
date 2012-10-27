@@ -224,7 +224,12 @@ static int app_seat_add_video(struct app_seat *seat,
 		}
 	}
 
-	if (!seat->conf->all_gpus) {
+	/* with --all-gpus we avoid any further filtering. With --fbdev we
+	 * already filtered all non-fbdev devices so there is currently no
+	 * reason to do further filtering, either.
+	 * TODO: We need to set PRIMARY flags to fbdev devices, too. Otherwise
+	 * we might end up with the same problems as DRM devices have. */
+	if (!seat->conf->all_gpus && !seat->conf->fbdev) {
 		if (seat->conf->primary_gpu_only && !(flags & UTERM_MONITOR_PRIMARY)) {
 			log_info("ignoring video device %s on seat %s as it is no primary GPU",
 				 node, seat->name);
