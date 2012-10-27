@@ -170,7 +170,7 @@ struct conf_option {
 	{ _flags, _short, "no-" _long, _type, _aftercheck, _copy, _file, _mem, _def }
 
 #define CONF_OPTION_BOOL_FULL(_short, _long, _aftercheck, _copy, _file, _mem, _def) \
-	CONF_OPTION(0, _short, _long, &conf_bool, _aftercheck, _copy, _file, _mem, _def)
+	CONF_OPTION(0, _short, _long, &conf_bool, _aftercheck, _copy, _file, _mem, (void*)(long)_def)
 #define CONF_OPTION_BOOL(_short, _long, _mem, _def) \
 	CONF_OPTION_BOOL_FULL(_short, _long, NULL, NULL, NULL, _mem, _def)
 
