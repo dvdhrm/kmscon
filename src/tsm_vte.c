@@ -2398,9 +2398,15 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		case XKB_KEY_Clear:
 			vte_write(vte, "\x0b", 1);
 			return true;
+		/*
+		 TODO: What should we do with this key? Sending XOFF is awful as
+		       there is no simple way on modern keyboards to send XON
+		       again. If someone wants this, we can re-eanble it and set
+		       some flag.
 		case XKB_KEY_Pause:
 			vte_write(vte, "\x13", 1);
 			return true;
+		*/
 		/*
 		 TODO: What should we do on scroll-lock? Sending 0x14 is what
 		       the specs say but it is not used today the way most
