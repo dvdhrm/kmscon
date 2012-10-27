@@ -2398,9 +2398,6 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		case XKB_KEY_Clear:
 			vte_write(vte, "\x0b", 1);
 			return true;
-		case XKB_KEY_Pause:
-			vte_write(vte, "\x13", 1);
-			return true;
 		case XKB_KEY_Scroll_Lock:
 			/* TODO: do we need scroll lock impl.? */
 			return true;
