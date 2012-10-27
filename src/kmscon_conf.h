@@ -77,6 +77,8 @@ struct kmscon_conf_t {
 	unsigned int sb_size;
 
 	/* Input Options */
+	/* input KBD model */
+	char *xkb_model;
 	/* input KBD layout */
 	char *xkb_layout;
 	/* input KBD variant */

@@ -409,7 +409,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	}
 
 	ret = uterm_input_new(&seat->input, seat->eloop,
-			      "",
+			      seat->conf->xkb_model,
 			      seat->conf->xkb_layout,
 			      seat->conf->xkb_variant,
 			      seat->conf->xkb_options,

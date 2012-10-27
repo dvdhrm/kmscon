@@ -47,6 +47,7 @@ static struct ev_eloop *eloop;
 static struct uterm_input *input;
 
 struct {
+	char *xkb_model;
 	char *xkb_layout;
 	char *xkb_variant;
 	char *xkb_options;
@@ -113,6 +114,7 @@ static void monitor_event(struct uterm_monitor *mon,
 			return;
 
 		ret = uterm_input_new(&input, eloop,
+				      input_conf.xkb_model,
 				      input_conf.xkb_layout,
 				      input_conf.xkb_variant,
 				      input_conf.xkb_options,
@@ -160,6 +162,7 @@ static void print_help()
 		TEST_HELP
 		"\n"
 		"Input Device Options:\n"
+		"\t    --xkb-model <model>     [-]     Set XkbModel for input devices\n"
 		"\t    --xkb-layout <layout>   [-]     Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
@@ -176,6 +179,7 @@ static void print_help()
 
 struct conf_option options[] = {
 	TEST_OPTIONS,
+	CONF_OPTION_STRING(0, "xkb-model", &input_conf.xkb_model, ""),
 	CONF_OPTION_STRING(0, "xkb-layout", &input_conf.xkb_layout, ""),
 	CONF_OPTION_STRING(0, "xkb-variant", &input_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", &input_conf.xkb_options, ""),
