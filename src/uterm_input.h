@@ -80,6 +80,7 @@ static inline bool input_bit_is_set(const unsigned long *array, int bit)
 }
 
 int uxkb_desc_init(struct uterm_input *input,
+		   const char *model,
 		   const char *layout,
 		   const char *variant,
 		   const char *options);

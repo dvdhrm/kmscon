@@ -309,6 +309,7 @@ typedef void (*uterm_input_cb) (struct uterm_input *input,
 				void *data);
 
 int uterm_input_new(struct uterm_input **out, struct ev_eloop *eloop,
+		    const char *model,
 		    const char *layout,
 		    const char *variant,
 		    const char *options,

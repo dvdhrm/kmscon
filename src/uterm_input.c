@@ -217,6 +217,7 @@ static void input_free_dev(struct uterm_input_dev *dev)
 
 int uterm_input_new(struct uterm_input **out,
 		    struct ev_eloop *eloop,
+		    const char *model,
 		    const char *layout,
 		    const char *variant,
 		    const char *options,
@@ -252,7 +253,7 @@ int uterm_input_new(struct uterm_input **out,
 	if (ret)
 		goto err_free;
 
-	ret = uxkb_desc_init(input, layout, variant, options);
+	ret = uxkb_desc_init(input, model, layout, variant, options);
 	if (ret)
 		goto err_hook;
 

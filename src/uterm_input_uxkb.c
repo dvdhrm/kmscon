@@ -41,6 +41,7 @@
 #define LOG_SUBSYSTEM "input_uxkb"
 
 int uxkb_desc_init(struct uterm_input *input,
+		   const char *model,
 		   const char *layout,
 		   const char *variant,
 		   const char *options)
@@ -48,7 +49,7 @@ int uxkb_desc_init(struct uterm_input *input,
 	int ret;
 	struct xkb_rule_names rmlvo = {
 		.rules = "evdev",
-		.model = "",
+		.model = model,
 		.layout = layout,
 		.variant = variant,
 		.options = options,
@@ -62,10 +63,11 @@ int uxkb_desc_init(struct uterm_input *input,
 
 	input->keymap = xkb_keymap_new_from_names(input->ctx, &rmlvo, 0);
 	if (!input->keymap) {
-		log_warn("failed to create keymap (%s, %s, %s), "
+		log_warn("failed to create keymap (%s, %s, %s, %s), "
 			 "reverting to default system keymap",
-			 layout, variant, options);
+			 model, layout, variant, options);
 
+		rmlvo.model = "";
 		rmlvo.layout = "";
 		rmlvo.variant = "";
 		rmlvo.options = "";
@@ -79,8 +81,8 @@ int uxkb_desc_init(struct uterm_input *input,
 		}
 	}
 
-	log_debug("new keyboard description (%s, %s, %s)",
-		  layout, variant, options);
+	log_debug("new keyboard description (%s, %s, %s, %s)",
+		  model, layout, variant, options);
 	return 0;
 
 err_ctx:
