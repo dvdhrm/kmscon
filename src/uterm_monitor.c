@@ -55,6 +55,7 @@ struct uterm_monitor_dev {
 	struct shl_dlist list;
 	struct uterm_monitor_seat *seat;
 	unsigned int type;
+	unsigned int flags;
 	char *node;
 	void *data;
 };
@@ -212,6 +213,7 @@ static void monitor_sd_deinit(struct uterm_monitor *mon)
 
 static void seat_new_dev(struct uterm_monitor_seat *seat,
 				unsigned int type,
+				unsigned int flags,
 				const char *node)
 {
 	struct uterm_monitor_dev *dev;
@@ -223,6 +225,7 @@ static void seat_new_dev(struct uterm_monitor_seat *seat,
 	memset(dev, 0, sizeof(*dev));
 	dev->seat = seat;
 	dev->type = type;
+	dev->flags = flags;
 
 	dev->node = strdup(node);
 	if (!dev->node)
@@ -237,6 +240,7 @@ static void seat_new_dev(struct uterm_monitor_seat *seat,
 	ev.seat_data = dev->seat->data;
 	ev.dev = dev;
 	ev.dev_type = dev->type;
+	ev.dev_flags = dev->flags;
 	ev.dev_node = dev->node;
 	ev.dev_data = dev->data;
 	dev->seat->mon->cb(dev->seat->mon, &ev, dev->seat->mon->data);
@@ -263,6 +267,7 @@ static void seat_free_dev(struct uterm_monitor_dev *dev)
 	ev.seat_data = dev->seat->data;
 	ev.dev = dev;
 	ev.dev_type = dev->type;
+	ev.dev_flags = dev->flags;
 	ev.dev_node = dev->node;
 	ev.dev_data = dev->data;
 	dev->seat->mon->cb(dev->seat->mon, &ev, dev->seat->mon->data);
@@ -451,7 +456,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 	const char *sname, *subs, *node, *name, *sysname;
 	struct shl_dlist *iter;
 	struct uterm_monitor_seat *seat;
-	unsigned int type;
+	unsigned int type, flags;
 	int id;
 	struct udev_device *p;
 
@@ -490,6 +495,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
+		flags = 0;
 	} else if (!strcmp(subs, "graphics")) {
 #ifdef BUILD_ENABLE_MULTI_SEAT
 		if (udev_device_has_tag(dev, "seat") != 1) {
@@ -503,10 +509,10 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			return;
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
+		type = UTERM_MONITOR_FBDEV;
+		flags = 0;
 		if (is_drm_fbdev(node))
-			type = UTERM_MONITOR_FBDEV_DRM;
-		else
-			type = UTERM_MONITOR_FBDEV;
+			flags |= UTERM_MONITOR_DRM_BACKED;
 	} else if (!strcmp(subs, "input")) {
 		sysname = udev_device_get_sysname(dev);
 		if (!sysname || strncmp(sysname, "event", 5)) {
@@ -527,6 +533,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 #endif
 		sname = udev_device_get_property_value(p, "ID_SEAT");
 		type = UTERM_MONITOR_INPUT;
+		flags = 0;
 	} else {
 		log_debug("adding device with unknown subsystem %s (%s)",
 				subs, name);
@@ -550,7 +557,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		return;
 	}
 
-	seat_new_dev(seat, type, node);
+	seat_new_dev(seat, type, flags, node);
 }
 
 static void monitor_udev_remove(struct uterm_monitor *mon,

@@ -397,8 +397,11 @@ enum uterm_monitor_event_type {
 enum uterm_monitor_dev_type {
 	UTERM_MONITOR_DRM,
 	UTERM_MONITOR_FBDEV,
-	UTERM_MONITOR_FBDEV_DRM,
 	UTERM_MONITOR_INPUT,
+};
+
+enum uterm_monitor_dev_flag {
+	UTERM_MONITOR_DRM_BACKED	= 0x01,
 };
 
 struct uterm_monitor_event {
@@ -410,6 +413,7 @@ struct uterm_monitor_event {
 
 	struct uterm_monitor_dev *dev;
 	unsigned int dev_type;
+	unsigned int dev_flags;
 	const char *dev_node;
 	void *dev_data;
 };

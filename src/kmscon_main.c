@@ -203,6 +203,7 @@ static void app_seat_video_event(struct uterm_video *video,
 static int app_seat_add_video(struct app_seat *seat,
 			      struct app_video **out,
 			      unsigned int type,
+			      unsigned int flags,
 			      const char *node)
 {
 	int ret;
@@ -210,14 +211,13 @@ static int app_seat_add_video(struct app_seat *seat,
 	struct app_video *vid;
 
 	if (seat->conf->fbdev) {
-		if (type != UTERM_MONITOR_FBDEV &&
-		    type != UTERM_MONITOR_FBDEV_DRM) {
+		if (type != UTERM_MONITOR_FBDEV) {
 			log_info("ignoring video device %s on seat %s as it is not an fbdev device",
 				  node, seat->name);
 			return -ERANGE;
 		}
-	} else {
-		if (type == UTERM_MONITOR_FBDEV_DRM) {
+	} else if (type == UTERM_MONITOR_FBDEV) {
+		if (flags & UTERM_MONITOR_DRM_BACKED) {
 			log_info("ignoring video device %s on seat %s as it is a DRM-fbdev device",
 				  node, seat->name);
 			return -ERANGE;
@@ -328,8 +328,8 @@ static void app_monitor_event(struct uterm_monitor *mon,
 		switch (ev->dev_type) {
 		case UTERM_MONITOR_DRM:
 		case UTERM_MONITOR_FBDEV:
-		case UTERM_MONITOR_FBDEV_DRM:
 			ret = app_seat_add_video(seat, &vid, ev->dev_type,
+						 ev->dev_flags,
 						 ev->dev_node);
 			if (ret)
 				return;
@@ -350,7 +350,6 @@ static void app_monitor_event(struct uterm_monitor *mon,
 		switch (ev->dev_type) {
 		case UTERM_MONITOR_DRM:
 		case UTERM_MONITOR_FBDEV:
-		case UTERM_MONITOR_FBDEV_DRM:
 			if (ev->dev_data)
 				app_seat_remove_video(seat, ev->dev_data);
 			break;
@@ -369,7 +368,6 @@ static void app_monitor_event(struct uterm_monitor *mon,
 		switch (ev->dev_type) {
 		case UTERM_MONITOR_DRM:
 		case UTERM_MONITOR_FBDEV:
-		case UTERM_MONITOR_FBDEV_DRM:
 			vid = ev->dev_data;
 			if (!vid)
 				return;
