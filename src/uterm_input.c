@@ -310,7 +310,7 @@ static unsigned int probe_device_capabilities(const char *node)
 	unsigned long evbits[NLONGS(EV_CNT)] = { 0 };
 	unsigned long keybits[NLONGS(KEY_CNT)] = { 0 };
 
-	fd = open(node, O_NONBLOCK | O_CLOEXEC | O_RDWR);
+	fd = open(node, O_NONBLOCK | O_CLOEXEC | O_RDONLY);
 	if (fd < 0)
 		return 0;
 
