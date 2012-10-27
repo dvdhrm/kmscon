@@ -1251,6 +1251,22 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
+char *video_drm_get_id(int fd)
+{
+	if (fd < 0)
+		return NULL;
+
+	return drmGetBusid(fd);
+}
+
+void video_drm_free_id(char *id)
+{
+	if (!id)
+		return;
+
+	drmFreeBusid(id);
+}
+
 const struct mode_ops drm_mode_ops = {
 	.init = NULL,
 	.destroy = NULL,

@@ -418,4 +418,22 @@ static inline int video_do_use(struct uterm_video *video)
 	return VIDEO_CALL(video->ops->use, -EOPNOTSUPP, video);
 }
 
+#ifdef BUILD_ENABLE_VIDEO_DRM
+
+char *video_drm_get_id(int fd);
+void video_drm_free_id(char *id);
+
+#else
+
+static inline char *video_drm_get_id(int fd)
+{
+	return NULL;
+}
+
+static inline void video_drm_free_id(char *id)
+{
+}
+
+#endif
+
 #endif /* UTERM_VIDEO_H */

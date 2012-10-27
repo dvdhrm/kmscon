@@ -44,6 +44,7 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 #include "uterm_pci.h"
+#include "uterm_video.h"
 
 #ifdef BUILD_ENABLE_MULTI_SEAT
 	#include <systemd/sd-login.h>
@@ -450,6 +451,39 @@ err_close:
 	return res;
 }
 
+static bool is_drm_primary(struct uterm_monitor *mon, const char *node)
+{
+	int fd;
+	char *id;
+	bool res;
+
+	if (!mon->pci_primary_id)
+		return false;
+
+	fd = open(node, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		log_warning("cannot open DRM device %s for primary-detection (%d): %m",
+			    node, errno);
+		return false;
+	}
+
+	id = video_drm_get_id(fd);
+	if (!id) {
+		log_warning("cannot get bus-id for DRM device %s (%d): %m",
+			    node, errno);
+		close(fd);
+		return false;
+	}
+
+	close(fd);
+	res = !strcmp(id, mon->pci_primary_id);
+	video_drm_free_id(id);
+
+	if (res)
+		log_debug("DRM device %s is primary PCI GPU", node);
+	return res;
+}
+
 static void monitor_udev_add(struct uterm_monitor *mon,
 				struct udev_device *dev)
 {
@@ -496,6 +530,8 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
 		flags = 0;
+		if (is_drm_primary(mon, node))
+			flags |= UTERM_MONITOR_PRIMARY;
 	} else if (!strcmp(subs, "graphics")) {
 #ifdef BUILD_ENABLE_MULTI_SEAT
 		if (udev_device_has_tag(dev, "seat") != 1) {
