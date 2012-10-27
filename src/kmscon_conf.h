@@ -111,6 +111,10 @@ struct kmscon_conf_t {
 	bool fbdev;
 	/* use dumb DRM devices */
 	bool dumb;
+	/* use only primary GPU */
+	bool primary_gpu_only;
+	/* use all GPUs unconditionally */
+	bool all_gpus;
 	/* frame-rate limit */
 	unsigned int fps;
 	/* render engine */

@@ -224,6 +224,19 @@ static int app_seat_add_video(struct app_seat *seat,
 		}
 	}
 
+	if (!seat->conf->all_gpus) {
+		if (seat->conf->primary_gpu_only && !(flags & UTERM_MONITOR_PRIMARY)) {
+			log_info("ignoring video device %s on seat %s as it is no primary GPU",
+				 node, seat->name);
+			return -ERANGE;
+		}
+		if (!(flags & (UTERM_MONITOR_PRIMARY | UTERM_MONITOR_AUX))) {
+			log_info("ignoring video device %s on seat %s as it is neither a primary nor auxiliary GPU",
+				 node, seat->name);
+			return -ERANGE;
+		}
+	}
+
 	log_debug("new video device %s on seat %s", node, seat->name);
 
 	vid = malloc(sizeof(*vid));
