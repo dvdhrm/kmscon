@@ -1,5 +1,67 @@
 = KMSCON Release News =
 
+CHANGES WITH 6:
+	* Allow arbitrary paths with --vt (kmscon)
+
+	* xkbcommon is now mandatory. We need it to handle keyboard input
+	  properly and since xkbcommon-0.2.0 is released, there is no reason to
+	  not depend on it.
+	  We also removed the plain-input backend with this change.
+
+	* Snap window to console/font-size on resize (wlterm)
+
+	* Adjust to new libwayland-1.0 (wlterm)
+
+	* Many new command-line options for wlterm including --term, --login,
+	  --palette, --sb-size and many --grab-* options.
+
+	* fake-VTs no longer react on SIGUSR1/2. This was always broken and now
+	  removed.
+
+	* --switchvt works again and is now enabled by default.
+
+	* --xkb-model was introduced. The other --xkb-<rmlvo> options also use
+	  system-defaults instead of us-keymap as default value now.
+
+	* wlterm works properly in maximized and fullscreen mode now
+
+	* key-presses are now properly marked as "handled" so it is no longer
+	  possible for two subsystems to handle the same key-press.
+
+	* wlterm can now zoom the font size with ctrl+Plus/Minus
+
+	* TSM now supports screen selections. wlterm is hooked up with this and
+	  supports this, too. However, the VTE layer has not seen this yet so
+	  everything is computed in the terminal for now. Next kmscon release
+	  will include client-side mouse-protocol support.
+
+	* Copy/Paste now works with wlterm
+
+	* Key-repeat has been reworked and now allows adjusting repeat and delay
+	  times.
+
+	* Session support allows for multiple terminals (sessions) inside of
+	  each seat. You can switch between the sessions, kill them and create
+	  new terminals via keyboard shortcuts. Also several other sessions than
+	  terminal sessions were introduced. However, all of them are
+	  experimental and shouldn't be used.
+
+	* TSM now supports alternate screen buffers. They're enabled by default.
+
+	* Configuration handling has been reworked. Multiple config-files can
+	  now be parsed and each seat has its own configuration file in
+	  /etc/kmscon/<seat>.seat.conf.
+
+	* The build-tools have been reworked. They should now work properly with
+	  any option-combination imaginable.
+
+	* --login option can now be used in config-files.
+
+	* We print hints if keyboard-shortcut names are written with wrong
+	  capitalization.
+
+	* ... and a lot of bugfixes
+
 CHANGES WITH 5:
 	* Idle sources are now faster registered and unregistered so they can
 	  be used for any scheduling tasks
