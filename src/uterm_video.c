@@ -59,6 +59,29 @@ const char *uterm_dpms_to_name(int dpms)
 	}
 }
 
+bool uterm_video_available(unsigned int type)
+{
+	switch (type) {
+	case UTERM_VIDEO_DRM:
+#ifdef BUILD_ENABLE_VIDEO_DRM
+		return video_drm_available();
+#endif
+		return false;
+	case UTERM_VIDEO_DUMB:
+#ifdef BUILD_ENABLE_VIDEO_DUMB
+		return video_drm_available();
+#endif
+		return false;
+	case UTERM_VIDEO_FBDEV:
+#ifdef BUILD_ENABLE_VIDEO_FBDEV
+		return true;
+#endif
+		return false;
+	default:
+		return false;
+	}
+}
+
 /* Until we allow multiple displays in one screen, we use this constructor which
  * is basically just a wrapper around "struct uterm_dispaly".
  * The idea behind screens is having one single drawing-target which is spread

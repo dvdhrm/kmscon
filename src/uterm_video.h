@@ -466,6 +466,11 @@ static inline void video_drm_free_name(char *name)
 	free(name);
 }
 
+static inline bool video_drm_available(void)
+{
+	return drmAvailable();
+}
+
 #else
 
 static inline char *video_drm_get_id(int fd)
@@ -484,6 +489,11 @@ static inline char *video_drm_get_name(int fd)
 
 static inline void video_drm_free_name(char *name)
 {
+}
+
+bool video_drm_available(void)
+{
+	return false;
 }
 
 #endif
