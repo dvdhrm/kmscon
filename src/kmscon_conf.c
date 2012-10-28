@@ -36,6 +36,7 @@
 #include "kmscon_conf.h"
 #include "log.h"
 #include "shl_misc.h"
+#include "uterm.h"
 
 static void print_help()
 {
@@ -119,9 +120,9 @@ static void print_help()
 		"\t                                  Create new terminal session\n"
 		"\n"
 		"Video Options:\n"
-		"\t    --fbdev                 [off]   Use fbdev instead of DRM\n"
-		"\t    --dumb                  [off]   Use dumb DRM instead of hardware-\n"
-		"\t                                    accelerated DRM devices\n"
+		"\t    --drm                   [on]    Use DRM if available\n"
+		"\t    --hwaccel               [off]   Use 3D hardware-acceleration if\n"
+		"\t                                    available\n"
 		"\t    --primary-gpu-only      [off]   Use primary GPU only\n"
 		"\t    --all-gpus              [off]   Use all GPUs unconditionally\n"
 		"\t    --fps                   [50]    Limit frame-rate\n"
@@ -396,6 +397,23 @@ static int copy_seats(struct conf_option *opt, const struct conf_option *src)
 	return 0;
 }
 
+static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
+			  int idx)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, drm);
+
+	/* disable --drm if DRM runtime support is not available */
+	if (conf->drm) {
+		if (!uterm_video_available(UTERM_VIDEO_DRM) &&
+		    !uterm_video_available(UTERM_VIDEO_DUMB)) {
+			log_info("no DRM runtime support available; disabling --drm");
+			conf->drm = false;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Default Values
  * We use static default values to avoid allocating memory for these. This
@@ -482,8 +500,8 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_GRAB(0, "grab-terminal-new", &conf->grab_terminal_new, &def_grab_terminal_new),
 
 		/* Video Options */
-		CONF_OPTION_BOOL(0, "fbdev", &conf->fbdev, false),
-		CONF_OPTION_BOOL(0, "dumb", &conf->dumb, false),
+		CONF_OPTION_BOOL_FULL(0, "drm", aftercheck_drm, NULL, NULL, &conf->drm, true),
+		CONF_OPTION_BOOL(0, "hwaccel", &conf->hwaccel, false),
 		CONF_OPTION_BOOL(0, "primary-gpu-only", &conf->primary_gpu_only, false),
 		CONF_OPTION_BOOL(0, "all-gpus", &conf->all_gpus, false),
 		CONF_OPTION_UINT(0, "fps", &conf->fps, 50),

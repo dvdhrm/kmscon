@@ -200,6 +200,56 @@ static void app_seat_video_event(struct uterm_video *video,
 	}
 }
 
+static bool app_seat_is_ignored(struct app_seat *seat,
+				unsigned int type,
+				bool drm_backed,
+				bool primary,
+				bool aux,
+				const char *node)
+{
+	switch (type) {
+	case UTERM_MONITOR_FBDEV:
+		if (seat->conf->drm) {
+			if (drm_backed) {
+				log_info("ignoring video device %s on seat %s as it is a DRM-fbdev device",
+					 node, seat->name);
+				return true;
+			}
+			if (primary) {
+				log_info("ignoring video device %s on seat %s as it is a primary fbdev device",
+					 node, seat->name);
+				return true;
+			}
+		}
+		break;
+	case UTERM_MONITOR_DRM:
+		if (!seat->conf->drm) {
+			log_info("ignoring video device %s on seat %s as it is a DRM device",
+				  node, seat->name);
+			return true;
+		}
+		break;
+	default:
+		log_info("ignoring unknown video device %s on seat %s",
+			 node, seat->name);
+		return true;
+	}
+
+	if (seat->conf->primary_gpu_only && !primary) {
+		log_info("ignoring video device %s on seat %s as it is no primary GPU",
+			 node, seat->name);
+		return true;
+	}
+
+	if (!seat->conf->all_gpus && !primary && !aux) {
+		log_info("ignoring video device %s on seat %s as it is neither a primary nor auxiliary GPU",
+			 node, seat->name);
+		return true;
+	}
+
+	return false;
+}
+
 static int app_seat_add_video(struct app_seat *seat,
 			      struct app_video **out,
 			      unsigned int type,
@@ -210,37 +260,12 @@ static int app_seat_add_video(struct app_seat *seat,
 	unsigned int mode;
 	struct app_video *vid;
 
-	if (seat->conf->fbdev) {
-		if (type != UTERM_MONITOR_FBDEV) {
-			log_info("ignoring video device %s on seat %s as it is not an fbdev device",
-				  node, seat->name);
-			return -ERANGE;
-		}
-	} else if (type == UTERM_MONITOR_FBDEV) {
-		if (flags & UTERM_MONITOR_DRM_BACKED) {
-			log_info("ignoring video device %s on seat %s as it is a DRM-fbdev device",
-				  node, seat->name);
-			return -ERANGE;
-		}
-	}
-
-	/* with --all-gpus we avoid any further filtering. With --fbdev we
-	 * already filtered all non-fbdev devices so there is currently no
-	 * reason to do further filtering, either.
-	 * TODO: We need to set PRIMARY flags to fbdev devices, too. Otherwise
-	 * we might end up with the same problems as DRM devices have. */
-	if (!seat->conf->all_gpus && !seat->conf->fbdev) {
-		if (seat->conf->primary_gpu_only && !(flags & UTERM_MONITOR_PRIMARY)) {
-			log_info("ignoring video device %s on seat %s as it is no primary GPU",
-				 node, seat->name);
-			return -ERANGE;
-		}
-		if (!(flags & (UTERM_MONITOR_PRIMARY | UTERM_MONITOR_AUX))) {
-			log_info("ignoring video device %s on seat %s as it is neither a primary nor auxiliary GPU",
-				 node, seat->name);
-			return -ERANGE;
-		}
-	}
+	if (app_seat_is_ignored(seat, type,
+				flags & UTERM_MONITOR_DRM_BACKED,
+				flags & UTERM_MONITOR_PRIMARY,
+				flags & UTERM_MONITOR_AUX,
+				node))
+		return -ERANGE;
 
 	log_debug("new video device %s on seat %s", node, seat->name);
 
@@ -262,10 +287,10 @@ static int app_seat_add_video(struct app_seat *seat,
 	}
 
 	if (type == UTERM_MONITOR_DRM) {
-		if (seat->conf->dumb)
-			mode = UTERM_VIDEO_DUMB;
-		else
+		if (seat->conf->hwaccel)
 			mode = UTERM_VIDEO_DRM;
+		else
+			mode = UTERM_VIDEO_DUMB;
 	} else {
 		mode = UTERM_VIDEO_FBDEV;
 	}

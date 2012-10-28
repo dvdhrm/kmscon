@@ -109,10 +109,10 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_terminal_new;
 
 	/* Video Options */
-	/* use framebuffers instead of DRM */
-	bool fbdev;
-	/* use dumb DRM devices */
-	bool dumb;
+	/* use DRM if available */
+	bool drm;
+	/* use 3D hardware-acceleration if available */
+	bool hwaccel;
 	/* use only primary GPU */
 	bool primary_gpu_only;
 	/* use all GPUs unconditionally */
