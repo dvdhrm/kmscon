@@ -566,14 +566,6 @@ int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv)
 	if (ret)
 		return ret;
 
-	/* TODO: Deprecated! Remove this! */
-	if (!access("/etc/kmscon.conf", F_OK)) {
-		log_error("/etc/kmscon.conf is deprecated, please use /etc/kmscon/kmscon.conf");
-		ret = conf_ctx_parse_file(ctx, "/etc/kmscon.conf");
-		if (ret)
-			return ret;
-	}
-
 	return 0;
 }
 
