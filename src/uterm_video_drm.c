@@ -219,13 +219,27 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	glGenFramebuffers(1, &disp->drm.fb);
 	glBindFramebuffer(GL_FRAMEBUFFER, disp->drm.fb);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-					GL_RENDERBUFFER, disp->drm.rb[1].rb);
+				  GL_RENDERBUFFER, disp->drm.rb[0].rb);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
 						GL_FRAMEBUFFER_COMPLETE) {
 		log_err("cannot create gl-framebuffer");
 		ret = -EFAULT;
 		goto err_fb;
 	}
+
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+				  GL_RENDERBUFFER, disp->drm.rb[1].rb);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
+						GL_FRAMEBUFFER_COMPLETE) {
+		log_warn("cannot set gl-renderbuffer");
+		ret = -EFAULT;
+		goto err_fb;
+	}
+
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	ret = drmModeSetCrtc(video->drm.fd, disp->drm.crtc_id,
 			disp->drm.rb[0].fb, 0, 0, &disp->drm.conn_id, 1,
