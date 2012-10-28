@@ -114,7 +114,7 @@ static void print_help()
 		"\t                                  Switch to next session\n"
 		"\t    --grab-session-prev <grab>  [<Ctrl><Alt>Left]\n"
 		"\t                                  Switch to previous session\n"
-		"\t    --grab-session-close <grab> [<Ctrl><Alt>W]\n"
+		"\t    --grab-session-close <grab> [<Ctrl><Alt>BackSpace]\n"
 		"\t                                  Close current session\n"
 		"\t    --grab-terminal-new <grab>  [<Ctrl><Alt>Return]\n"
 		"\t                                  Create new terminal session\n"
@@ -424,7 +424,7 @@ static struct conf_grab def_grab_session_prev =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Left);
 
 static struct conf_grab def_grab_session_close =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_w);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_BackSpace);
 
 static struct conf_grab def_grab_terminal_new =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
