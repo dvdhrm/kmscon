@@ -312,6 +312,16 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_reset;
 	}
 
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGUSR2);
+	ret = sigprocmask(SIG_BLOCK, &mask, NULL);
+	if (ret) {
+		log_error("cannot block SIGUSR1/2 (%d): %m", errno);
+		ret = -EFAULT;
+		goto err_text;
+	}
+
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_PROCESS;
 	mode.acqsig = SIGUSR1;
@@ -342,13 +352,6 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		ret = -EFAULT;
 		goto err_setmode;
 	}
-
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGUSR1);
-	sigaddset(&mask, SIGUSR2);
-	ret = sigprocmask(SIG_BLOCK, &mask, NULL);
-	if (ret)
-		log_warning("cannot ignore SIGUSR1/2 (%d): %m", errno);
 
 	return 0;
 
