@@ -1251,52 +1251,6 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
-char *video_drm_get_id(int fd)
-{
-	if (fd < 0)
-		return NULL;
-
-	return drmGetBusid(fd);
-}
-
-void video_drm_free_id(char *id)
-{
-	if (!id)
-		return;
-
-	drmFreeBusid(id);
-}
-
-char *video_drm_get_name(int fd)
-{
-	drmVersionPtr v;
-	char *name;
-
-	if (fd < 0)
-		return NULL;
-
-	v = drmGetVersion(fd);
-	if (!v)
-		return NULL;
-
-	name = malloc(v->name_len + 1);
-	if (name) {
-		memcpy(name, v->name, v->name_len);
-		name[v->name_len] = 0;
-	}
-
-	drmFreeVersion(v);
-	return name;
-}
-
-void video_drm_free_name(char *name)
-{
-	if (!name)
-		return;
-
-	free(name);
-}
-
 const struct mode_ops drm_mode_ops = {
 	.init = NULL,
 	.destroy = NULL,

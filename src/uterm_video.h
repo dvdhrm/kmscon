@@ -418,12 +418,53 @@ static inline int video_do_use(struct uterm_video *video)
 	return VIDEO_CALL(video->ops->use, -EOPNOTSUPP, video);
 }
 
-#ifdef BUILD_ENABLE_VIDEO_DRM
+#if defined(BUILD_ENABLE_VIDEO_DRM) || defined(BUILD_ENABLE_VIDEO_DUMB)
 
-char *video_drm_get_id(int fd);
-void video_drm_free_id(char *id);
-char *video_drm_get_name(int fd);
-void video_drm_free_name(char *name);
+static inline char *video_drm_get_id(int fd)
+{
+	if (fd < 0)
+		return NULL;
+
+	return drmGetBusid(fd);
+}
+
+static inline void video_drm_free_id(char *id)
+{
+	if (!id)
+		return;
+
+	drmFreeBusid(id);
+}
+
+static inline char *video_drm_get_name(int fd)
+{
+	drmVersionPtr v;
+	char *name;
+
+	if (fd < 0)
+		return NULL;
+
+	v = drmGetVersion(fd);
+	if (!v)
+		return NULL;
+
+	name = malloc(v->name_len + 1);
+	if (name) {
+		memcpy(name, v->name, v->name_len);
+		name[v->name_len] = 0;
+	}
+
+	drmFreeVersion(v);
+	return name;
+}
+
+static inline void video_drm_free_name(char *name)
+{
+	if (!name)
+		return;
+
+	free(name);
+}
 
 #else
 
