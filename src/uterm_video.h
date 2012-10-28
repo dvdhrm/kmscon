@@ -422,9 +422,18 @@ static inline int video_do_use(struct uterm_video *video)
 
 static inline char *video_drm_get_id(int fd)
 {
+	drmSetVersion v = {
+		.drm_di_major = 1,
+		.drm_di_minor = 4,
+		.drm_dd_major = -1,
+		.drm_dd_minor = -1,
+	};
+
 	if (fd < 0)
 		return NULL;
 
+	drmSetMaster(fd);
+	drmSetInterfaceVersion(fd, &v);
 	return drmGetBusid(fd);
 }
 
