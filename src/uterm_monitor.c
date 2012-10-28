@@ -417,13 +417,14 @@ static int get_fb_id(struct udev_device *dev)
  * used as additional GPU together with but also independent of the primary GPU.
  *
  * UTERM_MONITOR_PRIMARY:
- * The primary GPU is the GPU that was used to boot the system. An application
- * can always use this CPU without getting into troubles. For instance, under
+ * A primary GPU is a GPU that can be used independently. An application
+ * can always use such CPUs without getting into troubles. For instance, under
  * dual-GPU systems, there is often only one display controller but both DRM
  * devices advertice modesetting capability. The application can now rely on
  * this flag to mark the GPU that actually should be used for modesetting. The
  * other GPU is neither PRIMARY nor AUX and shouldn't be used by the application
  * except for offloading rendering-work or similar.
+ * Note, that multiple GPUs can be marked primary (including fbdev devices).
  */
 
 static unsigned int get_fbdev_flags(struct uterm_monitor *mon, const char *node)
@@ -460,6 +461,8 @@ static unsigned int get_fbdev_flags(struct uterm_monitor *mon, const char *node)
 
 	if (!strcmp(finfo.id, "udlfb"))
 		flags |= UTERM_MONITOR_AUX;
+	else if (!strcmp(finfo.id, "VESA VGA"))
+		flags |= UTERM_MONITOR_PRIMARY;
 
 out_close:
 	close(fd);
