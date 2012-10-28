@@ -69,6 +69,7 @@ struct uterm_vt {
 	int real_kbmode;
 	struct termios real_saved_attribs;
 	struct ev_fd *real_efd;
+	bool real_delayed;
 };
 
 struct uterm_vt_master {
@@ -139,6 +140,16 @@ static void vt_call(struct uterm_vt *vt, unsigned int event)
  * be used for backwards-compatibility.
  */
 
+static void real_delayed(struct ev_eloop *eloop, void *unused, void *data)
+{
+	struct uterm_vt *vt = data;
+
+	log_debug("enter VT %d %p during startup", vt->real_num, vt);
+	vt->real_delayed = false;
+	ev_eloop_unregister_idle_cb(eloop, real_delayed, vt);
+	vt_call(vt, UTERM_VT_ACTIVATE);
+}
+
 static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
@@ -156,11 +167,15 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (vts.v_active != vt->real_num)
 		return;
 
-	if (vt->active)
+	if (vt->real_delayed) {
+		vt->real_delayed = false;
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+	} else if (vt->active) {
 		log_warning("activating VT %d even though it's already active",
 			    vt->real_num);
-	else
+	} else {
 		uterm_input_wake_up(vt->input);
+	}
 
 	log_debug("enter VT %d %p due to VT signal", vt->real_num, vt);
 	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
@@ -187,11 +202,16 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (vts.v_active != vt->real_num)
 		return;
 
-	if (!vt->active)
+	if (vt->real_delayed) {
+		vt->real_delayed = false;
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		uterm_input_sleep(vt->input);
+	} else if (!vt->active) {
 		log_warning("deactivating VT %d even though it's not active",
 			    vt->real_num);
-	else
+	} else {
 		uterm_input_sleep(vt->input);
+	}
 
 	log_debug("leaving VT %d %p due to VT signal", vt->real_num, vt);
 	vt_call(vt, UTERM_VT_DEACTIVATE);
@@ -357,8 +377,24 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_setmode;
 	}
 
+	if (vts.v_active == vt->real_num) {
+		ret = ev_eloop_register_idle_cb(vt->vtm->eloop, real_delayed,
+						vt);
+		if (ret) {
+			log_error("cannot register idle cb for VT switch");
+			goto err_kbdmode;
+		}
+		vt->real_delayed = true;
+		uterm_input_wake_up(vt->input);
+	}
+
 	return 0;
 
+err_kbdmode:
+	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
+	if (ret)
+		log_error("cannot reset VT KBMODE to %d (%d): %m",
+			  vt->real_kbmode, errno);
 err_setmode:
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_AUTO;
@@ -390,6 +426,13 @@ static void real_close(struct uterm_vt *vt)
 	int ret;
 
 	log_debug("closing VT %d", vt->real_num);
+
+	vt_call(vt, UTERM_VT_DEACTIVATE);
+	if (vt->real_delayed) {
+		vt->real_delayed = false;
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		uterm_input_sleep(vt->input);
+	}
 
 	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
 	if (ret)
