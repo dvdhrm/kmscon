@@ -207,6 +207,19 @@ static bool app_seat_is_ignored(struct app_seat *seat,
 				bool aux,
 				const char *node)
 {
+	unsigned int i;
+
+	if (!shl_string_list_is(seat->conf->video_devices, "all")) {
+		for (i = 0; seat->conf->video_devices[i]; ++i) {
+			if (!strcmp(seat->conf->video_devices[i], node))
+				return false;
+		}
+
+		log_info("ignoring video device %s on seat %s as it is not in the whitelist",
+			 node, seat->name);
+		return true;
+	}
+
 	switch (type) {
 	case UTERM_MONITOR_FBDEV:
 		if (seat->conf->drm) {

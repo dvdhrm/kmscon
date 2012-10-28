@@ -107,6 +107,8 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_terminal_new;
 
 	/* Video Options */
+	/* whitelist of usable video devices or "all" */
+	char **video_devices;
 	/* use DRM if available */
 	bool drm;
 	/* use 3D hardware-acceleration if available */

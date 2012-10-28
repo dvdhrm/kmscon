@@ -120,6 +120,9 @@ static void print_help()
 		"\t                                  Create new terminal session\n"
 		"\n"
 		"Video Options:\n"
+		"\t    --video-devices <d1,d2> [all]   List of video devices to be used\n"
+		"\t                                    by kmscon. This can be a list of\n"
+		"\t                                    paths to /dev/* or \"all\"\n"
 		"\t    --drm                   [on]    Use DRM if available\n"
 		"\t    --hwaccel               [off]   Use 3D hardware-acceleration if\n"
 		"\t                                    available\n"
@@ -400,6 +403,8 @@ static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
 
 static char *def_seats[] = { "seat0", NULL };
 
+static char *def_video_devices[] = { "all", NULL };
+
 static struct conf_grab def_grab_scroll_up =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Up);
 
@@ -478,6 +483,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_GRAB(0, "grab-terminal-new", &conf->grab_terminal_new, &def_grab_terminal_new),
 
 		/* Video Options */
+		CONF_OPTION_STRING_LIST(0, "video-devices", &conf->video_devices, def_video_devices),
 		CONF_OPTION_BOOL_FULL(0, "drm", aftercheck_drm, NULL, NULL, &conf->drm, true),
 		CONF_OPTION_BOOL(0, "hwaccel", &conf->hwaccel, false),
 		CONF_OPTION_BOOL(0, "primary-gpu-only", &conf->primary_gpu_only, false),
