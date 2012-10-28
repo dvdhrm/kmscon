@@ -159,6 +159,8 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (vt->active)
 		log_warning("activating VT %d even though it's already active",
 			    vt->real_num);
+	else
+		uterm_input_wake_up(vt->input);
 
 	log_debug("enter VT %d %p due to VT signal", vt->real_num, vt);
 	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
@@ -188,6 +190,8 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (!vt->active)
 		log_warning("deactivating VT %d even though it's not active",
 			    vt->real_num);
+	else
+		uterm_input_sleep(vt->input);
 
 	log_debug("leaving VT %d %p due to VT signal", vt->real_num, vt);
 	vt_call(vt, UTERM_VT_DEACTIVATE);
@@ -699,10 +703,10 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 			goto err_input;
 	} else {
 		vt->mode = UTERM_VT_FAKE;
+		uterm_input_wake_up(vt->input);
 	}
 
 	uterm_input_ref(vt->input);
-	uterm_input_wake_up(vt->input);
 	shl_dlist_link(&vtm->vts, &vt->list);
 	*out = vt;
 	return 0;
@@ -723,10 +727,12 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return;
 
-	if (vt->mode == UTERM_VT_REAL)
+	if (vt->mode == UTERM_VT_REAL) {
 		real_close(vt);
-	else if (vt->mode == UTERM_VT_FAKE)
+	} else if (vt->mode == UTERM_VT_FAKE) {
 		vt_call(vt, UTERM_VT_DEACTIVATE);
+		uterm_input_sleep(vt->input);
+	}
 
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
