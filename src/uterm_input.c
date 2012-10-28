@@ -132,6 +132,8 @@ static void input_sleep_dev(struct uterm_input_dev *dev)
 	if (dev->rfd < 0)
 		return;
 
+	dev->repeating = false;
+	ev_timer_update(dev->repeat_timer, NULL);
 	ev_eloop_rm_fd(dev->fd);
 	dev->fd = NULL;
 	close(dev->rfd);
