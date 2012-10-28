@@ -57,8 +57,6 @@ struct kmscon_conf_t {
 	bool switchvt;
 	/* seats */
 	char **seats;
-	/* true if \seats is "all" */
-	bool all_seats;
 
 	/* Session Options */
 	/* sessions */

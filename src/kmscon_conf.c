@@ -375,28 +375,6 @@ static int aftercheck_help(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
-static int aftercheck_seats(struct conf_option *opt, int argc, char **argv,
-			    int idx)
-{
-	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, seats);
-
-	if (conf->seats[0] &&
-	    !conf->seats[1] &&
-	    !strcmp(conf->seats[0], "all"))
-		conf->all_seats = true;
-
-	return 0;
-}
-
-static int copy_seats(struct conf_option *opt, const struct conf_option *src)
-{
-	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, seats);
-	struct kmscon_conf_t *s = KMSCON_CONF_FROM_FIELD(src->mem, seats);
-
-	conf->all_seats = s->all_seats;
-	return 0;
-}
-
 static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
 			  int idx)
 {
@@ -470,7 +448,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		/* Seat Options */
 		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, NULL, &conf->vt, NULL),
 		CONF_OPTION_BOOL('s', "switchvt", &conf->switchvt, true),
-		CONF_OPTION_STRING_LIST_FULL(0, "seats", aftercheck_seats, copy_seats, NULL, &conf->seats, def_seats),
+		CONF_OPTION_STRING_LIST(0, "seats", &conf->seats, def_seats),
 
 		/* Session Options */
 		CONF_OPTION_UINT(0, "session-max", &conf->session_max, 50),

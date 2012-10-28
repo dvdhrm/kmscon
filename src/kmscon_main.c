@@ -118,7 +118,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	bool found;
 
 	found = false;
-	if (app->conf->all_seats) {
+	if (shl_string_list_is(app->conf->seats, "all")) {
 		found = true;
 	} else {
 		for (i = 0; app->conf->seats[i]; ++i) {

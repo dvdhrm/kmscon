@@ -189,6 +189,16 @@ static inline int shl_dup_array(char ***out, char **argv)
 	return shl_dup_array_size(out, argv, i);
 }
 
+/* returns true if the string-list contains only a single entry \entry */
+static inline bool shl_string_list_is(char **list, const char *entry)
+{
+	if (!list || !entry)
+		return false;
+	if (!list[0] || list[1])
+		return false;
+	return !strcmp(list[0], entry);
+}
+
 /* TODO: xkbcommon should provide these flags!
  * We currently copy them into each library API we use so we need  to keep
  * them in sync. Currently, they're used in uterm-input and tsm-vte. */
