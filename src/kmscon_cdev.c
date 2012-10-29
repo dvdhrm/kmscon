@@ -88,6 +88,7 @@ struct cdev_client {
 	struct shl_dlist readers;
 
 	long kdmode;
+	long kbmode;
 };
 
 struct cdev_reader {
@@ -229,6 +230,10 @@ static void client_input_event(struct uterm_input *input,
 	if (!client->active || ev->handled)
 		return;
 
+	/* we drop all input in K_OFF mode */
+	if (client->kbmode == K_OFF)
+		return;
+
 	/* TODO: see kmscon_terminal on how this is special. We need to fix this
 	 * when xkbcommon provides the first multi-sym events. */
 	if (ev->num_syms > 1)
@@ -296,6 +301,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	memset(client, 0, sizeof(*client));
 	client->cdev = cdev;
 	client->kdmode = KD_TEXT;
+	client->kbmode = K_UNICODE;
 	shl_dlist_init(&client->readers);
 
 	log_debug("new fake TTY client %p", client);
@@ -559,6 +565,34 @@ static void ioctl_KDSETMODE(struct cdev_client *client, fuse_req_t req,
 	}
 }
 
+static void ioctl_KDGKBMODE(struct cdev_client *client, fuse_req_t req)
+{
+	fuse_reply_ioctl(req, 0, &client->kbmode, sizeof(long));
+}
+
+static void ioctl_KDSKBMODE(struct cdev_client *client, fuse_req_t req,
+			    long val)
+{
+	switch (val) {
+	case K_RAW:
+	case K_UNICODE:
+	case K_OFF:
+		/* TODO: we handle K_RAW/K_UNICODE the same way as it is unclear
+		 * what K_RAW should do? */
+		client->kbmode = val;
+		fuse_reply_ioctl(req, 0, NULL, 0);
+		break;
+	case K_XLATE:
+	case K_MEDIUMRAW:
+		/* TODO: what do these do? */
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	default:
+		fuse_reply_err(req, EINVAL);
+		break;
+	}
+}
+
 static bool ioctl_param(fuse_req_t req, void *arg, size_t in_want,
 			size_t in_have, size_t out_want, size_t out_have)
 {
@@ -678,13 +712,13 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		if (ioctl_param(req, arg, 0, in_bufsz,
 				sizeof(long), out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_KDGKBMODE(client, req);
 		break;
 	case KDSKBMODE:
 		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
 				0, out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_KDSKBMODE(client, req, *(long*)in_buf);
 		break;
 	case TCGETS:
 		if (ioctl_param(req, arg, 0, in_bufsz,
