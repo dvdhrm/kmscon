@@ -561,7 +561,7 @@ if test ! "x$enable_session_cdev" = "xno" ; then
                 session_cdev_avail=yes
         fi
 
-        if "x$session_cdev_avail" = "xno" ; then
+        if test "x$session_cdev_avail" = "xno" ; then
                 if test "x$enable_session_cdev" = "xyes" ; then
                         AC_ERROR([TSM or FUSE libraries not built/found for kmscon cdev session])
                 fi
