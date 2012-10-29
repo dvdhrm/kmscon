@@ -53,7 +53,7 @@ PKG_CHECK_MODULES([WAYLAND], [wayland-client wayland-server wayland-cursor],
 AC_SUBST(WAYLAND_CFLAGS)
 AC_SUBST(WAYLAND_LIBS)
 
-PKG_CHECK_MODULES([SYSTEMD], [libsystemd-login],
+PKG_CHECK_MODULES([SYSTEMD], [libsystemd-daemon libsystemd-login],
                   [have_systemd=yes], [have_systemd=no])
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)

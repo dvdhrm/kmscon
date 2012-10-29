@@ -179,6 +179,7 @@ libuterm_la_SOURCES = \
 	src/uterm_input.h \
 	src/uterm_video.h \
 	src/uterm_pci.h \
+	src/uterm_systemd.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
 	src/uterm_vt.c \
@@ -197,6 +198,7 @@ libuterm_la_LDFLAGS = \
 	-version-info 1:0:0
 
 if BUILD_ENABLE_MULTI_SEAT
+libuterm_la_SOURCES += src/uterm_systemd.c
 libuterm_la_CPPFLAGS += $(SYSTEMD_CFLAGS)
 libuterm_la_LIBADD += $(SYSTEMD_LIBS)
 endif

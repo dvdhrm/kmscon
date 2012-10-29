@@ -44,11 +44,8 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 #include "uterm_pci.h"
+#include "uterm_systemd.h"
 #include "uterm_video.h"
-
-#ifdef BUILD_ENABLE_MULTI_SEAT
-	#include <systemd/sd-login.h>
-#endif
 
 #define LOG_SUBSYSTEM "monitor"
 
@@ -75,10 +72,8 @@ struct uterm_monitor {
 	uterm_monitor_cb cb;
 	void *data;
 
-#ifdef BUILD_ENABLE_MULTI_SEAT
-	sd_login_monitor *sd_mon;
+	struct uterm_sd *sd;
 	struct ev_fd *sd_mon_fd;
-#endif
 
 	char *pci_primary_id;
 
@@ -92,8 +87,6 @@ struct uterm_monitor {
 static void monitor_new_seat(struct uterm_monitor *mon, const char *name);
 static void monitor_free_seat(struct uterm_monitor_seat *seat);
 
-#ifdef BUILD_ENABLE_MULTI_SEAT
-
 static void monitor_refresh_seats(struct uterm_monitor *mon)
 {
 	char **seats;
@@ -101,7 +94,14 @@ static void monitor_refresh_seats(struct uterm_monitor *mon)
 	struct shl_dlist *iter, *tmp;
 	struct uterm_monitor_seat *seat;
 
-	num = sd_get_seats(&seats);
+	/* Use only seat0 if multi-seat support is not available */
+	if (!mon->sd) {
+		if (shl_dlist_empty(&mon->seats))
+			monitor_new_seat(mon, "seat0");
+		return;
+	}
+
+	num = uterm_sd_get_seats(mon->sd, &seats);
 	if (num < 0) {
 		log_warn("cannot read seat information from systemd: %d", num);
 		return;
@@ -116,25 +116,28 @@ static void monitor_refresh_seats(struct uterm_monitor *mon)
 				break;
 		}
 
-		if (i < num)
+		if (i < num) {
+			free(seats[i]);
 			seats[i] = NULL;
-		else
+		} else {
 			monitor_free_seat(seat);
+		}
 	}
 
 	/* Add all new seats */
 	for (i = 0; i < num; ++i) {
-		if (seats[i])
+		if (seats[i]) {
 			monitor_new_seat(mon, seats[i]);
-		free(seats[i]);
+			free(seats[i]);
+		}
 	}
 
 	free(seats);
 }
 
 static void monitor_sd_event(struct ev_fd *fd,
-				int mask,
-				void *data)
+			     int mask,
+			     void *data)
 {
 	struct uterm_monitor *mon = data;
 
@@ -143,8 +146,10 @@ static void monitor_sd_event(struct ev_fd *fd,
 		return;
 	}
 
-	sd_login_monitor_flush(mon->sd_mon);
-	ev_eloop_flush_fd(mon->eloop, mon->sd_mon_fd);
+	if (mon->sd) {
+		uterm_sd_flush(mon->sd);
+		ev_eloop_flush_fd(mon->eloop, mon->sd_mon_fd);
+	}
 	monitor_refresh_seats(mon);
 }
 
@@ -157,14 +162,13 @@ static int monitor_sd_init(struct uterm_monitor *mon)
 {
 	int ret, sfd;
 
-	ret = sd_login_monitor_new("seat", &mon->sd_mon);
-	if (ret) {
-		errno = -ret;
-		log_err("cannot create systemd login monitor (%d): %m", ret);
-		return -EFAULT;
-	}
+	ret = uterm_sd_new(&mon->sd);
+	if (ret == -EOPNOTSUPP)
+		return 0;
+	else if (ret)
+		return ret;
 
-	sfd = sd_login_monitor_get_fd(mon->sd_mon);
+	sfd = uterm_sd_get_fd(mon->sd);
 	if (sfd < 0) {
 		log_err("cannot get systemd login monitor fd");
 		ret = -EFAULT;
@@ -172,45 +176,25 @@ static int monitor_sd_init(struct uterm_monitor *mon)
 	}
 
 	ret = ev_eloop_new_fd(mon->eloop, &mon->sd_mon_fd, sfd, EV_READABLE,
-				monitor_sd_event, mon);
+			      monitor_sd_event, mon);
 	if (ret)
 		goto err_sd;
 
 	return 0;
 
 err_sd:
-	sd_login_monitor_unref(mon->sd_mon);
+	uterm_sd_free(mon->sd);
 	return ret;
 }
 
 static void monitor_sd_deinit(struct uterm_monitor *mon)
 {
+	if (!mon->sd)
+		return;
+
 	ev_eloop_rm_fd(mon->sd_mon_fd);
-	sd_login_monitor_unref(mon->sd_mon);
+	uterm_sd_free(mon->sd);
 }
-
-#else /* !BUILD_ENABLE_MULTI_SEAT */
-
-static void monitor_refresh_seats(struct uterm_monitor *mon)
-{
-	if (shl_dlist_empty(&mon->seats))
-		monitor_new_seat(mon, "seat0");
-}
-
-static void monitor_sd_poll(struct uterm_monitor *mon)
-{
-}
-
-static int monitor_sd_init(struct uterm_monitor *mon)
-{
-	return 0;
-}
-
-static void monitor_sd_deinit(struct uterm_monitor *mon)
-{
-}
-
-#endif /* BUILD_ENABLE_MULTI_SEAT */
 
 static void seat_new_dev(struct uterm_monitor_seat *seat,
 				unsigned int type,
@@ -567,12 +551,10 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 	}
 
 	if (!strcmp(subs, "drm")) {
-#ifdef BUILD_ENABLE_MULTI_SEAT
-		if (udev_device_has_tag(dev, "seat") != 1) {
+		if (mon->sd && udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
-#endif
 		id = get_card_id(dev);
 		if (id < 0) {
 			log_debug("adding drm sub-device %s", name);
@@ -582,12 +564,10 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		type = UTERM_MONITOR_DRM;
 		flags = get_drm_flags(mon, node);
 	} else if (!strcmp(subs, "graphics")) {
-#ifdef BUILD_ENABLE_MULTI_SEAT
-		if (udev_device_has_tag(dev, "seat") != 1) {
+		if (mon->sd && udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
-#endif
 		id = get_fb_id(dev);
 		if (id < 0) {
 			log_debug("adding fbdev sub-device %s", name);
@@ -608,12 +588,10 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 			log_debug("adding device without parent %s", name);
 			return;
 		}
-#ifdef BUILD_ENABLE_MULTI_SEAT
-		if (udev_device_has_tag(p, "seat") != 1) {
+		if (mon->sd && udev_device_has_tag(p, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
 			return;
 		}
-#endif
 		sname = udev_device_get_property_value(p, "ID_SEAT");
 		type = UTERM_MONITOR_INPUT;
 		flags = 0;
