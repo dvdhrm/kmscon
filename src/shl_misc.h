@@ -39,6 +39,7 @@
 #include <xkbcommon/xkbcommon.h>
 
 #define SHL_HAS_BITS(_bitmask, _bits) (((_bitmask) & (_bits)) == (_bits))
+#define SHL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 static inline int shl_strtou(const char *input, unsigned int *output)
 {

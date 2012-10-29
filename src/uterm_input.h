@@ -35,6 +35,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "uterm.h"
 
 enum uterm_input_device_capability {
@@ -51,6 +52,8 @@ struct uterm_input_dev {
 	char *node;
 	struct ev_fd *fd;
 	struct xkb_state *state;
+	/* Used in sleep/wake up to store the key's pressed/released state. */
+	char key_state_bits[SHL_DIV_ROUND_UP(KEY_CNT, CHAR_BIT)];
 
 	unsigned int num_syms;
 	struct uterm_input_event event;
@@ -91,6 +94,7 @@ void uxkb_dev_destroy(struct uterm_input_dev *dev);
 int uxkb_dev_process(struct uterm_input_dev *dev,
 		     uint16_t key_state,
 		     uint16_t code);
-void uxkb_dev_reset(struct uterm_input_dev *dev);
+void uxkb_dev_sleep(struct uterm_input_dev *dev);
+void uxkb_dev_wake_up(struct uterm_input_dev *dev);
 
 #endif /* UTERM_INPUT_H */

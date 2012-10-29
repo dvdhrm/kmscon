@@ -339,28 +339,58 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 	return 0;
 }
 
-/*
- * Call this when we regain control of the keyboard after losing it.
- * We don't reset the locked group, this should survive a VT switch, etc.
- */
-void uxkb_dev_reset(struct uterm_input_dev *dev)
+void uxkb_dev_sleep(struct uterm_input_dev *dev)
 {
-	struct xkb_state *state;
+	/*
+	 * While the device is asleep, we don't receive key events. This
+	 * means that when we wake up, the keyboard state may be different
+	 * (e.g. some key is pressed but we don't know about it). This can
+	 * cause various problems, like stuck modifiers: consider if we
+	 * miss a release of the left Shift key. When the user presses it
+	 * again, xkb_state_update_key() will think there is *another* left
+	 * Shift key that was pressed. When the key is released, it's as if
+	 * this "second" key was released, but the "first" is still left
+	 * pressed.
+	 * To handle this, when the device goes to sleep, we save our
+	 * current knowledge of the keyboard's press/release state. On wake
+	 * up, we compare the states before and after, and just feed
+	 * xkb_state_update_key() the deltas.
+	 */
+	memset(dev->key_state_bits, 0, sizeof(dev->key_state_bits));
+	errno = 0;
+	ioctl(dev->rfd, EVIOCGKEY(sizeof(dev->key_state_bits)),
+	      dev->key_state_bits);
+	if (errno)
+		log_warn("failed to save keyboard state (%d): %m", errno);
+}
 
-	/* TODO: Urghs, while the input device was closed we might have missed
-	 * some events that affect internal state. As xkbcommon does not provide
-	 * a way to reset the internal state, we simply recreate the state. This
-	 * should have the same effect.
-	 * It also has a bug that if the CTRL-Release event is skipped, then
-	 * every further release will never perform a _real_ release. Kind of
-	 * buggy so we should fix it upstream. */
-	state = xkb_state_new(dev->input->keymap);
-	if (!state) {
-		log_warning("cannot recreate xkb-state");
+void uxkb_dev_wake_up(struct uterm_input_dev *dev)
+{
+	uint32_t code;
+	char *old_bits, cur_bits[sizeof(dev->key_state_bits)];
+	char old_bit, cur_bit;
+
+	old_bits = dev->key_state_bits;
+
+	memset(cur_bits, 0, sizeof(cur_bits));
+	errno = 0;
+	ioctl(dev->rfd, EVIOCGKEY(sizeof(cur_bits)), cur_bits);
+	if (errno) {
+		log_warn("failed to get current keyboard state (%d): %m",
+			 errno);
 		return;
 	}
-	xkb_state_unref(dev->state);
-	dev->state = state;
+
+	for (code = 0; code < KEY_CNT; code++) {
+		old_bit = (old_bits[code / 8] & (1 << (code % 8)));
+		cur_bit = (cur_bits[code / 8] & (1 << (code % 8)));
+
+		if (old_bit == cur_bit)
+			continue;
+
+		xkb_state_update_key(dev->state, code + EVDEV_KEYCODE_OFFSET,
+				     cur_bit ? XKB_KEY_DOWN : XKB_KEY_UP);
+	}
 
 	uxkb_dev_update_keyboard_leds(dev);
 }
