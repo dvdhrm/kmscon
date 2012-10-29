@@ -31,9 +31,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/kd.h>
+#include <linux/vt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <termio.h>
+#include <termios.h>
 #include <unistd.h>
 #include "kmscon_cdev.h"
 #include "kmscon_seat.h"
@@ -511,6 +515,70 @@ static void ll_poll(fuse_req_t req, struct fuse_file_info *fi,
 	fuse_reply_poll(req, flags);
 }
 
+static void ioctl_TCFLSH(struct cdev_client *client, fuse_req_t req, int val)
+{
+	switch (val) {
+	case TCIFLUSH:
+		shl_ring_flush(client->ring);
+		break;
+	case TCIOFLUSH:
+		shl_ring_flush(client->ring);
+		/* fallthrough */
+	case TCOFLUSH:
+		/* nothing to do; we have no output queue */
+		break;
+	default:
+		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	fuse_reply_ioctl(req, 0, NULL, 0);
+}
+
+static bool ioctl_param(fuse_req_t req, void *arg, size_t in_want,
+			size_t in_have, size_t out_want, size_t out_have)
+{
+	bool retry;
+	struct iovec in, out;
+	size_t in_num, out_num;
+
+	retry = false;
+	memset(&in, 0, sizeof(in));
+	in_num = 0;
+	memset(&out, 0, sizeof(out));
+	out_num = 0;
+
+	if (in_want) {
+		if (!in_have) {
+			retry = true;
+		} else if (in_have < in_want) {
+			fuse_reply_err(req, EFAULT);
+			return true;
+		}
+
+		in.iov_base = arg;
+		in.iov_len = in_want;
+		in_num = 1;
+	}
+	if (out_want) {
+		if (!out_have) {
+			retry = true;
+		} else if (out_have < out_want) {
+			fuse_reply_err(req, EFAULT);
+			return true;
+		}
+
+		out.iov_base = arg;
+		out.iov_len = out_want;
+		out_num = 1;
+	}
+
+	if (retry)
+		fuse_reply_ioctl_retry(req, in_num ? &in : NULL, in_num,
+				       out_num ? &out : NULL, out_num);
+	return retry;
+}
+
 static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		     struct fuse_file_info *fi, unsigned int flags,
 		     const void *in_buf, size_t in_bufsz, size_t out_bufsz)
@@ -531,8 +599,96 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 	}
 
 	switch (cmd) {
+	case TCFLSH:
+		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+			return;
+		ioctl_TCFLSH(client, req, *(int*)in_buf);
+		break;
+	case VT_ACTIVATE:
+		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case VT_WAITACTIVE:
+		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case VT_GETSTATE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(struct vt_stat), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case VT_OPENQRY:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(int), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case VT_GETMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(struct vt_mode), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case VT_SETMODE:
+		if (ioctl_param(req, arg, sizeof(struct vt_mode), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case KDGETMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(long), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case KDSETMODE:
+		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case KDGKBMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(long), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case KDSKBMODE:
+		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case TCGETS:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(struct termios), out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case TCSETS:
+		if (ioctl_param(req, arg, sizeof(struct termios), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case TCSETSW:
+		if (ioctl_param(req, arg, sizeof(struct termios), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+	case TCSETSF:
+		if (ioctl_param(req, arg, sizeof(struct termios), in_bufsz,
+				0, out_bufsz))
+			return;
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
 	default:
 		fuse_reply_err(req, EINVAL);
+		break;
 	}
 }
 
