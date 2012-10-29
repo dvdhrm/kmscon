@@ -184,4 +184,19 @@ next:
 	}
 }
 
+static inline void shl_ring_flush(struct shl_ring *ring)
+{
+	struct shl_ring_entry *tmp;
+
+	if (!ring)
+		return;
+
+	while (ring->first) {
+		tmp = ring->first;
+		ring->first = tmp->next;
+		free(tmp);
+	}
+	ring->last = NULL;
+}
+
 #endif /* SHL_RING_H */
