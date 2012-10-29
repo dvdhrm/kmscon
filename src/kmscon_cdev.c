@@ -86,6 +86,8 @@ struct cdev_client {
 	struct fuse_pollhandle *ph;
 	struct shl_ring *ring;
 	struct shl_dlist readers;
+
+	long kdmode;
 };
 
 struct cdev_reader {
@@ -293,6 +295,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 		return -ENOMEM;
 	memset(client, 0, sizeof(*client));
 	client->cdev = cdev;
+	client->kdmode = KD_TEXT;
 	shl_dlist_init(&client->readers);
 
 	log_debug("new fake TTY client %p", client);
@@ -535,6 +538,27 @@ static void ioctl_TCFLSH(struct cdev_client *client, fuse_req_t req, int val)
 	fuse_reply_ioctl(req, 0, NULL, 0);
 }
 
+static void ioctl_KDGETMODE(struct cdev_client *client, fuse_req_t req)
+{
+	fuse_reply_ioctl(req, 0, &client->kdmode, sizeof(long));
+}
+
+static void ioctl_KDSETMODE(struct cdev_client *client, fuse_req_t req,
+			    long val)
+{
+	switch (val) {
+	case KD_TEXT:
+	case KD_GRAPHICS:
+		/* TODO: forward this to the current seat */
+		client->kdmode = val;
+		fuse_reply_ioctl(req, 0, NULL, 0);
+		break;
+	default:
+		fuse_reply_err(req, EINVAL);
+		break;
+	}
+}
+
 static bool ioctl_param(fuse_req_t req, void *arg, size_t in_want,
 			size_t in_have, size_t out_want, size_t out_have)
 {
@@ -642,13 +666,13 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		if (ioctl_param(req, arg, 0, in_bufsz,
 				sizeof(long), out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_KDGETMODE(client, req);
 		break;
 	case KDSETMODE:
 		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
 				0, out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_KDSETMODE(client, req, *(long*)in_buf);
 		break;
 	case KDGKBMODE:
 		if (ioctl_param(req, arg, 0, in_bufsz,
