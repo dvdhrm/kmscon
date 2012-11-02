@@ -61,15 +61,14 @@ static void dummy_redraw(struct kmscon_dummy *dummy, struct display *d)
 	uterm_display_swap(d->disp);
 }
 
-static void dummy_session_event(struct kmscon_session *session,
-				unsigned int event, struct uterm_display *disp,
-				void *data)
+static int dummy_session_event(struct kmscon_session *session,
+			       struct kmscon_session_event *ev, void *data)
 {
 	struct kmscon_dummy *dummy = data;
 	struct display *d;
 	struct shl_dlist *iter;
 
-	switch (event) {
+	switch (ev->type) {
 	case KMSCON_SESSION_DISPLAY_NEW:
 		d = malloc(sizeof(*d));
 		if (!d) {
@@ -77,7 +76,7 @@ static void dummy_session_event(struct kmscon_session *session,
 			break;
 		}
 		memset(d, 0, sizeof(*d));
-		d->disp = disp;
+		d->disp = ev->disp;
 		shl_dlist_link_tail(&dummy->displays, &d->list);
 		if (dummy->active)
 			dummy_redraw(dummy, d);
@@ -85,7 +84,7 @@ static void dummy_session_event(struct kmscon_session *session,
 	case KMSCON_SESSION_DISPLAY_GONE:
 		shl_dlist_for_each(iter, &dummy->displays) {
 			d = shl_dlist_entry(iter, struct display, list);
-			if (d->disp != disp)
+			if (d->disp != ev->disp)
 				continue;
 
 			shl_dlist_unlink(&d->list);
@@ -114,6 +113,8 @@ static void dummy_session_event(struct kmscon_session *session,
 		free(dummy);
 		break;
 	}
+
+	return 0;
 }
 
 int kmscon_dummy_register(struct kmscon_session **out,

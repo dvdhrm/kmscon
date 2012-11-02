@@ -89,10 +89,15 @@ struct kmscon_seat {
 static void session_call(struct kmscon_session *sess, unsigned int event,
 			 struct uterm_display *disp)
 {
+	struct kmscon_session_event ev;
+
 	if (!sess->cb)
 		return;
 
-	sess->cb(sess, event, disp, sess->data);
+	memset(&ev, 0, sizeof(ev));
+	ev.type = event;
+	ev.disp = disp;
+	sess->cb(sess, &ev, sess->data);
 }
 
 static void session_call_activate(struct kmscon_session *sess)

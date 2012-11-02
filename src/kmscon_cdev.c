@@ -270,14 +270,13 @@ static void client_free(struct cdev_client *client)
 	free(client);
 }
 
-static void client_session_event(struct kmscon_session *s,
-				 unsigned int event,
-				 struct uterm_display *disp,
-				 void *data)
+static int client_session_event(struct kmscon_session *s,
+				struct kmscon_session_event *ev,
+				void *data)
 {
 	struct cdev_client *client = data;
 
-	switch (event) {
+	switch (ev->type) {
 	case KMSCON_SESSION_ACTIVATE:
 		client->active = true;
 		break;
@@ -288,6 +287,8 @@ static void client_session_event(struct kmscon_session *s,
 		client_free(client);
 		break;
 	}
+
+	return 0;
 }
 
 static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
@@ -1037,18 +1038,20 @@ void kmscon_cdev_destroy(struct kmscon_cdev *cdev)
 	close(cdev->fd);
 }
 
-static void session_event(struct kmscon_session *session, unsigned int event,
-			  struct uterm_display *disp, void *data)
+static int session_event(struct kmscon_session *session,
+			 struct kmscon_session_event *ev, void *data)
 {
 	struct kmscon_cdev *cdev = data;
 
-	switch (event) {
+	switch (ev->type) {
 	case KMSCON_SESSION_UNREGISTER:
 		log_debug("destroy cdev session");
 		kmscon_cdev_destroy(cdev);
 		free(cdev);
 		break;
 	}
+
+	return 0;
 }
 
 int kmscon_cdev_register(struct kmscon_session **out,

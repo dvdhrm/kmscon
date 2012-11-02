@@ -50,7 +50,7 @@ typedef void (*kmscon_seat_cb_t) (struct kmscon_seat *seat,
 				  unsigned int event,
 				  void *data);
 
-enum kmscon_session_event {
+enum kmscon_session_event_type {
 	KMSCON_SESSION_DISPLAY_NEW,
 	KMSCON_SESSION_DISPLAY_GONE,
 	KMSCON_SESSION_ACTIVATE,
@@ -58,10 +58,14 @@ enum kmscon_session_event {
 	KMSCON_SESSION_UNREGISTER,
 };
 
-typedef void (*kmscon_session_cb_t) (struct kmscon_session *session,
-				     unsigned int event,
-				     struct uterm_display *disp,
-				     void *data);
+struct kmscon_session_event {
+	unsigned int type;
+	struct uterm_display *disp;
+};
+
+typedef int (*kmscon_session_cb_t) (struct kmscon_session *session,
+				    struct kmscon_session_event *event,
+				    void *data);
 
 int kmscon_seat_new(struct kmscon_seat **out,
 		    struct conf_ctx *main_conf,

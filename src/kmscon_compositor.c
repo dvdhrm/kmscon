@@ -775,18 +775,19 @@ static void compositor_destroy(struct compositor *comp)
 	free(comp);
 }
 
-static void compositor_session_event(struct kmscon_session *s, unsigned int ev,
-				     struct uterm_display *disp, void *data)
+static int compositor_session_event(struct kmscon_session *s,
+				    struct kmscon_session_event *ev,
+				    void *data)
 {
 	struct compositor *comp = data;
 	struct output *output;
 
-	switch (ev) {
+	switch (ev->type) {
 	case KMSCON_SESSION_DISPLAY_NEW:
-		compositor_add_output(comp, disp);
+		compositor_add_output(comp, ev->disp);
 		break;
 	case KMSCON_SESSION_DISPLAY_GONE:
-		output = compositor_find_output(comp, disp);
+		output = compositor_find_output(comp, ev->disp);
 		if (!output)
 			return;
 		compositor_remove_output(comp, output);
@@ -795,6 +796,8 @@ static void compositor_session_event(struct kmscon_session *s, unsigned int ev,
 		compositor_destroy(comp);
 		break;
 	}
+
+	return 0;
 }
 
 int kmscon_compositor_register(struct kmscon_session **out,

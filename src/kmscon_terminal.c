@@ -426,17 +426,17 @@ static void terminal_destroy(struct kmscon_terminal *term)
 	free(term);
 }
 
-static void session_event(struct kmscon_session *session, unsigned int event,
-			  struct uterm_display *disp, void *data)
+static int session_event(struct kmscon_session *session,
+			 struct kmscon_session_event *ev, void *data)
 {
 	struct kmscon_terminal *term = data;
 
-	switch (event) {
+	switch (ev->type) {
 	case KMSCON_SESSION_DISPLAY_NEW:
-		add_display(term, disp);
+		add_display(term, ev->disp);
 		break;
 	case KMSCON_SESSION_DISPLAY_GONE:
-		rm_display(term, disp);
+		rm_display(term, ev->disp);
 		break;
 	case KMSCON_SESSION_ACTIVATE:
 		term->awake = true;
@@ -451,6 +451,8 @@ static void session_event(struct kmscon_session *session, unsigned int event,
 		terminal_destroy(term);
 		break;
 	}
+
+	return 0;
 }
 
 static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
