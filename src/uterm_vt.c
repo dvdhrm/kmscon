@@ -316,7 +316,6 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	struct vt_mode mode;
 	struct vt_stat vts;
 	int ret;
-	sigset_t mask;
 
 	log_debug("open vt %p", vt);
 
@@ -359,16 +358,6 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		log_err("cannot put VT in graphics mode (%d): %m", errno);
 		ret = -errno;
 		goto err_reset;
-	}
-
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGUSR1);
-	sigaddset(&mask, SIGUSR2);
-	ret = sigprocmask(SIG_BLOCK, &mask, NULL);
-	if (ret) {
-		log_error("cannot block SIGUSR1/2 (%d): %m", errno);
-		ret = -EFAULT;
-		goto err_text;
 	}
 
 	memset(&mode, 0, sizeof(mode));
