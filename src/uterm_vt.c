@@ -204,9 +204,6 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 
 	log_debug("enter VT %d %p due to VT signal", vt->real_num, vt);
 	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
-	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS))
-		log_warn("cannot set graphics mode on vt %p (%d): %m", vt,
-			 errno);
 	vt_call_activate(vt);
 }
 
@@ -246,8 +243,6 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 		return;
 	}
 	ioctl(vt->real_fd, VT_RELDISP, 1);
-	if (ioctl(vt->real_fd, KDSETMODE, KD_TEXT))
-		log_warn("cannot set text mode on vt %p (%d): %m", vt, errno);
 }
 
 static void real_vt_input(struct ev_fd *fd, int mask, void *data)
