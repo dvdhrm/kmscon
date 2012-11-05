@@ -674,6 +674,18 @@ static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	}
 }
 
+static int fake_open(struct uterm_vt *vt, const char *vt_for_seat0)
+{
+	uterm_input_wake_up(vt->input);
+	return 0;
+}
+
+static void fake_close(struct uterm_vt *vt)
+{
+	vt_call_deactivate(vt, true);
+	uterm_input_sleep(vt->input);
+}
+
 /*
  * Generic VT handling layer
  * VTs are a historical concept. Technically, they actually are a VT102
@@ -771,12 +783,13 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	if (!strcmp(seat, "seat0") && vtm->vt_support) {
 		vt->mode = UTERM_VT_REAL;
 		ret = real_open(vt, vt_for_seat0);
-		if (ret)
-			goto err_input;
 	} else {
 		vt->mode = UTERM_VT_FAKE;
-		uterm_input_wake_up(vt->input);
+		ret = fake_open(vt, vt_for_seat0);
 	}
+
+	if (ret)
+		goto err_input;
 
 	uterm_input_ref(vt->input);
 	shl_dlist_link(&vtm->vts, &vt->list);
@@ -799,12 +812,10 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (!vt || !vt->vtm)
 		return;
 
-	if (vt->mode == UTERM_VT_REAL) {
+	if (vt->mode == UTERM_VT_REAL)
 		real_close(vt);
-	} else if (vt->mode == UTERM_VT_FAKE) {
-		vt_call_deactivate(vt, true);
-		uterm_input_sleep(vt->input);
-	}
+	else if (vt->mode == UTERM_VT_FAKE)
+		fake_close(vt);
 
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
