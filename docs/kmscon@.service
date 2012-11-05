@@ -1,0 +1,14 @@
+[Unit]
+Description=KMS System Console on %i
+Documentation=man:kmscon(1)
+After=systemd-user-sessions.service
+Before=getty.target
+IgnoreOnIsolate=yes
+
+[Service]
+ExecStart=-/usr/bin/kmscon --vt=%i -l /bin/login
+UtmpIdentifier=%I
+KillMode=process
+
+[Install]
+Alias=getty.target.wants/kmscon@%I.service
