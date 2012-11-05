@@ -80,34 +80,59 @@ struct uterm_vt_master {
 	struct shl_dlist vts;
 };
 
-static void vt_call(struct uterm_vt *vt, unsigned int event)
+static int vt_call(struct uterm_vt *vt, unsigned int event, bool force)
 {
 	int ret;
+	struct uterm_vt_event ev;
+
+	memset(&ev, 0, sizeof(ev));
+	ev.action = event;
+	if (force)
+		ev.flags |= UTERM_VT_FORCE;
 
 	switch (event) {
 	case UTERM_VT_ACTIVATE:
-		if (!vt->active) {
-			if (vt->cb) {
-				ret = vt->cb(vt, event, vt->data);
-				if (ret)
-					log_warning("vt event handler returned %d instead of 0 on activation",
-						    ret);
-			}
-			vt->active = true;
-		}
+		if (vt->active)
+			return 0;
+		if (!vt->cb)
+			break;
+
+		ret = vt->cb(vt, &ev, vt->data);
+		if (ret)
+			log_warning("vt event handler returned %d instead of 0 on activation",
+				    ret);
 		break;
 	case UTERM_VT_DEACTIVATE:
-		if (vt->active) {
-			if (vt->cb) {
-				ret = vt->cb(vt, event, vt->data);
-				if (ret)
-					log_warning("vt event handler returned %d instead of 0 on deactivation",
-						    ret);
-			}
-			vt->active = false;
+		if (!vt->active)
+			return 0;
+		if (!vt->cb)
+			break;
+
+		ret = vt->cb(vt, &ev, vt->data);
+		if (ret) {
+			if (force)
+				log_warning("vt event handler returned %d instead of 0 on forced deactivation",
+					    ret);
+			else
+				return ret;
 		}
 		break;
+	default:
+		return -EINVAL;
 	}
+
+	vt->active = !vt->active;
+	return 0;
+}
+
+static void vt_call_activate(struct uterm_vt *vt)
+{
+	vt_call(vt, UTERM_VT_ACTIVATE, false);
+}
+
+static int vt_call_deactivate(struct uterm_vt *vt, bool force)
+{
+	return vt_call(vt, UTERM_VT_DEACTIVATE, force);
 }
 
 /*
@@ -147,7 +172,7 @@ static void real_delayed(struct ev_eloop *eloop, void *unused, void *data)
 	log_debug("enter VT %d %p during startup", vt->real_num, vt);
 	vt->real_delayed = false;
 	ev_eloop_unregister_idle_cb(eloop, real_delayed, vt);
-	vt_call(vt, UTERM_VT_ACTIVATE);
+	vt_call_activate(vt);
 }
 
 static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
@@ -182,7 +207,7 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS))
 		log_warn("cannot set graphics mode on vt %p (%d): %m", vt,
 			 errno);
-	vt_call(vt, UTERM_VT_ACTIVATE);
+	vt_call_activate(vt);
 }
 
 static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
@@ -214,7 +239,12 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	}
 
 	log_debug("leaving VT %d %p due to VT signal", vt->real_num, vt);
-	vt_call(vt, UTERM_VT_DEACTIVATE);
+	ret = vt_call_deactivate(vt, false);
+	if (ret) {
+		ioctl(vt->real_fd, VT_RELDISP, 0);
+		log_debug("not leaving VT %d %p", vt->real_num, vt);
+		return;
+	}
 	ioctl(vt->real_fd, VT_RELDISP, 1);
 	if (ioctl(vt->real_fd, KDSETMODE, KD_TEXT))
 		log_warn("cannot set text mode on vt %p (%d): %m", vt, errno);
@@ -427,7 +457,7 @@ static void real_close(struct uterm_vt *vt)
 
 	log_debug("closing VT %d", vt->real_num);
 
-	vt_call(vt, UTERM_VT_DEACTIVATE);
+	vt_call_deactivate(vt, true);
 	if (vt->real_delayed) {
 		vt->real_delayed = false;
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
@@ -616,15 +646,14 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 static int fake_activate(struct uterm_vt *vt)
 {
 	log_debug("activating fake VT due to user request");
-	vt_call(vt, UTERM_VT_ACTIVATE);
+	vt_call_activate(vt);
 	return 0;
 }
 
 static int fake_deactivate(struct uterm_vt *vt)
 {
 	log_debug("deactivating fake VT due to user request");
-	vt_call(vt, UTERM_VT_DEACTIVATE);
-	return 0;
+	return vt_call_deactivate(vt, false);
 }
 
 static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
@@ -637,10 +666,10 @@ static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 		ev->handled = true;
 		if (vt->active) {
 			log_debug("deactivating fake VT due to user input");
-			vt_call(vt, UTERM_VT_DEACTIVATE);
+			vt_call_deactivate(vt, false);
 		} else {
 			log_debug("activating fake VT due to user input");
-			vt_call(vt, UTERM_VT_ACTIVATE);
+			vt_call_activate(vt);
 		}
 	}
 }
@@ -773,7 +802,7 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	if (vt->mode == UTERM_VT_REAL) {
 		real_close(vt);
 	} else if (vt->mode == UTERM_VT_FAKE) {
-		vt_call(vt, UTERM_VT_DEACTIVATE);
+		vt_call_deactivate(vt, true);
 		uterm_input_sleep(vt->input);
 	}
 

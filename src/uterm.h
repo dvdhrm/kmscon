@@ -352,12 +352,21 @@ enum uterm_vt_action {
 	UTERM_VT_DEACTIVATE,
 };
 
+enum uterm_vt_flags {
+	UTERM_VT_FORCE = 0x01,
+};
+
+struct uterm_vt_event {
+	unsigned int action;
+	unsigned int flags;
+};
+
 enum uterm_vt_mode {
 	UTERM_VT_REAL,
 	UTERM_VT_FAKE,
 };
 
-typedef int (*uterm_vt_cb) (struct uterm_vt *vt, unsigned int action,
+typedef int (*uterm_vt_cb) (struct uterm_vt *vt, struct uterm_vt_event *ev,
 			    void *data);
 
 int uterm_vt_master_new(struct uterm_vt_master **out,

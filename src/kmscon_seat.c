@@ -281,13 +281,14 @@ static void seat_remove_display(struct kmscon_seat *seat,
 	free(d);
 }
 
-static int seat_vt_event(struct uterm_vt *vt, unsigned int event, void *data)
+static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
+			 void *data)
 {
 	struct kmscon_seat *seat = data;
 	struct shl_dlist *iter;
 	struct kmscon_display *d;
 
-	switch (event) {
+	switch (ev->action) {
 	case UTERM_VT_ACTIVATE:
 		seat->awake = true;
 		if (seat->cb)
