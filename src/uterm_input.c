@@ -110,18 +110,14 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 		return -EFAULT;
 	}
 
-	if (dev->capabilities & UTERM_DEVICE_HAS_KEYS) {
-		/* rediscover the keyboard state if sth changed during sleep */
-		uxkb_dev_reset(dev);
+	uxkb_dev_wake_up(dev);
 
-		ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd,
-						dev->rfd, EV_READABLE,
-						input_data_dev, dev);
-		if (ret) {
-			close(dev->rfd);
-			dev->rfd = -1;
-			return ret;
-		}
+	ret = ev_eloop_new_fd(dev->input->eloop, &dev->fd, dev->rfd,
+			      EV_READABLE, input_data_dev, dev);
+	if (ret) {
+		close(dev->rfd);
+		dev->rfd = -1;
+		return ret;
 	}
 
 	return 0;
@@ -131,6 +127,8 @@ static void input_sleep_dev(struct uterm_input_dev *dev)
 {
 	if (dev->rfd < 0)
 		return;
+
+	uxkb_dev_sleep(dev);
 
 	dev->repeating = false;
 	ev_timer_update(dev->repeat_timer, NULL);
