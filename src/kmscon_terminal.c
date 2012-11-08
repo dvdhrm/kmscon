@@ -54,6 +54,7 @@ struct screen {
 	struct uterm_display *disp;
 	struct uterm_screen *screen;
 	struct kmscon_font *font;
+	struct kmscon_font *bold_font;
 	struct kmscon_text *txt;
 };
 
@@ -226,6 +227,14 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_screen;
 	}
 
+	attr.bold = true;
+	ret = kmscon_font_find(&scr->bold_font, &attr, term->conf->font_engine);
+	if (ret) {
+		log_error("cannot create bold font");
+		scr->bold_font = scr->font;
+		kmscon_font_ref(scr->bold_font);
+	}
+
 	ret = uterm_screen_use(scr->screen);
 	if (term->conf->render_engine)
 		be = term->conf->render_engine;
@@ -240,7 +249,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_font;
 	}
 
-	ret = kmscon_text_set(scr->txt, scr->font, NULL, scr->screen);
+	ret = kmscon_text_set(scr->txt, scr->font, scr->bold_font, scr->screen);
 	if (ret) {
 		log_error("cannot set text-renderer parameters");
 		goto err_text;
@@ -260,6 +269,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 err_text:
 	kmscon_text_unref(scr->txt);
 err_font:
+	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
 err_screen:
 	uterm_screen_unref(scr->screen);
@@ -277,6 +287,7 @@ static void free_screen(struct kmscon_terminal *term, struct screen *scr,
 	log_debug("destroying terminal screen %p", scr);
 	shl_dlist_unlink(&scr->list);
 	kmscon_text_unref(scr->txt);
+	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
 	uterm_screen_unref(scr->screen);
 	uterm_display_unref(scr->disp);
