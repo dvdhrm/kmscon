@@ -87,6 +87,7 @@ struct glyph {
 
 struct gltex {
 	struct shl_hashtable *glyphs;
+	struct shl_hashtable *bold_glyphs;
 	unsigned int max_tex_size;
 	bool supports_rowlen;
 
@@ -156,16 +157,22 @@ static int gltex_set(struct kmscon_text *txt)
 	if (ret)
 		return ret;
 
-	ret = uterm_screen_use(txt->screen);
+	ret = shl_hashtable_new(&gt->bold_glyphs, shl_direct_hash,
+				shl_direct_equal, NULL,
+				free_glyph);
 	if (ret)
 		goto err_htable;
+
+	ret = uterm_screen_use(txt->screen);
+	if (ret)
+		goto err_bold_htable;
 
 	gl_clear_error();
 
 	ret = gl_shader_new(&gt->shader, gl_static_gltex_vert,
 			    gl_static_gltex_frag, attr, 4, log_llog);
 	if (ret)
-		goto err_htable;
+		goto err_bold_htable;
 
 	gt->uni_proj = gl_shader_get_uniform(gt->shader, "projection");
 	gt->uni_atlas = gl_shader_get_uniform(gt->shader, "atlas");
@@ -205,6 +212,8 @@ static int gltex_set(struct kmscon_text *txt)
 
 err_shader:
 	gl_shader_unref(gt->shader);
+err_bold_htable:
+	shl_hashtable_free(gt->bold_glyphs);
 err_htable:
 	shl_hashtable_free(gt->glyphs);
 	return ret;
@@ -224,6 +233,7 @@ static void gltex_unset(struct kmscon_text *txt)
 		log_warning("cannot activate OpenGL-CTX during destruction");
 	}
 
+	shl_hashtable_free(gt->bold_glyphs);
 	shl_hashtable_free(gt->glyphs);
 
 	while (!shl_dlist_empty(&gt->atlases)) {
@@ -366,7 +376,7 @@ err_free:
 }
 
 static int find_glyph(struct kmscon_text *txt, struct glyph **out,
-		      uint32_t id, const uint32_t *ch, size_t len)
+		      uint32_t id, const uint32_t *ch, size_t len, bool bold)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
@@ -375,9 +385,19 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	int ret, i;
 	GLenum err;
 	uint8_t *packed_data, *dst, *src;
+	struct shl_hashtable *gtable;
+	struct kmscon_font *font;
 
-	res = shl_hashtable_find(gt->glyphs, (void**)&glyph,
-				    (void*)(unsigned long)id);
+	if (bold) {
+		gtable = gt->bold_glyphs;
+		font = txt->bold_font;
+	} else {
+		gtable = gt->glyphs;
+		font = txt->font;
+	}
+
+	res = shl_hashtable_find(gtable, (void**)&glyph,
+				 (void*)(unsigned long)id);
 	if (res) {
 		*out = glyph;
 		return 0;
@@ -392,14 +412,13 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 		return -ENOMEM;
 	memset(glyph, 0, sizeof(*glyph));
 
-	if (!len) {
-		ret = kmscon_font_render_empty(txt->font, &glyph->glyph);
-	} else {
-		ret = kmscon_font_render(txt->font, id, ch, len, &glyph->glyph);
-	}
+	if (!len)
+		ret = kmscon_font_render_empty(font, &glyph->glyph);
+	else
+		ret = kmscon_font_render(font, id, ch, len, &glyph->glyph);
 
 	if (ret) {
-		ret = kmscon_font_render_inval(txt->font, &glyph->glyph);
+		ret = kmscon_font_render_inval(font, &glyph->glyph);
 		if (ret)
 			goto err_free;
 	}
@@ -479,7 +498,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	glyph->atlas = atlas;
 	glyph->texoff = atlas->fill;
 
-	ret = shl_hashtable_insert(gt->glyphs, (void*)(long)id, glyph);
+	ret = shl_hashtable_insert(gtable, (void*)(long)id, glyph);
 	if (ret)
 		goto err_free;
 
@@ -530,7 +549,7 @@ static int gltex_draw(struct kmscon_text *txt,
 	struct glyph *glyph;
 	int ret, i, idx;
 
-	ret = find_glyph(txt, &glyph, id, ch, len);
+	ret = find_glyph(txt, &glyph, id, ch, len, attr->bold);
 	if (ret)
 		return ret;
 	atlas = glyph->atlas;
