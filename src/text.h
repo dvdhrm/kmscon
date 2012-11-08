@@ -123,6 +123,7 @@ struct kmscon_text {
 	void *data;
 
 	struct kmscon_font *font;
+	struct kmscon_font *bold_font;
 	struct uterm_screen *screen;
 	unsigned int cols;
 	unsigned int rows;
@@ -153,6 +154,7 @@ void kmscon_text_unref(struct kmscon_text *txt);
 
 int kmscon_text_set(struct kmscon_text *txt,
 		    struct kmscon_font *font,
+		    struct kmscon_font *bold_font,
 		    struct uterm_screen *screen);
 void kmscon_text_unset(struct kmscon_text *txt);
 unsigned int kmscon_text_get_cols(struct kmscon_text *txt);

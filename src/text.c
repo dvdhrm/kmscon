@@ -295,6 +295,7 @@ void kmscon_text_unref(struct kmscon_text *text)
  * kmscon_text_set:
  * @txt: Valid text-renderer object
  * @font: font object
+ * @bold_font: bold font object or NULL
  * @screen: screen object
  *
  * This makes the text-renderer @txt use the font @font and screen @screen. You
@@ -303,11 +304,15 @@ void kmscon_text_unref(struct kmscon_text *text)
  * None of the arguments can be NULL!
  * If this function fails then you must assume that no font/screen will be set
  * and the object is invalid.
+ * If @bold_font is NULL, @font is also used for bold characters. The caller
+ * must make sure that @font and @bold_font have the same metrics. The renderers
+ * will always use the metrics of @font.
  *
  * Returns: 0 on success, negative error code on failure.
  */
 int kmscon_text_set(struct kmscon_text *txt,
 		    struct kmscon_font *font,
+		    struct kmscon_font *bold_font,
 		    struct uterm_screen *screen)
 {
 	int ret;
@@ -315,21 +320,27 @@ int kmscon_text_set(struct kmscon_text *txt,
 	if (!txt || !font || !screen)
 		return -EINVAL;
 
+	if (!bold_font)
+		bold_font = font;
+
 	kmscon_text_unset(txt);
 
 	txt->font = font;
+	txt->bold_font = bold_font;
 	txt->screen = screen;
 
 	if (txt->ops->set) {
 		ret = txt->ops->set(txt);
 		if (ret) {
 			txt->font = NULL;
+			txt->bold_font = NULL;
 			txt->screen = NULL;
 			return ret;
 		}
 	}
 
 	kmscon_font_ref(txt->font);
+	kmscon_font_ref(txt->bold_font);
 	uterm_screen_ref(txt->screen);
 
 	return 0;
@@ -353,8 +364,10 @@ void kmscon_text_unset(struct kmscon_text *txt)
 		txt->ops->unset(txt);
 
 	kmscon_font_unref(txt->font);
+	kmscon_font_unref(txt->bold_font);
 	uterm_screen_unref(txt->screen);
 	txt->font = NULL;
+	txt->bold_font = NULL;
 	txt->screen = NULL;
 	txt->cols = 0;
 	txt->rows = 0;

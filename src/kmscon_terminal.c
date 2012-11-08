@@ -240,7 +240,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_font;
 	}
 
-	ret = kmscon_text_set(scr->txt, scr->font, scr->screen);
+	ret = kmscon_text_set(scr->txt, scr->font, NULL, scr->screen);
 	if (ret) {
 		log_error("cannot set text-renderer parameters");
 		goto err_text;
