@@ -64,15 +64,21 @@ static int bblit_draw(struct kmscon_text *txt,
 {
 	const struct kmscon_glyph *glyph;
 	int ret;
+	struct kmscon_font *font;
+
+	if (attr->bold)
+		font = txt->bold_font;
+	else
+		font = txt->font;
 
 	if (!len) {
-		ret = kmscon_font_render_empty(txt->font, &glyph);
+		ret = kmscon_font_render_empty(font, &glyph);
 	} else {
-		ret = kmscon_font_render(txt->font, id, ch, len, &glyph);
+		ret = kmscon_font_render(font, id, ch, len, &glyph);
 	}
 
 	if (ret) {
-		ret = kmscon_font_render_inval(txt->font, &glyph);
+		ret = kmscon_font_render_inval(font, &glyph);
 		if (ret)
 			return ret;
 	}
