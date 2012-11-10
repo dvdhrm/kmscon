@@ -310,6 +310,15 @@ static int seat_run(struct kmscon_seat *seat)
 	return 0;
 }
 
+static void session_deactivate(struct kmscon_session *sess)
+{
+	if (sess->seat->current_sess != sess)
+		return;
+
+	sess->deactivating = false;
+	sess->seat->current_sess = NULL;
+}
+
 static int seat_pause(struct kmscon_seat *seat, bool force)
 {
 	int ret;
@@ -318,7 +327,6 @@ static int seat_pause(struct kmscon_seat *seat, bool force)
 		return 0;
 
 	seat->current_sess->deactivating = true;
-
 	ret = session_call_deactivate(seat->current_sess);
 	if (ret) {
 		log_warning("cannot deactivate session %p: %d",
@@ -327,8 +335,7 @@ static int seat_pause(struct kmscon_seat *seat, bool force)
 			return ret;
 	}
 
-	seat->current_sess->deactivating = false;
-	seat->current_sess = NULL;
+	session_deactivate(seat->current_sess);
 
 	return 0;
 }
@@ -973,4 +980,20 @@ void kmscon_session_disable(struct kmscon_session *sess)
 bool kmscon_session_is_enabled(struct kmscon_session *sess)
 {
 	return sess && sess->enabled;
+}
+
+void kmscon_session_notify_deactivated(struct kmscon_session *sess)
+{
+	struct kmscon_seat *seat;
+
+	if (!sess || !sess->seat)
+		return;
+
+	seat = sess->seat;
+	if (seat->current_sess != sess)
+		return;
+
+	session_deactivate(sess);
+	seat_reschedule(seat);
+	seat_switch(sess->seat);
 }

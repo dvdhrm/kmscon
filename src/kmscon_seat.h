@@ -106,4 +106,6 @@ void kmscon_session_enable(struct kmscon_session *sess);
 void kmscon_session_disable(struct kmscon_session *sess);
 bool kmscon_session_is_enabled(struct kmscon_session *sess);
 
+void kmscon_session_notify_deactivated(struct kmscon_session *sess);
+
 #endif /* KMSCON_SEAT_H */
