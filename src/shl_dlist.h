@@ -110,7 +110,9 @@ static inline bool shl_dlist_empty(struct shl_dlist *head)
 				(start)->next->next : \
 				(start)->next; \
 	     iter != (start); \
-	     iter = (iter->next == (head)) ? iter->next->next : iter->next)
+	     iter = (iter->next == (head) && (start) != (head)) ? \
+				iter->next->next : \
+				iter->next)
 
 #define shl_dlist_for_each_safe(iter, tmp, head) \
 	for (iter = (head)->next, tmp = iter->next; iter != (head); \
@@ -124,7 +126,9 @@ static inline bool shl_dlist_empty(struct shl_dlist *head)
 				(start)->prev->prev : \
 				(start)->prev; \
 	     iter != (start); \
-	     iter = (iter->prev == (head)) ? iter->prev->prev : iter->prev)
+	     iter = (iter->prev == (head) && (start) != (head)) ? \
+				iter->prev->prev : \
+				iter->prev)
 
 #define shl_dlist_for_each_reverse_safe(iter, tmp, head) \
 	for (iter = (head)->prev, tmp = iter->prev; iter != (head); \
