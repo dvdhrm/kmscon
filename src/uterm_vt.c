@@ -67,7 +67,6 @@ struct uterm_vt {
 	int real_num;
 	int real_saved_num;
 	int real_kbmode;
-	struct termios real_saved_attribs;
 	struct ev_fd *real_efd;
 	bool real_delayed;
 };
@@ -312,7 +311,6 @@ static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 
 static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 {
-	struct termios raw_attribs;
 	struct vt_mode mode;
 	struct vt_stat vts;
 	int ret;
@@ -338,26 +336,10 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	}
 	vt->real_saved_num = vts.v_active;
 
-	if (tcgetattr(vt->real_fd, &vt->real_saved_attribs) < 0) {
-		log_err("cannot get terminal attributes (%d): %m", errno);
-		ret = -EFAULT;
-		goto err_eloop;
-	}
-
-	/* Ignore control characters and disable echo */
-	raw_attribs = vt->real_saved_attribs;
-	cfmakeraw(&raw_attribs);
-
-	/* Fix up line endings to be normal (cfmakeraw hoses them) */
-	raw_attribs.c_oflag |= OPOST | OCRNL;
-
-	if (tcsetattr(vt->real_fd, TCSANOW, &raw_attribs) < 0)
-		log_warn("cannot put terminal into raw mode (%d): %m", errno);
-
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("cannot put VT in graphics mode (%d): %m", errno);
 		ret = -errno;
-		goto err_reset;
+		goto err_eloop;
 	}
 
 	memset(&mode, 0, sizeof(mode));
@@ -421,11 +403,6 @@ err_text:
 	if (ret)
 		log_warning("cannot reset VT %d to text-mode (%d): %m",
 			    vt->real_num, errno);
-err_reset:
-	ret = tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
-	if (ret)
-		log_warning("cannot reset VT %d attributes (%d): %m",
-			    vt->real_num, errno);
 err_eloop:
 	ev_eloop_rm_fd(vt->real_efd);
 	vt->real_efd = NULL;
@@ -463,11 +440,6 @@ static void real_close(struct uterm_vt *vt)
 	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
 	if (ret)
 		log_warning("cannot reset VT %d to text-mode (%d): %m",
-			    vt->real_num, errno);
-
-	ret = tcsetattr(vt->real_fd, TCSANOW, &vt->real_saved_attribs);
-	if (ret)
-		log_warning("cannot reset VT %d attributes (%d): %m",
 			    vt->real_num, errno);
 
 	ev_eloop_rm_fd(vt->real_efd);
