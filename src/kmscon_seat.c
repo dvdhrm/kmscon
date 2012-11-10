@@ -52,6 +52,10 @@ struct kmscon_session {
 	struct kmscon_seat *seat;
 
 	bool enabled;
+	bool foreground;
+	bool deactivating;
+
+	struct ev_timer *timer;
 
 	kmscon_session_cb_t cb;
 	void *data;
@@ -67,49 +71,51 @@ struct kmscon_display {
 struct kmscon_seat {
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
-
 	struct conf_ctx *conf_ctx;
 	struct kmscon_conf_t *conf;
 
 	char *name;
-	bool awake;
 	struct uterm_input *input;
 	struct uterm_vt *vt;
 	struct shl_dlist displays;
 
 	size_t session_count;
 	struct shl_dlist sessions;
-	struct kmscon_session *cur_sess;
-	struct kmscon_session *dummy;
+
+	bool awake;
+	bool foreground;
+	struct kmscon_session *current_sess;
+	struct kmscon_session *scheduled_sess;
+	struct kmscon_session *dummy_sess;
 
 	kmscon_seat_cb_t cb;
 	void *data;
 };
 
-static void session_call(struct kmscon_session *sess, unsigned int event,
-			 struct uterm_display *disp)
+static int session_call(struct kmscon_session *sess, unsigned int event,
+			struct uterm_display *disp)
 {
 	struct kmscon_session_event ev;
 
 	if (!sess->cb)
-		return;
+		return 0;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = event;
 	ev.disp = disp;
-	sess->cb(sess, &ev, sess->data);
+	return sess->cb(sess, &ev, sess->data);
 }
 
-static void session_call_activate(struct kmscon_session *sess)
+static int session_call_activate(struct kmscon_session *sess)
 {
 	log_debug("activate session %p", sess);
-	session_call(sess, KMSCON_SESSION_ACTIVATE, NULL);
+	return session_call(sess, KMSCON_SESSION_ACTIVATE, NULL);
 }
 
-static void session_call_deactivate(struct kmscon_session *sess)
+static int session_call_deactivate(struct kmscon_session *sess)
 {
 	log_debug("deactivate session %p", sess);
-	session_call(sess, KMSCON_SESSION_DEACTIVATE, NULL);
+	return session_call(sess, KMSCON_SESSION_DEACTIVATE, NULL);
 }
 
 static void session_call_display_new(struct kmscon_session *sess,
@@ -124,91 +130,81 @@ static void session_call_display_gone(struct kmscon_session *sess,
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
 
-static int session_activate(struct kmscon_session *sess)
+static int seat_go_foreground(struct kmscon_seat *seat)
 {
-	struct kmscon_seat *seat = sess->seat;
+	int ret;
 
-	if (seat->cur_sess == sess)
+	if (!seat->awake)
+		return -EBUSY;
+	if (seat->foreground)
 		return 0;
-	if (!sess->enabled)
-		return -EINVAL;
+	if (seat->current_sess)
+		return -EBUSY;
 
-	if (seat->cur_sess) {
-		if (seat->awake)
-			session_call_deactivate(seat->cur_sess);
-		seat->cur_sess = NULL;
+	if (seat->cb) {
+		ret = seat->cb(seat, KMSCON_SEAT_FOREGROUND, seat->data);
+		if (ret) {
+			log_warning("cannot put seat %s into foreground: %d",
+				    seat->name, ret);
+			return ret;
+		}
 	}
 
-	seat->cur_sess = sess;
-	if (seat->awake)
-		session_call_activate(sess);
-
+	seat->foreground = true;
 	return 0;
 }
 
-static void session_deactivate(struct kmscon_session *sess)
+static int seat_go_background(struct kmscon_seat *seat)
 {
-	struct kmscon_seat *seat = sess->seat;
-	struct shl_dlist *iter;
-	struct kmscon_session *s;
+	int ret;
 
-	if (seat->cur_sess != sess)
-		return;
+	if (!seat->foreground)
+		return 0;
+	if (!seat->awake || seat->current_sess)
+		return -EBUSY;
 
-	if (seat->awake)
-		session_call_deactivate(sess);
-	seat->cur_sess = NULL;
-
-	shl_dlist_for_each_but_one(iter, &sess->list, &seat->sessions) {
-		s = shl_dlist_entry(iter, struct kmscon_session, list);
-		if (!s->enabled || s == seat->dummy)
-			continue;
-
-		seat->cur_sess = s;
-		break;
+	if (seat->cb) {
+		ret = seat->cb(seat, KMSCON_SEAT_BACKGROUND, seat->data);
+		if (ret) {
+			log_warning("cannot put seat %s into background: %d",
+				    seat->name, ret);
+			return ret;
+		}
 	}
 
-	if (!seat->cur_sess && seat->dummy)
-		seat->cur_sess = seat->dummy;
-
-	if (seat->cur_sess && seat->awake)
-		session_call_activate(seat->cur_sess);
+	seat->foreground = false;
+	return 0;
 }
 
-static void seat_activate_next(struct kmscon_seat *seat)
+static int seat_go_asleep(struct kmscon_seat *seat, bool force)
 {
-	struct shl_dlist *iter;
-	struct kmscon_session *sess;
+	int ret = 0;
 
-	if (!seat->cur_sess)
-		return;
-
-	shl_dlist_for_each_but_one(iter, &seat->cur_sess->list,
-				   &seat->sessions) {
-		sess = shl_dlist_entry(iter, struct kmscon_session, list);
-		if (sess == seat->dummy)
-			continue;
-		if (!session_activate(sess))
-			break;
+	if (!seat->awake)
+		return 0;
+	if (seat->current_sess || seat->foreground) {
+		if (force) {
+			seat->foreground = false;
+			seat->current_sess = NULL;
+			ret = -EBUSY;
+		} else {
+			return -EBUSY;
+		}
 	}
-}
 
-static void seat_activate_prev(struct kmscon_seat *seat)
-{
-	struct shl_dlist *iter;
-	struct kmscon_session *sess;
-
-	if (!seat->cur_sess)
-		return;
-
-	shl_dlist_for_each_reverse_but_one(iter, &seat->cur_sess->list,
-					   &seat->sessions) {
-		sess = shl_dlist_entry(iter, struct kmscon_session, list);
-		if (sess == seat->dummy)
-			continue;
-		if (!session_activate(sess))
-			break;
+	if (!ret && seat->cb) {
+		ret = seat->cb(seat, KMSCON_SEAT_SLEEP, seat->data);
+		if (ret) {
+			log_warning("cannot put seat %s asleep: %d",
+				    seat->name, ret);
+			return ret;
+		}
 	}
+
+	seat->awake = false;
+	uterm_input_sleep(seat->input);
+
+	return ret;
 }
 
 static void activate_display(struct kmscon_display *d)
@@ -221,6 +217,9 @@ static void activate_display(struct kmscon_display *d)
 	if (d->activated)
 		return;
 
+	/* TODO: We always use the default mode for new displays but we should
+	 * rather allow the user to specify different modes in the configuration
+	 * files. */
 	if (uterm_display_get_state(d->disp) == UTERM_DISPLAY_INACTIVE) {
 		ret = uterm_display_activate(d->disp, NULL);
 		if (ret)
@@ -238,6 +237,213 @@ static void activate_display(struct kmscon_display *d)
 			log_warning("cannot set DPMS state to on for display: %d",
 				    ret);
 	}
+}
+
+static int seat_go_awake(struct kmscon_seat *seat)
+{
+	int ret;
+	struct shl_dlist *iter;
+	struct kmscon_display *d;
+
+	if (seat->awake)
+		return 0;
+
+	if (seat->cb) {
+		ret = seat->cb(seat, KMSCON_SEAT_WAKE_UP, seat->data);
+		if (ret) {
+			log_warning("cannot wake up seat %s: %d", seat->name,
+				    ret);
+			return ret;
+		}
+	}
+
+	seat->awake = true;
+	uterm_input_wake_up(seat->input);
+
+	shl_dlist_for_each(iter, &seat->displays) {
+		d = shl_dlist_entry(iter, struct kmscon_display, list);
+		activate_display(d);
+	}
+
+	return 0;
+}
+
+static int seat_run(struct kmscon_seat *seat)
+{
+	int ret;
+	struct kmscon_session *session;
+
+	if (!seat->awake)
+		return -EBUSY;
+	if (seat->current_sess)
+		return 0;
+
+	if (seat->scheduled_sess)
+		session = seat->scheduled_sess;
+	else
+		return -ENOENT;
+
+	if (session->foreground && !seat->foreground) {
+		ret = seat_go_foreground(seat);
+		if (ret) {
+			log_warning("cannot put seat %s into foreground for session %p",
+				    seat->name, session);
+			return ret;
+		}
+	} else if (!session->foreground && seat->foreground) {
+		ret = seat_go_background(seat);
+		if (ret) {
+			log_warning("cannot put seat %s into background for session %p",
+				    seat->name, session);
+			return ret;
+		}
+	}
+
+	ret = session_call_activate(session);
+	if (ret) {
+		log_warning("cannot activate session %p: %d", session, ret);
+		return ret;
+	}
+
+	seat->current_sess = session;
+
+	return 0;
+}
+
+static int seat_pause(struct kmscon_seat *seat, bool force)
+{
+	int ret;
+
+	if (!seat->current_sess)
+		return 0;
+
+	seat->current_sess->deactivating = true;
+
+	ret = session_call_deactivate(seat->current_sess);
+	if (ret) {
+		log_warning("cannot deactivate session %p: %d",
+			    seat->current_sess, ret);
+		if (!force)
+			return ret;
+	}
+
+	seat->current_sess->deactivating = false;
+	seat->current_sess = NULL;
+
+	return 0;
+}
+
+static void seat_reschedule(struct kmscon_seat *seat)
+{
+	struct shl_dlist *iter, *start;
+	struct kmscon_session *sess;
+
+	if (seat->scheduled_sess && seat->scheduled_sess->enabled &&
+	    seat->scheduled_sess != seat->dummy_sess)
+		return;
+
+	if (seat->current_sess && seat->current_sess->enabled &&
+	    seat->current_sess != seat->dummy_sess) {
+		seat->scheduled_sess = seat->current_sess;
+		return;
+	}
+
+	if (seat->current_sess)
+		start = &seat->current_sess->list;
+	else
+		start = &seat->sessions;
+
+	shl_dlist_for_each_but_one(iter, start, &seat->sessions) {
+		sess = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (sess == seat->dummy_sess || !sess->enabled)
+			continue;
+		seat->scheduled_sess = sess;
+		return;
+	}
+
+	if (seat->dummy_sess && seat->dummy_sess->enabled)
+		seat->scheduled_sess = seat->dummy_sess;
+	else
+		seat->scheduled_sess = NULL;
+}
+
+static bool seat_has_schedule(struct kmscon_seat *seat)
+{
+	return seat->scheduled_sess &&
+	       seat->scheduled_sess != seat->current_sess;
+}
+
+static int seat_switch(struct kmscon_seat *seat)
+{
+	int ret;
+
+	ret = seat_pause(seat, false);
+	if (ret)
+		return ret;
+
+	return seat_run(seat);
+}
+
+static void seat_next(struct kmscon_seat *seat)
+{
+	struct shl_dlist *cur, *iter;
+	struct kmscon_session *s, *next;
+
+	if (seat->current_sess)
+		cur = &seat->current_sess->list;
+	else if (seat->scheduled_sess)
+		cur = &seat->scheduled_sess->list;
+	else if (seat->session_count)
+		cur = &seat->sessions;
+	else
+		return;
+
+	next = NULL;
+	shl_dlist_for_each_but_one(iter, cur, &seat->sessions) {
+		s = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!s->enabled || seat->dummy_sess == s)
+			continue;
+
+		next = s;
+		break;
+	}
+
+	if (!next)
+		return;
+
+	seat->scheduled_sess = next;
+	seat_switch(seat);
+}
+
+static void seat_prev(struct kmscon_seat *seat)
+{
+	struct shl_dlist *cur, *iter;
+	struct kmscon_session *s, *prev;
+
+	if (seat->current_sess)
+		cur = &seat->current_sess->list;
+	else if (seat->scheduled_sess)
+		cur = &seat->scheduled_sess->list;
+	else if (seat->session_count)
+		cur = &seat->sessions;
+	else
+		return;
+
+	prev = NULL;
+	shl_dlist_for_each_reverse_but_one(iter, cur, &seat->sessions) {
+		s = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!s->enabled || seat->dummy_sess == s)
+			continue;
+
+		prev = s;
+		break;
+	}
+
+	if (!prev)
+		return;
+
+	seat->scheduled_sess = prev;
+	seat_switch(seat);
 }
 
 static int seat_add_display(struct kmscon_seat *seat,
@@ -285,34 +491,29 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 			 void *data)
 {
 	struct kmscon_seat *seat = data;
-	struct shl_dlist *iter;
-	struct kmscon_display *d;
+	int ret;
 
 	switch (ev->action) {
 	case UTERM_VT_ACTIVATE:
-		seat->awake = true;
-		if (seat->cb)
-			seat->cb(seat, KMSCON_SEAT_WAKE_UP, seat->data);
-
-		uterm_input_wake_up(seat->input);
-
-		shl_dlist_for_each(iter, &seat->displays) {
-			d = shl_dlist_entry(iter, struct kmscon_display, list);
-			activate_display(d);
-		}
-
-		if (seat->cur_sess)
-			session_call_activate(seat->cur_sess);
+		ret = seat_go_awake(seat);
+		if (ret)
+			return ret;
+		seat_run(seat);
 		break;
 	case UTERM_VT_DEACTIVATE:
-		if (seat->cur_sess)
-			session_call_deactivate(seat->cur_sess);
-
-		uterm_input_sleep(seat->input);
-
-		if (seat->cb)
-			seat->cb(seat, KMSCON_SEAT_SLEEP, seat->data);
-		seat->awake = false;
+		log_debug("buh");
+		ret = seat_pause(seat, false);
+		if (ret)
+			return ret;
+		log_debug("buh2");
+		ret = seat_go_background(seat);
+		if (ret)
+			return ret;
+		log_debug("buh3");
+		ret = seat_go_asleep(seat, false);
+		if (ret)
+			return ret;
+		log_debug("buh4");
 		break;
 	}
 
@@ -327,28 +528,45 @@ static void seat_input_event(struct uterm_input *input,
 	struct kmscon_session *s;
 	int ret;
 
-	if (ev->handled)
+	if (ev->handled || !seat->awake)
 		return;
 
 	if (conf_grab_matches(seat->conf->grab_session_next,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		seat_activate_next(seat);
+		if (seat->foreground)
+			seat_next(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_prev,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		seat_activate_prev(seat);
+		if (seat->foreground)
+			seat_prev(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (seat->cur_sess == seat->dummy)
+		s = seat->current_sess;
+		if (!s)
+			return;
+		if (s == seat->dummy_sess)
 			return;
 
-		kmscon_session_unregister(seat->cur_sess);
+		/* First time this is invoked on a session, we simply try
+		 * unloading it. If it fails, we give it some time. If this is
+		 * invoked a second time, we notice that we already tried
+		 * removing it and so we go straight to unregistering the
+		 * session unconditionally.
+		 * TODO: set some "scheduled for removal" flag */
+		if (!s->deactivating) {
+			ret = seat_pause(seat, false);
+			if (ret)
+				return;
+		}
+
+		kmscon_session_unregister(s);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_terminal_new,
@@ -360,8 +578,9 @@ static void seat_input_event(struct uterm_input *input,
 		} else if (ret) {
 			log_error("cannot register terminal session: %d", ret);
 		} else {
-			kmscon_session_enable(s);
-			kmscon_session_activate(s);
+			s->enabled = true;
+			seat->scheduled_sess = s;
+			seat_switch(seat);
 		}
 		return;
 	}
@@ -446,7 +665,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	} else if (ret) {
 		log_error("cannot register dummy session: %d", ret);
 	} else {
-		seat->dummy = s;
+		seat->dummy_sess = s;
 		kmscon_session_enable(s);
 	}
 
@@ -493,9 +712,20 @@ void kmscon_seat_free(struct kmscon_seat *seat)
 {
 	struct kmscon_display *d;
 	struct kmscon_session *s;
+	int ret;
 
 	if (!seat)
 		return;
+
+	ret = seat_pause(seat, true);
+	if (ret)
+		log_warning("destroying seat %s while session %p is active",
+			    seat->name, seat->current_sess);
+
+	ret = seat_go_asleep(seat, true);
+	if (ret)
+		log_warning("destroying seat %s while still awake: %d",
+			    seat->name, ret);
 
 	while (!shl_dlist_empty(&seat->sessions)) {
 		s = shl_dlist_entry(seat->sessions.next,
@@ -628,8 +858,14 @@ int kmscon_seat_register_session(struct kmscon_seat *seat,
 	sess->seat = seat;
 	sess->cb = cb;
 	sess->data = data;
+	sess->foreground = true;
 
-	shl_dlist_link_tail(&seat->sessions, &sess->list);
+	/* register new sessions next to the current one */
+	if (seat->current_sess)
+		shl_dlist_link(&seat->current_sess->list, &sess->list);
+	else
+		shl_dlist_link_tail(&seat->sessions, &sess->list);
+
 	++seat->session_count;
 	*out = sess;
 
@@ -660,19 +896,45 @@ void kmscon_session_unref(struct kmscon_session *sess)
 
 void kmscon_session_unregister(struct kmscon_session *sess)
 {
+	struct kmscon_seat *seat;
+	int ret;
+	bool forced = false;
+
 	if (!sess || !sess->seat)
 		return;
 
 	log_debug("unregister session %p", sess);
 
-	if (sess->seat->dummy == sess)
-		sess->seat->dummy = NULL;
+	seat = sess->seat;
+	sess->enabled = false;
+	if (seat->dummy_sess == sess)
+		seat->dummy_sess = NULL;
+	seat_reschedule(seat);
 
-	session_deactivate(sess);
+	if (seat->current_sess == sess) {
+		ret = seat_pause(seat, true);
+		if (ret) {
+			forced = true;
+			log_warning("unregistering active session %p; skipping automatic session-switch",
+				    sess);
+		}
+	}
+
 	shl_dlist_unlink(&sess->list);
-	--sess->seat->session_count;
+	--seat->session_count;
 	sess->seat = NULL;
+
 	session_call(sess, KMSCON_SESSION_UNREGISTER, NULL);
+
+	/* If this session was active and we couldn't deactivate it, then it
+	 * might still have resources allocated that couldn't get freed. In this
+	 * case we should not automatically switch to the next session as it is
+	 * very likely that it will not be able to start.
+	 * Instead, we stay inactive and wait for user/external input to switch
+	 * to another session. This delay will then hopefully be long enough so
+	 * all resources got freed. */
+	if (!forced)
+		seat_run(seat);
 }
 
 bool kmscon_session_is_registered(struct kmscon_session *sess)
@@ -680,54 +942,31 @@ bool kmscon_session_is_registered(struct kmscon_session *sess)
 	return sess && sess->seat;
 }
 
-void kmscon_session_activate(struct kmscon_session *sess)
-{
-	if (!sess || !sess->seat)
-		return;
-
-	session_activate(sess);
-}
-
-void kmscon_session_deactivate(struct kmscon_session *sess)
-{
-	if (!sess || !sess->seat)
-		return;
-
-	session_deactivate(sess);
-}
-
 bool kmscon_session_is_active(struct kmscon_session *sess)
 {
-	return sess && sess->seat && sess->seat->cur_sess == sess;
+	return sess && sess->seat && sess->seat->current_sess == sess;
 }
 
 void kmscon_session_enable(struct kmscon_session *sess)
 {
-	struct kmscon_seat *seat;
-
-	if (!sess)
+	if (!sess || sess->enabled)
 		return;
 
 	log_debug("enable session %p", sess);
-
-	seat = sess->seat;
 	sess->enabled = true;
-	if (!sess->seat)
-		return;
-
-	if (!seat->cur_sess || seat->cur_sess == seat->dummy)
-		session_activate(sess);
+	if (sess->seat) {
+		seat_reschedule(sess->seat);
+		if (seat_has_schedule(sess->seat))
+			seat_switch(sess->seat);
+	}
 }
 
 void kmscon_session_disable(struct kmscon_session *sess)
 {
-	if (!sess)
+	if (!sess || !sess->enabled)
 		return;
 
 	log_debug("disable session %p", sess);
-
-	if (sess->seat)
-		session_deactivate(sess);
 	sess->enabled = false;
 }
 

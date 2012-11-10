@@ -74,8 +74,8 @@ struct kmscon_app {
 	struct shl_dlist seats;
 };
 
-static void app_seat_event(struct kmscon_seat *s, unsigned int event,
-			   void *data)
+static int app_seat_event(struct kmscon_seat *s, unsigned int event,
+			  void *data)
 {
 	struct app_seat *seat = data;
 	struct kmscon_app *app = seat->app;
@@ -83,7 +83,7 @@ static void app_seat_event(struct kmscon_seat *s, unsigned int event,
 	struct app_video *vid;
 
 	switch (event) {
-	case KMSCON_SEAT_WAKE_UP:
+	case KMSCON_SEAT_FOREGROUND:
 		seat->awake = true;
 
 		shl_dlist_for_each(iter, &seat->videos) {
@@ -91,22 +91,25 @@ static void app_seat_event(struct kmscon_seat *s, unsigned int event,
 			uterm_video_wake_up(vid->video);
 		}
 		break;
-	case KMSCON_SEAT_SLEEP:
+	case KMSCON_SEAT_BACKGROUND:
 		shl_dlist_for_each(iter, &seat->videos) {
 			vid = shl_dlist_entry(iter, struct app_video, list);
 			uterm_video_sleep(vid->video);
 		}
 
+		seat->awake = false;
+		break;
+	case KMSCON_SEAT_SLEEP:
 		if (app->vt_exit_count > 0) {
 			log_debug("deactivating VT on exit, %d to go",
 				  app->vt_exit_count - 1);
 			if (!--app->vt_exit_count)
 				ev_eloop_exit(app->vt_eloop);
 		}
-
-		seat->awake = false;
 		break;
 	}
+
+	return 0;
 }
 
 static int app_seat_new(struct kmscon_app *app, struct app_seat **out,

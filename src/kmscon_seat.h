@@ -44,11 +44,13 @@ struct kmscon_session;
 enum kmscon_seat_event {
 	KMSCON_SEAT_WAKE_UP,
 	KMSCON_SEAT_SLEEP,
+	KMSCON_SEAT_BACKGROUND,
+	KMSCON_SEAT_FOREGROUND,
 };
 
-typedef void (*kmscon_seat_cb_t) (struct kmscon_seat *seat,
-				  unsigned int event,
-				  void *data);
+typedef int (*kmscon_seat_cb_t) (struct kmscon_seat *seat,
+				 unsigned int event,
+				 void *data);
 
 enum kmscon_session_event_type {
 	KMSCON_SESSION_DISPLAY_NEW,
@@ -98,8 +100,6 @@ void kmscon_session_unref(struct kmscon_session *sess);
 void kmscon_session_unregister(struct kmscon_session *sess);
 bool kmscon_session_is_registered(struct kmscon_session *sess);
 
-void kmscon_session_activate(struct kmscon_session *sess);
-void kmscon_session_deactivate(struct kmscon_session *sess);
 bool kmscon_session_is_active(struct kmscon_session *sess);
 
 void kmscon_session_enable(struct kmscon_session *sess);
