@@ -69,7 +69,10 @@ static void print_help()
 		"given multiple times, only the last argument matters if not otherwise stated.\n"
 		"\n"
 		"General Options:\n"
-		TEST_HELP,
+		TEST_HELP
+		"\n"
+		"VT Options:\n"
+		"\t    --vt <vt>               [-]     Path to VT to use\n",
 		"test_vt");
 	/*
 	 * 80 char line:
@@ -81,8 +84,11 @@ static void print_help()
 	 */
 }
 
+static const char *vtpath = NULL;
+
 struct conf_option options[] = {
-	TEST_OPTIONS
+	TEST_OPTIONS,
+	CONF_OPTION_STRING(0, "vt", &vtpath, NULL),
 };
 
 int main(int argc, char **argv)
@@ -107,7 +113,7 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_vtm;
 
-	ret = uterm_vt_allocate(vtm, &vt, "seat0", input, NULL, NULL, NULL);
+	ret = uterm_vt_allocate(vtm, &vt, "seat0", input, vtpath, NULL, NULL);
 	if (ret)
 		goto err_input;
 
