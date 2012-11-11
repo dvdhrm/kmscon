@@ -90,6 +90,7 @@ int main(int argc, char **argv)
 	int ret;
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
+	struct uterm_input *input;
 	struct uterm_vt *vt;
 	size_t onum;
 
@@ -102,13 +103,19 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_exit;
 
-	ret = uterm_vt_allocate(vtm, &vt, NULL, NULL, NULL, NULL, NULL);
+	ret = uterm_input_new(&input, eloop, "", "", "", "", 0, 0);
 	if (ret)
 		goto err_vtm;
 
-	ret = uterm_vt_activate(vt);
+	ret = uterm_vt_allocate(vtm, &vt, "seat0", input, NULL, NULL, NULL);
 	if (ret)
-		log_warn("Cannot switch to VT");
+		goto err_input;
+
+	ret = uterm_vt_activate(vt);
+	if (ret == -EINPROGRESS)
+		log_debug("VT switch in progress");
+	else if (ret)
+		log_warn("cannot switch to VT: %d", ret);
 
 	ev_eloop_run(eloop, -1);
 
@@ -120,6 +127,8 @@ int main(int argc, char **argv)
 		ev_eloop_run(eloop, 50);
 
 	uterm_vt_unref(vt);
+err_input:
+	uterm_input_unref(input);
 err_vtm:
 	uterm_vt_master_unref(vtm);
 err_exit:
