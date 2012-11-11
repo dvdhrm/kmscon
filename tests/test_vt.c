@@ -72,7 +72,8 @@ static void print_help()
 		TEST_HELP
 		"\n"
 		"VT Options:\n"
-		"\t    --vt <vt>               [-]     Path to VT to use\n",
+		"\t    --vt <vt>               [-]     Path to VT to use\n"
+		"\t-s, --switchvt              [off]   Switch automatically to the new VT\n",
 		"test_vt");
 	/*
 	 * 80 char line:
@@ -85,10 +86,12 @@ static void print_help()
 }
 
 static const char *vtpath = NULL;
+static bool switchvt = false;
 
 struct conf_option options[] = {
 	TEST_OPTIONS,
 	CONF_OPTION_STRING(0, "vt", &vtpath, NULL),
+	CONF_OPTION_BOOL('s', "switchvt", &switchvt, false),
 };
 
 int main(int argc, char **argv)
@@ -117,20 +120,24 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_input;
 
-	ret = uterm_vt_activate(vt);
-	if (ret == -EINPROGRESS)
-		log_debug("VT switch in progress");
-	else if (ret)
-		log_warn("cannot switch to VT: %d", ret);
+	if (switchvt) {
+		ret = uterm_vt_activate(vt);
+		if (ret == -EINPROGRESS)
+			log_debug("VT switch in progress");
+		else if (ret)
+			log_warn("cannot switch to VT: %d", ret);
+	}
 
 	ev_eloop_run(eloop, -1);
 
 	log_debug("Terminating");
 
 	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
-	ret = uterm_vt_deactivate(vt);
-	if (ret == -EINPROGRESS)
-		ev_eloop_run(eloop, 50);
+	if (switchvt) {
+		ret = uterm_vt_deactivate(vt);
+		if (ret == -EINPROGRESS)
+			ev_eloop_run(eloop, 50);
+	}
 
 	uterm_vt_unref(vt);
 err_input:
