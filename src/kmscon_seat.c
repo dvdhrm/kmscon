@@ -508,19 +508,15 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		seat_run(seat);
 		break;
 	case UTERM_VT_DEACTIVATE:
-		log_debug("buh");
 		ret = seat_pause(seat, false);
 		if (ret)
 			return ret;
-		log_debug("buh2");
 		ret = seat_go_background(seat);
 		if (ret)
 			return ret;
-		log_debug("buh3");
 		ret = seat_go_asleep(seat, false);
 		if (ret)
 			return ret;
-		log_debug("buh4");
 		break;
 	}
 
