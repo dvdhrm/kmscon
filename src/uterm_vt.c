@@ -313,7 +313,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 {
 	struct vt_mode mode;
 	struct vt_stat vts;
-	int ret;
+	int ret, err;
 
 	log_debug("open vt %p", vt);
 
@@ -387,20 +387,20 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 	return 0;
 
 err_kbdmode:
-	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
-	if (ret)
+	err = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
+	if (err)
 		log_error("cannot reset VT KBMODE to %d (%d): %m",
 			  vt->real_kbmode, errno);
 err_setmode:
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_AUTO;
-	ret = ioctl(vt->real_fd, VT_SETMODE, &mode);
-	if (ret)
+	err = ioctl(vt->real_fd, VT_SETMODE, &mode);
+	if (err)
 		log_warning("cannot reset VT %d to VT_AUTO mode (%d): %m",
 			    vt->real_num, errno);
 err_text:
-	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
-	if (ret)
+	err = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
+	if (err)
 		log_warning("cannot reset VT %d to text-mode (%d): %m",
 			    vt->real_num, errno);
 err_eloop:
