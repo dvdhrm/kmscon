@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 
 	ev_eloop_run(eloop, -1);
 
-	log_debug("Terminating\n");
+	log_debug("Terminating");
 
 	/* switch back to previous VT but wait for eloop to process SIGUSR0 */
 	ret = uterm_vt_deactivate(vt);
