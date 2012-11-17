@@ -605,20 +605,16 @@ if test ! "x$enable_wlterm" = "xno" ; then
                 wlterm_avail=no
         elif test "x$eloop_avail" = "xno" ; then
                 wlterm_avail=no
+        elif test ! "x$have_wayland" = "xyes" ; then
+                wlterm_avail=no
         else
                 wlterm_avail=yes
         fi
 
         if test "x$enable_wlterm" = "xyes" ; then
                 if test "x$wlterm_avail" = "xno" ; then
-                        AC_ERROR([eloop or TSM cannot be built for wlterm])
+                        AC_ERROR([wayland, eloop or TSM cannot be built for wlterm])
                 fi
-        fi
-
-        if test "x$have_wayland" = "xyes" ; then
-                wlterm_avail=yes
-        elif test "x$enable_wlterm" = "xyes" ; then
-                AC_ERROR([wayland libraries not found for wlterm])
         fi
 fi
 
