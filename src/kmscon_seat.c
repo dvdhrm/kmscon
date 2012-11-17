@@ -134,11 +134,9 @@ static int seat_go_foreground(struct kmscon_seat *seat)
 {
 	int ret;
 
-	if (!seat->awake)
-		return -EBUSY;
 	if (seat->foreground)
 		return 0;
-	if (seat->current_sess)
+	if (!seat->awake || seat->current_sess)
 		return -EBUSY;
 
 	if (seat->cb) {
