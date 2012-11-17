@@ -179,9 +179,6 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	struct vt_stat vts;
 	int ret;
 
-	if (info->ssi_code != SI_KERNEL)
-		return;
-
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warning("cannot get current VT state (%d): %m", errno);
@@ -210,9 +207,6 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
 	int ret;
-
-	if (info->ssi_code != SI_KERNEL)
-		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
