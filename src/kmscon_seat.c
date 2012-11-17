@@ -335,7 +335,7 @@ static int seat_pause(struct kmscon_seat *seat, bool force)
 
 	session_deactivate(seat->current_sess);
 
-	return 0;
+	return ret;
 }
 
 static void seat_reschedule(struct kmscon_seat *seat)
