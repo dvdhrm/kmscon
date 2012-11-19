@@ -101,6 +101,8 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_session_next;
 	/* session-prev grab */
 	struct conf_grab *grab_session_prev;
+	/* session-dummy grab */
+	struct conf_grab *grab_session_dummy;
 	/* session-close grab */
 	struct conf_grab *grab_session_close;
 	/* terminal-new grab */

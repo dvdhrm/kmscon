@@ -114,6 +114,8 @@ static void print_help()
 		"\t                                  Switch to next session\n"
 		"\t    --grab-session-prev <grab>  [<Ctrl><Alt>Left]\n"
 		"\t                                  Switch to previous session\n"
+		"\t    --grab-session-dummy <grab> [<Ctrl><Alt>Escape]\n"
+		"\t                                  Switch to dummy session\n"
 		"\t    --grab-session-close <grab> [<Ctrl><Alt>BackSpace]\n"
 		"\t                                  Close current session\n"
 		"\t    --grab-terminal-new <grab>  [<Ctrl><Alt>Return]\n"
@@ -423,6 +425,9 @@ static struct conf_grab def_grab_session_next =
 static struct conf_grab def_grab_session_prev =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Left);
 
+static struct conf_grab def_grab_session_dummy =
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Escape);
+
 static struct conf_grab def_grab_session_close =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_BackSpace);
 
@@ -479,6 +484,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_GRAB(0, "grab-page-down", &conf->grab_page_down, &def_grab_page_down),
 		CONF_OPTION_GRAB(0, "grab-session-next", &conf->grab_session_next, &def_grab_session_next),
 		CONF_OPTION_GRAB(0, "grab-session-prev", &conf->grab_session_prev, &def_grab_session_prev),
+		CONF_OPTION_GRAB(0, "grab-session-dummy", &conf->grab_session_dummy, &def_grab_session_dummy),
 		CONF_OPTION_GRAB(0, "grab-session-close", &conf->grab_session_close, &def_grab_session_close),
 		CONF_OPTION_GRAB(0, "grab-terminal-new", &conf->grab_terminal_new, &def_grab_terminal_new),
 

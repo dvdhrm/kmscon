@@ -550,6 +550,13 @@ static void seat_input_event(struct uterm_input *input,
 		seat_prev(seat);
 		return;
 	}
+	if (conf_grab_matches(seat->conf->grab_session_dummy,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		seat->scheduled_sess = seat->dummy_sess;
+		seat_switch(seat);
+		return;
+	}
 	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
