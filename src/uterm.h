@@ -359,6 +359,7 @@ enum uterm_vt_flags {
 struct uterm_vt_event {
 	unsigned int action;
 	unsigned int flags;
+	int target;
 };
 
 enum uterm_vt_mode {
@@ -386,6 +387,7 @@ void uterm_vt_unref(struct uterm_vt *vt);
 
 int uterm_vt_activate(struct uterm_vt *vt);
 int uterm_vt_deactivate(struct uterm_vt *vt);
+void uterm_vt_retry(struct uterm_vt *vt);
 
 /*
  * System Monitor

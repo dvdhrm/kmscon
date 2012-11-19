@@ -40,6 +40,7 @@
 #include <sys/signalfd.h>
 #include <sys/stat.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
@@ -69,6 +70,8 @@ struct uterm_vt {
 	int real_kbmode;
 	struct ev_fd *real_efd;
 	bool real_delayed;
+	int real_target;
+	time_t real_target_time;
 };
 
 struct uterm_vt_master {
@@ -79,13 +82,15 @@ struct uterm_vt_master {
 	struct shl_dlist vts;
 };
 
-static int vt_call(struct uterm_vt *vt, unsigned int event, bool force)
+static int vt_call(struct uterm_vt *vt, unsigned int event, int target,
+		   bool force)
 {
 	int ret;
 	struct uterm_vt_event ev;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.action = event;
+	ev.target = target;
 	if (force)
 		ev.flags |= UTERM_VT_FORCE;
 
@@ -126,12 +131,12 @@ static int vt_call(struct uterm_vt *vt, unsigned int event, bool force)
 
 static void vt_call_activate(struct uterm_vt *vt)
 {
-	vt_call(vt, UTERM_VT_ACTIVATE, false);
+	vt_call(vt, UTERM_VT_ACTIVATE, vt->real_num, false);
 }
 
 static int vt_call_deactivate(struct uterm_vt *vt, bool force)
 {
-	return vt_call(vt, UTERM_VT_DEACTIVATE, force);
+	return vt_call(vt, UTERM_VT_DEACTIVATE, vt->real_target, force);
 }
 
 /*
@@ -200,6 +205,7 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 
 	log_debug("enter VT %d %p due to VT signal", vt->real_num, vt);
 	ioctl(vt->real_fd, VT_RELDISP, VT_ACKACQ);
+	vt->real_target = -1;
 	vt_call_activate(vt);
 }
 
@@ -232,9 +238,10 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	ret = vt_call_deactivate(vt, false);
 	if (ret) {
 		ioctl(vt->real_fd, VT_RELDISP, 0);
-		log_debug("not leaving VT %d %p", vt->real_num, vt);
+		log_debug("not leaving VT %d %p: %d", vt->real_num, vt, ret);
 		return;
 	}
+	vt->real_target = -1;
 	ioctl(vt->real_fd, VT_RELDISP, 1);
 }
 
@@ -321,7 +328,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_fd;
 
 	/* Get the number of the VT which is active now, so we have something
-	 * to switch back to in kmscon_vt_switch_leave. */
+	 * to switch back to in uterm_vt_deactivate(). */
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warn("cannot find the currently active VT (%d): %m", errno);
@@ -329,6 +336,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 		goto err_eloop;
 	}
 	vt->real_saved_num = vts.v_active;
+	vt->real_target = -1;
 
 	if (ioctl(vt->real_fd, KDSETMODE, KD_GRAPHICS)) {
 		log_err("cannot put VT in graphics mode (%d): %m", errno);
@@ -443,6 +451,7 @@ static void real_close(struct uterm_vt *vt)
 	vt->real_fd = -1;
 	vt->real_num = -1;
 	vt->real_saved_num = -1;
+	vt->real_target = -1;
 }
 
 /* Switch to this VT and make it the active VT. If we are already the active
@@ -465,6 +474,7 @@ static int real_activate(struct uterm_vt *vt)
 		log_warning("activating VT %d even though it's already active",
 			    vt->real_num);
 
+	vt->real_target = -1;
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_num);
 	if (ret) {
 		log_warn("cannot enter VT %d (%d): %m", vt->real_num, errno);
@@ -507,6 +517,8 @@ static int real_deactivate(struct uterm_vt *vt)
 		log_warning("deactivating VT %d even though it's not active",
 			    vt->real_num);
 
+	vt->real_target = vt->real_saved_num;
+	vt->real_target_time = time(NULL);
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_saved_num);
 	if (ret) {
 		log_warn("cannot leave VT %d to VT %d (%d): %m", vt->real_num,
@@ -562,10 +574,47 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	log_debug("deactivating VT %d to %d due to user input", vt->real_num,
 		  id);
 
+	vt->real_target = id;
+	vt->real_target_time = time(NULL);
 	ret = ioctl(vt->real_fd, VT_ACTIVATE, id);
 	if (ret) {
 		log_warn("cannot leave VT %d to %d (%d): %m", vt->real_num,
 			 id, errno);
+		return;
+	}
+}
+
+static void real_retry(struct uterm_vt *vt)
+{
+	struct vt_stat vts;
+	int ret;
+
+	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
+	if (ret) {
+		log_warn("cannot find current VT (%d): %m", errno);
+		return;
+	}
+
+	if (vts.v_active != vt->real_num || vt->real_target < 0)
+		return;
+
+	/* hard limit of 2-3 seconds for asynchronous/pending VT-switches */
+	if (vt->real_target_time < time(NULL) - 3) {
+		vt->real_target = -1;
+		return;
+	}
+
+	if (!vt->active)
+		log_warning("leaving VT %d even though it's not active",
+			    vt->real_num);
+
+	log_debug("deactivating VT %d to %d (retry)", vt->real_num,
+		  vt->real_target);
+
+	ret = ioctl(vt->real_fd, VT_ACTIVATE, vt->real_target);
+	if (ret) {
+		log_warn("cannot leave VT %d to %d (%d): %m", vt->real_num,
+			 vt->real_target, errno);
 		return;
 	}
 }
@@ -813,6 +862,15 @@ int uterm_vt_deactivate(struct uterm_vt *vt)
 		return real_deactivate(vt);
 	else
 		return fake_deactivate(vt);
+}
+
+void uterm_vt_retry(struct uterm_vt *vt)
+{
+	if (!vt || !vt->vtm)
+		return;
+
+	if (vt->mode == UTERM_VT_REAL)
+		real_retry(vt);
 }
 
 int uterm_vt_master_new(struct uterm_vt_master **out,
