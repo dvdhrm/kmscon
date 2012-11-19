@@ -330,8 +330,12 @@ static int seat_pause(struct kmscon_seat *seat, bool force)
 	seat->current_sess->deactivating = true;
 	ret = session_call_deactivate(seat->current_sess);
 	if (ret) {
-		log_warning("cannot deactivate session %p: %d",
-			    seat->current_sess, ret);
+		if (ret == -EINPROGRESS)
+			log_debug("pending deactivation for session %p",
+				  seat->current_sess);
+		else
+			log_warning("cannot deactivate session %p: %d",
+				    seat->current_sess, ret);
 		if (!force)
 			return ret;
 	}
@@ -1043,6 +1047,7 @@ void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 	if (seat->current_sess != sess)
 		return;
 
+	log_debug("session %p notified core about deactivation", sess);
 	session_deactivate(sess);
 	seat_reschedule(seat);
 	if (seat->scheduled_vt) {
