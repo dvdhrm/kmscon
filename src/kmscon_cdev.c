@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <linux/kd.h>
 #include <linux/vt.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
@@ -42,6 +44,7 @@
 #include "kmscon_cdev.h"
 #include "kmscon_seat.h"
 #include "log.h"
+#include "shl_array.h"
 #include "shl_dlist.h"
 #include "shl_ring.h"
 #include "tsm_screen.h"
@@ -62,6 +65,7 @@ struct kmscon_cdev {
 	struct uterm_input *input;
 	struct kmscon_session *s;
 	struct ev_fd *efd;
+	unsigned int minor;
 
 	struct fuse_session *session;
 	int fd;
@@ -71,6 +75,7 @@ struct kmscon_cdev {
 	char *buf;
 
 	struct shl_dlist clients;
+	int error;
 };
 
 struct cdev_client {
@@ -89,6 +94,10 @@ struct cdev_client {
 
 	long kdmode;
 	long kbmode;
+
+	struct vt_mode vtmode;
+	struct fuse_ctx user;
+	bool pending_switch;
 };
 
 struct cdev_reader {
@@ -97,6 +106,42 @@ struct cdev_reader {
 	fuse_req_t req;
 	size_t len;
 };
+
+static pthread_mutex_t cdev_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct shl_array *cdev_ids = NULL;
+
+static int cdev_allocate_id(void)
+{
+	static const bool init = true;
+	int ret, len, i;
+
+	pthread_mutex_lock(&cdev_lock);
+
+	if (!cdev_ids) {
+		ret = shl_array_new(&cdev_ids, sizeof(bool), 4);
+		if (ret)
+			goto err_unlock;
+	}
+
+	len = shl_array_get_length(cdev_ids);
+	for (i = 0; i < len; ++i)
+		if (!*SHL_ARRAY_AT(cdev_ids, bool, i))
+			break;
+
+	if (i >= len) {
+		ret = shl_array_push(cdev_ids, &init);
+		if (ret)
+			goto err_unlock;
+		ret = len;
+	} else {
+		*SHL_ARRAY_AT(cdev_ids, bool, i) = true;
+		ret = i;
+	}
+
+err_unlock:
+	pthread_mutex_unlock(&cdev_lock);
+	return (ret < 0) ? ret : (ret + 16384);
+}
 
 /*
  * Cdev Clients
@@ -270,6 +315,40 @@ static void client_free(struct cdev_client *client)
 	free(client);
 }
 
+static int client_activate(struct cdev_client *client)
+{
+	int ret;
+
+	/* TODO: Document that CAP_KILL is needed for this to work properly */
+	if (client->vtmode.mode == VT_PROCESS && client->vtmode.acqsig) {
+		ret = kill(client->user.pid, client->vtmode.acqsig);
+		if (ret)
+			log_warning("cannot send activation signal to process %d of cdev client %p (%d): %m",
+				    client->user.pid, client, errno);
+	}
+
+	client->active = true;
+	return 0;
+}
+
+static int client_deactivate(struct cdev_client *client)
+{
+	int ret;
+
+	/* TODO: Document that CAP_KILL is needed for this to work properly */
+	if (client->vtmode.mode == VT_PROCESS && client->vtmode.relsig) {
+		ret = kill(client->user.pid, client->vtmode.relsig);
+		if (ret)
+			log_warning("cannot send deactivation signal to process %d of cdev client %p (%d): %m",
+				    client->user.pid, client, errno);
+		client->pending_switch = true;
+		return -EINPROGRESS;
+	}
+
+	client->active = false;
+	return 0;
+}
+
 static int client_session_event(struct kmscon_session *s,
 				struct kmscon_session_event *ev,
 				void *data)
@@ -278,11 +357,9 @@ static int client_session_event(struct kmscon_session *s,
 
 	switch (ev->type) {
 	case KMSCON_SESSION_ACTIVATE:
-		client->active = true;
-		break;
+		return client_activate(client);
 	case KMSCON_SESSION_DEACTIVATE:
-		client->active = false;
-		break;
+		return client_deactivate(client);
 	case KMSCON_SESSION_UNREGISTER:
 		client_free(client);
 		break;
@@ -303,6 +380,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	client->cdev = cdev;
 	client->kdmode = KD_TEXT;
 	client->kbmode = K_UNICODE;
+	client->vtmode.mode = VT_AUTO;
 	shl_dlist_init(&client->readers);
 
 	log_debug("new fake TTY client %p", client);
@@ -545,6 +623,96 @@ static void ioctl_TCFLSH(struct cdev_client *client, fuse_req_t req, int val)
 	fuse_reply_ioctl(req, 0, NULL, 0);
 }
 
+static void ioctl_VT_ACTIVATE(struct cdev_client *client, fuse_req_t req,
+			      int val)
+{
+	unsigned short target, id;
+
+	id = client->cdev->minor;
+	target = val;
+
+	if (id == target) {
+		kmscon_session_schedule(client->s);
+	} else {
+		kmscon_seat_schedule(client->cdev->seat, target);
+	}
+
+	fuse_reply_ioctl(req, 0, NULL, 0);
+}
+
+static void ioctl_VT_WAITACTIVE(struct cdev_client *client, fuse_req_t req,
+				int val)
+{
+	fuse_reply_err(req, EOPNOTSUPP);
+}
+
+static void ioctl_VT_GETSTATE(struct cdev_client *client, fuse_req_t req)
+{
+	struct vt_stat buf;
+	unsigned short id;
+
+	id = client->cdev->minor;
+	if (id == 0 || id == 1)
+		id = 2;
+
+	memset(&buf, 0, sizeof(buf));
+	buf.v_active = client->active ? id : 1;
+	buf.v_signal = 0;
+	buf.v_state = ~0;
+
+	fuse_reply_ioctl(req, 0, &buf, sizeof(buf));
+}
+
+static void ioctl_VT_GETMODE(struct cdev_client *client, fuse_req_t req)
+{
+	fuse_reply_ioctl(req, 0, &client->vtmode, sizeof(client->vtmode));
+}
+
+static void ioctl_VT_SETMODE(struct cdev_client *client, fuse_req_t req,
+			     struct vt_mode *mode)
+{
+	bool proc;
+
+	proc = mode->mode == VT_PROCESS;
+
+	/* TODO: implement "waitv" logic */
+	if (mode->waitv) {
+		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	if (mode->frsig)
+		log_debug("cdev client uses non-zero 'frsig' in VT_SETMODE: %d",
+			  mode->frsig);
+
+	if (mode->mode != VT_AUTO && mode->mode != VT_PROCESS) {
+		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	if (proc && (mode->relsig > SIGRTMAX || mode->acqsig > SIGRTMAX ||
+		     mode->relsig < 0 || mode->acqsig < 0)) {
+		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	memcpy(&client->vtmode, mode, sizeof(*mode));
+	memcpy(&client->user, fuse_req_ctx(req), sizeof(client->user));
+	fuse_reply_ioctl(req, 0, NULL, 0);
+}
+
+static void ioctl_VT_RELDISP(struct cdev_client *client, fuse_req_t req,
+			     int val)
+{
+	if (client->pending_switch) {
+		client->pending_switch = false;
+		if (val > 0)
+			kmscon_session_notify_deactivated(client->s);
+	}
+
+	fuse_reply_ioctl(req, 0, NULL, 0);
+}
+
 static void ioctl_KDGETMODE(struct cdev_client *client, fuse_req_t req)
 {
 	fuse_reply_ioctl(req, 0, &client->kdmode, sizeof(long));
@@ -553,17 +721,31 @@ static void ioctl_KDGETMODE(struct cdev_client *client, fuse_req_t req)
 static void ioctl_KDSETMODE(struct cdev_client *client, fuse_req_t req,
 			    long val)
 {
+	int ret;
+
 	switch (val) {
 	case KD_TEXT:
+		ret = kmscon_session_set_foreground(client->s);
+		if (ret) {
+			fuse_reply_err(req, -ret);
+			return;
+		}
+		client->kdmode = KD_TEXT;
+		break;
 	case KD_GRAPHICS:
-		/* TODO: forward this to the current seat */
-		client->kdmode = val;
-		fuse_reply_ioctl(req, 0, NULL, 0);
+		ret = kmscon_session_set_background(client->s);
+		if (ret) {
+			fuse_reply_err(req, -ret);
+			return;
+		}
+		client->kdmode = KD_GRAPHICS;
 		break;
 	default:
 		fuse_reply_err(req, EINVAL);
-		break;
+		return;
 	}
+
+	fuse_reply_ioctl(req, 0, NULL, 0);
 }
 
 static void ioctl_KDGKBMODE(struct cdev_client *client, fuse_req_t req)
@@ -659,25 +841,25 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 
 	switch (cmd) {
 	case TCFLSH:
-		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
 			return;
-		ioctl_TCFLSH(client, req, *(int*)in_buf);
+		ioctl_TCFLSH(client, req, (long)arg);
 		break;
 	case VT_ACTIVATE:
-		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_VT_ACTIVATE(client, req, (long)arg);
 		break;
 	case VT_WAITACTIVE:
-		if (ioctl_param(req, arg, sizeof(int), in_bufsz, 0, out_bufsz))
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_VT_WAITACTIVE(client, req, (long)arg);
 		break;
 	case VT_GETSTATE:
 		if (ioctl_param(req, arg, 0, in_bufsz,
 				sizeof(struct vt_stat), out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_VT_GETSTATE(client, req);
 		break;
 	case VT_OPENQRY:
 		if (ioctl_param(req, arg, 0, in_bufsz,
@@ -689,13 +871,18 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		if (ioctl_param(req, arg, 0, in_bufsz,
 				sizeof(struct vt_mode), out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_VT_GETMODE(client, req);
 		break;
 	case VT_SETMODE:
 		if (ioctl_param(req, arg, sizeof(struct vt_mode), in_bufsz,
 				0, out_bufsz))
 			return;
-		fuse_reply_err(req, EOPNOTSUPP);
+		ioctl_VT_SETMODE(client, req, (struct vt_mode*)in_buf);
+		break;
+	case VT_RELDISP:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		ioctl_VT_RELDISP(client, req, (long)arg);
 		break;
 	case KDGETMODE:
 		if (ioctl_param(req, arg, 0, in_bufsz,
@@ -704,10 +891,9 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		ioctl_KDGETMODE(client, req);
 		break;
 	case KDSETMODE:
-		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
-				0, out_bufsz))
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
 			return;
-		ioctl_KDSETMODE(client, req, *(long*)in_buf);
+		ioctl_KDSETMODE(client, req, (long)arg);
 		break;
 	case KDGKBMODE:
 		if (ioctl_param(req, arg, 0, in_bufsz,
@@ -716,10 +902,9 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 		ioctl_KDGKBMODE(client, req);
 		break;
 	case KDSKBMODE:
-		if (ioctl_param(req, arg, sizeof(long), in_bufsz,
-				0, out_bufsz))
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
 			return;
-		ioctl_KDSKBMODE(client, req, *(long*)in_buf);
+		ioctl_KDSKBMODE(client, req, (long)arg);
 		break;
 	case TCGETS:
 		if (ioctl_param(req, arg, 0, in_bufsz,
@@ -833,9 +1018,10 @@ restart:
 		if (errno == EINTR || errno == EAGAIN)
 			return -errno;
 
+		cdev->error = -errno;
 		log_error("fuse channel read error (%d): %m", errno);
 		fuse_session_exit(se);
-		return -errno;
+		return cdev->error;
 	}
 
 	return res;
@@ -858,11 +1044,12 @@ static int chan_send(struct fuse_chan *ch, const struct iovec iov[],
 	if (ret < 0) {
 		/* ENOENT is returned on interruptions */
 		if (!fuse_session_exited(se) && errno != ENOENT) {
+			cdev->error = -errno;
 			log_error("cannot write to fuse-channel (%d): %m",
 				  errno);
 			fuse_session_exit(se);
 		}
-		return -errno;
+		return cdev->error;
 	}
 
 	return 0;
@@ -895,6 +1082,7 @@ static void channel_event(struct ev_fd *fd, int mask, void *data)
 
 	if (mask & (EV_HUP | EV_ERR)) {
 		log_error("HUP/ERR on fuse channel");
+		cdev->error = -EPIPE;
 		kmscon_session_unregister(cdev->s);
 		return;
 	}
@@ -911,6 +1099,7 @@ static void channel_event(struct ev_fd *fd, int mask, void *data)
 		return;
 	} else if (ret < 0) {
 		log_error("fuse channel read error: %d", ret);
+		cdev->error = ret;
 		kmscon_session_unregister(cdev->s);
 		return;
 	}
@@ -918,6 +1107,8 @@ static void channel_event(struct ev_fd *fd, int mask, void *data)
 	fuse_session_process_buf(cdev->session, &buf, ch);
 	if (fuse_session_exited(cdev->session)) {
 		log_error("fuse session exited");
+		if (!cdev->error)
+			cdev->error = -EFAULT;
 		kmscon_session_unregister(cdev->s);
 		return;
 	}
@@ -935,7 +1126,7 @@ static int kmscon_cdev_init(struct kmscon_cdev *cdev)
 {
 	static const char prefix[] = "DEVNAME=";
 	static const char fname[] = "/dev/cuse";
-	int ret;
+	int ret, id;
 	size_t bufsize;
 	struct cuse_info ci;
 	const char *dev_info_argv[1];
@@ -958,10 +1149,18 @@ static int kmscon_cdev_init(struct kmscon_cdev *cdev)
 	log_info("initializing fake VT TTY device /dev/%s",
 		 &name[sizeof(prefix) - 1]);
 
+	id = cdev_allocate_id();
+	if (id < 0) {
+		log_error("cannot allocate new cdev TTY id: %d", id);
+		free(name);
+		return id;
+	}
+	cdev->minor = id;
+
 	dev_info_argv[0] = name;
 	memset(&ci, 0, sizeof(ci));
-	ci.dev_major = 0;
-	ci.dev_minor = 0;
+	ci.dev_major = 4;
+	ci.dev_minor = cdev->minor;
 	ci.dev_info_argc = 1;
 	ci.dev_info_argv = dev_info_argv;
 	ci.flags = CUSE_UNRESTRICTED_IOCTL;
@@ -1031,6 +1230,10 @@ void kmscon_cdev_destroy(struct kmscon_cdev *cdev)
 {
 	if (!cdev)
 		return;
+
+	if (cdev->error)
+		log_warning("cdev module failed with error %d (maybe another kmscon is process already running?)",
+			    cdev->error);
 
 	fuse_session_destroy(cdev->session);
 	ev_eloop_rm_fd(cdev->efd);
