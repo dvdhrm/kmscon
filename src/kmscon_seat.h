@@ -90,6 +90,8 @@ struct uterm_input *kmscon_seat_get_input(struct kmscon_seat *seat);
 struct ev_eloop *kmscon_seat_get_eloop(struct kmscon_seat *seat);
 struct conf_ctx *kmscon_seat_get_conf(struct kmscon_seat *seat);
 
+void kmscon_seat_schedule(struct kmscon_seat *seat, unsigned int id);
+
 int kmscon_seat_register_session(struct kmscon_seat *seat,
 				 struct kmscon_session **out,
 				 kmscon_session_cb_t cb,
@@ -103,6 +105,7 @@ bool kmscon_session_is_registered(struct kmscon_session *sess);
 bool kmscon_session_is_active(struct kmscon_session *sess);
 int kmscon_session_set_foreground(struct kmscon_session *sess);
 int kmscon_session_set_background(struct kmscon_session *sess);
+void kmscon_session_schedule(struct kmscon_session *sess);
 
 void kmscon_session_enable(struct kmscon_session *sess);
 void kmscon_session_disable(struct kmscon_session *sess);

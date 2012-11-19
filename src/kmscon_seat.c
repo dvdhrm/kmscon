@@ -830,6 +830,31 @@ struct conf_ctx *kmscon_seat_get_conf(struct kmscon_seat *seat)
 	return seat->conf_ctx;
 }
 
+void kmscon_seat_schedule(struct kmscon_seat *seat, unsigned int id)
+{
+	struct shl_dlist *iter;
+	struct kmscon_session *s, *next;
+
+	if (!seat)
+		return;
+
+	next = seat->dummy_sess;
+	shl_dlist_for_each(iter, &seat->sessions) {
+		s = shl_dlist_entry(iter, struct kmscon_session, list);
+		if (!s->enabled || seat->dummy_sess == s ||
+		    seat->current_sess == s)
+			continue;
+
+		next = s;
+		if (!id--)
+			break;
+	}
+
+	seat->scheduled_sess = next;
+	if (seat_has_schedule(seat))
+		seat_switch(seat);
+}
+
 int kmscon_seat_register_session(struct kmscon_seat *seat,
 				 struct kmscon_session **out,
 				 kmscon_session_cb_t cb,
@@ -992,6 +1017,20 @@ int kmscon_session_set_background(struct kmscon_session *sess)
 
 	sess->foreground = false;
 	return 0;
+}
+
+void kmscon_session_schedule(struct kmscon_session *sess)
+{
+	struct kmscon_seat *seat;
+
+	if (!sess || !sess->seat)
+		return;
+
+	seat = sess->seat;
+	seat->scheduled_sess = sess;
+	seat_reschedule(seat);
+	if (seat_has_schedule(seat))
+		seat_switch(seat);
 }
 
 void kmscon_session_enable(struct kmscon_session *sess)
