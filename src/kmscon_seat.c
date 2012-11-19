@@ -350,12 +350,10 @@ static void seat_reschedule(struct kmscon_seat *seat)
 	struct shl_dlist *iter, *start;
 	struct kmscon_session *sess;
 
-	if (seat->scheduled_sess && seat->scheduled_sess->enabled &&
-	    seat->scheduled_sess != seat->dummy_sess)
+	if (seat->scheduled_sess && seat->scheduled_sess->enabled)
 		return;
 
-	if (seat->current_sess && seat->current_sess->enabled &&
-	    seat->current_sess != seat->dummy_sess) {
+	if (seat->current_sess && seat->current_sess->enabled) {
 		seat->scheduled_sess = seat->current_sess;
 		return;
 	}
@@ -1014,8 +1012,10 @@ void kmscon_session_enable(struct kmscon_session *sess)
 
 	log_debug("enable session %p", sess);
 	sess->enabled = true;
-	if (sess->seat) {
-		seat_reschedule(sess->seat);
+	if (sess->seat &&
+	    (!sess->seat->current_sess ||
+	     sess->seat->current_sess == sess->seat->dummy_sess)) {
+		sess->seat->scheduled_sess = sess;
 		if (seat_has_schedule(sess->seat))
 			seat_switch(sess->seat);
 	}
