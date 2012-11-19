@@ -131,13 +131,13 @@ static void session_call_display_gone(struct kmscon_session *sess,
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
 
-static int seat_go_foreground(struct kmscon_seat *seat)
+static int seat_go_foreground(struct kmscon_seat *seat, bool force)
 {
 	int ret;
 
 	if (seat->foreground)
 		return 0;
-	if (!seat->awake || seat->current_sess)
+	if (!seat->awake || (!force && seat->current_sess))
 		return -EBUSY;
 
 	if (seat->cb) {
@@ -153,13 +153,13 @@ static int seat_go_foreground(struct kmscon_seat *seat)
 	return 0;
 }
 
-static int seat_go_background(struct kmscon_seat *seat)
+static int seat_go_background(struct kmscon_seat *seat, bool force)
 {
 	int ret;
 
 	if (!seat->foreground)
 		return 0;
-	if (!seat->awake || seat->current_sess)
+	if (!seat->awake || (!force && seat->current_sess))
 		return -EBUSY;
 
 	if (seat->cb) {
@@ -283,14 +283,14 @@ static int seat_run(struct kmscon_seat *seat)
 		return -ENOENT;
 
 	if (session->foreground && !seat->foreground) {
-		ret = seat_go_foreground(seat);
+		ret = seat_go_foreground(seat, false);
 		if (ret) {
 			log_warning("cannot put seat %s into foreground for session %p",
 				    seat->name, session);
 			return ret;
 		}
 	} else if (!session->foreground && seat->foreground) {
-		ret = seat_go_background(seat);
+		ret = seat_go_background(seat, false);
 		if (ret) {
 			log_warning("cannot put seat %s into background for session %p",
 				    seat->name, session);
@@ -510,7 +510,7 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		ret = seat_pause(seat, false);
 		if (ret)
 			return ret;
-		ret = seat_go_background(seat);
+		ret = seat_go_background(seat, false);
 		if (ret)
 			return ret;
 		ret = seat_go_asleep(seat, false);
@@ -947,6 +947,48 @@ bool kmscon_session_is_registered(struct kmscon_session *sess)
 bool kmscon_session_is_active(struct kmscon_session *sess)
 {
 	return sess && sess->seat && sess->seat->current_sess == sess;
+}
+
+int kmscon_session_set_foreground(struct kmscon_session *sess)
+{
+	struct kmscon_seat *seat;
+	int ret;
+
+	if (!sess)
+		return -EINVAL;
+	if (sess->foreground)
+		return 0;
+
+	seat = sess->seat;
+	if (seat && seat->current_sess == sess && !seat->foreground) {
+		ret = seat_go_foreground(seat, true);
+		if (ret)
+			return ret;
+	}
+
+	sess->foreground = true;
+	return 0;
+}
+
+int kmscon_session_set_background(struct kmscon_session *sess)
+{
+	struct kmscon_seat *seat;
+	int ret;
+
+	if (!sess)
+		return -EINVAL;
+	if (!sess->foreground)
+		return 0;
+
+	seat = sess->seat;
+	if (seat && seat->current_sess == sess && seat->foreground) {
+		ret = seat_go_background(seat, true);
+		if (ret)
+			return ret;
+	}
+
+	sess->foreground = false;
+	return 0;
 }
 
 void kmscon_session_set_manual_input(struct kmscon_session *sess, bool set)
