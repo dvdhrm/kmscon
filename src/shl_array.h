@@ -84,7 +84,7 @@ static inline void shl_array_free(struct shl_array *arr)
 	free(arr);
 }
 
-static inline int shl_array_push(struct shl_array *arr, void *data)
+static inline int shl_array_push(struct shl_array *arr, const void *data)
 {
 	void *tmp;
 	size_t newsize;
