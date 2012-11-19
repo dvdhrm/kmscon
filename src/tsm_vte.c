@@ -2392,6 +2392,9 @@ bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 		case XKB_KEY_KP_Tab:
 			vte_write(vte, "\x09", 1);
 			return true;
+		case XKB_KEY_ISO_Left_Tab:
+			vte_write(vte, "\e[Z", 3);
+			return true;
 		case XKB_KEY_Linefeed:
 			vte_write(vte, "\x0a", 1);
 			return true;
