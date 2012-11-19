@@ -53,7 +53,6 @@ struct kmscon_session {
 
 	bool enabled;
 	bool foreground;
-	bool manual_input;
 	bool deactivating;
 
 	struct ev_timer *timer;
@@ -542,15 +541,13 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_next,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->current_sess || !seat->current_sess->manual_input)
-			seat_next(seat);
+		seat_next(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_prev,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->current_sess || !seat->current_sess->manual_input)
-			seat_prev(seat);
+		seat_prev(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_close,
@@ -995,14 +992,6 @@ int kmscon_session_set_background(struct kmscon_session *sess)
 
 	sess->foreground = false;
 	return 0;
-}
-
-void kmscon_session_set_manual_input(struct kmscon_session *sess, bool set)
-{
-	if (!sess)
-		return;
-
-	sess->manual_input = set;
 }
 
 void kmscon_session_enable(struct kmscon_session *sess)
