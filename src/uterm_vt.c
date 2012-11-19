@@ -213,6 +213,7 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 {
 	struct vt_stat vts;
 	int ret;
+	bool active;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
@@ -223,24 +224,26 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 	if (vts.v_active != vt->real_num)
 		return;
 
-	if (vt->real_delayed) {
-		vt->real_delayed = false;
-		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
-		uterm_input_sleep(vt->input);
-	} else if (!vt->active) {
-		log_warning("deactivating VT %d even though it's not active",
-			    vt->real_num);
-	} else {
-		uterm_input_sleep(vt->input);
-	}
-
 	log_debug("leaving VT %d %p due to VT signal", vt->real_num, vt);
+	active = vt->active;
 	ret = vt_call_deactivate(vt, false);
 	if (ret) {
 		ioctl(vt->real_fd, VT_RELDISP, 0);
 		log_debug("not leaving VT %d %p: %d", vt->real_num, vt, ret);
 		return;
 	}
+
+	if (vt->real_delayed) {
+		vt->real_delayed = false;
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		uterm_input_sleep(vt->input);
+	} else if (!active) {
+		log_warning("deactivating VT %d even though it's not active",
+			    vt->real_num);
+	} else {
+		uterm_input_sleep(vt->input);
+	}
+
 	vt->real_target = -1;
 	ioctl(vt->real_fd, VT_RELDISP, 1);
 }
@@ -420,12 +423,14 @@ static void real_close(struct uterm_vt *vt)
 
 	log_debug("closing VT %d", vt->real_num);
 
-	vt_call_deactivate(vt, true);
 	if (vt->real_delayed) {
 		vt->real_delayed = false;
 		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
 		uterm_input_sleep(vt->input);
+	} else if (vt->active) {
+		uterm_input_sleep(vt->input);
 	}
+	vt_call_deactivate(vt, true);
 
 	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
 	if (ret)
@@ -537,7 +542,7 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	struct vt_stat vts;
 	int ret;
 
-	if (ev->handled)
+	if (ev->handled || !vt->active)
 		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
@@ -566,10 +571,6 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 
 	if (!id || id == vt->real_num)
 		return;
-
-	if (!vt->active)
-		log_warning("leaving VT %d even though it's not active",
-			    vt->real_num);
 
 	log_debug("deactivating VT %d to %d due to user input", vt->real_num,
 		  id);
@@ -819,7 +820,6 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR2, vt_sigusr2, vt);
 	ev_eloop_unregister_signal_cb(vt->vtm->eloop, SIGUSR1, vt_sigusr1, vt);
 	shl_dlist_unlink(&vt->list);
-	uterm_input_sleep(vt->input);
 	uterm_input_unref(vt->input);
 	vt->vtm = NULL;
 	uterm_vt_unref(vt);
