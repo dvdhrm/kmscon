@@ -88,6 +88,7 @@ struct kmscon_seat {
 	struct kmscon_session *current_sess;
 	struct kmscon_session *scheduled_sess;
 	struct kmscon_session *dummy_sess;
+	bool scheduled_vt;
 
 	kmscon_seat_cb_t cb;
 	void *data;
@@ -508,6 +509,7 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		seat_run(seat);
 		break;
 	case UTERM_VT_DEACTIVATE:
+		seat->scheduled_vt = true;
 		ret = seat_pause(seat, false);
 		if (ret)
 			return ret;
@@ -517,6 +519,7 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		ret = seat_go_asleep(seat, false);
 		if (ret)
 			return ret;
+		seat->scheduled_vt = false;
 		break;
 	}
 
@@ -1031,6 +1034,7 @@ bool kmscon_session_is_enabled(struct kmscon_session *sess)
 void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat;
+	int ret;
 
 	if (!sess || !sess->seat)
 		return;
@@ -1041,5 +1045,15 @@ void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 
 	session_deactivate(sess);
 	seat_reschedule(seat);
-	seat_switch(sess->seat);
+	if (seat->scheduled_vt) {
+		ret = seat_go_background(seat, false);
+		if (ret)
+			return;
+		ret = seat_go_asleep(seat, false);
+		if (ret)
+			return;
+		uterm_vt_retry(seat->vt);
+	} else {
+		seat_switch(sess->seat);
+	}
 }
