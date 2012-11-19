@@ -500,7 +500,7 @@ static int real_deactivate(struct uterm_vt *vt)
 		return -EFAULT;
 	}
 
-	if (vts.v_active != vt->real_num)
+	if (vts.v_active != vt->real_num || vts.v_active == vt->real_saved_num)
 		return 0;
 
 	if (!vt->active)
