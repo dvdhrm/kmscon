@@ -552,7 +552,7 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 			return;
 	}
 
-	if (!id)
+	if (!id || id == vt->real_num)
 		return;
 
 	if (!vt->active)
