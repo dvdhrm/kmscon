@@ -25,8 +25,7 @@
 
 /*
  * Video Control
- * Core Implementation of the uterm_video, uterm_display and uterm_screen
- * objects.
+ * Core Implementation of the uterm_video and uterm_display objects.
  */
 
 #include <errno.h>
@@ -80,126 +79,6 @@ bool uterm_video_available(unsigned int type)
 	default:
 		return false;
 	}
-}
-
-/* Until we allow multiple displays in one screen, we use this constructor which
- * is basically just a wrapper around "struct uterm_dispaly".
- * The idea behind screens is having one single drawing-target which is spread
- * across several displays which can be placed anywhere in the virtual screen.
- */
-int uterm_screen_new_single(struct uterm_screen **out,
-				struct uterm_display *disp)
-{
-	struct uterm_screen *screen;
-
-	if (!out || !disp)
-		return -EINVAL;
-
-	screen = malloc(sizeof(*screen));
-	if (!screen)
-		return -ENOMEM;
-	memset(screen, 0, sizeof(*screen));
-	screen->ref = 1;
-	screen->disp = disp;
-
-	uterm_display_ref(screen->disp);
-	*out = screen;
-	return 0;
-}
-
-void uterm_screen_ref(struct uterm_screen *screen)
-{
-	if (!screen || !screen->ref)
-		return;
-
-	++screen->ref;
-}
-
-void uterm_screen_unref(struct uterm_screen *screen)
-{
-	if (!screen || !screen->ref || --screen->ref)
-		return;
-
-	uterm_display_unref(screen->disp);
-	free(screen);
-}
-
-unsigned int uterm_screen_width(struct uterm_screen *screen)
-{
-	if (!screen)
-		return 0;
-
-	return uterm_mode_get_width(uterm_display_get_current(screen->disp));
-}
-
-unsigned int uterm_screen_height(struct uterm_screen *screen)
-{
-	if (!screen)
-		return 0;
-
-	return uterm_mode_get_height(uterm_display_get_current(screen->disp));
-}
-
-int uterm_screen_use(struct uterm_screen *screen)
-{
-	if (!screen || !display_is_online(screen->disp))
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->use, -EOPNOTSUPP, screen->disp);
-}
-
-int uterm_screen_swap(struct uterm_screen *screen)
-{
-	if (!screen || !display_is_online(screen->disp))
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->swap, 0, screen->disp);
-}
-
-int uterm_screen_blit(struct uterm_screen *screen,
-		      const struct uterm_video_buffer *buf,
-		      unsigned int x, unsigned int y)
-{
-	if (!screen)
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->blit, -EOPNOTSUPP, screen->disp,
-			  buf, x, y);
-}
-
-int uterm_screen_blend(struct uterm_screen *screen,
-		       const struct uterm_video_buffer *buf,
-		       unsigned int x, unsigned int y,
-		       uint8_t fr, uint8_t fg, uint8_t fb,
-		       uint8_t br, uint8_t bg, uint8_t bb)
-{
-	if (!screen)
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->blend, -EOPNOTSUPP, screen->disp,
-			  buf, x, y, fr, fg, fb, br, bg, bb);
-}
-
-int uterm_screen_blendv(struct uterm_screen *screen,
-			const struct uterm_video_blend_req *req, size_t num)
-{
-	if (!screen)
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->blendv, -EOPNOTSUPP,
-			  screen->disp, req, num);
-}
-
-int uterm_screen_fill(struct uterm_screen *screen,
-		      uint8_t r, uint8_t g, uint8_t b,
-		      unsigned int x, unsigned int y,
-		      unsigned int width, unsigned int height)
-{
-	if (!screen)
-		return -EINVAL;
-
-	return VIDEO_CALL(screen->disp->ops->fill, -EOPNOTSUPP, screen->disp,
-			  r, g, b, x, y, width, height);
 }
 
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops)

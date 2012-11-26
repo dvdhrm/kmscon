@@ -89,7 +89,6 @@
  * kernel can correctly reset video devices on its own.
  */
 
-struct uterm_screen;
 struct uterm_mode;
 struct uterm_display;
 struct uterm_video;
@@ -171,33 +170,6 @@ typedef void (*uterm_display_cb) (struct uterm_display *disp,
 
 const char *uterm_dpms_to_name(int dpms);
 bool uterm_video_available(unsigned int type);
-
-/* screen interface */
-
-int uterm_screen_new_single(struct uterm_screen **out,
-				struct uterm_display *disp);
-void uterm_screen_ref(struct uterm_screen *screen);
-void uterm_screen_unref(struct uterm_screen *screen);
-
-unsigned int uterm_screen_width(struct uterm_screen *screen);
-unsigned int uterm_screen_height(struct uterm_screen *screen);
-
-int uterm_screen_use(struct uterm_screen *screen);
-int uterm_screen_swap(struct uterm_screen *screen);
-int uterm_screen_blit(struct uterm_screen *screen,
-		      const struct uterm_video_buffer *buf,
-		      unsigned int x, unsigned int y);
-int uterm_screen_blend(struct uterm_screen *screen,
-		       const struct uterm_video_buffer *buf,
-		       unsigned int x, unsigned int y,
-		       uint8_t fr, uint8_t fg, uint8_t fb,
-		       uint8_t br, uint8_t bg, uint8_t bb);
-int uterm_screen_blendv(struct uterm_screen *screen,
-			const struct uterm_video_blend_req *req, size_t num);
-int uterm_screen_fill(struct uterm_screen *screen,
-		      uint8_t r, uint8_t g, uint8_t b,
-		      unsigned int x, unsigned int y,
-		      unsigned int width, unsigned int height);
 
 /* display modes interface */
 

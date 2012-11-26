@@ -299,13 +299,6 @@ static const struct video_ops fbdev_video_ops;
 
 #endif /* BUILD_ENABLE_VIDEO_FBDEV */
 
-/* uterm_screen */
-
-struct uterm_screen {
-	unsigned long ref;
-	struct uterm_display *disp;
-};
-
 /* uterm_mode */
 
 struct uterm_mode {
