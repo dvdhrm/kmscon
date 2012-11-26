@@ -64,7 +64,7 @@ static int blit_outputs(struct uterm_video *video)
 {
 	struct uterm_display *iter;
 	int j, ret;
-	struct uterm_screen *screen;
+	struct uterm_mode *mode;
 
 	j = 0;
 	iter = uterm_video_get_displays(video);
@@ -88,30 +88,22 @@ static int blit_outputs(struct uterm_video *video)
 		if (uterm_display_get_state(iter) != UTERM_DISPLAY_ACTIVE)
 			continue;
 
-		ret = uterm_screen_new_single(&screen, iter);
-		if (ret) {
-			log_err("Cannot create temp-screen object: %d", ret);
-			continue;
-		}
-
-		ret = uterm_screen_fill(screen, 0xff, 0xff, 0xff, 0, 0,
-					uterm_screen_width(screen),
-					uterm_screen_height(screen));
+		mode = uterm_display_get_current(iter);
+		ret = uterm_display_fill(iter, 0xff, 0xff, 0xff, 0, 0,
+					 uterm_mode_get_width(mode),
+					 uterm_mode_get_height(mode));
 		if (ret) {
 			log_err("cannot fill framebuffer");
-			uterm_screen_unref(screen);
 			continue;
 		}
 
-		ret = uterm_screen_swap(screen);
+		ret = uterm_display_swap(iter);
 		if (ret) {
 			log_err("Cannot swap screen: %d", ret);
-			uterm_screen_unref(screen);
 			continue;
 		}
 
 		log_notice("Successfully set screen on display %p", iter);
-		uterm_screen_unref(screen);
 	}
 
 	log_notice("Waiting 5 seconds...");
