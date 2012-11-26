@@ -49,9 +49,6 @@ struct bbulk {
 #define FONT_WIDTH(txt) ((txt)->font->attr.width)
 #define FONT_HEIGHT(txt) ((txt)->font->attr.height)
 
-#define SCREEN_WIDTH(txt) uterm_screen_width((txt)->screen)
-#define SCREEN_HEIGHT(txt) uterm_screen_height((txt)->screen)
-
 static int bbulk_init(struct kmscon_text *txt)
 {
 	struct bbulk *bb;
@@ -76,11 +73,15 @@ static int bbulk_set(struct kmscon_text *txt)
 	struct bbulk *bb = txt->data;
 	unsigned int sw, sh, i, j;
 	struct uterm_video_blend_req *req;
+	struct uterm_mode *mode;
 
 	memset(bb, 0, sizeof(*bb));
 
-	sw = SCREEN_WIDTH(txt);
-	sh = SCREEN_HEIGHT(txt);
+	mode = uterm_display_get_current(txt->disp);
+	if (!mode)
+		return -EINVAL;
+	sw = uterm_mode_get_width(mode);
+	sh = uterm_mode_get_height(mode);
 
 	txt->cols = sw / FONT_WIDTH(txt);
 	txt->rows = sh / FONT_HEIGHT(txt);
@@ -162,8 +163,8 @@ static int bbulk_render(struct kmscon_text *txt)
 {
 	struct bbulk *bb = txt->data;
 
-	return uterm_screen_blendv(txt->screen, bb->reqs,
-				   txt->cols * txt->rows);
+	return uterm_display_fake_blendv(txt->disp, bb->reqs,
+					 txt->cols * txt->rows);
 }
 
 static const struct kmscon_text_ops kmscon_text_bbulk_ops = {

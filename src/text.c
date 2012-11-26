@@ -296,7 +296,7 @@ void kmscon_text_unref(struct kmscon_text *text)
  * @txt: Valid text-renderer object
  * @font: font object
  * @bold_font: bold font object or NULL
- * @screen: screen object
+ * @disp: display object
  *
  * This makes the text-renderer @txt use the font @font and screen @screen. You
  * can drop your reference to both after calling this.
@@ -313,11 +313,11 @@ void kmscon_text_unref(struct kmscon_text *text)
 int kmscon_text_set(struct kmscon_text *txt,
 		    struct kmscon_font *font,
 		    struct kmscon_font *bold_font,
-		    struct uterm_screen *screen)
+		    struct uterm_display *disp)
 {
 	int ret;
 
-	if (!txt || !font || !screen)
+	if (!txt || !font || !disp)
 		return -EINVAL;
 
 	if (!bold_font)
@@ -327,21 +327,21 @@ int kmscon_text_set(struct kmscon_text *txt,
 
 	txt->font = font;
 	txt->bold_font = bold_font;
-	txt->screen = screen;
+	txt->disp = disp;
 
 	if (txt->ops->set) {
 		ret = txt->ops->set(txt);
 		if (ret) {
 			txt->font = NULL;
 			txt->bold_font = NULL;
-			txt->screen = NULL;
+			txt->disp = NULL;
 			return ret;
 		}
 	}
 
 	kmscon_font_ref(txt->font);
 	kmscon_font_ref(txt->bold_font);
-	uterm_screen_ref(txt->screen);
+	uterm_display_ref(txt->disp);
 
 	return 0;
 }
@@ -357,7 +357,7 @@ int kmscon_text_set(struct kmscon_text *txt,
  */
 void kmscon_text_unset(struct kmscon_text *txt)
 {
-	if (!txt || !txt->screen || !txt->font)
+	if (!txt || !txt->disp || !txt->font)
 		return;
 
 	if (txt->ops->unset)
@@ -365,10 +365,10 @@ void kmscon_text_unset(struct kmscon_text *txt)
 
 	kmscon_font_unref(txt->font);
 	kmscon_font_unref(txt->bold_font);
-	uterm_screen_unref(txt->screen);
+	uterm_display_unref(txt->disp);
 	txt->font = NULL;
 	txt->bold_font = NULL;
-	txt->screen = NULL;
+	txt->disp = NULL;
 	txt->cols = 0;
 	txt->rows = 0;
 	txt->rendering = false;
@@ -429,7 +429,7 @@ int kmscon_text_prepare(struct kmscon_text *txt)
 {
 	int ret = 0;
 
-	if (!txt || !txt->font || !txt->screen)
+	if (!txt || !txt->font || !txt->disp)
 		return -EINVAL;
 
 	txt->rendering = true;

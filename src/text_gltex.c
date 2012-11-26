@@ -101,13 +101,13 @@ struct gltex {
 	GLuint uni_atlas;
 	GLuint uni_advance_htex;
 	GLuint uni_advance_vtex;
+
+	unsigned int sw;
+	unsigned int sh;
 };
 
 #define FONT_WIDTH(txt) ((txt)->font->attr.width)
 #define FONT_HEIGHT(txt) ((txt)->font->attr.height)
-
-#define SCREEN_WIDTH(txt) uterm_screen_width((txt)->screen)
-#define SCREEN_HEIGHT(txt) uterm_screen_height((txt)->screen)
 
 static int gltex_init(struct kmscon_text *txt)
 {
@@ -144,9 +144,9 @@ static int gltex_set(struct kmscon_text *txt)
 	int ret;
 	static char *attr[] = { "position", "texture_position",
 				"fgcolor", "bgcolor" };
-	unsigned int sw, sh;
 	GLint s;
 	const char *ext;
+	struct uterm_mode *mode;
 
 	memset(gt, 0, sizeof(*gt));
 	shl_dlist_init(&gt->atlases);
@@ -163,9 +163,12 @@ static int gltex_set(struct kmscon_text *txt)
 	if (ret)
 		goto err_htable;
 
-	ret = uterm_screen_use(txt->screen);
-	if (ret)
+	ret = uterm_display_use(txt->disp);
+	if (ret) {
+		if (ret == -EOPNOTSUPP)
+			log_error("display doesn't support hardware-acceleration");
 		goto err_bold_htable;
+	}
 
 	gl_clear_error();
 
@@ -186,11 +189,12 @@ static int gltex_set(struct kmscon_text *txt)
 		goto err_shader;
 	}
 
-	sw = SCREEN_WIDTH(txt);
-	sh = SCREEN_HEIGHT(txt);
+	mode = uterm_display_get_current(txt->disp);
+	gt->sw = uterm_mode_get_width(mode);
+	gt->sh = uterm_mode_get_height(mode);
 
-	txt->cols = sw / FONT_WIDTH(txt);
-	txt->rows = sh / FONT_HEIGHT(txt);
+	txt->cols = gt->sw / FONT_WIDTH(txt);
+	txt->rows = gt->sh / FONT_HEIGHT(txt);
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &s);
 	if (s <= 0)
@@ -227,7 +231,7 @@ static void gltex_unset(struct kmscon_text *txt)
 	struct atlas *atlas;
 	bool gl = true;
 
-	ret = uterm_screen_use(txt->screen);
+	ret = uterm_display_use(txt->disp);
 	if (ret) {
 		gl = false;
 		log_warning("cannot activate OpenGL-CTX during destruction");
@@ -517,10 +521,9 @@ static int gltex_prepare(struct kmscon_text *txt)
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
 	struct shl_dlist *iter;
-	unsigned int sw, sh;
 	int ret;
 
-	ret = uterm_screen_use(txt->screen);
+	ret = uterm_display_use(txt->disp);
 	if (ret)
 		return ret;
 
@@ -530,11 +533,8 @@ static int gltex_prepare(struct kmscon_text *txt)
 		atlas->cache_num = 0;
 	}
 
-	sw = SCREEN_WIDTH(txt);
-	sh = SCREEN_HEIGHT(txt);
-
-	gt->advance_x = 2.0 / sw * FONT_WIDTH(txt);
-	gt->advance_y = 2.0 / sh * FONT_HEIGHT(txt);
+	gt->advance_x = 2.0 / gt->sw * FONT_WIDTH(txt);
+	gt->advance_y = 2.0 / gt->sh * FONT_HEIGHT(txt);
 
 	return 0;
 }
@@ -632,7 +632,7 @@ static int gltex_render(struct kmscon_text *txt)
 
 	gl_shader_use(gt->shader);
 
-	glViewport(0, 0, SCREEN_WIDTH(txt), SCREEN_HEIGHT(txt));
+	glViewport(0, 0, gt->sw, gt->sh);
 	glDisable(GL_BLEND);
 
 	gl_m4_identity(mat);

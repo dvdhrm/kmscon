@@ -52,7 +52,6 @@
 struct screen {
 	struct shl_dlist list;
 	struct uterm_display *disp;
-	struct uterm_screen *screen;
 	struct kmscon_font *font;
 	struct kmscon_font *bold_font;
 	struct kmscon_text *txt;
@@ -84,7 +83,6 @@ struct kmscon_terminal {
 
 static void redraw(struct kmscon_terminal *term)
 {
-	struct uterm_screen *screen;
 	struct shl_dlist *iter;
 	struct screen *ent;
 
@@ -93,14 +91,13 @@ static void redraw(struct kmscon_terminal *term)
 
 	shl_dlist_for_each(iter, &term->screens) {
 		ent = shl_dlist_entry(iter, struct screen, list);
-		screen = ent->screen;
 
 		tsm_screen_draw(term->console,
-				    kmscon_text_prepare_cb,
-				    kmscon_text_draw_cb,
-				    kmscon_text_render_cb,
-				    ent->txt);
-		uterm_screen_swap(screen);
+				kmscon_text_prepare_cb,
+				kmscon_text_draw_cb,
+				kmscon_text_render_cb,
+				ent->txt);
+		uterm_display_swap(ent->disp);
 	}
 }
 
@@ -215,16 +212,10 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	memset(scr, 0, sizeof(*scr));
 	scr->disp = disp;
 
-	ret = uterm_screen_new_single(&scr->screen, disp);
-	if (ret) {
-		log_error("cannot create screen for display %p", scr->disp);
-		goto err_free;
-	}
-
 	ret = kmscon_font_find(&scr->font, &attr, term->conf->font_engine);
 	if (ret) {
 		log_error("cannot create font");
-		goto err_screen;
+		goto err_free;
 	}
 
 	attr.bold = true;
@@ -235,7 +226,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		kmscon_font_ref(scr->bold_font);
 	}
 
-	ret = uterm_screen_use(scr->screen);
+	ret = uterm_display_use(scr->disp);
 	if (term->conf->render_engine)
 		be = term->conf->render_engine;
 	else if (!ret)
@@ -249,7 +240,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_font;
 	}
 
-	ret = kmscon_text_set(scr->txt, scr->font, scr->bold_font, scr->screen);
+	ret = kmscon_text_set(scr->txt, scr->font, scr->bold_font, scr->disp);
 	if (ret) {
 		log_error("cannot set text-renderer parameters");
 		goto err_text;
@@ -271,8 +262,6 @@ err_text:
 err_font:
 	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
-err_screen:
-	uterm_screen_unref(scr->screen);
 err_free:
 	free(scr);
 	return ret;
@@ -289,7 +278,6 @@ static void free_screen(struct kmscon_terminal *term, struct screen *scr,
 	kmscon_text_unref(scr->txt);
 	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
-	uterm_screen_unref(scr->screen);
 	uterm_display_unref(scr->disp);
 	free(scr);
 

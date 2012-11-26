@@ -45,11 +45,15 @@
 static int bblit_set(struct kmscon_text *txt)
 {
 	unsigned int sw, sh, fw, fh;
+	struct uterm_mode *mode;
 
 	fw = txt->font->attr.width;
 	fh = txt->font->attr.height;
-	sw = uterm_screen_width(txt->screen);
-	sh = uterm_screen_height(txt->screen);
+	mode = uterm_display_get_current(txt->disp);
+	if (!mode)
+		return -EINVAL;
+	sw = uterm_mode_get_width(mode);
+	sh = uterm_mode_get_height(mode);
 
 	txt->cols = sw / fw;
 	txt->rows = sh / fh;
@@ -85,17 +89,17 @@ static int bblit_draw(struct kmscon_text *txt,
 
 	/* draw glyph */
 	if (attr->inverse) {
-		ret = uterm_screen_blend(txt->screen, &glyph->buf,
-					 posx * txt->font->attr.width,
-					 posy * txt->font->attr.height,
-					 attr->br, attr->bg, attr->bb,
-					 attr->fr, attr->fg, attr->fb);
+		ret = uterm_display_fake_blend(txt->disp, &glyph->buf,
+					       posx * txt->font->attr.width,
+					       posy * txt->font->attr.height,
+					       attr->br, attr->bg, attr->bb,
+					       attr->fr, attr->fg, attr->fb);
 	} else {
-		ret = uterm_screen_blend(txt->screen, &glyph->buf,
-					 posx * txt->font->attr.width,
-					 posy * txt->font->attr.height,
-					 attr->fr, attr->fg, attr->fb,
-					 attr->br, attr->bg, attr->bb);
+		ret = uterm_display_fake_blend(txt->disp, &glyph->buf,
+					       posx * txt->font->attr.width,
+					       posy * txt->font->attr.height,
+					       attr->fr, attr->fg, attr->fb,
+					       attr->br, attr->bg, attr->bb);
 	}
 
 	return ret;
