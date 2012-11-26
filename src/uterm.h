@@ -204,6 +204,7 @@ int uterm_display_get_dpms(const struct uterm_display *disp);
 
 int uterm_display_use(struct uterm_display *disp);
 int uterm_display_swap(struct uterm_display *disp);
+bool uterm_display_is_swapping(struct uterm_display *disp);
 
 int uterm_display_fill(struct uterm_display *disp,
 		       uint8_t r, uint8_t g, uint8_t b,

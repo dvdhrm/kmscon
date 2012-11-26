@@ -394,6 +394,14 @@ int uterm_display_swap(struct uterm_display *disp)
 	return VIDEO_CALL(disp->ops->swap, 0, disp);
 }
 
+bool uterm_display_is_swapping(struct uterm_display *disp)
+{
+	if (!disp)
+		return false;
+
+	return disp->vblank_scheduled || (disp->flags & DISPLAY_VSYNC);
+}
+
 int uterm_display_fill(struct uterm_display *disp,
 		       uint8_t r, uint8_t g, uint8_t b,
 		       unsigned int x, unsigned int y,
