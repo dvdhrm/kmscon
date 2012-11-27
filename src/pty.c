@@ -223,7 +223,7 @@ static void pty_close(struct kmscon_pty *pty, bool user)
 }
 
 static void __attribute__((noreturn))
-exec_child(int pty_master, const char *term, char **argv, const char *seat)
+exec_child(const char *term, char **argv, const char *seat)
 {
 	if (!term)
 		term = "vt220";
@@ -350,7 +350,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->fd, pty->term, pty->argv, pty->seat);
+		exec_child(pty->term, pty->argv, pty->seat);
 		exit(EXIT_FAILURE);
 	default:
 		pty->fd = master;
