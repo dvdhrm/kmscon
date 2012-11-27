@@ -836,9 +836,6 @@ int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 				continue;
 
 			mask = convert_mask(ep[i].events);
-			if ((mask & (EV_ERR | EV_HUP)) == mask)
-				ev_fd_disable(fd);
-
 			fd->cb(fd, mask, fd->data);
 		}
 	}
