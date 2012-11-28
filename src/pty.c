@@ -342,7 +342,6 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 	ws.ws_col = width;
 	ws.ws_row = height;
 
-	log_debug("forking child");
 	pid = fork();
 	switch (pid) {
 	case -1:
@@ -353,6 +352,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		exec_child(pty->term, pty->argv, pty->seat);
 		exit(EXIT_FAILURE);
 	default:
+		log_debug("forking child %d", pid);
 		pty->fd = master;
 		pty->child = pid;
 		break;
@@ -375,7 +375,8 @@ static int send_buf(struct kmscon_pty *pty)
 		}
 
 		if (ret < 0 && errno != EWOULDBLOCK) {
-			log_warn("cannot write to child process");
+			log_warn("cannot write to child process (%d): %m",
+				 errno);
 			return ret;
 		}
 
@@ -383,55 +384,77 @@ static int send_buf(struct kmscon_pty *pty)
 		return 0;
 	}
 
-	ev_fd_update(pty->efd, EV_READABLE);
+	ev_fd_update(pty->efd, EV_READABLE | EV_ET);
+	return 0;
+}
+
+static int read_buf(struct kmscon_pty *pty)
+{
+	ssize_t len, num;
+	int mask;
+
+	/* Use a maximum of 50 steps to avoid staying here forever.
+	 * TODO: recheck where else a user might flush our queues and try to
+	 * install an explicit policy. */
+	num = 50;
+	do {
+		len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
+		if (len > 0) {
+			if (pty->input_cb)
+				pty->input_cb(pty, pty->io_buf, len, pty->data);
+		} else if (len == 0) {
+			log_debug("HUP during read on pty of child %d",
+				  pty->child);
+			break;
+		} else if (errno != EWOULDBLOCK) {
+			log_err("cannot read from pty of child %d (%d): %m",
+				pty->child, errno);
+			break;
+		}
+	} while (len > 0 && --num);
+
+	if (!num) {
+		log_debug("cannot read application data fast enough");
+
+		/* We are edge-triggered so update the mask to get the
+		 * EV_READABLE event again next round. */
+		mask = EV_READABLE | EV_ET;
+		if (!shl_ring_is_empty(pty->msgbuf))
+			mask |= EV_WRITEABLE;
+		ev_fd_update(pty->efd, mask);
+	}
+
 	return 0;
 }
 
 static void pty_input(struct ev_fd *fd, int mask, void *data)
 {
-	int ret;
-	ssize_t len, num;
 	struct kmscon_pty *pty = data;
 
-	if (mask & EV_ERR) {
-		log_warn("error on child pty socket");
-		goto err;
-	} else if (mask & EV_HUP) {
-		log_debug("child closed remote end");
-		goto err;
-	}
+	/* Programs like /bin/login tend to perform a vhangup() on their TTY
+	 * before running the login procedure. This also causes the pty master
+	 * to get a EV_HUP event as long as no client has the TTY opened.
+	 * This means, we cannot use the TTY connection as reliable way to track
+	 * the client. Instead, we _must_ rely on the PID of the client to track
+	 * them.
+	 * However, this has the side effect that if the client forks and the
+	 * parent exits, we loose them and restart the client. But this seems to
+	 * be the expected behavior so we implement it here.
+	 * Unfortunately, epoll always polls for EPOLLHUP so as long as the
+	 * vhangup() is ongoing, we will _always_ get EPOLLHUP and cannot sleep.
+	 * This gets worse if the client closes the TTY but doesn't exit.
+	 * Therefore, we set the fd as edge-triggered in the epoll-set so we
+	 * only get the events once they change. This has to be taken into
+	 * account at all places of kmscon_pty to avoid missing events. */
 
-	if (mask & EV_WRITEABLE) {
-		ret = send_buf(pty);
-		if (ret)
-			goto err;
-	}
-
-	if (mask & EV_READABLE) {
-		/* use a maximum of 50 steps to avoid staying here forever */
-		num = 50;
-		do {
-			len = read(pty->fd, pty->io_buf, sizeof(pty->io_buf));
-			if (len > 0) {
-				if (pty->input_cb)
-					pty->input_cb(pty, pty->io_buf, len, pty->data);
-			} else if (len == 0) {
-				log_debug("child closed remote end");
-				goto err;
-			} else if (errno != EWOULDBLOCK) {
-				log_err("cannot read from pty: %m");
-				goto err;
-			}
-		} while (--num && len > 0);
-
-		if (!num)
-			log_debug("cannot read application data fast enough");
-	}
-
-	return;
-
-err:
-	pty_close(pty, false);
+	if (mask & EV_ERR)
+		log_warn("error on pty socket of child %d", pty->child);
+	if (mask & EV_HUP)
+		log_debug("HUP on pty of child %d", pty->child);
+	if (mask & EV_WRITEABLE)
+		send_buf(pty);
+	if (mask & EV_READABLE)
+		read_buf(pty);
 }
 
 static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
@@ -468,7 +491,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	}
 
 	ret = ev_eloop_new_fd(pty->eloop, &pty->efd, master,
-					EV_READABLE, pty_input, pty);
+			      EV_ET | EV_READABLE, pty_input, pty);
 	if (ret)
 		goto err_master;
 
@@ -523,7 +546,7 @@ int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
 		u8 = &u8[ret];
 	}
 
-	ev_fd_update(pty->efd, EV_READABLE | EV_WRITEABLE);
+	ev_fd_update(pty->efd, EV_READABLE | EV_WRITEABLE | EV_ET);
 
 buf:
 	ret = shl_ring_write(pty->msgbuf, u8, len);
