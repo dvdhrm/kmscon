@@ -350,10 +350,19 @@ err_free:
 
 static void app_seat_remove_video(struct app_seat *seat, struct app_video *vid)
 {
+	struct uterm_display *disp;
+
 	log_debug("free video device %s on seat %s", vid->node, seat->name);
 
 	shl_dlist_unlink(&vid->list);
 	uterm_video_unregister_cb(vid->video, app_seat_video_event, vid);
+
+	disp = uterm_video_get_displays(vid->video);
+	while (disp) {
+		kmscon_seat_remove_display(seat->seat, disp);
+		disp = uterm_display_next(disp);
+	}
+
 	uterm_video_unref(vid->video);
 	free(vid->node);
 	free(vid);
