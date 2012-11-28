@@ -56,6 +56,9 @@ struct screen {
 	struct kmscon_font *font;
 	struct kmscon_font *bold_font;
 	struct kmscon_text *txt;
+
+	bool swapping;
+	bool pending;
 };
 
 struct kmscon_terminal {
@@ -74,78 +77,67 @@ struct kmscon_terminal {
 	unsigned int min_rows;
 
 	unsigned long fps;
-	unsigned int redraw;
-	struct ev_timer *redraw_timer;
 	struct tsm_screen *console;
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
 	struct ev_fd *ptyfd;
 };
 
-static void redraw(struct kmscon_terminal *term)
+static void do_redraw_screen(struct screen *scr)
+{
+	int ret;
+
+	if (!scr->term->awake)
+		return;
+
+	scr->pending = false;
+	tsm_screen_draw(scr->term->console, kmscon_text_prepare_cb,
+			kmscon_text_draw_cb, kmscon_text_render_cb, scr->txt);
+	ret = uterm_display_swap(scr->disp);
+	if (ret) {
+		log_warning("cannot swap display %p", scr->disp);
+		return;
+	}
+
+	scr->swapping = true;
+}
+
+static void redraw_screen(struct screen *scr)
+{
+	if (!scr->term->awake)
+		return;
+
+	if (scr->swapping)
+		scr->pending = true;
+	else
+		do_redraw_screen(scr);
+}
+
+static void redraw_all(struct kmscon_terminal *term)
 {
 	struct shl_dlist *iter;
-	struct screen *ent;
+	struct screen *scr;
 
 	if (!term->awake)
 		return;
 
 	shl_dlist_for_each(iter, &term->screens) {
-		ent = shl_dlist_entry(iter, struct screen, list);
-
-		tsm_screen_draw(term->console,
-				kmscon_text_prepare_cb,
-				kmscon_text_draw_cb,
-				kmscon_text_render_cb,
-				ent->txt);
-		uterm_display_swap(ent->disp);
+		scr = shl_dlist_entry(iter, struct screen, list);
+		redraw_screen(scr);
 	}
 }
 
-static void redraw_timer_event(struct ev_timer *timer, uint64_t num, void *data)
+static void display_event(struct uterm_display *disp,
+			  struct uterm_display_event *ev, void *data)
 {
-	struct kmscon_terminal *term = data;
+	struct screen *scr = data;
 
-	/* When a redraw is scheduled, the redraw-counter is set to the current
-	 * frame-rate. If this counter is full, we know that data changed and we
-	 * need to redraw the terminal. We then decrement the counter until it
-	 * drops to zero. This guarantees that we stay active for 1s without
-	 * a call to ev_timer_enable/disable() which required syscalls which can
-	 * be quite slow.
-	 * If a redraw is schedule in the meantime, the counter is reset to the
-	 * framerate and we have to redraw the screen. If it drops to zero, that
-	 * is, 1s after the last redraw, we disable the timer to stop consuming
-	 * CPU-power.
-	 * TODO: On _really_ slow machines we might want to avoid fps-limits
-	 * and redraw on change. We also should check whether waking up for the
-	 * fps-timeouts for 1s is really faster than calling
-	 * ev_timer_enable/disable() all the time. */
-
-	if (num > 1)
-		log_debug("CPU is too slow; skipping %" PRIu64 " frames", num - 1);
-
-	if (term->redraw-- != term->fps) {
-		if (!term->redraw) {
-			ev_timer_disable(term->redraw_timer);
-		}
-		return;
-	}
-
-	redraw(term);
-}
-
-static void schedule_redraw(struct kmscon_terminal *term)
-{
-	if (!term->awake)
+	if (ev->action != UTERM_PAGE_FLIP)
 		return;
 
-	if (!term->redraw) {
-		ev_timer_enable(term->redraw_timer);
-		ev_timer_drain(term->redraw_timer, NULL);
-	}
-
-	if (term->redraw < term->fps)
-		term->redraw = term->fps;
+	scr->swapping = false;
+	if (scr->pending)
+		do_redraw_screen(scr);
 }
 
 /*
@@ -182,7 +174,7 @@ static void terminal_resize(struct kmscon_terminal *term,
 	/* shrinking always succeeds */
 	tsm_screen_resize(term->console, term->min_cols, term->min_rows);
 	kmscon_pty_resize(term->pty, term->min_cols, term->min_rows);
-	schedule_redraw(term);
+	redraw_all(term);
 }
 
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
@@ -214,10 +206,16 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	scr->term = term;
 	scr->disp = disp;
 
+	ret = uterm_display_register_cb(scr->disp, display_event, scr);
+	if (ret) {
+		log_error("cannot register display callback: %d", ret);
+		goto err_free;
+	}
+
 	ret = kmscon_font_find(&scr->font, &attr, term->conf->font_engine);
 	if (ret) {
 		log_error("cannot create font");
-		goto err_free;
+		goto err_cb;
 	}
 
 	attr.bold = true;
@@ -255,7 +253,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	shl_dlist_link(&term->screens, &scr->list);
 
 	log_debug("added display %p to terminal %p", disp, term);
-	schedule_redraw(term);
+	redraw_screen(scr);
 	uterm_display_ref(scr->disp);
 	return 0;
 
@@ -264,6 +262,8 @@ err_text:
 err_font:
 	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
+err_cb:
+	uterm_display_unregister_cb(scr->disp, display_event, scr);
 err_free:
 	free(scr);
 	return ret;
@@ -329,28 +329,28 @@ static void input_event(struct uterm_input *input,
 	if (conf_grab_matches(term->conf->grab_scroll_up,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_up(term->console, 1);
-		schedule_redraw(term);
+		redraw_all(term);
 		ev->handled = true;
 		return;
 	}
 	if (conf_grab_matches(term->conf->grab_scroll_down,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_down(term->console, 1);
-		schedule_redraw(term);
+		redraw_all(term);
 		ev->handled = true;
 		return;
 	}
 	if (conf_grab_matches(term->conf->grab_page_up,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_up(term->console, 1);
-		schedule_redraw(term);
+		redraw_all(term);
 		ev->handled = true;
 		return;
 	}
 	if (conf_grab_matches(term->conf->grab_page_down,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		tsm_screen_sb_page_down(term->console, 1);
-		schedule_redraw(term);
+		redraw_all(term);
 		ev->handled = true;
 		return;
 	}
@@ -364,7 +364,7 @@ static void input_event(struct uterm_input *input,
 	if (tsm_vte_handle_keyboard(term->vte, ev->keysyms[0], ev->ascii,
 				    ev->mods, ev->codepoints[0])) {
 		tsm_screen_sb_reset(term->console);
-		schedule_redraw(term);
+		redraw_all(term);
 		ev->handled = true;
 	}
 }
@@ -399,7 +399,7 @@ static int terminal_open(struct kmscon_terminal *term)
 	}
 
 	term->opened = true;
-	schedule_redraw(term);
+	redraw_all(term);
 	return 0;
 }
 
@@ -415,8 +415,6 @@ static void terminal_destroy(struct kmscon_terminal *term)
 
 	terminal_close(term);
 	rm_all_screens(term);
-	ev_eloop_rm_timer(term->redraw_timer);
-	ev_timer_unref(term->redraw_timer);
 	uterm_input_unregister_cb(term->input, input_event, term);
 	ev_eloop_rm_fd(term->ptyfd);
 	kmscon_pty_unref(term->pty);
@@ -443,7 +441,7 @@ static int session_event(struct kmscon_session *session,
 		term->awake = true;
 		if (!term->opened)
 			terminal_open(term);
-		schedule_redraw(term);
+		redraw_all(term);
 		break;
 	case KMSCON_SESSION_DEACTIVATE:
 		term->awake = false;
@@ -465,7 +463,7 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 		terminal_open(term);
 	} else {
 		tsm_vte_input(term->vte, u8, len);
-		schedule_redraw(term);
+		redraw_all(term);
 	}
 }
 
@@ -565,21 +563,11 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	spec.it_value.tv_nsec = 1;
 	spec.it_interval.tv_nsec = fps;
 
-	ret = ev_timer_new(&term->redraw_timer, &spec, redraw_timer_event,
-			   term, log_llog);
-	if (ret)
-		goto err_input;
-	ev_timer_disable(term->redraw_timer);
-
-	ret = ev_eloop_add_timer(term->eloop, term->redraw_timer);
-	if (ret)
-		goto err_timer;
-
 	ret = kmscon_seat_register_session(seat, &term->session, session_event,
 					   term);
 	if (ret) {
 		log_error("cannot register session for terminal: %d", ret);
-		goto err_redraw;
+		goto err_input;
 	}
 
 	ev_eloop_ref(term->eloop);
@@ -588,10 +576,6 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	log_debug("new terminal object %p", term);
 	return 0;
 
-err_redraw:
-	ev_eloop_rm_timer(term->redraw_timer);
-err_timer:
-	ev_timer_unref(term->redraw_timer);
 err_input:
 	uterm_input_unregister_cb(term->input, input_event, term);
 err_ptyfd:
