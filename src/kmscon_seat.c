@@ -151,15 +151,15 @@ static void activate_display(struct kmscon_display *d)
 
 		d->activated = true;
 
-		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
-			s = shl_dlist_entry(iter, struct kmscon_session, list);
-			session_call_display_new(s, d->disp);
-		}
-
 		ret = uterm_display_set_dpms(d->disp, UTERM_DPMS_ON);
 		if (ret)
 			log_warning("cannot set DPMS state to on for display: %d",
 				    ret);
+
+		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
+			s = shl_dlist_entry(iter, struct kmscon_session, list);
+			session_call_display_new(s, d->disp);
+		}
 	}
 }
 
