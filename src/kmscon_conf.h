@@ -119,8 +119,6 @@ struct kmscon_conf_t {
 	bool primary_gpu_only;
 	/* use all GPUs unconditionally */
 	bool all_gpus;
-	/* frame-rate limit */
-	unsigned int fps;
 	/* render engine */
 	char *render_engine;
 	/* print rendering engine timing information */

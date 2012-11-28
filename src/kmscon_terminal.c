@@ -76,7 +76,6 @@ struct kmscon_terminal {
 	unsigned int min_cols;
 	unsigned int min_rows;
 
-	unsigned long fps;
 	struct tsm_screen *console;
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
@@ -487,8 +486,6 @@ int kmscon_terminal_register(struct kmscon_session **out,
 {
 	struct kmscon_terminal *term;
 	int ret;
-	struct itimerspec spec;
-	unsigned long fps;
 
 	if (!out || !seat)
 		return -EINVAL;
@@ -505,19 +502,6 @@ int kmscon_terminal_register(struct kmscon_session **out,
 
 	term->conf_ctx = kmscon_seat_get_conf(seat);
 	term->conf = conf_ctx_get_mem(term->conf_ctx);
-
-	if (term->conf->fps) {
-		fps = 1000000000ULL / term->conf->fps;
-		if (fps == 0)
-			fps = 1000000000ULL / 100;
-		else if (fps > 200000000ULL)
-			fps = 200000000ULL;
-	} else {
-		fps = 1000000000ULL / 25;
-	}
-
-	term->fps = 1000000000ULL / fps;
-	log_debug("FPS: %lu TIMER: %lu", term->fps, fps);
 
 	ret = tsm_screen_new(&term->console, log_llog);
 	if (ret)
@@ -558,10 +542,6 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	ret = uterm_input_register_cb(term->input, input_event, term);
 	if (ret)
 		goto err_ptyfd;
-
-	memset(&spec, 0, sizeof(spec));
-	spec.it_value.tv_nsec = 1;
-	spec.it_interval.tv_nsec = fps;
 
 	ret = kmscon_seat_register_session(seat, &term->session, session_event,
 					   term);

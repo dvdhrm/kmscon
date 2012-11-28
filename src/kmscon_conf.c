@@ -130,7 +130,6 @@ static void print_help()
 		"\t                                    available\n"
 		"\t    --primary-gpu-only      [off]   Use primary GPU only\n"
 		"\t    --all-gpus              [on]    Use all GPUs unconditionally\n"
-		"\t    --fps                   [50]    Limit frame-rate\n"
 		"\t    --render-engine <eng>   [-]     Console renderer\n"
 		"\t    --render-timing         [off]   Print renderer timing information\n"
 		"\n"
@@ -494,7 +493,6 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_BOOL(0, "hwaccel", &conf->hwaccel, false),
 		CONF_OPTION_BOOL(0, "primary-gpu-only", &conf->primary_gpu_only, false),
 		CONF_OPTION_BOOL(0, "all-gpus", &conf->all_gpus, true),
-		CONF_OPTION_UINT(0, "fps", &conf->fps, 50),
 		CONF_OPTION_STRING(0, "render-engine", &conf->render_engine, NULL),
 		CONF_OPTION_BOOL(0, "render-timing", &conf->render_timing, false),
 
