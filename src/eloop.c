@@ -1144,6 +1144,8 @@ static int fd_epoll_add(struct ev_fd *fd)
 		ep.events |= EPOLLIN;
 	if (fd->mask & EV_WRITEABLE)
 		ep.events |= EPOLLOUT;
+	if (fd->mask & EV_ET)
+		ep.events |= EPOLLET;
 	ep.data.ptr = fd;
 
 	ret = epoll_ctl(fd->loop->efd, EPOLL_CTL_ADD, fd->fd, &ep);
@@ -1182,6 +1184,8 @@ static int fd_epoll_update(struct ev_fd *fd)
 		ep.events |= EPOLLIN;
 	if (fd->mask & EV_WRITEABLE)
 		ep.events |= EPOLLOUT;
+	if (fd->mask & EV_ET)
+		ep.events |= EPOLLET;
 	ep.data.ptr = fd;
 
 	ret = epoll_ctl(fd->loop->efd,  EPOLL_CTL_MOD, fd->fd, &ep);
@@ -1297,7 +1301,7 @@ int ev_fd_update(struct ev_fd *fd, int mask)
 
 	if (!fd)
 		return -EINVAL;
-	if (fd->mask == mask)
+	if (fd->mask == mask && !(mask & EV_ET))
 		return 0;
 
 	omask = fd->mask;

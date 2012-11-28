@@ -129,17 +129,20 @@ typedef void (*ev_idle_cb) (struct ev_eloop *eloop, void *unused, void *data);
  * @EV_WRITEABLE: file-desciprotr is writeable
  * @EV_HUP: Hang-up on file-descriptor
  * @EV_ERR: I/O error on file-descriptor
+ * @EV_ET: Edge-triggered mode
  *
  * These flags are used for events on file-descriptors. You can combine them
  * with binary-operators like @EV_READABLE | @EV_WRITEABLE.
  * @EV_HUP and @EV_ERR are always raised for file-descriptors, even if not
  * requested explicitly.
+ * @EV_ET enables edge-triggered mode for the operation
  */
 enum ev_eloop_flags {
 	EV_READABLE = 0x01,
 	EV_WRITEABLE = 0x02,
 	EV_HUP = 0x04,
 	EV_ERR = 0x08,
+	EV_ET = 0x10,
 };
 
 int ev_eloop_new(struct ev_eloop **out, ev_log_t log);
