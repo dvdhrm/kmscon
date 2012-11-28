@@ -305,6 +305,7 @@ static void display_deactivate_force(struct uterm_display *disp, bool force)
 		uterm_mode_unref(disp->current_mode);
 	disp->modes = NULL;
 	disp->current_mode = NULL;
+	memset(disp->fbdev.map, 0, disp->fbdev.len);
 	munmap(disp->fbdev.map, disp->fbdev.len);
 
 	if (!force)

@@ -876,8 +876,11 @@ static void show_displays(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_display *iter;
+	struct drm_rb *rb;
 
 	if (!video_is_awake(video))
+		return;
+	if (video_do_use(video))
 		return;
 
 	for (iter = video->displays; iter; iter = iter->next) {
@@ -886,9 +889,24 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
+		rb = &iter->drm.rb[iter->drm.current_rb];
+
+		glBindFramebuffer(GL_FRAMEBUFFER, iter->drm.fb);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+					  GL_RENDERBUFFER, rb->rb);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
+						GL_FRAMEBUFFER_COMPLETE) {
+			log_warn("cannot set gl-renderbuffer");
+			continue;
+		}
+
+		glClearColor(0, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glFinish();
+
 		ret = drmModeSetCrtc(video->drm.fd, iter->drm.crtc_id,
-			iter->drm.rb[iter->drm.current_rb].fb, 0, 0,
-			&iter->drm.conn_id, 1, &iter->current_mode->drm.info);
+				     rb->fb, 0, 0, &iter->drm.conn_id, 1,
+				     &iter->current_mode->drm.info);
 		if (ret) {
 			log_err("cannot set drm-crtc on display %p", iter);
 			continue;
@@ -1236,6 +1254,7 @@ static void video_sleep(struct uterm_video *video)
 	if (!video_is_awake(video))
 		return;
 
+	show_displays(video);
 	drmDropMaster(video->drm.fd);
 	video->flags &= ~VIDEO_AWAKE;
 }

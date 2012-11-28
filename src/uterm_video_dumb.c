@@ -626,6 +626,7 @@ static void show_displays(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_display *iter;
+	struct dumb_rb *rb;
 
 	if (!video_is_awake(video))
 		return;
@@ -636,9 +637,11 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
+		rb = &iter->dumb.rb[iter->dumb.current_rb];
+		memset(rb->map, 0, rb->size);
 		ret = drmModeSetCrtc(video->dumb.fd, iter->dumb.crtc_id,
-			iter->dumb.rb[iter->dumb.current_rb].fb, 0, 0,
-			&iter->dumb.conn_id, 1, &iter->current_mode->dumb.info);
+				     rb->fb, 0, 0, &iter->dumb.conn_id, 1,
+				     &iter->current_mode->dumb.info);
 		if (ret) {
 			log_err("cannot set drm-crtc on display %p", iter);
 			continue;
@@ -896,6 +899,7 @@ static void video_sleep(struct uterm_video *video)
 	if (!video_is_awake(video))
 		return;
 
+	show_displays(video);
 	drmDropMaster(video->dumb.fd);
 	video->flags &= ~VIDEO_AWAKE;
 }
