@@ -51,6 +51,7 @@
 
 struct screen {
 	struct shl_dlist list;
+	struct kmscon_terminal *term;
 	struct uterm_display *disp;
 	struct kmscon_font *font;
 	struct kmscon_font *bold_font;
@@ -210,6 +211,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		return -ENOMEM;
 	}
 	memset(scr, 0, sizeof(*scr));
+	scr->term = term;
 	scr->disp = disp;
 
 	ret = kmscon_font_find(&scr->font, &attr, term->conf->font_engine);
@@ -267,11 +269,11 @@ err_free:
 	return ret;
 }
 
-static void free_screen(struct kmscon_terminal *term, struct screen *scr,
-			bool update)
+static void free_screen(struct screen *scr, bool update)
 {
 	struct shl_dlist *iter;
 	struct screen *ent;
+	struct kmscon_terminal *term = scr->term;
 
 	log_debug("destroying terminal screen %p", scr);
 	shl_dlist_unlink(&scr->list);
@@ -312,7 +314,7 @@ static void rm_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		return;
 
 	log_debug("removed display %p from terminal %p", disp, term);
-	free_screen(term, scr, true);
+	free_screen(scr, true);
 }
 
 static void input_event(struct uterm_input *input,
@@ -374,7 +376,7 @@ static void rm_all_screens(struct kmscon_terminal *term)
 
 	while ((iter = term->screens.next) != &term->screens) {
 		scr = shl_dlist_entry(iter, struct screen, list);
-		free_screen(term, scr, false);
+		free_screen(scr, false);
 	}
 
 	term->min_cols = 0;
