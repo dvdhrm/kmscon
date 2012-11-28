@@ -126,6 +126,22 @@ static void redraw_all(struct kmscon_terminal *term)
 	}
 }
 
+static void redraw_all_test(struct kmscon_terminal *term)
+{
+	struct shl_dlist *iter;
+	struct screen *scr;
+
+	if (!term->awake)
+		return;
+
+	shl_dlist_for_each(iter, &term->screens) {
+		scr = shl_dlist_entry(iter, struct screen, list);
+		if (uterm_display_is_swapping(scr->disp))
+			scr->swapping = true;
+		redraw_screen(scr);
+	}
+}
+
 static void display_event(struct uterm_display *disp,
 			  struct uterm_display_event *ev, void *data)
 {
@@ -440,7 +456,7 @@ static int session_event(struct kmscon_session *session,
 		term->awake = true;
 		if (!term->opened)
 			terminal_open(term);
-		redraw_all(term);
+		redraw_all_test(term);
 		break;
 	case KMSCON_SESSION_DEACTIVATE:
 		term->awake = false;
