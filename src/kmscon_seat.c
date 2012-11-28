@@ -131,9 +131,43 @@ static void session_call_display_gone(struct kmscon_session *sess,
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
 
+static void activate_display(struct kmscon_display *d)
+{
+	int ret;
+	struct shl_dlist *iter, *tmp;
+	struct kmscon_session *s;
+	struct kmscon_seat *seat = d->seat;
+
+	if (d->activated || !d->seat->awake || !d->seat->foreground)
+		return;
+
+	/* TODO: We always use the default mode for new displays but we should
+	 * rather allow the user to specify different modes in the configuration
+	 * files. */
+	if (uterm_display_get_state(d->disp) == UTERM_DISPLAY_INACTIVE) {
+		ret = uterm_display_activate(d->disp, NULL);
+		if (ret)
+			return;
+
+		d->activated = true;
+
+		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
+			s = shl_dlist_entry(iter, struct kmscon_session, list);
+			session_call_display_new(s, d->disp);
+		}
+
+		ret = uterm_display_set_dpms(d->disp, UTERM_DPMS_ON);
+		if (ret)
+			log_warning("cannot set DPMS state to on for display: %d",
+				    ret);
+	}
+}
+
 static int seat_go_foreground(struct kmscon_seat *seat, bool force)
 {
 	int ret;
+	struct shl_dlist *iter;
+	struct kmscon_display *d;
 
 	if (seat->foreground)
 		return 0;
@@ -150,6 +184,12 @@ static int seat_go_foreground(struct kmscon_seat *seat, bool force)
 	}
 
 	seat->foreground = true;
+
+	shl_dlist_for_each(iter, &seat->displays) {
+		d = shl_dlist_entry(iter, struct kmscon_display, list);
+		activate_display(d);
+	}
+
 	return 0;
 }
 
@@ -207,43 +247,9 @@ static int seat_go_asleep(struct kmscon_seat *seat, bool force)
 	return err;
 }
 
-static void activate_display(struct kmscon_display *d)
-{
-	int ret;
-	struct shl_dlist *iter, *tmp;
-	struct kmscon_session *s;
-	struct kmscon_seat *seat = d->seat;
-
-	if (d->activated)
-		return;
-
-	/* TODO: We always use the default mode for new displays but we should
-	 * rather allow the user to specify different modes in the configuration
-	 * files. */
-	if (uterm_display_get_state(d->disp) == UTERM_DISPLAY_INACTIVE) {
-		ret = uterm_display_activate(d->disp, NULL);
-		if (ret)
-			return;
-
-		d->activated = true;
-
-		shl_dlist_for_each_safe(iter, tmp, &seat->sessions) {
-			s = shl_dlist_entry(iter, struct kmscon_session, list);
-			session_call_display_new(s, d->disp);
-		}
-
-		ret = uterm_display_set_dpms(d->disp, UTERM_DPMS_ON);
-		if (ret)
-			log_warning("cannot set DPMS state to on for display: %d",
-				    ret);
-	}
-}
-
 static int seat_go_awake(struct kmscon_seat *seat)
 {
 	int ret;
-	struct shl_dlist *iter;
-	struct kmscon_display *d;
 
 	if (seat->awake)
 		return 0;
@@ -259,11 +265,6 @@ static int seat_go_awake(struct kmscon_seat *seat)
 
 	seat->awake = true;
 	uterm_input_wake_up(seat->input);
-
-	shl_dlist_for_each(iter, &seat->displays) {
-		d = shl_dlist_entry(iter, struct kmscon_display, list);
-		activate_display(d);
-	}
 
 	return 0;
 }
