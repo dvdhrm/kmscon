@@ -98,6 +98,8 @@ struct cdev_client {
 	struct vt_mode vtmode;
 	struct fuse_ctx user;
 	bool pending_switch;
+
+	struct shl_dlist waiters;
 };
 
 struct cdev_reader {
@@ -105,6 +107,12 @@ struct cdev_reader {
 	bool killed;
 	fuse_req_t req;
 	size_t len;
+};
+
+struct cdev_waiter {
+	struct shl_dlist list;
+	bool killed;
+	fuse_req_t req;
 };
 
 static pthread_mutex_t cdev_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -161,8 +169,6 @@ err_unlock:
  * devices, we actually try to kill the fake-VT so we can get access again.
  */
 
-static void reader_free(struct cdev_reader *reader, int error);
-
 static void reader_interrupt(fuse_req_t req, void *data)
 {
 	struct cdev_reader *reader = data;
@@ -217,6 +223,62 @@ static int reader_release(struct cdev_reader *reader, const char *buf,
 	ret = fuse_reply_buf(reader->req, buf, len);
 	reader->req = NULL;
 	reader_free(reader, 0);
+	return ret;
+}
+
+static void waiter_interrupt(fuse_req_t req, void *data)
+{
+	struct cdev_waiter *waiter = data;
+
+	if (!waiter)
+		return;
+
+	waiter->killed = true;
+}
+
+static int waiter_new(struct cdev_waiter **out, struct cdev_client *client,
+		      fuse_req_t req)
+{
+	struct cdev_waiter *waiter;
+
+	if (fuse_req_interrupted(req))
+		return -ENOENT;
+
+	waiter = malloc(sizeof(*waiter));
+	if (!waiter)
+		return -ENOMEM;
+	memset(waiter, 0, sizeof(*waiter));
+	waiter->req = req;
+	fuse_req_interrupt_func(req, waiter_interrupt, waiter);
+	if (waiter->killed) {
+		fuse_req_interrupt_func(req, NULL, NULL);
+		free(waiter);
+		return -ENOENT;
+	}
+
+	shl_dlist_link_tail(&client->waiters, &waiter->list);
+	*out = waiter;
+	return 0;
+}
+
+static void waiter_free(struct cdev_waiter *waiter, int error)
+{
+	shl_dlist_unlink(&waiter->list);
+	if (waiter->req) {
+		fuse_req_interrupt_func(waiter->req, NULL, NULL);
+		fuse_reply_err(waiter->req, -error);
+	}
+	free(waiter);
+}
+
+static int waiter_release(struct cdev_waiter *waiter)
+{
+	int ret;
+
+	fuse_req_interrupt_func(waiter->req, NULL, NULL);
+	ret = fuse_reply_ioctl(waiter->req, 0, NULL, 0);
+	waiter->req = NULL;
+	waiter_free(waiter, 0);
 	return ret;
 }
 
@@ -294,6 +356,7 @@ static void client_input_event(struct uterm_input *input,
 static void client_free(struct cdev_client *client)
 {
 	struct cdev_reader *reader;
+	struct cdev_waiter *waiter;
 
 	log_debug("free fake TTY client %p", client);
 
@@ -307,6 +370,12 @@ static void client_free(struct cdev_client *client)
 		reader_free(reader, -EPIPE);
 	}
 
+	while (!shl_dlist_empty(&client->waiters)) {
+		waiter = shl_dlist_entry(client->waiters.next,
+					 struct cdev_waiter, list);
+		waiter_free(waiter, -EPIPE);
+	}
+
 	uterm_input_unregister_cb(client->cdev->input, client_input_event,
 				  client);
 	tsm_vte_unref(client->vte);
@@ -318,6 +387,7 @@ static void client_free(struct cdev_client *client)
 static int client_activate(struct cdev_client *client)
 {
 	int ret;
+	struct cdev_waiter *waiter;
 
 	/* TODO: Document that CAP_KILL is needed for this to work properly */
 	if (client->vtmode.mode == VT_PROCESS && client->vtmode.acqsig) {
@@ -325,6 +395,15 @@ static int client_activate(struct cdev_client *client)
 		if (ret)
 			log_warning("cannot send activation signal to process %d of cdev client %p (%d): %m",
 				    client->user.pid, client, errno);
+	}
+
+	while (!shl_dlist_empty(&client->waiters)) {
+		waiter = shl_dlist_entry(client->waiters.next,
+					 struct cdev_waiter, list);
+		if (waiter->killed)
+			waiter_free(waiter, 0);
+		else
+			waiter_release(waiter);
 	}
 
 	client->active = true;
@@ -382,6 +461,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	client->kbmode = K_UNICODE;
 	client->vtmode.mode = VT_AUTO;
 	shl_dlist_init(&client->readers);
+	shl_dlist_init(&client->waiters);
 
 	log_debug("new fake TTY client %p", client);
 
@@ -459,11 +539,18 @@ static void client_cleanup(struct cdev_client *client)
 {
 	struct shl_dlist *i, *tmp;
 	struct cdev_reader *reader;
+	struct cdev_waiter *waiter;
 
 	shl_dlist_for_each_safe(i, tmp, &client->readers) {
 		reader = shl_dlist_entry(i, struct cdev_reader, list);
 		if (reader->killed)
 			reader_free(reader, -ENOENT);
+	}
+
+	shl_dlist_for_each_safe(i, tmp, &client->waiters) {
+		waiter = shl_dlist_entry(i, struct cdev_waiter, list);
+		if (waiter->killed)
+			waiter_free(waiter, -ENOENT);
 	}
 }
 
@@ -643,7 +730,19 @@ static void ioctl_VT_ACTIVATE(struct cdev_client *client, fuse_req_t req,
 static void ioctl_VT_WAITACTIVE(struct cdev_client *client, fuse_req_t req,
 				int val)
 {
-	fuse_reply_err(req, EOPNOTSUPP);
+	int ret;
+	struct cdev_waiter *waiter;
+
+	if (client->active) {
+		fuse_reply_ioctl(req, 0, NULL, 0);
+		return;
+	}
+
+	ret = waiter_new(&waiter, client, req);
+	if (ret) {
+		fuse_reply_err(req, -ret);
+		return;
+	}
 }
 
 static void ioctl_VT_GETSTATE(struct cdev_client *client, fuse_req_t req)
