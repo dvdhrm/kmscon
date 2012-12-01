@@ -57,6 +57,8 @@ struct kmscon_conf_t {
 	bool switchvt;
 	/* seats */
 	char **seats;
+	/* cdev */
+	bool cdev;
 
 	/* Session Options */
 	/* sessions */

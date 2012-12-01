@@ -71,6 +71,7 @@ static void print_help()
 		"\t-s, --switchvt              [on]    Automatically switch to VT\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
+		"\t    --cdev                  [off]   Emulate kernel VTs\n"
 		"\n"
 		"Session Options:\n"
 		"\t    --session-max <max>         [50] Maximum number of sessions\n"
@@ -458,6 +459,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, NULL, &conf->vt, NULL),
 		CONF_OPTION_BOOL('s', "switchvt", &conf->switchvt, true),
 		CONF_OPTION_STRING_LIST(0, "seats", &conf->seats, def_seats),
+		CONF_OPTION_BOOL(0, "cdev", &conf->cdev, false),
 
 		/* Session Options */
 		CONF_OPTION_UINT(0, "session-max", &conf->session_max, 50),

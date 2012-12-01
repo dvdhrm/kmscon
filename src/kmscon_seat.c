@@ -690,11 +690,13 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	else
 		kmscon_session_enable(s);
 
-	ret = kmscon_cdev_register(&s, seat);
-	if (ret == -EOPNOTSUPP)
-		log_notice("cdev sessions not compiled in");
-	else if (ret)
-		log_error("cannot register cdev session: %d", ret);
+	if (seat->conf->cdev) {
+		ret = kmscon_cdev_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("cdev sessions not compiled in");
+		else if (ret)
+			log_error("cannot register cdev session: %d", ret);
+	}
 
 	ret = kmscon_compositor_register(&s, seat);
 	if (ret == -EOPNOTSUPP)
