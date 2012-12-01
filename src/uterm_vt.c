@@ -78,7 +78,6 @@ struct uterm_vt_master {
 	unsigned long ref;
 	struct ev_eloop *eloop;
 
-	bool vt_support;
 	struct shl_dlist vts;
 };
 
@@ -313,7 +312,7 @@ static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 	return 0;
 }
 
-static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
+static int real_open(struct uterm_vt *vt, const char *vt_name)
 {
 	struct vt_mode mode;
 	struct vt_stat vts;
@@ -321,7 +320,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_for_seat0)
 
 	log_debug("open vt %p", vt);
 
-	ret = open_tty(vt_for_seat0, &vt->real_fd, &vt->real_num);
+	ret = open_tty(vt_name, &vt->real_fd, &vt->real_num);
 	if (ret)
 		return ret;
 
@@ -674,7 +673,7 @@ static void fake_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	}
 }
 
-static int fake_open(struct uterm_vt *vt, const char *vt_for_seat0)
+static int fake_open(struct uterm_vt *vt)
 {
 	uterm_input_wake_up(vt->input);
 	return 0;
@@ -738,16 +737,47 @@ static void vt_sigusr2(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 		real_sig_leave(vt, info);
 }
 
+static int seat_find_vt(const char *seat, char **out)
+{
+	static const char def_vt[] = "/dev/tty0";
+	char *vt;
+	int ret;
+
+	ret = asprintf(&vt, "/dev/ttyF%s", seat);
+	if (ret < 0)
+		return -ENOMEM;
+
+	if (!access(vt, F_OK)) {
+		log_debug("using fake-VT %s", vt);
+		*out = vt;
+		return 0;
+	}
+
+	free(vt);
+
+	if (!strcmp(seat, "seat0") && !access(def_vt, F_OK)) {
+		vt = strdup(def_vt);
+		if (!vt)
+			return -ENOMEM;
+		*out = vt;
+		return 0;
+	}
+
+	*out = NULL;
+	return 0;
+}
+
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      const char *seat,
 		      struct uterm_input *input,
-		      const char *vt_for_seat0,
+		      const char *vt_name,
 		      uterm_vt_cb cb,
 		      void *data)
 {
 	struct uterm_vt *vt;
 	int ret;
+	char *path;
 
 	if (!vtm || !out)
 		return -EINVAL;
@@ -780,14 +810,23 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	if (ret)
 		goto err_sig2;
 
-	if (!strcmp(seat, "seat0") && vtm->vt_support) {
-		vt->mode = UTERM_VT_REAL;
-		ret = real_open(vt, vt_for_seat0);
+	if (!vt_name) {
+		ret = seat_find_vt(seat, &path);
+		if (ret)
+			goto err_input;
 	} else {
-		vt->mode = UTERM_VT_FAKE;
-		ret = fake_open(vt, vt_for_seat0);
+		path = NULL;
 	}
 
+	if (vt_name || path) {
+		vt->mode = UTERM_VT_REAL;
+		ret = real_open(vt, vt_name ? vt_name : path);
+	} else {
+		vt->mode = UTERM_VT_FAKE;
+		ret = fake_open(vt);
+	}
+
+	free(path);
 	if (ret)
 		goto err_input;
 
@@ -888,7 +927,6 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 	vtm->ref = 1;
 	vtm->eloop = eloop;
 	shl_dlist_init(&vtm->vts);
-	vtm->vt_support = !access("/dev/tty0", F_OK);
 
 	ev_eloop_ref(vtm->eloop);
 	*out = vtm;
