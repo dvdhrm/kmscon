@@ -1232,7 +1232,7 @@ void kmscon_cdev_destroy(struct kmscon_cdev *cdev)
 		return;
 
 	if (cdev->error)
-		log_warning("cdev module failed with error %d (maybe another kmscon is process already running?)",
+		log_warning("cdev module failed with error %d (maybe another kmscon process is already running?)",
 			    cdev->error);
 
 	fuse_session_destroy(cdev->session);
