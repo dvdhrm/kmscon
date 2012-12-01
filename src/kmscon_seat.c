@@ -536,24 +536,30 @@ static void seat_input_event(struct uterm_input *input,
 	struct kmscon_session *s;
 	int ret;
 
-	if (ev->handled || !seat->awake || !seat->conf->multi_session)
+	if (ev->handled || !seat->awake)
 		return;
 
 	if (conf_grab_matches(seat->conf->grab_session_next,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (!seat->conf->multi_session)
+			return;
 		seat_next(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_prev,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (!seat->conf->multi_session)
+			return;
 		seat_prev(seat);
 		return;
 	}
 	if (conf_grab_matches(seat->conf->grab_session_dummy,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (!seat->conf->multi_session)
+			return;
 		seat->scheduled_sess = seat->dummy_sess;
 		seat_switch(seat);
 		return;
@@ -561,6 +567,8 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (!seat->conf->multi_session)
+			return;
 		s = seat->current_sess;
 		if (!s)
 			return;
@@ -585,6 +593,8 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_terminal_new,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
+		if (!seat->conf->multi_session)
+			return;
 		ret = kmscon_terminal_register(&s, seat);
 		if (ret == -EOPNOTSUPP) {
 			log_notice("terminal support not compiled in");
