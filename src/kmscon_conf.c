@@ -67,7 +67,7 @@ static void print_help()
 		"\t    --silent                [off]   Suppress notices and warnings\n"
 		"\n"
 		"Seat Options:\n"
-		"\t    --vt <vt-number>        [auto]  Select which VT to run on on seat0\n"
+		"\t    --vt <vt-number>        [auto]  Select which VT to run on\n"
 		"\t-s, --switchvt              [on]    Automatically switch to VT\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
@@ -397,6 +397,21 @@ static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
+static int aftercheck_vt(struct conf_option *opt, int argc, char **argv,
+			 int idx)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, vt);
+
+	if (!conf->vt)
+		return 0;
+
+	if (shl_string_list_is(conf->seats, "all") ||
+	    !conf->seats[0] || conf->seats[1])
+		log_warning("you should use --vt only if --seats contains exactly one seat");
+
+	return 0;
+}
+
 /*
  * Default Values
  * We use static default values to avoid allocating memory for these. This
@@ -456,7 +471,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_BOOL(0, "silent", &conf->silent, false),
 
 		/* Seat Options */
-		CONF_OPTION(0, 0, "vt", &conf_vt, NULL, NULL, NULL, &conf->vt, NULL),
+		CONF_OPTION(0, 0, "vt", &conf_vt, aftercheck_vt, NULL, NULL, &conf->vt, NULL),
 		CONF_OPTION_BOOL('s', "switchvt", &conf->switchvt, true),
 		CONF_OPTION_STRING_LIST(0, "seats", &conf->seats, def_seats),
 		CONF_OPTION_BOOL(0, "cdev", &conf->cdev, false),

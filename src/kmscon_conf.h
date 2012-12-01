@@ -51,7 +51,7 @@ struct kmscon_conf_t {
 	bool silent;
 
 	/* Seat Options */
-	/* VT number to run on on seat0 */
+	/* VT number to run on */
 	char *vt;
 	/* enter new VT directly */
 	bool switchvt;
