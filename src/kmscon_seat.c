@@ -536,7 +536,7 @@ static void seat_input_event(struct uterm_input *input,
 	struct kmscon_session *s;
 	int ret;
 
-	if (ev->handled || !seat->awake)
+	if (ev->handled || !seat->awake || !seat->conf->multi_session)
 		return;
 
 	if (conf_grab_matches(seat->conf->grab_session_next,
@@ -690,7 +690,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	else
 		kmscon_session_enable(s);
 
-	if (seat->conf->cdev) {
+	if (seat->conf->multi_session && seat->conf->cdev) {
 		ret = kmscon_cdev_register(&s, seat);
 		if (ret == -EOPNOTSUPP)
 			log_notice("cdev sessions not compiled in");
@@ -698,11 +698,13 @@ int kmscon_seat_new(struct kmscon_seat **out,
 			log_error("cannot register cdev session: %d", ret);
 	}
 
-	ret = kmscon_compositor_register(&s, seat);
-	if (ret == -EOPNOTSUPP)
-		log_notice("compositor support not compiled in");
-	else if (ret)
-		log_error("cannot register kmscon compositor: %d", ret);
+	if (seat->conf->multi_session) {
+		ret = kmscon_compositor_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("compositor support not compiled in");
+		else if (ret)
+			log_error("cannot register kmscon compositor: %d", ret);
+	}
 
 	return 0;
 

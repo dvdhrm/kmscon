@@ -63,6 +63,8 @@ struct kmscon_conf_t {
 	/* Session Options */
 	/* sessions */
 	unsigned int session_max;
+	/* run in multi-session mode */
+	bool multi_session;
 
 	/* Terminal Options */
 	/* custom login process */

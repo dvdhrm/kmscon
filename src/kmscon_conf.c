@@ -74,7 +74,8 @@ static void print_help()
 		"\t    --cdev                  [off]   Emulate kernel VTs\n"
 		"\n"
 		"Session Options:\n"
-		"\t    --session-max <max>         [50] Maximum number of sessions\n"
+		"\t    --session-max <max>         [50]  Maximum number of sessions\n"
+		"\t    --multi-session             [off] Run in multi-session mode\n"
 		"\n"
 		"Terminal Options:\n"
 		"\t-l, --login                 [/bin/sh]\n"
@@ -478,6 +479,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 
 		/* Session Options */
 		CONF_OPTION_UINT(0, "session-max", &conf->session_max, 50),
+		CONF_OPTION_BOOL(0, "multi-session", &conf->multi_session, false),
 
 		/* Terminal Options */
 		CONF_OPTION(0, 'l', "login", &conf_login, aftercheck_login, NULL, file_login, &conf->login, false),
