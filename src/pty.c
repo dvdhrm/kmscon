@@ -407,8 +407,8 @@ static int read_buf(struct kmscon_pty *pty)
 				  pty->child);
 			break;
 		} else if (errno != EWOULDBLOCK) {
-			log_err("cannot read from pty of child %d (%d): %m",
-				pty->child, errno);
+			log_debug("cannot read from pty of child %d (%d): %m",
+				  pty->child, errno);
 			break;
 		}
 	} while (len > 0 && --num);
