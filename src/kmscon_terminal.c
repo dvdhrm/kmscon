@@ -295,6 +295,7 @@ static void free_screen(struct screen *scr, bool update)
 	kmscon_text_unref(scr->txt);
 	kmscon_font_unref(scr->bold_font);
 	kmscon_font_unref(scr->font);
+	uterm_display_unregister_cb(scr->disp, display_event, scr);
 	uterm_display_unref(scr->disp);
 	free(scr);
 
