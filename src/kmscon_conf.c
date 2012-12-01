@@ -114,15 +114,15 @@ static void print_help()
 		"\t                                  Shortcut to scroll page up\n"
 		"\t    --grab-page-down <grab>     [<Shift>Next]\n"
 		"\t                                  Shortcut to scroll page down\n"
-		"\t    --grab-session-next <grab>  [<Ctrl><Alt>Right]\n"
+		"\t    --grab-session-next <grab>  [<Ctrl><Logo>Right]\n"
 		"\t                                  Switch to next session\n"
-		"\t    --grab-session-prev <grab>  [<Ctrl><Alt>Left]\n"
+		"\t    --grab-session-prev <grab>  [<Ctrl><Logo>Left]\n"
 		"\t                                  Switch to previous session\n"
-		"\t    --grab-session-dummy <grab> [<Ctrl><Alt>Escape]\n"
+		"\t    --grab-session-dummy <grab> [<Ctrl><Logo>Escape]\n"
 		"\t                                  Switch to dummy session\n"
-		"\t    --grab-session-close <grab> [<Ctrl><Alt>BackSpace]\n"
+		"\t    --grab-session-close <grab> [<Ctrl><Logo>BackSpace]\n"
 		"\t                                  Close current session\n"
-		"\t    --grab-terminal-new <grab>  [<Ctrl><Alt>Return]\n"
+		"\t    --grab-terminal-new <grab>  [<Ctrl><Logo>Return]\n"
 		"\t                                  Create new terminal session\n"
 		"\n"
 		"Video Options:\n"
@@ -438,19 +438,19 @@ static struct conf_grab def_grab_page_down =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Next);
 
 static struct conf_grab def_grab_session_next =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Right);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_Right);
 
 static struct conf_grab def_grab_session_prev =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Left);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_Left);
 
 static struct conf_grab def_grab_session_dummy =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Escape);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_Escape);
 
 static struct conf_grab def_grab_session_close =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_BackSpace);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_BackSpace);
 
 static struct conf_grab def_grab_terminal_new =
-		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_ALT_MASK, XKB_KEY_Return);
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_Return);
 
 int kmscon_conf_new(struct conf_ctx **out)
 {
