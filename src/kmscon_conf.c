@@ -68,7 +68,7 @@ static void print_help()
 		"\n"
 		"Seat Options:\n"
 		"\t    --vt <vt-number>        [auto]  Select which VT to run on on seat0\n"
-		"\t-s, --switchvt              [on]   Automatically switch to VT\n"
+		"\t-s, --switchvt              [on]    Automatically switch to VT\n"
 		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
 		"\t                                    kmscon run on all seats\n"
 		"\n"
