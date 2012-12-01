@@ -49,6 +49,8 @@ struct kmscon_conf_t {
 	bool debug;
 	/* disable notices and warnings */
 	bool silent;
+	/* config directory name */
+	char *configdir;
 
 	/* Seat Options */
 	/* VT number to run on */

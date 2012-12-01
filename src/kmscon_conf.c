@@ -65,6 +65,8 @@ static void print_help()
 		"\t-v, --verbose               [off]   Print verbose messages\n"
 		"\t    --debug                 [off]   Enable debug mode\n"
 		"\t    --silent                [off]   Suppress notices and warnings\n"
+		"\t-c, --configdir </foo/bar>  [/etc/kmscon]\n"
+		"\t                                    Path to config directory\n"
 		"\n"
 		"Seat Options:\n"
 		"\t    --vt <vt-number>        [auto]  Select which VT to run on\n"
@@ -470,6 +472,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_BOOL('v', "verbose", &conf->verbose, false),
 		CONF_OPTION_BOOL_FULL(0, "debug", aftercheck_debug, NULL, NULL, &conf->debug, false),
 		CONF_OPTION_BOOL(0, "silent", &conf->silent, false),
+		CONF_OPTION_STRING('c', "configdir", &conf->configdir, "/etc/kmscon"),
 
 		/* Seat Options */
 		CONF_OPTION(0, 0, "vt", &conf_vt, aftercheck_vt, NULL, NULL, &conf->vt, NULL),
@@ -569,7 +572,7 @@ int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv)
 
 	log_print_init("kmscon");
 
-	ret = conf_ctx_parse_file(ctx, "/etc/kmscon/kmscon.conf");
+	ret = conf_ctx_parse_file(ctx, "%s/kmscon.conf", conf->configdir);
 	if (ret)
 		return ret;
 
@@ -580,6 +583,7 @@ int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
 			  const char *seat)
 {
 	int ret;
+	struct kmscon_conf_t *conf;
 
 	if (!ctx || !main || !seat)
 		return -EINVAL;
@@ -590,7 +594,9 @@ int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
 	if (ret)
 		return ret;
 
-	ret = conf_ctx_parse_file(ctx, "/etc/kmscon/%s.seat.conf", seat);
+	conf = conf_ctx_get_mem(ctx);
+	ret = conf_ctx_parse_file(ctx, "%s/%s.seat.conf", conf->configdir,
+				  seat);
 	if (ret)
 		return ret;
 
