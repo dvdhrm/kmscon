@@ -271,38 +271,11 @@ static void real_vt_input(struct ev_fd *fd, int mask, void *data)
 
 static int open_tty(const char *dev, int *tty_fd, int *tty_num)
 {
-	int fd, err1, id, ret;
-	char filename[16];
+	int fd, ret, id;
 	struct stat st;
 
-	if (!tty_fd || !tty_num)
+	if (!dev || !tty_fd || !tty_num)
 		return -EINVAL;
-
-	if (!dev) {
-		fd = open("/dev/tty0", O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
-		if (fd < 0) {
-			err1 = errno;
-			fd = open("/dev/tty1",
-				  O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
-			if (fd < 0) {
-				log_error("cannot find parent tty (%d, %d): %m",
-					  err1, errno);
-				return -EFAULT;
-			}
-		}
-
-		errno = 0;
-		if (ioctl(fd, VT_OPENQRY, &id) || id <= 0) {
-			close(fd);
-			log_err("cannot get unused tty (%d): %m", errno);
-			return -EINVAL;
-		}
-		close(fd);
-
-		snprintf(filename, sizeof(filename), "/dev/tty%d", id);
-		filename[sizeof(filename) - 1] = 0;
-		dev = filename;
-	}
 
 	log_notice("using tty %s", dev);
 
@@ -768,7 +741,7 @@ static int seat_find_vt(const char *seat, char **out)
 {
 	static const char def_vt[] = "/dev/tty0";
 	char *vt;
-	int ret;
+	int ret, fd, err1, id;
 
 	ret = asprintf(&vt, "/dev/ttyF%s", seat);
 	if (ret < 0)
@@ -783,9 +756,30 @@ static int seat_find_vt(const char *seat, char **out)
 	free(vt);
 
 	if (!strcmp(seat, "seat0") && !access(def_vt, F_OK)) {
-		vt = strdup(def_vt);
-		if (!vt)
+		fd = open(def_vt, O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+		if (fd < 0) {
+			err1 = errno;
+			fd = open("/dev/tty1",
+				  O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
+			if (fd < 0) {
+				log_error("cannot find parent tty (%d, %d): %m",
+					  err1, errno);
+				return -EFAULT;
+			}
+		}
+
+		errno = 0;
+		if (ioctl(fd, VT_OPENQRY, &id) || id <= 0) {
+			close(fd);
+			log_err("cannot get unused tty (%d): %m", errno);
+			return -EINVAL;
+		}
+		close(fd);
+
+		ret = asprintf(&vt, "/dev/tty%d", id);
+		if (ret < 0)
 			return -ENOMEM;
+
 		*out = vt;
 		return 0;
 	}
