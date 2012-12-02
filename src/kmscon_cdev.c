@@ -81,6 +81,7 @@ struct kmscon_cdev {
 struct cdev_client {
 	struct shl_dlist list;
 	struct kmscon_cdev *cdev;
+	bool dead;
 
 	struct tsm_screen *screen;
 	struct tsm_vte *vte;
@@ -164,7 +165,7 @@ err_unlock:
  * so you actually can run "agetty" on this fake-VT. When set into graphical
  * mode, the terminal is suspended and you can run an XServer on it. We emulate
  * the VT-switching signal-API, too. We release all DRM devices if a fake-VT is
- * active and reqcuire them afterwards. This allows the clients to actually
+ * active and reacquire them afterwards. This allows the clients to actually
  * implement graphical terminals. However, if you fail to release the DRM
  * devices, we actually try to kill the fake-VT so we can get access again.
  */
@@ -353,37 +354,6 @@ static void client_input_event(struct uterm_input *input,
 	}
 }
 
-static void client_free(struct cdev_client *client)
-{
-	struct cdev_reader *reader;
-	struct cdev_waiter *waiter;
-
-	log_debug("free fake TTY client %p", client);
-
-	shl_dlist_unlink(&client->list);
-	if (client->ph)
-		fuse_pollhandle_destroy(client->ph);
-
-	while (!shl_dlist_empty(&client->readers)) {
-		reader = shl_dlist_entry(client->readers.next,
-					 struct cdev_reader, list);
-		reader_free(reader, -EPIPE);
-	}
-
-	while (!shl_dlist_empty(&client->waiters)) {
-		waiter = shl_dlist_entry(client->waiters.next,
-					 struct cdev_waiter, list);
-		waiter_free(waiter, -EPIPE);
-	}
-
-	uterm_input_unregister_cb(client->cdev->input, client_input_event,
-				  client);
-	tsm_vte_unref(client->vte);
-	tsm_screen_unref(client->screen);
-	shl_ring_free(client->ring);
-	free(client);
-}
-
 static int client_activate(struct cdev_client *client)
 {
 	int ret;
@@ -428,6 +398,44 @@ static int client_deactivate(struct cdev_client *client)
 	return 0;
 }
 
+static void client_kill(struct cdev_client *client)
+{
+	struct cdev_reader *reader;
+	struct cdev_waiter *waiter;
+
+	if (client->dead) {
+		log_error("killing already dead client");
+		return;
+	}
+
+	log_debug("kill fake TTY client %p", client);
+
+	client->dead = true;
+
+	if (client->ph) {
+		fuse_notify_poll(client->ph);
+		fuse_pollhandle_destroy(client->ph);
+	}
+
+	while (!shl_dlist_empty(&client->readers)) {
+		reader = shl_dlist_entry(client->readers.next,
+					 struct cdev_reader, list);
+		reader_free(reader, -EPIPE);
+	}
+
+	while (!shl_dlist_empty(&client->waiters)) {
+		waiter = shl_dlist_entry(client->waiters.next,
+					 struct cdev_waiter, list);
+		waiter_free(waiter, -EPIPE);
+	}
+
+	uterm_input_unregister_cb(client->cdev->input, client_input_event,
+				  client);
+	tsm_vte_unref(client->vte);
+	tsm_screen_unref(client->screen);
+	shl_ring_free(client->ring);
+}
+
 static int client_session_event(struct kmscon_session *s,
 				struct kmscon_session_event *ev,
 				void *data)
@@ -440,7 +448,7 @@ static int client_session_event(struct kmscon_session *s,
 	case KMSCON_SESSION_DEACTIVATE:
 		return client_deactivate(client);
 	case KMSCON_SESSION_UNREGISTER:
-		client_free(client);
+		client_kill(client);
 		break;
 	}
 
@@ -528,7 +536,12 @@ err_free:
 
 static void client_destroy(struct cdev_client *client)
 {
-	kmscon_session_unregister(client->s);
+	log_debug("destroy client %p", client);
+
+	if (!client->dead)
+		kmscon_session_unregister(client->s);
+	shl_dlist_unlink(&client->list);
+	free(client);
 }
 
 /* This must be called after each event dispatch round. It cleans up all
@@ -613,6 +626,11 @@ static void ll_read(fuse_req_t req, size_t size, off_t off,
 		return;
 	}
 
+	if (client->dead) {
+		fuse_reply_err(req, EPIPE);
+		return;
+	}
+
 	if (off != 0) {
 		fuse_reply_err(req, EINVAL);
 		return;
@@ -661,6 +679,11 @@ static void ll_write(fuse_req_t req, const char *buf, size_t size, off_t off,
 		return;
 	}
 
+	if (client->dead) {
+		fuse_reply_err(req, EPIPE);
+		return;
+	}
+
 	ret = fuse_reply_write(req, size);
 	if (ret < 0)
 		return;
@@ -675,6 +698,14 @@ static void ll_poll(fuse_req_t req, struct fuse_file_info *fi,
 
 	if (!client) {
 		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	if (client->dead) {
+		if (ph)
+			fuse_pollhandle_destroy(ph);
+		fuse_reply_poll(req, EPOLLHUP | EPOLLIN | EPOLLOUT |
+				     EPOLLWRNORM | EPOLLRDNORM);
 		return;
 	}
 
@@ -929,6 +960,11 @@ static void ll_ioctl(fuse_req_t req, int cmd, void *arg,
 
 	if (!client) {
 		fuse_reply_err(req, EINVAL);
+		return;
+	}
+
+	if (client->dead) {
+		fuse_reply_err(req, EPIPE);
 		return;
 	}
 
