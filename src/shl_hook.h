@@ -58,6 +58,7 @@ struct shl_hook {
 	unsigned int num;
 	struct shl_dlist entries;
 	struct shl_dlist *cur_entry;
+	bool dead;
 };
 
 static inline int shl_hook_new(struct shl_hook **out)
@@ -81,8 +82,13 @@ static inline void shl_hook_free(struct shl_hook *hook)
 {
 	struct shl_hook_entry *entry;
 
-	if (!hook || hook->cur_entry)
+	if (!hook)
 		return;
+
+	if (hook->cur_entry) {
+		hook->dead = true;
+		return;
+	}
 
 	while (!shl_dlist_empty(&hook->entries)) {
 		entry = shl_dlist_entry(hook->entries.prev,
@@ -164,6 +170,8 @@ static inline void shl_hook_call(struct shl_hook *hook, void *parent,
 	}
 
 	hook->cur_entry = NULL;
+	if (hook->dead)
+		shl_hook_free(hook);
 }
 
 #endif /* SHL_HOOK_H */
