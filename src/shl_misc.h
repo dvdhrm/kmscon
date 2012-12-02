@@ -200,6 +200,20 @@ static inline bool shl_string_list_is(char **list, const char *entry)
 	return !strcmp(list[0], entry);
 }
 
+static inline unsigned int shl_string_list_count(char **list, bool ignore_empty)
+{
+	unsigned int num;
+
+	if (!list)
+		return 0;
+
+	for (num = 0; *list; ++list)
+		if (**list || !ignore_empty)
+			++num;
+
+	return num;
+}
+
 /* TODO: xkbcommon should provide these flags!
  * We currently copy them into each library API we use so we need  to keep
  * them in sync. Currently, they're used in uterm-input and tsm-vte. */
