@@ -1000,6 +1000,7 @@ void kmscon_session_unregister(struct kmscon_session *sess)
 	sess->seat = NULL;
 
 	session_call(sess, KMSCON_SESSION_UNREGISTER, NULL);
+	kmscon_session_unref(sess);
 
 	/* If this session was active and we couldn't deactivate it, then it
 	 * might still have resources allocated that couldn't get freed. In this
