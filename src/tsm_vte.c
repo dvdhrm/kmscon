@@ -1370,6 +1370,9 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 		case 8: /* DECARM */
 			set_reset_flag(vte, set, FLAG_AUTO_REPEAT_MODE);
 			continue;
+		case 12: /* blinking cursor */
+			/* TODO: implement */
+			continue;
 		case 18: /* DECPFF */
 			/* If set, a form feed (FF) is sent to the printer after
 			 * every screen that is printed. We don't have printers
