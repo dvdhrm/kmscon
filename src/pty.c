@@ -200,24 +200,11 @@ static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 
 static void pty_close(struct kmscon_pty *pty, bool user)
 {
-	bool called = true;
-
 	if (!pty || !pty_is_open(pty))
 		return;
 
-	if (pty->efd) {
-		called = false;
-		ev_eloop_rm_fd(pty->efd);
-		pty->efd = NULL;
-	}
-
-	if (!user) {
-		if (!called)
-			pty->input_cb(pty, NULL, 0, pty->data);
-
-		return;
-	}
-
+	ev_eloop_rm_fd(pty->efd);
+	pty->efd = NULL;
 	ev_eloop_unregister_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
 	close(pty->fd);
 	pty->fd = -1;
@@ -470,7 +457,7 @@ static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 			info->ssi_pid, info->ssi_status,
 			info->ssi_utime, info->ssi_stime);
 
-	pty_close(pty, false);
+	pty->input_cb(pty, NULL, 0, pty->data);
 }
 
 int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
