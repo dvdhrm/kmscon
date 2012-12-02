@@ -370,12 +370,16 @@ static int real_open(struct uterm_vt *vt, const char *vt_name)
 		vt->real_kbmode = K_UNICODE;
 	}
 
-	ret = ioctl(vt->real_fd, KDSKBMODE, K_OFF);
+	ret = ioctl(vt->real_fd, KDSKBMODE, K_RAW);
 	if (ret) {
-		log_error("cannot set VT KBMODE to K_OFF (%d): %m", errno);
+		log_error("cannot set VT KBMODE to K_RAW (%d): %m", errno);
 		ret = -EFAULT;
 		goto err_setmode;
 	}
+
+	ret = ioctl(vt->real_fd, KDSKBMODE, K_OFF);
+	if (ret)
+		log_warning("cannot set VT KBMODE to K_OFF (%d): %m", errno);
 
 	if (vts.v_active == vt->real_num) {
 		ret = ev_eloop_register_idle_cb(vt->vtm->eloop, real_delayed,
