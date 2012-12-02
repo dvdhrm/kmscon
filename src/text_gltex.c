@@ -252,6 +252,7 @@ static void gltex_unset(struct kmscon_text *txt)
 
 		if (gl)
 			gl_tex_free(&atlas->tex, 1);
+		free(atlas);
 	}
 
 	if (gl) {
