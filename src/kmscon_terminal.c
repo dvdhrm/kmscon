@@ -404,15 +404,15 @@ static int terminal_open(struct kmscon_terminal *term)
 	int ret;
 	unsigned short width, height;
 
-	kmscon_pty_close(term->pty);
+	if (term->opened)
+		return -EALREADY;
+
 	tsm_vte_hard_reset(term->vte);
 	width = tsm_screen_get_width(term->console);
 	height = tsm_screen_get_height(term->console);
 	ret = kmscon_pty_open(term->pty, width, height);
-	if (ret) {
-		term->opened = false;
+	if (ret)
 		return ret;
-	}
 
 	term->opened = true;
 	redraw_all(term);
@@ -476,6 +476,7 @@ static void pty_input(struct kmscon_pty *pty, const char *u8, size_t len,
 	struct kmscon_terminal *term = data;
 
 	if (!len) {
+		terminal_close(term);
 		terminal_open(term);
 	} else {
 		tsm_vte_input(term->vte, u8, len);
