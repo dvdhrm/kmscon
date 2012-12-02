@@ -46,6 +46,7 @@ enum kmscon_seat_event {
 	KMSCON_SEAT_SLEEP,
 	KMSCON_SEAT_BACKGROUND,
 	KMSCON_SEAT_FOREGROUND,
+	KMSCON_SEAT_HUP,
 };
 
 typedef int (*kmscon_seat_cb_t) (struct kmscon_seat *seat,

@@ -539,6 +539,10 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		if (ret)
 			return ret;
 		break;
+	case UTERM_VT_HUP:
+		if (seat->cb)
+			seat->cb(seat, KMSCON_SEAT_HUP, seat->data);
+		break;
 	}
 
 	return 0;

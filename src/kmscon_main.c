@@ -107,6 +107,19 @@ static int app_seat_event(struct kmscon_seat *s, unsigned int event,
 				ev_eloop_exit(app->vt_eloop);
 		}
 		break;
+	case KMSCON_SEAT_HUP:
+		kmscon_seat_free(seat->seat);
+		seat->seat = NULL;
+
+		if (!shl_string_list_is(app->conf->seats, "all") &&
+		    shl_string_list_count(app->conf->seats, true) == 1) {
+			log_debug("seat HUP in single-seat mode; exiting...");
+			ev_eloop_exit(app->eloop);
+		} else {
+			log_debug("seat HUP in multi-seat mode; ignoring...");
+		}
+
+		break;
 	}
 
 	return 0;
