@@ -286,10 +286,12 @@ static int seat_run(struct kmscon_seat *seat)
 	if (seat->current_sess)
 		return 0;
 
-	if (seat->scheduled_sess)
-		session = seat->scheduled_sess;
-	else
+	if (!seat->scheduled_sess) {
+		log_debug("no session scheduled to run (num %zu)",
+			  seat->session_count);
 		return -ENOENT;
+	}
+	session = seat->scheduled_sess;
 
 	if (session->foreground && !seat->foreground) {
 		ret = seat_go_foreground(seat, false);
@@ -417,7 +419,10 @@ static void seat_next(struct kmscon_seat *seat)
 	else
 		return;
 
-	next = NULL;
+	if (seat->current_sess)
+		next = NULL;
+	else
+		next = seat->dummy_sess;
 	shl_dlist_for_each_but_one(iter, cur, &seat->sessions) {
 		s = shl_dlist_entry(iter, struct kmscon_session, list);
 		if (!s->enabled || seat->dummy_sess == s)
@@ -448,7 +453,10 @@ static void seat_prev(struct kmscon_seat *seat)
 	else
 		return;
 
-	prev = NULL;
+	if (seat->current_sess)
+		prev = NULL;
+	else
+		prev = seat->dummy_sess;
 	shl_dlist_for_each_reverse_but_one(iter, cur, &seat->sessions) {
 		s = shl_dlist_entry(iter, struct kmscon_session, list);
 		if (!s->enabled || seat->dummy_sess == s)
