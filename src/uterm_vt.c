@@ -916,6 +916,14 @@ void uterm_vt_retry(struct uterm_vt *vt)
 		real_retry(vt);
 }
 
+unsigned int uterm_vt_get_type(struct uterm_vt *vt)
+{
+	if (!vt)
+		return UTERM_VT_FAKE;
+
+	return vt->mode;
+}
+
 int uterm_vt_master_new(struct uterm_vt_master **out,
 			struct ev_eloop *eloop)
 {

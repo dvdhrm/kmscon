@@ -335,7 +335,7 @@ struct uterm_vt_event {
 	int target;
 };
 
-enum uterm_vt_mode {
+enum uterm_vt_type {
 	UTERM_VT_REAL,
 	UTERM_VT_FAKE,
 };
@@ -361,6 +361,7 @@ void uterm_vt_unref(struct uterm_vt *vt);
 int uterm_vt_activate(struct uterm_vt *vt);
 int uterm_vt_deactivate(struct uterm_vt *vt);
 void uterm_vt_retry(struct uterm_vt *vt);
+unsigned int uterm_vt_get_type(struct uterm_vt *vt);
 
 /*
  * System Monitor
