@@ -117,6 +117,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	log_debug("free pty object");
 	kmscon_pty_close(pty);
+	free(pty->seat);
 	free(pty->argv);
 	free(pty->term);
 	shl_ring_free(pty->msgbuf);
