@@ -39,6 +39,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/signalfd.h>
+#include <sys/types.h>
 #include <time.h>
 
 struct ev_eloop;
@@ -112,6 +113,30 @@ typedef void (*ev_counter_cb)
  */
 typedef void (*ev_signal_shared_cb)
 	(struct ev_eloop *eloop, struct signalfd_siginfo *info, void *data);
+
+/**
+ * ev_child_data:
+ * @pid: pid of child
+ * @status: status of child
+ *
+ * This contains the payload for @ev_child_cb events. The data is simply copied
+ * from the waitpid() system-call.
+ */
+struct ev_child_data {
+	pid_t pid;
+	int status;
+};
+
+/**
+ * ev_child_cb:
+ * @eloop: event loop object
+ * @chld: chld pid/status payload
+ * @data: user-supplied data
+ *
+ * This is the callback-type for child-reaper events.
+ */
+typedef void (*ev_child_cb)
+	(struct ev_eloop *eloop, struct ev_child_data *chld, void *data);
 
 /**
  * ev_idle_cb:
@@ -227,6 +252,13 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data);
 void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 					ev_signal_shared_cb cb, void *data);
+
+/* child reaper sources */
+
+int ev_eloop_register_child_cb(struct ev_eloop *loop, ev_child_cb cb,
+			       void *data);
+void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
+				  void *data);
 
 /* idle sources */
 

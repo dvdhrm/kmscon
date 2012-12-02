@@ -205,6 +205,7 @@ struct ev_eloop {
 	int idle_fd;
 
 	struct shl_dlist sig_list;
+	struct shl_hook *chlds;
 	struct shl_hook *idlers;
 	struct shl_hook *pres;
 	struct shl_hook *posts;
@@ -317,36 +318,38 @@ struct ev_signal_shared {
  * thread when a signalfd is created. We never unblock the signal. However,
  * most modern linux user-space programs avoid signal handlers, anyway, so you
  * can use signalfd only.
- *
- * As special note, we automatically handle SIGCHLD signals here and wait for
- * all pending child exits. This, however, is only activated when at least one
- * user has registered for SIGCHLD callbacks.
  */
 
-static void sig_child(struct ev_fd *fd)
+static void sig_child(struct ev_eloop *loop, struct signalfd_siginfo *info,
+		      void *data)
 {
 	pid_t pid;
 	int status;
+	struct ev_child_data d;
 
 	while (1) {
 		pid = waitpid(-1, &status, WNOHANG);
 		if (pid == -1) {
 			if (errno != ECHILD)
-				llog_warn(fd, "cannot wait on child: %m");
+				llog_warn(loop, "cannot wait on child: %m");
 			break;
 		} else if (pid == 0) {
 			break;
 		} else if (WIFEXITED(status)) {
 			if (WEXITSTATUS(status) != 0)
-				llog_debug(fd, "child %d exited with status %d",
+				llog_debug(loop, "child %d exited with status %d",
 					   pid, WEXITSTATUS(status));
 			else
-				llog_debug(fd, "child %d exited successfully",
+				llog_debug(loop, "child %d exited successfully",
 					   pid);
 		} else if (WIFSIGNALED(status)) {
-			llog_debug(fd, "child %d exited by signal %d", pid,
+			llog_debug(loop, "child %d exited by signal %d", pid,
 				   WTERMSIG(status));
 		}
+
+		d.pid = pid;
+		d.status = status;
+		shl_hook_call(loop->chlds, loop, &d);
 	}
 }
 
@@ -362,9 +365,6 @@ static void shared_signal_cb(struct ev_fd *fd, int mask, void *data)
 			llog_warn(fd, "cannot read signalfd (%d): %m", errno);
 		else
 			shl_hook_call(sig->hook, sig->fd->loop, &info);
-
-		if (info.ssi_signo == SIGCHLD)
-			sig_child(fd);
 	} else if (mask & (EV_HUP | EV_ERR)) {
 		llog_warn(fd, "HUP/ERR on signal source");
 	}
@@ -603,9 +603,13 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 		goto err_free;
 	}
 
-	ret = shl_hook_new(&loop->idlers);
+	ret = shl_hook_new(&loop->chlds);
 	if (ret)
 		goto err_fds;
+
+	ret = shl_hook_new(&loop->idlers);
+	if (ret)
+		goto err_childs;
 
 	ret = shl_hook_new(&loop->pres);
 	if (ret)
@@ -662,6 +666,8 @@ err_pres:
 	shl_hook_free(loop->pres);
 err_idlers:
 	shl_hook_free(loop->idlers);
+err_childs:
+	shl_hook_free(loop->chlds);
 err_fds:
 	free(loop->cur_fds);
 err_free:
@@ -706,6 +712,9 @@ void ev_eloop_unref(struct ev_eloop *loop)
 
 	llog_debug(loop, "free eloop object %p", loop);
 
+	if (shl_hook_num(loop->chlds))
+		ev_eloop_unregister_signal_cb(loop, SIGCHLD, sig_child, loop);
+
 	while (loop->sig_list.next != &loop->sig_list) {
 		sig = shl_dlist_entry(loop->sig_list.next,
 					struct ev_signal_shared,
@@ -724,6 +733,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
 	shl_hook_free(loop->posts);
 	shl_hook_free(loop->pres);
 	shl_hook_free(loop->idlers);
+	shl_hook_free(loop->chlds);
 	free(loop->cur_fds);
 	free(loop);
 }
@@ -2225,6 +2235,53 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 			return;
 		}
 	}
+}
+
+/*
+ * Child reaper sources
+ * If at least one child-reaper callback is registered, then the eloop object
+ * listens for SIGCHLD and waits for all exiting children. The callbacks are
+ * then notified for each PID that signaled an event.
+ * Note that this cannot be done via the shared-signal sources as the waitpid()
+ * call must not be done in callbacks. Otherwise, only one callback would see
+ * the events while others will call waitpid() and get EAGAIN.
+ */
+
+int ev_eloop_register_child_cb(struct ev_eloop *loop, ev_child_cb cb,
+			       void *data)
+{
+	int ret;
+	bool empty;
+
+	if (!loop)
+		return -EINVAL;
+
+	empty = !shl_hook_num(loop->chlds);
+	ret = shl_hook_add_cast(loop->chlds, cb, data);
+	if (ret)
+		return ret;
+
+	if (empty) {
+		ret = ev_eloop_register_signal_cb(loop, SIGCHLD, sig_child,
+						  loop);
+		if (ret) {
+			shl_hook_rm_cast(loop->chlds, cb, data);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
+				  void *data)
+{
+	if (!loop || !shl_hook_num(loop->chlds))
+		return;
+
+	shl_hook_rm_cast(loop->chlds, cb, data);
+	if (!shl_hook_num(loop->chlds))
+		ev_eloop_unregister_signal_cb(loop, SIGCHLD, sig_child, loop);
 }
 
 /*
