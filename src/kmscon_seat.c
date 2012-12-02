@@ -809,6 +809,9 @@ void kmscon_seat_remove_display(struct kmscon_seat *seat,
 	struct shl_dlist *iter;
 	struct kmscon_display *d;
 
+	if (!seat || !disp)
+		return;
+
 	shl_dlist_for_each(iter, &seat->displays) {
 		d = shl_dlist_entry(iter, struct kmscon_display, list);
 		if (d->disp != disp)
