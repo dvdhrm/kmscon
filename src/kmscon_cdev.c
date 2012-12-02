@@ -678,10 +678,9 @@ static void ll_poll(fuse_req_t req, struct fuse_file_info *fi,
 		return;
 	}
 
-	if (client->ph) {
+	if (client->ph)
 		fuse_pollhandle_destroy(client->ph);
-		client->ph = ph;
-	}
+	client->ph = ph;
 
 	flags = EPOLLOUT | EPOLLWRNORM;
 	if (!shl_ring_is_empty(client->ring))
