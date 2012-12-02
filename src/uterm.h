@@ -323,6 +323,7 @@ struct uterm_vt_master;
 enum uterm_vt_action {
 	UTERM_VT_ACTIVATE,
 	UTERM_VT_DEACTIVATE,
+	UTERM_VT_HUP,
 };
 
 enum uterm_vt_flags {

@@ -62,6 +62,7 @@ struct uterm_vt {
 	void *data;
 
 	bool active;
+	bool hup;
 
 	/* this is for *real* linux kernel VTs */
 	int real_fd;
@@ -250,9 +251,22 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 static void real_vt_input(struct ev_fd *fd, int mask, void *data)
 {
 	struct uterm_vt *vt = data;
+	struct uterm_vt_event ev;
 
 	/* we ignore input from the VT because we get it from evdev */
-	tcflush(vt->real_fd, TCIFLUSH);
+	if (mask & EV_READABLE)
+		tcflush(vt->real_fd, TCIFLUSH);
+
+	if (mask & (EV_HUP | EV_ERR)) {
+		log_debug("HUP on VT %d", vt->real_num);
+		ev_fd_disable(fd);
+		vt->hup = true;
+		if (vt->cb) {
+			memset(&ev, 0, sizeof(ev));
+			ev.action = UTERM_VT_HUP;
+			vt->cb(vt, &ev, vt->data);
+		}
+	}
 }
 
 static int open_tty(const char *dev, int *tty_fd, int *tty_num)
@@ -436,19 +450,19 @@ static void real_close(struct uterm_vt *vt)
 	vt_call_deactivate(vt, true);
 
 	ret = ioctl(vt->real_fd, KDSKBMODE, vt->real_kbmode);
-	if (ret)
+	if (ret && !vt->hup)
 		log_error("cannot reset VT KBMODE to %d (%d): %m",
 			  vt->real_kbmode, errno);
 
 	memset(&mode, 0, sizeof(mode));
 	mode.mode = VT_AUTO;
 	ret = ioctl(vt->real_fd, VT_SETMODE, &mode);
-	if (ret)
+	if (ret && !vt->hup)
 		log_warning("cannot reset VT %d to VT_AUTO mode (%d): %m",
 			    vt->real_num, errno);
 
 	ret = ioctl(vt->real_fd, KDSETMODE, KD_TEXT);
-	if (ret)
+	if (ret && !vt->hup)
 		log_warning("cannot reset VT %d to text-mode (%d): %m",
 			    vt->real_num, errno);
 
@@ -471,6 +485,9 @@ static int real_activate(struct uterm_vt *vt)
 {
 	int ret;
 	struct vt_stat vts;
+
+	if (vt->hup)
+		return -EPIPE;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret)
@@ -512,6 +529,9 @@ static int real_deactivate(struct uterm_vt *vt)
 	int ret;
 	struct vt_stat vts;
 
+	if (vt->hup)
+		return -EPIPE;
+
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
 		log_warn("cannot find current VT (%d): %m", errno);
@@ -545,7 +565,7 @@ static void real_input(struct uterm_vt *vt, struct uterm_input_event *ev)
 	struct vt_stat vts;
 	int ret;
 
-	if (ev->handled || !vt->active)
+	if (ev->handled || !vt->active || vt->hup)
 		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
@@ -592,6 +612,9 @@ static void real_retry(struct uterm_vt *vt)
 {
 	struct vt_stat vts;
 	int ret;
+
+	if (vt->hup)
+		return;
 
 	ret = ioctl(vt->real_fd, VT_GETSTATE, &vts);
 	if (ret) {
