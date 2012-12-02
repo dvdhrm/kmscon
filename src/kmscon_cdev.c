@@ -805,8 +805,10 @@ static void ioctl_VT_RELDISP(struct cdev_client *client, fuse_req_t req,
 {
 	if (client->pending_switch) {
 		client->pending_switch = false;
-		if (val > 0)
+		if (val > 0) {
+			client->active = false;
 			kmscon_session_notify_deactivated(client->s);
+		}
 	}
 
 	fuse_reply_ioctl(req, 0, NULL, 0);
