@@ -409,7 +409,7 @@ static int aftercheck_vt(struct conf_option *opt, int argc, char **argv,
 		return 0;
 
 	if (shl_string_list_is(conf->seats, "all") ||
-	    !conf->seats[0] || conf->seats[1])
+	    shl_string_list_count(conf->seats, true) != 1)
 		log_warning("you should use --vt only if --seats contains exactly one seat");
 
 	return 0;
