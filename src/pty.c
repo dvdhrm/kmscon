@@ -195,21 +195,6 @@ static bool pty_is_open(struct kmscon_pty *pty)
 	return pty->fd >= 0;
 }
 
-static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
-			void *data);
-
-static void pty_close(struct kmscon_pty *pty, bool user)
-{
-	if (!pty || !pty_is_open(pty))
-		return;
-
-	ev_eloop_rm_fd(pty->efd);
-	pty->efd = NULL;
-	ev_eloop_unregister_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
-	close(pty->fd);
-	pty->fd = -1;
-}
-
 static void __attribute__((noreturn))
 exec_child(const char *term, char **argv, const char *seat)
 {
@@ -445,17 +430,16 @@ static void pty_input(struct ev_fd *fd, int mask, void *data)
 		read_buf(pty);
 }
 
-static void sig_child(struct ev_eloop *eloop, struct signalfd_siginfo *info,
+static void sig_child(struct ev_eloop *eloop, struct ev_child_data *chld,
 			void *data)
 {
 	struct kmscon_pty *pty = data;
 
-	if (info->ssi_pid != pty->child)
+	if (chld->pid != pty->child)
 		return;
 
-	log_info("child exited: pid: %u status: %d utime: %" PRIu64 " stime: %" PRIu64,
-			info->ssi_pid, info->ssi_status,
-			info->ssi_utime, info->ssi_stime);
+	log_info("child exited: pid: %u status: %d",
+		 chld->pid, chld->status);
 
 	pty->input_cb(pty, NULL, 0, pty->data);
 }
@@ -483,7 +467,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	if (ret)
 		goto err_master;
 
-	ret = ev_eloop_register_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
+	ret = ev_eloop_register_child_cb(pty->eloop, sig_child, pty);
 	if (ret)
 		goto err_fd;
 
@@ -494,7 +478,7 @@ int kmscon_pty_open(struct kmscon_pty *pty, unsigned short width,
 	return 0;
 
 err_sig:
-	ev_eloop_unregister_signal_cb(pty->eloop, SIGCHLD, sig_child, pty);
+	ev_eloop_unregister_child_cb(pty->eloop, sig_child, pty);
 err_fd:
 	ev_eloop_rm_fd(pty->efd);
 	pty->efd = NULL;
@@ -508,7 +492,11 @@ void kmscon_pty_close(struct kmscon_pty *pty)
 	if (!pty || !pty_is_open(pty))
 		return;
 
-	pty_close(pty, true);
+	ev_eloop_rm_fd(pty->efd);
+	pty->efd = NULL;
+	ev_eloop_unregister_child_cb(pty->eloop, sig_child, pty);
+	close(pty->fd);
+	pty->fd = -1;
 }
 
 int kmscon_pty_write(struct kmscon_pty *pty, const char *u8, size_t len)
