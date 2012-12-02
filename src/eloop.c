@@ -2186,7 +2186,13 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 			return ret;
 	}
 
-	return shl_hook_add_cast(sig->hook, cb, data);
+	ret = shl_hook_add_cast(sig->hook, cb, data);
+	if (ret) {
+		signal_free(sig);
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
