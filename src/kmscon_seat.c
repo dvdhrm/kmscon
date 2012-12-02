@@ -68,6 +68,12 @@ struct kmscon_display {
 	bool activated;
 };
 
+enum kmscon_async_schedule {
+	SCHEDULE_SWITCH,
+	SCHEDULE_VT,
+	SCHEDULE_UNREGISTER,
+};
+
 struct kmscon_seat {
 	struct ev_eloop *eloop;
 	struct uterm_vt_master *vtm;
@@ -87,7 +93,8 @@ struct kmscon_seat {
 	struct kmscon_session *current_sess;
 	struct kmscon_session *scheduled_sess;
 	struct kmscon_session *dummy_sess;
-	bool scheduled_vt;
+
+	unsigned int async_schedule;
 
 	kmscon_seat_cb_t cb;
 	void *data;
@@ -316,6 +323,7 @@ static void session_deactivate(struct kmscon_session *sess)
 	if (sess->seat->current_sess != sess)
 		return;
 
+	sess->seat->async_schedule = SCHEDULE_SWITCH;
 	sess->deactivating = false;
 	sess->seat->current_sess = NULL;
 }
@@ -387,6 +395,7 @@ static int seat_switch(struct kmscon_seat *seat)
 {
 	int ret;
 
+	seat->async_schedule = SCHEDULE_SWITCH;
 	ret = seat_pause(seat, false);
 	if (ret)
 		return ret;
@@ -511,7 +520,7 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		seat_run(seat);
 		break;
 	case UTERM_VT_DEACTIVATE:
-		seat->scheduled_vt = true;
+		seat->async_schedule = SCHEDULE_VT;
 		ret = seat_pause(seat, false);
 		if (ret)
 			return ret;
@@ -521,7 +530,6 @@ static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 		ret = seat_go_asleep(seat, false);
 		if (ret)
 			return ret;
-		seat->scheduled_vt = false;
 		break;
 	}
 
@@ -579,9 +587,9 @@ static void seat_input_event(struct uterm_input *input,
 		 * unloading it. If it fails, we give it some time. If this is
 		 * invoked a second time, we notice that we already tried
 		 * removing it and so we go straight to unregistering the
-		 * session unconditionally.
-		 * TODO: set some "scheduled for removal" flag */
+		 * session unconditionally. */
 		if (!s->deactivating) {
+			seat->async_schedule = SCHEDULE_UNREGISTER;
 			ret = seat_pause(seat, false);
 			if (ret)
 				return;
@@ -1089,6 +1097,7 @@ void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 {
 	struct kmscon_seat *seat;
 	int ret;
+	unsigned int sched;
 
 	if (!sess || !sess->seat)
 		return;
@@ -1097,10 +1106,13 @@ void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 	if (seat->current_sess != sess)
 		return;
 
-	log_debug("session %p notified core about deactivation", sess);
+	sched = seat->async_schedule;
+	log_debug("session %p notified core about deactivation (schedule: %u)",
+		  sess, sched);
 	session_deactivate(sess);
 	seat_reschedule(seat);
-	if (seat->scheduled_vt) {
+
+	if (sched == SCHEDULE_VT) {
 		ret = seat_go_background(seat, false);
 		if (ret)
 			return;
@@ -1108,7 +1120,9 @@ void kmscon_session_notify_deactivated(struct kmscon_session *sess)
 		if (ret)
 			return;
 		uterm_vt_retry(seat->vt);
+	} else if (sched == SCHEDULE_UNREGISTER) {
+		kmscon_session_unregister(sess);
 	} else {
-		seat_switch(sess->seat);
+		seat_switch(seat);
 	}
 }
