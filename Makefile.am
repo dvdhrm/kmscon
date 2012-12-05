@@ -91,7 +91,7 @@ SHL_MISC = \
 if BUILD_ENABLE_ELOOP
 lib_LTLIBRARIES += libeloop.la
 include_HEADERS += src/eloop.h
-pkgconfig_DATA += src/libeloop.pc
+pkgconfig_DATA += docs/pc/libeloop.pc
 endif
 
 libeloop_la_SOURCES = \
@@ -134,7 +134,7 @@ include_HEADERS += \
 	src/tsm_unicode.h \
 	src/tsm_vte.h
 pkgconfig_DATA += \
-	src/libtsm.pc
+	docs/pc/libtsm.pc
 endif
 
 libtsm_la_SOURCES = \
@@ -168,7 +168,7 @@ libtsm_la_LDFLAGS = \
 if BUILD_ENABLE_UTERM
 lib_LTLIBRARIES += libuterm.la
 include_HEADERS += src/uterm.h
-pkgconfig_DATA += src/libuterm.pc
+pkgconfig_DATA += docs/pc/libuterm.pc
 endif
 
 libuterm_la_SOURCES = \

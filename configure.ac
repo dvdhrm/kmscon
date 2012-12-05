@@ -1073,9 +1073,9 @@ fi
 #
 
 AC_CONFIG_FILES([Makefile
-                 src/libeloop.pc
-                 src/libtsm.pc
-                 src/libuterm.pc])
+                 docs/pc/libeloop.pc
+                 docs/pc/libtsm.pc
+                 docs/pc/libuterm.pc])
 AC_OUTPUT
 
 #
