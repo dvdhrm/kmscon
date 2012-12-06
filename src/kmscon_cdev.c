@@ -360,7 +360,7 @@ static int client_activate(struct cdev_client *client)
 	int ret;
 	struct cdev_waiter *waiter;
 
-	/* TODO: Document that CAP_KILL is needed for this to work properly */
+	/* TODO: Check whether we have CAP_KILL capability during startup */
 	if (client->vtmode.mode == VT_PROCESS && client->vtmode.acqsig) {
 		ret = kill(client->user.pid, client->vtmode.acqsig);
 		if (ret)
@@ -385,7 +385,6 @@ static int client_deactivate(struct cdev_client *client)
 {
 	int ret;
 
-	/* TODO: Document that CAP_KILL is needed for this to work properly */
 	if (client->vtmode.mode == VT_PROCESS && client->vtmode.relsig) {
 		ret = kill(client->user.pid, client->vtmode.relsig);
 		if (ret)
