@@ -471,6 +471,23 @@ static int aftercheck_vt(struct conf_option *opt, int argc, char **argv,
 	return 0;
 }
 
+static int aftercheck_listen(struct conf_option *opt, int argc, char **argv,
+			     int idx)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, listen);
+	int ret = -EFAULT;
+
+	if (conf->listen)
+		return 0;
+
+	if (conf->cdev_session)
+		log_error("you can use --cdev-session only in combination with --listen");
+	else
+		ret = 0;
+
+	return ret;
+}
+
 /*
  * Default Values
  * We use static default values to avoid allocating memory for these. This
@@ -527,7 +544,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_BOOL_FULL(0, "debug", aftercheck_debug, NULL, NULL, &conf->debug, false),
 		CONF_OPTION_BOOL(0, "silent", &conf->silent, false),
 		CONF_OPTION_STRING('c', "configdir", &conf->configdir, "/etc/kmscon"),
-		CONF_OPTION_BOOL(0, "listen", &conf->listen, false),
+		CONF_OPTION_BOOL_FULL(0, "listen", aftercheck_listen, NULL, NULL, &conf->listen, false),
 
 		/* Seat Options */
 		CONF_OPTION(0, 0, "vt", &conf_vt, aftercheck_vt, NULL, NULL, &conf->vt, NULL),
