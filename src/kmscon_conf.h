@@ -44,6 +44,9 @@ enum kmscon_conf_gpu_selection {
 };
 
 struct kmscon_conf_t {
+	/* header information */
+	bool seat_config;
+
 	/* General Options */
 	/* show help/usage information */
 	bool help;
@@ -57,6 +60,8 @@ struct kmscon_conf_t {
 	bool silent;
 	/* config directory name */
 	char *configdir;
+	/* listen mode */
+	bool listen;
 
 	/* Seat Options */
 	/* VT number to run on */
@@ -65,14 +70,16 @@ struct kmscon_conf_t {
 	bool switchvt;
 	/* seats */
 	char **seats;
-	/* cdev */
-	bool cdev;
 
 	/* Session Options */
 	/* sessions */
 	unsigned int session_max;
-	/* run in multi-session mode */
-	bool multi_session;
+	/* allow keyboard session control */
+	bool session_control;
+	/* run terminal session */
+	bool terminal_session;
+	/* cdev session */
+	bool cdev_session;
 
 	/* Terminal Options */
 	/* custom login process */
@@ -148,5 +155,16 @@ void kmscon_conf_free(struct conf_ctx *ctx);
 int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv);
 int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
 			  const char *seat);
+
+static inline bool kmscon_conf_is_all_seats(struct kmscon_conf_t *conf)
+{
+	return conf && shl_string_list_is(conf->seats, "all");
+}
+
+static inline bool kmscon_conf_is_single_seat(struct kmscon_conf_t *conf)
+{
+	return conf && !kmscon_conf_is_all_seats(conf) &&
+	       shl_string_list_count(conf->seats, true) == 1;
+}
 
 #endif /* KMSCON_MAIN_H */

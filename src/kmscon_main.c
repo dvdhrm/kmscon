@@ -72,6 +72,7 @@ struct kmscon_app {
 	struct uterm_vt_master *vtm;
 	struct uterm_monitor *mon;
 	struct shl_dlist seats;
+	unsigned int running_seats;
 };
 
 static int app_seat_event(struct kmscon_seat *s, unsigned int event,
@@ -111,12 +112,28 @@ static int app_seat_event(struct kmscon_seat *s, unsigned int event,
 		kmscon_seat_free(seat->seat);
 		seat->seat = NULL;
 
-		if (!shl_string_list_is(app->conf->seats, "all") &&
-		    shl_string_list_count(app->conf->seats, true) == 1) {
-			log_debug("seat HUP in single-seat mode; exiting...");
-			ev_eloop_exit(app->eloop);
+		if (!app->conf->listen) {
+			--app->running_seats;
+			if (!app->running_seats) {
+				log_debug("seat HUP on %s in default-mode; exiting...",
+					  seat->name);
+				ev_eloop_exit(app->eloop);
+			} else {
+				log_debug("seat HUP on %s in default-mode; %u more running seats",
+					  seat->name, app->running_seats);
+			}
 		} else {
-			log_debug("seat HUP in multi-seat mode; ignoring...");
+			/* Seat HUP here means that we are running in
+			 * listen-mode on a modular-VT like kmscon-fake-VTs. But
+			 * this is an invalid setup. In listen-mode we
+			 * exclusively run as seat-VT-master without a
+			 * controlling VT and we effectively prevent other
+			 * setups during startup. Hence, we can safely drop the
+			 * seat here and ignore it.
+			 * You can destroy and recreate the seat to make kmscon
+			 * pick it up again in listen-mode. */
+			log_warning("seat HUP on %s in listen-mode; dropping seat...",
+				    seat->name);
 		}
 
 		break;
@@ -134,7 +151,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	bool found;
 
 	found = false;
-	if (shl_string_list_is(app->conf->seats, "all")) {
+	if (kmscon_conf_is_all_seats(app->conf)) {
 		found = true;
 	} else {
 		for (i = 0; app->conf->seats[i]; ++i) {
@@ -180,6 +197,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	seat->conf = conf_ctx_get_mem(seat->conf_ctx);
 
 	shl_dlist_link(&app->seats, &seat->list);
+	++app->running_seats;
 	*out = seat;
 	return 0;
 
@@ -561,7 +579,12 @@ int main(int argc, char **argv)
 		uterm_vt_master_activate_all(app.vtm);
 	}
 
-	ev_eloop_run(app.eloop, -1);
+	if (!app.conf->listen && !app.running_seats) {
+		log_notice("no running seats; exiting");
+	} else {
+		log_debug("%u running seats after startup", app.running_seats);
+		ev_eloop_run(app.eloop, -1);
+	}
 
 	if (app.conf->switchvt) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it

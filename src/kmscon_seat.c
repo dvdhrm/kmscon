@@ -560,7 +560,7 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_next,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->conf->multi_session)
+		if (!seat->conf->session_control)
 			return;
 		seat_next(seat);
 		return;
@@ -568,7 +568,7 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_prev,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->conf->multi_session)
+		if (!seat->conf->session_control)
 			return;
 		seat_prev(seat);
 		return;
@@ -576,7 +576,7 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_dummy,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->conf->multi_session)
+		if (!seat->conf->session_control)
 			return;
 		seat->scheduled_sess = seat->dummy_sess;
 		seat_switch(seat);
@@ -585,7 +585,7 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_session_close,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->conf->multi_session)
+		if (!seat->conf->session_control)
 			return;
 		s = seat->current_sess;
 		if (!s)
@@ -611,7 +611,7 @@ static void seat_input_event(struct uterm_input *input,
 	if (conf_grab_matches(seat->conf->grab_terminal_new,
 			      ev->mods, ev->num_syms, ev->keysyms)) {
 		ev->handled = true;
-		if (!seat->conf->multi_session)
+		if (!seat->conf->session_control)
 			return;
 		ret = kmscon_terminal_register(&s, seat);
 		if (ret == -EOPNOTSUPP) {
@@ -710,23 +710,25 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		kmscon_session_enable(s);
 	}
 
-	ret = kmscon_terminal_register(&s, seat);
-	if (ret == -EOPNOTSUPP)
-		log_notice("terminal support not compiled in");
-	else if (ret)
-		goto err_sessions;
-	else
-		kmscon_session_enable(s);
+	if (seat->conf->terminal_session) {
+		ret = kmscon_terminal_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("terminal support not compiled in");
+		else if (ret)
+			goto err_sessions;
+		else
+			kmscon_session_enable(s);
+	}
 
-	if (seat->conf->multi_session && seat->conf->cdev) {
+	if (seat->conf->cdev_session) {
 		ret = kmscon_cdev_register(&s, seat);
 		if (ret == -EOPNOTSUPP)
 			log_notice("cdev sessions not compiled in");
 		else if (ret)
-			log_error("cannot register cdev session: %d", ret);
+			goto err_sessions;
 	}
 
-	if (seat->conf->multi_session) {
+	if (seat->conf->session_control) {
 		ret = kmscon_compositor_register(&s, seat);
 		if (ret == -EOPNOTSUPP)
 			log_notice("compositor support not compiled in");
