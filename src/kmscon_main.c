@@ -476,11 +476,19 @@ static void app_sig_generic(struct ev_eloop *eloop,
 	ev_eloop_exit(app->eloop);
 }
 
+static void app_sig_ignore(struct ev_eloop *eloop,
+			   struct signalfd_siginfo *info,
+			   void *data)
+{
+}
+
 static void destroy_app(struct kmscon_app *app)
 {
 	uterm_monitor_unref(app->mon);
 	uterm_vt_master_unref(app->vtm);
 	ev_eloop_rm_eloop(app->vt_eloop);
+	ev_eloop_unregister_signal_cb(app->eloop, SIGPIPE, app_sig_ignore,
+				      app);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, app_sig_generic,
 				      app);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGTERM, app_sig_generic,
@@ -511,6 +519,13 @@ static int setup_app(struct kmscon_app *app)
 					  app_sig_generic, app);
 	if (ret) {
 		log_error("cannot register SIGINT signal handler: %d", ret);
+		goto err_app;
+	}
+
+	ret = ev_eloop_register_signal_cb(app->eloop, SIGPIPE,
+					  app_sig_ignore, app);
+	if (ret) {
+		log_error("cannot register SIGPIPE signal handler: %d", ret);
 		goto err_app;
 	}
 
