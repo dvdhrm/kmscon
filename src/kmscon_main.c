@@ -189,8 +189,12 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	ret = kmscon_seat_new(&seat->seat, app->conf_ctx, app->eloop, app->vtm,
 			      sname, app_seat_event, seat);
 	if (ret) {
-		log_error("cannot create seat object on seat %s: %d",
-			  sname, ret);
+		if (ret == -ERANGE)
+			log_debug("ignoring seat %s as it already has a seat manager",
+				  sname);
+		else
+			log_error("cannot create seat object on seat %s: %d",
+				  sname, ret);
 		goto err_name;
 	}
 	seat->conf_ctx = kmscon_seat_get_conf(seat->seat);

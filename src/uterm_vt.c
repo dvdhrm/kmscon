@@ -790,6 +790,7 @@ static int seat_find_vt(const char *seat, char **out)
 
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
+		      unsigned int allowed_types,
 		      const char *seat,
 		      struct uterm_input *input,
 		      const char *vt_name,
@@ -840,9 +841,19 @@ int uterm_vt_allocate(struct uterm_vt_master *vtm,
 	}
 
 	if (vt_name || path) {
+		if (!(allowed_types & UTERM_VT_REAL)) {
+			ret = -ERANGE;
+			free(path);
+			goto err_input;
+		}
 		vt->mode = UTERM_VT_REAL;
 		ret = real_open(vt, vt_name ? vt_name : path);
 	} else {
+		if (!(allowed_types & UTERM_VT_FAKE)) {
+			ret = -ERANGE;
+			free(path);
+			goto err_input;
+		}
 		vt->mode = UTERM_VT_FAKE;
 		ret = fake_open(vt);
 	}

@@ -116,7 +116,8 @@ int main(int argc, char **argv)
 	if (ret)
 		goto err_vtm;
 
-	ret = uterm_vt_allocate(vtm, &vt, "seat0", input, vtpath, NULL, NULL);
+	ret = uterm_vt_allocate(vtm, &vt, UTERM_VT_FAKE | UTERM_VT_REAL,
+				"seat0", input, vtpath, NULL, NULL);
 	if (ret)
 		goto err_input;
 

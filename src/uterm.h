@@ -337,8 +337,8 @@ struct uterm_vt_event {
 };
 
 enum uterm_vt_type {
-	UTERM_VT_REAL,
-	UTERM_VT_FAKE,
+	UTERM_VT_REAL = 0x01,
+	UTERM_VT_FAKE = 0x02,
 };
 
 typedef int (*uterm_vt_cb) (struct uterm_vt *vt, struct uterm_vt_event *ev,
@@ -353,6 +353,7 @@ int uterm_vt_master_activate_all(struct uterm_vt_master *vtm);
 int uterm_vt_master_deactivate_all(struct uterm_vt_master *vtm);
 
 int uterm_vt_allocate(struct uterm_vt_master *vt, struct uterm_vt **out,
+		      unsigned int allowed_types,
 		      const char *seat, struct uterm_input *input,
 		      const char *vt_name, uterm_vt_cb cb, void *data);
 void uterm_vt_deallocate(struct uterm_vt *vt);
