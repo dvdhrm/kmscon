@@ -126,14 +126,10 @@ static void print_help()
 		"\t                                  Create new terminal session\n"
 		"\n"
 		"Video Options:\n"
-		"\t    --video-devices <d1,d2> [all]   List of video devices to be used\n"
-		"\t                                    by kmscon. This can be a list of\n"
-		"\t                                    paths to /dev/* or \"all\"\n"
 		"\t    --drm                   [on]    Use DRM if available\n"
 		"\t    --hwaccel               [off]   Use 3D hardware-acceleration if\n"
 		"\t                                    available\n"
-		"\t    --primary-gpu-only      [off]   Use primary GPU only\n"
-		"\t    --all-gpus              [on]    Use all GPUs unconditionally\n"
+		"\t    --gpus={all,aux,primary}[all]   GPU selection mode\n"
 		"\t    --render-engine <eng>   [-]     Console renderer\n"
 		"\t    --render-timing         [off]   Print renderer timing information\n"
 		"\n"
@@ -351,6 +347,56 @@ static int file_login(struct conf_option *opt, bool on, const char *arg)
 }
 
 /*
+ * GPU selection type
+ * The GPU selection mode is a simple string to enum parser.
+ */
+
+static void conf_default_gpus(struct conf_option *opt)
+{
+	conf_uint.set_default(opt);
+}
+
+static void conf_free_gpus(struct conf_option *opt)
+{
+	conf_uint.free(opt);
+}
+
+static int conf_parse_gpus(struct conf_option *opt, bool on, const char *arg)
+{
+	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, gpus);
+	unsigned int mode;
+
+	if (!strcmp(arg, "all")) {
+		mode = KMSCON_GPU_ALL;
+	} else if (!strcmp(arg, "aux") || !strcmp(arg, "auxiliary")) {
+		mode = KMSCON_GPU_AUX;
+	} else if (!strcmp(arg, "primary") || !strcmp(arg, "single")) {
+		mode = KMSCON_GPU_PRIMARY;
+	} else {
+		log_error("invalid GPU selection mode --gpus='%s'", arg);
+		return -EFAULT;
+	}
+
+	opt->type->free(opt);
+	conf->gpus = mode;
+	return 0;
+}
+
+static int conf_copy_gpus(struct conf_option *opt,
+			  const struct conf_option *src)
+{
+	return conf_uint.copy(opt, src);
+}
+
+static const struct conf_type conf_gpus = {
+	.flags = CONF_HAS_ARG,
+	.set_default = conf_default_gpus,
+	.free = conf_free_gpus,
+	.parse = conf_parse_gpus,
+	.copy = conf_copy_gpus,
+};
+
+/*
  * Custom Afterchecks
  * Several other options have side-effects on other options. We use afterchecks
  * to enforce these. They're pretty simple. See below.
@@ -422,8 +468,6 @@ static int aftercheck_vt(struct conf_option *opt, int argc, char **argv,
  */
 
 static char *def_seats[] = { "seat0", NULL };
-
-static char *def_video_devices[] = { "all", NULL };
 
 static struct conf_grab def_grab_scroll_up =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Up);
@@ -510,11 +554,9 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_GRAB(0, "grab-terminal-new", &conf->grab_terminal_new, &def_grab_terminal_new),
 
 		/* Video Options */
-		CONF_OPTION_STRING_LIST(0, "video-devices", &conf->video_devices, def_video_devices),
 		CONF_OPTION_BOOL_FULL(0, "drm", aftercheck_drm, NULL, NULL, &conf->drm, true),
 		CONF_OPTION_BOOL(0, "hwaccel", &conf->hwaccel, false),
-		CONF_OPTION_BOOL(0, "primary-gpu-only", &conf->primary_gpu_only, false),
-		CONF_OPTION_BOOL(0, "all-gpus", &conf->all_gpus, true),
+		CONF_OPTION(0, 0, "gpus", &conf_gpus, NULL, NULL, NULL, &conf->gpus, KMSCON_GPU_ALL),
 		CONF_OPTION_STRING(0, "render-engine", &conf->render_engine, NULL),
 		CONF_OPTION_BOOL(0, "render-timing", &conf->render_timing, false),
 

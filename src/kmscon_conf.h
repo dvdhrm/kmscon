@@ -37,6 +37,12 @@
 #include "conf.h"
 #include "shl_dlist.h"
 
+enum kmscon_conf_gpu_selection {
+	KMSCON_GPU_ALL,
+	KMSCON_GPU_AUX,
+	KMSCON_GPU_PRIMARY,
+};
+
 struct kmscon_conf_t {
 	/* General Options */
 	/* show help/usage information */
@@ -115,19 +121,15 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_terminal_new;
 
 	/* Video Options */
-	/* whitelist of usable video devices or "all" */
-	char **video_devices;
 	/* use DRM if available */
 	bool drm;
 	/* use 3D hardware-acceleration if available */
 	bool hwaccel;
-	/* use only primary GPU */
-	bool primary_gpu_only;
-	/* use all GPUs unconditionally */
-	bool all_gpus;
+	/* gpu selection mode */
+	unsigned int gpus;
 	/* render engine */
 	char *render_engine;
-	/* print rendering engine timing information */
+	/* print render-engine timing information */
 	bool render_timing;
 
 	/* Font Options */

@@ -216,36 +216,18 @@ static void app_seat_video_event(struct uterm_video *video,
 	}
 }
 
-static bool app_seat_is_ignored(struct app_seat *seat,
-				unsigned int type,
-				bool drm_backed,
-				bool primary,
-				bool aux,
-				const char *node)
+static bool app_seat_gpu_is_ignored(struct app_seat *seat,
+				    unsigned int type,
+				    bool drm_backed,
+				    bool primary,
+				    bool aux,
+				    const char *node)
 {
-	unsigned int i;
-
-	if (!shl_string_list_is(seat->conf->video_devices, "all")) {
-		for (i = 0; seat->conf->video_devices[i]; ++i) {
-			if (!strcmp(seat->conf->video_devices[i], node))
-				return false;
-		}
-
-		log_info("ignoring video device %s on seat %s as it is not in the whitelist",
-			 node, seat->name);
-		return true;
-	}
-
 	switch (type) {
 	case UTERM_MONITOR_FBDEV:
 		if (seat->conf->drm) {
 			if (drm_backed) {
 				log_info("ignoring video device %s on seat %s as it is a DRM-fbdev device",
-					 node, seat->name);
-				return true;
-			}
-			if (primary) {
-				log_info("ignoring video device %s on seat %s as it is a primary fbdev device",
 					 node, seat->name);
 				return true;
 			}
@@ -264,13 +246,13 @@ static bool app_seat_is_ignored(struct app_seat *seat,
 		return true;
 	}
 
-	if (seat->conf->primary_gpu_only && !primary) {
+	if (seat->conf->gpus == KMSCON_GPU_PRIMARY && !primary) {
 		log_info("ignoring video device %s on seat %s as it is no primary GPU",
 			 node, seat->name);
 		return true;
 	}
 
-	if (!seat->conf->all_gpus && !primary && !aux) {
+	if (seat->conf->gpus == KMSCON_GPU_AUX && !primary && !aux) {
 		log_info("ignoring video device %s on seat %s as it is neither a primary nor auxiliary GPU",
 			 node, seat->name);
 		return true;
@@ -289,11 +271,11 @@ static int app_seat_add_video(struct app_seat *seat,
 	unsigned int mode;
 	struct app_video *vid;
 
-	if (app_seat_is_ignored(seat, type,
-				flags & UTERM_MONITOR_DRM_BACKED,
-				flags & UTERM_MONITOR_PRIMARY,
-				flags & UTERM_MONITOR_AUX,
-				node))
+	if (app_seat_gpu_is_ignored(seat, type,
+				    flags & UTERM_MONITOR_DRM_BACKED,
+				    flags & UTERM_MONITOR_PRIMARY,
+				    flags & UTERM_MONITOR_AUX,
+				    node))
 		return -ERANGE;
 
 	log_debug("new video device %s on seat %s", node, seat->name);
