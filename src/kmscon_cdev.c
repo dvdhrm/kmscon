@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/kd.h>
+#include <linux/major.h>
 #include <linux/vt.h>
 #include <pthread.h>
 #include <signal.h>
@@ -1295,7 +1296,7 @@ static int kmscon_cdev_init(struct kmscon_cdev *cdev)
 
 	dev_info_argv[0] = name;
 	memset(&ci, 0, sizeof(ci));
-	ci.dev_major = 4;
+	ci.dev_major = TTY_MAJOR;
 	ci.dev_minor = cdev->minor;
 	ci.dev_info_argc = 1;
 	ci.dev_info_argv = dev_info_argv;
