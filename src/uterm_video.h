@@ -493,7 +493,7 @@ static inline void video_drm_free_name(char *name)
 {
 }
 
-bool video_drm_available(void)
+static inline bool video_drm_available(void)
 {
 	return false;
 }
