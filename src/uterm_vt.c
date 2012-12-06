@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/kd.h>
+#include <linux/major.h>
 #include <linux/vt.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -742,6 +743,7 @@ static int seat_find_vt(const char *seat, char **out)
 	static const char def_vt[] = "/dev/tty0";
 	char *vt;
 	int ret, fd, err1, id;
+	struct stat st;
 
 	ret = asprintf(&vt, "/dev/ttyF%s", seat);
 	if (ret < 0)
@@ -756,6 +758,25 @@ static int seat_find_vt(const char *seat, char **out)
 	free(vt);
 
 	if (!strcmp(seat, "seat0") && !access(def_vt, F_OK)) {
+		/* First check whether our controlling terminal is a real VT. If
+		 * it is, use it but verify very hard that it really is. */
+		ret = fstat(STDERR_FILENO, &st);
+		if (!ret && major(st.st_rdev) == TTY_MAJOR &&
+		    minor(st.st_rdev) > 0) {
+			ret = asprintf(&vt, "/dev/tty%d", minor(st.st_rdev));
+			if (ret < 0)
+				return -ENOMEM;
+
+			if (!access(vt, F_OK)) {
+				*out = vt;
+				return 0;
+			}
+
+			free(vt);
+		}
+
+		/* Otherwise, try to find a new terminal via the OPENQRY ioctl
+		 * on any existing VT. */
 		fd = open(def_vt, O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 		if (fd < 0) {
 			err1 = errno;
