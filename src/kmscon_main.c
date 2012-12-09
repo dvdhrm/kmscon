@@ -44,6 +44,7 @@
 struct app_video {
 	struct shl_dlist list;
 	struct app_seat *seat;
+	struct uterm_monitor_dev *udev;
 
 	char *node;
 	struct uterm_video *video;
@@ -295,7 +296,8 @@ static int app_seat_add_video(struct app_seat *seat,
 			      struct app_video **out,
 			      unsigned int type,
 			      unsigned int flags,
-			      const char *node)
+			      const char *node,
+			      struct uterm_monitor_dev *udev)
 {
 	int ret;
 	unsigned int mode;
@@ -318,6 +320,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	}
 	memset(vid, 0, sizeof(*vid));
 	vid->seat = seat;
+	vid->udev = udev;
 
 	vid->node = strdup(node);
 	if (!vid->node) {
@@ -360,6 +363,7 @@ static int app_seat_add_video(struct app_seat *seat,
 	if (seat->awake)
 		uterm_video_wake_up(vid->video);
 
+	uterm_monitor_set_dev_data(vid->udev, vid);
 	shl_dlist_link(&seat->videos, &vid->list);
 	*out = vid;
 	return 0;
@@ -380,6 +384,7 @@ static void app_seat_remove_video(struct app_seat *seat, struct app_video *vid)
 	log_debug("free video device %s on seat %s", vid->node, seat->name);
 
 	shl_dlist_unlink(&vid->list);
+	uterm_monitor_set_dev_data(vid->udev, NULL);
 	uterm_video_unregister_cb(vid->video, app_seat_video_event, vid);
 
 	disp = uterm_video_get_displays(vid->video);
@@ -422,10 +427,9 @@ static void app_monitor_event(struct uterm_monitor *mon,
 		case UTERM_MONITOR_FBDEV:
 			ret = app_seat_add_video(seat, &vid, ev->dev_type,
 						 ev->dev_flags,
-						 ev->dev_node);
+						 ev->dev_node, ev->dev);
 			if (ret)
 				return;
-			uterm_monitor_set_dev_data(ev->dev, vid);
 			break;
 		case UTERM_MONITOR_INPUT:
 			log_debug("new input device %s on seat %s",
