@@ -2,7 +2,7 @@
 
 Kmscon is a simple terminal emulator based on linux kernel mode setting (KMS).
 It is an attempt to replace the in-kernel VT implementation with a userspace
-console.
+console. See kmscon(1) man-page for usage information.
 
 == Requirements ==
 
@@ -35,37 +35,59 @@ console.
 
   To compile the kmscon binary, run the standard autotools commands:
     $ ./autogen.sh (you need this only when building from git directly)
-    $ ./configure [--enable-debug] (debug-mode is strongly recommended)
+    $ ./configure --prefix=/usr
     $ make
-    $ make install (TODO: this is currently not supported)
+    $ make install
   To compile the test applications, run:
     $ make check
 
   If you want only a very basic kmscon program without any major dependencies,
   use:
-    $ ./configure --disable-debug --disable-drm --disable-systemd --disable-pango --disable-freetype2
+    $ ./configure --disable-debug --with-video=fbdev --disable-multi-seat --with-fonts=8x16 --disable-pciaccess --with-sessions=dummy,terminal
   However, you will loose a lot of functionality by dropping all dependencies.
 
   The following configure options are available. If build-time dependencies
   cannot be satisfied, an option is automatically turned off, except if you
-  explicitely enable it via command line:
-    --enable-systemd: This requires the systemd-logind library to provide
-                      multi-seat support for kmscon. [default: on]
-    --enable-udev: This requires libudev for hotplugging support. This is
-                   currently mandatory and cannot be disabled. [default: on]
-    --enable-fbdev: This adds fbdev video output support. [default: on]
-    --enable-drm: This adds DRM video output support. [default: on]
-    --enable-gles2: This adds OpenGL hardware accelerated font rendering
-                    [default: on]
-    --enable-f8x16: The 8x16 font is a static built-in fallback font
-                    [default: on]
-    --enable-freetype2: Uses freetype2 and fontconfig as font-backend.
-                        [default: on]
-    --enable-pango: Uses pango as font-backend. [default: on]
-    --enable-bblit: Use simply 2D bit-blitting as renderering fallback
-                    [default: on]
-    --enable-debug: Enable debug mode [default: off]
-    --enable-optimizations: Use GCC code optimizations [default: on]
+  explicitly enable it via command line:
+    --enable-multi-seat: This requires the systemd-logind library to provide
+                         multi-seat support for kmscon. [default: on]
+    --enable-hotplug: This requires libudev for hotplugging support. This is
+                      currently mandatory and cannot be disabled. [default: on]
+    --enable-pciaccess: Enable GPU detection via pciaccess [default: on]
+    --enable-debug: Enable debug mode/messages [default: on]
+    --enable-optimizations: Enable code optimizations [default: on]
+    --enable-eloop-dbus: Build dbus extension for eloop library [default: off]
+
+  Backends for several subsystems in kmscon can be selected with the following
+  options (all of them take a comma-separated list of backend names):
+    --with-video: Video backens. Available backends are:
+       - fbdev: Linux fbdev video backend
+       - dumb: Linux DRM dumb-buffer backend
+       - drm: Linux DRM backend
+       Default is: fbdev,dumb,drm
+    --with-fonts: Font renderers. Available backends are:
+       - 8x16: Static built-in non-scalable 8x16 font (ASCII only)
+       - unifont: Static built-in non-scalable font (Unicode Unifont)
+                  Takes very long to compile
+       - freetype2: Freetype2+fontconfig based scalable font renderer
+       - pango: Pango based scalable font renderer
+       Default is: 8x16,freetype2,pango
+    --with-renderers: Console rendering backends. Available are:
+       - bblit: Simply 2D blitting engine
+       - bbulk: Same as bblit but with bulk-requests
+       - gltex: OpenGLESv2 accelerated renderer
+    --with-sessions: Built in sessions. Available sessions are:
+       - dummy: Dummy fallback session
+       - terminal: Terminal-emulator sessions
+
+  The following options select which applications are built. If
+  dependency-checks fail, they are disabled by default unless explicitly enabled
+  on the command line:
+    --enable-kmscon: Build kmscon application [default: on]
+    --enable-wlterm: Build wlterm Wayland terminal [default: on]
+    --enable-eloop: Build eloop event loop library [default: on]
+    --enable-tsm: Build TSM terminal state-machine library [default: on]
+    --enable-uterm: Build uterm library [default: on]
 
 == Running ==
 
@@ -74,15 +96,13 @@ console.
   You can then run kmscon with:
     $ ./kmscon [options]
 
-  For debug output use "--debug". For verbose output use "--verbose". If you
-  didn't compile DRM support then you can use "--fbdev" to make kmscon select
-  available framebuffer devices.
-
+  For debug output use "--debug". For verbose output use "--verbose".
   With "--xkb-layout=<lang>" you can switch the keyboard layout.
+  See "man kmscon" / kmscon(1) for more information.
 
 == License ==
 
-  This software is licensed under the terms of the MIT license. Please see
+  This software is licensed under the terms of an MIT-like license. Please see
   ./COPYING for further information.
 
 == FAQ ==
@@ -94,32 +114,3 @@ console.
   This software is maintained by:
     David Herrmann <dh.herrmann@googlemail.com>
   If you have any questions, do not hesitate to contact one of the maintainers.
-
-== Code Base ==
-
-  The kmscon code is split into several independent subsystems:
-    - uterm:
-      This code manages the KMS/DRI output and provides OpenGL framebuffers.
-    - console:
-      This draws the text on the screen and provides an API for any terminal
-      emulator to visualize its contents.
-    - eloop:
-      Main loop implementation.
-    - log:
-      Log file handling.
-    - unicode:
-      Provides basic Unicode handling.
-    - font:
-      Font loading, caching and drawing operations.
-    - input:
-      All linux input events are captured here and converted to Unicode
-      characters for input handling.
-    - vt:
-      The linux VT subsystem integration. This allows to run the application in
-      a classic linux VT like X does.
-    - vte:
-      The terminal emulator library.
-    - terminal:
-      Connects the console, output, input and vte handling into a real terminal.
-    - main:
-      This connects all subsystems into a usable console application.
