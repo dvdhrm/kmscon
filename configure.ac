@@ -366,243 +366,396 @@ AC_MSG_RESULT([$with_sessions])
 
 # debug
 debug_avail=no
+debug_missing=""
 if test ! "x$enable_debug" = "xno" ; then
         debug_avail=yes
+else
+        debug_missing="enable-debug"
 fi
 
 # optimizations
 optimizations_avail=no
+optimizations_missing=""
 if test ! "x$enable_optimizations" = "xno" ; then
         optimizations_avail=yes
+else
+        optimizations_missing="enable-optimizations"
 fi
 
 # eloop-dbus
 eloop_dbus_avail=no
+eloop_dbus_missing=""
 if test ! "x$enable_eloop_dbus" = "xno" ; then
-        if test "x$have_dbus" = "xyes" ; then
-                eloop_dbus_avail=yes
-        elif test "x$enable_eloop_dbus" = "xyes" ; then
-                AC_ERROR([DBus libraries not found for eloop-dbus])
+        eloop_dbus_avail=yes
+        if test "x$have_dbus" = "xno" ; then
+                eloop_dbus_avail=no
+                eloop_dbus_missing="libdbus"
         fi
+
+        if test "x$eloop_dbus_avail" = "xno" ; then
+                if test "x$enable_eloop_dbus" = "xyes" ; then
+                        AC_ERROR([missing for eloop-dbus: $eloop_dbus_missing])
+                fi
+        fi
+else
+        eloop_dbus_missing="enable-eloop-dbus"
 fi
 
 # eloop
 eloop_avail=no
+eloop_missing=""
 if test ! "x$enable_eloop" = "xno" ; then
         eloop_avail=yes
+else
+        eloop_missing="enable-eloop"
 fi
 
 # TSM
 tsm_avail=no
+tsm_missing=""
 if test ! "x$enable_tsm" = "xno" ; then
-        if test "x$have_xkbcommon" = "xyes" ; then
-                tsm_avail=yes
-        elif test "x$enable_tsm" = "xyes" ; then
-                AC_ERROR([xkbcommon libraries not found for TSM])
+        tsm_avail=yes
+        if test "x$have_xkbcommon" = "xno" ; then
+                tsm_avail=no
+                tsm_missing="libxkbcommon"
         fi
+
+        if test "x$tsm_avail" = "xno" ; then
+                if test "x$enable_tsm" = "xyes" ; then
+                        AC_ERROR([missing for TSM: $tsm_missing])
+                fi
+        fi
+else
+        tsm_missing="enable-tsm"
 fi
 
 # video fbdev
 video_fbdev_avail=no
+video_fbdev_missing=""
 if test ! "x$enable_video_fbdev" = "xno" ; then
         # TODO: check for kernel headers
         video_fbdev_avail=yes
+else
+        video_fbdev_missing="enable-video-fbdev"
 fi
 
 # video dumb
 video_dumb_avail=no
+video_dumb_missing=""
 if test ! "x$enable_video_dumb" = "xno" ; then
-        if test "x$have_drm" = "xyes" ; then
-                video_dumb_avail=yes
-        elif test "x$enable_video_dumb" = "xyes" ; then
-                AC_ERROR([DRM libraries not found for dumb video backend])
+        video_dumb_avail=yes
+        if test "x$have_drm" = "xno" ; then
+                video_dumb_avail=no
+                video_dumb_missing="libdrm"
         fi
+
+        if test "x$video_dumb_avail" = "xno" ; then
+                if test "x$enable_video_dumb" = "xyes" ; then
+                        AC_ERROR([missing for dumb video backend: $video_dumb_missing])
+                fi
+        fi
+else
+        video_dumb_missing="enable-video-dumb"
 fi
 
 # video drm
 video_drm_avail=no
+video_drm_missing=""
 if test ! "x$enable_video_drm" = "xno" ; then
+        video_drm_avail=yes
         if test "x$have_drm" = "xno" ; then
                 video_drm_avail=no
-        elif test "x$have_gbm" = "xno" ; then
+                video_drm_missing="libdrm,$video_drm_missing"
+        fi
+        if test "x$have_gbm" = "xno" ; then
                 video_drm_avail=no
-        elif test "x$have_egl" = "xno" ; then
+                video_drm_missing="libgbm,$video_drm_missing"
+        fi
+        if test "x$have_egl" = "xno" ; then
                 video_drm_avail=no
-        elif test "x$have_gles2" = "xno" ; then
+                video_drm_missing="libegl,$video_drm_missing"
+        fi
+        if test "x$have_gles2" = "xno" ; then
                 video_drm_avail=no
-        else
-                video_drm_avail=yes
+                video_drm_missing="libgles2,$video_drm_missing"
         fi
 
         if test "x$video_drm_avail" = "xno" ; then
                 if test "x$enable_video_drm" = "xyes" ; then
-                        AC_ERROR([DRM, gbm or EGL libraries not found for DRM video backend])
+                        AC_ERROR([missing for drm video backend: $video_drm_missing])
                 fi
         fi
+else
+        video_drm_missing="enable-video-drm"
 fi
 
 # uterm
 uterm_avail=no
+uterm_missing=""
 if test ! "x$enable_uterm" = "xno" ; then
         uterm_avail=yes
+else
+        uterm_missing="enable-uterm"
 fi
 
 # multi-seat
 multi_seat_avail=no
+multi_seat_missing=""
 if test ! "x$enable_multi_seat" = "xno" ; then
-        if test "x$have_systemd" = "xyes" ; then
-                multi_seat_avail=yes
-        elif test "x$enable_multi_seat" = "xyes" ; then
-                AC_ERROR([systemd libraries not found for multi-seat support])
+        multi_seat_avail=yes
+        if test "x$have_systemd" = "xno" ; then
+                multi_seat_avail=no
+                multi_seat_missing="libsystemd"
         fi
+
+        if test "x$multi_seat_avail" = "xno" ; then
+                if test "x$enable_multi_seat" = "xyes" ; then
+                        AC_ERROR([missing for multi-seat support: $multi_seat_missing])
+                fi
+        fi
+else
+        multi_seat_missing="enable-multi-seat"
 fi
 
 # hotplug
 hotplug_avail=no
+hotplug_missing=""
 if test ! "x$enable_hotplug" = "xno" ; then
-        if test "x$have_udev" = "xyes" ; then
-                hotplug_avail=yes
-        elif test "x$enable_hotplug" = "xyes" ; then
-                AC_ERROR([udev libraries not found for hotplug support])
+        hotplug_avail=yes
+        if test "x$have_udev" = "xno" ; then
+                hotplug_avail=no
+                hotplug_missing="libudev"
         fi
+
+        if test "x$hotplug_avail" = "xno" ; then
+                if test "x$enable_hotplug" = "xyes" ; then
+                        AC_ERROR([missing for hotplug-support: $hotplug_missing])
+                fi
+        fi
+else
+        hotplug_missing="enable-hotplug"
 fi
 
 # pciaccess
 pciaccess_avail=no
+pciaccess_missing=""
 if test ! "x$enable_pciaccess" = "xno" ; then
-        if test "x$have_pciaccess" = "xyes" ; then
-                pciaccess_avail=yes
-        elif test "x$enable_pciaccess" = "xyes" ; then
-                AC_ERROR([pciaccess libraries not found for pciaccess device detection])
+        pciaccess_avail=yes
+        if test "x$have_pciaccess" = "xno" ; then
+                pciaccess_avail=no
+                pciaccess_missing="libpciaccess"
         fi
+
+        if test "x$pciaccess_avail" = "xno" ; then
+                if test "x$enable_pciaccess" = "xyes" ; then
+                        AC_ERROR([missing for pciaccess: $pciaccess_missing])
+                fi
+        fi
+else
+        pciaccess_missing="enable-pciaccess"
 fi
 
 # renderer bblit
 renderer_bblit_avail=no
+renderer_bblit_missing=""
 if test ! "x$enable_renderer_bblit" = "xno" ; then
         renderer_bblit_avail=yes
+else
+        renderer_bblit_missing="enable-renderer-bblit"
 fi
 
 # renderer bbulk
 renderer_bbulk_avail=no
+renderer_bbulk_missing=""
 if test ! "x$enable_renderer_bbulk" = "xno" ; then
         renderer_bbulk_avail=yes
+else
+        renderer_bbulk_missing="enable-renderer-bbulk"
 fi
 
 # renderer gltex
 renderer_gltex_avail=no
+renderer_gltex_missing=""
 if test ! "x$enable_renderer_gltex" = "xno" ; then
-        if test "x$have_gles2" = "xyes" ; then
-                renderer_gltex_avail=yes
-        elif test "x$enable_renderer_gltex" = "xyes" ; then
-                AC_ERROR([OpenGLESv2 libraries not found for gltex renderer])
+        renderer_gltex_avail=yes
+        if test "x$have_gles2" = "xno" ; then
+                renderer_gltex_avail=no
+                renderer_gltex_missing="libgles2"
         fi
+
+        if test "x$renderer_gltex_avail" = "xno" ; then
+                if test "x$enable_renderer_gltex" = "xyes" ; then
+                        AC_ERROR([missing for renderer-gltex: $renderer_gltex_missing])
+                fi
+        fi
+else
+        renderer_gltex_missing="enable-renderer-gltex"
 fi
 
 # font 8x16
 font_8x16_avail=no
+font_8x16_missing=""
 if test ! "x$enable_font_8x16" = "xno" ; then
         font_8x16_avail=yes
+else
+        font_8x16_missing="enable-font-8x16"
 fi
 
 # font unifont
 font_unifont_avail=no
+font_unifont_missing=""
 if test ! "x$enable_font_unifont" = "xno" ; then
         font_unifont_avail=yes
+else
+        font_unifont_missing="enable-font-unifont"
 fi
 
 # font freetype2
 font_freetype2_avail=no
+font_freetype2_missing=""
 if test ! "x$enable_font_freetype2" = "xno" ; then
-        if test "x$have_freetype2" ; then
-                font_freetype2_avail=yes
-        elif test "x$enable_font_freetype2" = "xyes" ; then
-                AC_ERROR([freetype2 or fontconfig libs not found for freetype2 font backend])
+        font_freetype2_avail=yes
+        if test "x$have_freetype2" = "xno" ; then
+                font_freetype2_avail=no
+                font_freetype2_missing="libfontconfig,libfreetype2"
         fi
+
+        if test "x$font_freetype2_avail" = "xno" ; then
+                if test "x$enable_font_freetype2" = "xyes" ; then
+                        AC_ERROR([missing for font-freetype2: $font_freetype2_missing])
+                fi
+        fi
+else
+        font_freetype2_missing="enable-font-freetype2"
 fi
 
 # font pango
 font_pango_avail=no
+font_pango_missing=""
 if test ! "x$enable_font_pango" = "xno" ; then
-        if test "x$have_pango" ; then
-                font_pango_avail=yes
-        elif test "x$enable_font_pango" = "xyes" ; then
-                AC_ERROR([pango libraries not found for pango font backend])
+        font_pango_avail=yes
+        if test "x$have_pango" = "xno" ; then
+                font_pango_avail=no
+                font_pango_missing="libpango"
         fi
+
+        if test "x$font_pango_avail" = "xno" ; then
+                if test "x$enable_font_pango" = "xyes" ; then
+                        AC_ERROR([missing for font-pango: $font_pango_missing])
+                fi
+        fi
+else
+        font_pango_missing="enable-font-pango"
 fi
 
 # session dummy
 session_dummy_avail=no
+session_dummy_missing=""
 if test ! "x$enable_session_dummy" = "xno" ; then
         session_dummy_avail=yes
+else
+        session_dummy_missing="enable-session-dummy"
 fi
 
 # session terminal
 session_terminal_avail=no
+session_terminal_missing=""
 if test ! "x$enable_session_terminal" = "xno" ; then
-        if test "x$tsm_avail" = "xyes" ; then
-                session_terminal_avail=yes
-        elif test "x$enable_session_terminal" = "xyes" ; then
-                AC_ERROR([TSM cannot be built for kmscon terminal session])
+        session_terminal_avail=yes
+        if test "x$tsm_avail" = "xno" ; then
+                session_terminal_avail=no
+                session_terminal_missing="$tsm_missing"
         fi
+
+        if test "x$session_terminal_avail" = "xno" ; then
+                if test "x$enable_session_terminal" = "xyes" ; then
+                        AC_ERROR([missing for session-terminal: $session_terminal_missing])
+                fi
+        fi
+else
+        session_terminal_missing="enable-session-terminal"
 fi
 
 # session cdev
 session_cdev_avail=no
+session_cdev_missing=""
 if test ! "x$enable_session_cdev" = "xno" ; then
+        session_cdev_avail=yes
         if test "x$have_fuse" = "xno" ; then
                 session_cdev_avail=no
-        elif test "x$tsm_avail" = "xno" ; then
+                session_cdev_missing="libfuse,$session_cdev_missing"
+        fi
+
+        if test "x$tsm_avail" = "xno" ; then
                 session_cdev_avail=no
-        else
-                session_cdev_avail=yes
+                session_cdev_missing="$tsm_missing,$session_cdev_missing"
         fi
 
         if test "x$session_cdev_avail" = "xno" ; then
                 if test "x$enable_session_cdev" = "xyes" ; then
-                        AC_ERROR([TSM or FUSE libraries not built/found for kmscon cdev session])
+                        AC_ERROR([missing for session-cdev: $session_cdev_missing])
                 fi
         fi
+else
+        session_cdev_missing="enable-session-cdev"
 fi
 
 # kmscon
 kmscon_avail=no
+kmscon_missing=""
 if test ! "x$enable_kmscon" = "xno" ; then
+        kmscon_avail=yes
         if test "x$eloop_avail" = "xno" ; then
                 kmscon_avail=no
-        elif test "x$tsm_avail" = "xno" ; then
-                kmscon_avail=no
-        elif test "x$uterm_avail" = "xno" ; then
-                kmscon_avail=no
-        else
-                kmscon_avail=yes
+                kmscon_missing="$eloop_missing,$kmscon_missing"
         fi
 
-        if test "x$enable_kmscon" = "xyes" ; then
-                if test "x$kmscon_avail" = "xno" ; then
-                        AC_ERROR([eloop, TSM or uterm cannot be built for kmscon])
+        if test "x$tsm_avail" = "xno" ; then
+                kmscon_avail=no
+                kmscon_missing="$tsm_missing,$kmscon_missing"
+        fi
+
+        if test "x$uterm_avail" = "xno" ; then
+                kmscon_avail=no
+                kmscon_missing="$uterm_missing,$kmscon_missing"
+        fi
+
+        if test "x$kmscon_avail" = "xno" ; then
+                if test "x$enable_kmscon" = "xyes" ; then
+                        AC_ERROR([missing for kmscon: $kmscon_missing])
                 fi
         fi
+else
+        kmscon_missing="enable-kmscon"
 fi
 
 # wlterm
 wlterm_avail=no
+wlterm_missing=""
 if test ! "x$enable_wlterm" = "xno" ; then
+        wlterm_avail=yes
         if test "x$tsm_avail" = "xno" ; then
                 wlterm_avail=no
-        elif test "x$eloop_avail" = "xno" ; then
-                wlterm_avail=no
-        elif test ! "x$have_wayland" = "xyes" ; then
-                wlterm_avail=no
-        else
-                wlterm_avail=yes
+                wlterm_missing="$tsm_missing,$wlterm_missing"
         fi
 
-        if test "x$enable_wlterm" = "xyes" ; then
-                if test "x$wlterm_avail" = "xno" ; then
-                        AC_ERROR([wayland, eloop or TSM cannot be built for wlterm])
+        if test "x$eloop_avail" = "xno" ; then
+                wlterm_avail=no
+                wlterm_missing="$eloop_missing,$wlterm_missing"
+        fi
+
+        if test "x$have_wayland" = "xno" ; then
+                wlterm_avail=no
+                wlterm_missing="libwayland,$wlterm_missing"
+        fi
+
+        if test "x$wlterm_avail" = "xno" ; then
+                if test "x$enable_wlterm" = "xyes" ; then
+                        AC_ERROR([missing for wlterm: $wlterm_missing])
                 fi
         fi
+else
+        wlterm_missing="enable-wlterm"
 fi
 
 #
@@ -1075,40 +1228,45 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([Build configuration:
 
+               prefix: $prefix
+          exec-prefix: $exec_prefix
+               libdir: $libdir
+           includedir: $includedir
+
   Applications and Libraries:
-               kmscon: $kmscon_enabled ($kmscon_avail)
-               wlterm: $wlterm_enabled ($wlterm_avail)
-                uterm: $uterm_enabled ($uterm_avail)
-                  tsm: $tsm_enabled ($tsm_avail)
-                eloop: $eloop_enabled ($eloop_avail)
+               kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
+               wlterm: $wlterm_enabled ($wlterm_avail: $wlterm_missing)
+                uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
+                  tsm: $tsm_enabled ($tsm_avail: $tsm_missing)
+                eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
   Miscellaneous Options:
-                debug: $debug_enabled ($debug_avail)
-        optimizations: $optimizations_enabled ($optimizations_avail)
-           multi-seat: $multi_seat_enabled ($multi_seat_avail)
-              hotplug: $hotplug_enabled ($hotplug_avail)
-            pciaccess: $pciaccess_enabled ($pciaccess_avail)
-           eloop-dbus: $eloop_dbus_enabled ($eloop_dbus_avail)
+                debug: $debug_enabled ($debug_avail: $debug_missing)
+        optimizations: $optimizations_enabled ($optimizations_avail: $optimizations_missing)
+           multi-seat: $multi_seat_enabled ($multi_seat_avail: $multi_seat_missing)
+              hotplug: $hotplug_enabled ($hotplug_avail: $hotplug_missing)
+            pciaccess: $pciaccess_enabled ($pciaccess_avail: $pciaccess_missing)
+           eloop-dbus: $eloop_dbus_enabled ($eloop_dbus_avail: $eloop_dbus_missing)
 
   Video Backends:
-                fbdev: $video_fbdev_enabled ($video_fbdev_avail)
-             dumb drm: $video_dumb_enabled ($video_dumb_avail)
-                  drm: $video_drm_enabled ($video_drm_avail)
+                fbdev: $video_fbdev_enabled ($video_fbdev_avail: $video_fbdev_missing)
+             dumb drm: $video_dumb_enabled ($video_dumb_avail: $video_dumb_missing)
+                  drm: $video_drm_enabled ($video_drm_avail: $video_drm_missing)
 
   Font Backends:
-                 8x16: $font_8x16_enabled ($font_8x16_avail)
-              unifont: $font_unifont_enabled ($font_unifont_avail)
-            freetype2: $font_freetype2_enabled ($font_freetype2_avail)
-                pango: $font_pango_enabled ($font_pango_avail)
+                 8x16: $font_8x16_enabled ($font_8x16_avail: $font_8x16_missing)
+              unifont: $font_unifont_enabled ($font_unifont_avail: $font_unifont_missing)
+            freetype2: $font_freetype2_enabled ($font_freetype2_avail: $font_freetype2_missing)
+                pango: $font_pango_enabled ($font_pango_avail: $font_pango_missing)
 
   Renderers:
-                bblit: $renderer_bblit_enabled ($renderer_bblit_avail)
-                bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail)
-                gltex: $renderer_gltex_enabled ($renderer_gltex_avail)
+                bblit: $renderer_bblit_enabled ($renderer_bblit_avail: $renderer_bblit_missing)
+                bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail: $renderer_bbulk_missing)
+                gltex: $renderer_gltex_enabled ($renderer_gltex_avail: $renderer_gltex_missing)
 
   Session Types:
-                dummy: $session_dummy_enabled ($session_dummy_avail)
-             terminal: $session_terminal_enabled ($session_terminal_avail)
-                 cdev: $session_cdev_enabled ($session_cdev_avail)
+                dummy: $session_dummy_enabled ($session_dummy_avail: $session_dummy_missing)
+             terminal: $session_terminal_enabled ($session_terminal_avail: $session_terminal_missing)
+                 cdev: $session_cdev_enabled ($session_cdev_avail: $session_cdev_missing)
 
-        Run "make" to start compilation process])
+        Run "${MAKE-make}" to start compilation process])
