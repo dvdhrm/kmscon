@@ -147,7 +147,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 {
 	struct app_seat *seat;
 	int ret;
-	unsigned int i;
+	unsigned int i, types;
 	bool found;
 
 	found = false;
@@ -186,8 +186,12 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 		goto err_free;
 	}
 
+	types = UTERM_VT_FAKE;
+	if (!app->conf->listen)
+		types |= UTERM_VT_REAL;
+
 	ret = kmscon_seat_new(&seat->seat, app->conf_ctx, app->eloop, app->vtm,
-			      sname, app_seat_event, seat);
+			      types, sname, app_seat_event, seat);
 	if (ret) {
 		if (ret == -ERANGE)
 			log_debug("ignoring seat %s as it already has a seat manager",

@@ -74,6 +74,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		    struct conf_ctx *main_conf,
 		    struct ev_eloop *eloop,
 		    struct uterm_vt_master *vtm,
+		    unsigned int vt_types,
 		    const char *seatname,
 		    kmscon_seat_cb_t cb,
 		    void *data);

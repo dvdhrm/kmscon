@@ -631,6 +631,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		    struct conf_ctx *main_conf,
 		    struct ev_eloop *eloop,
 		    struct uterm_vt_master *vtm,
+		    unsigned int vt_types,
 		    const char *seatname,
 		    kmscon_seat_cb_t cb,
 		    void *data)
@@ -638,7 +639,6 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	struct kmscon_seat *seat;
 	int ret;
 	struct kmscon_session *s;
-	unsigned int allowed_types;
 
 	if (!out || !eloop || !vtm || !seatname)
 		return -EINVAL;
@@ -689,12 +689,8 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	if (ret)
 		goto err_input;
 
-	allowed_types = UTERM_VT_FAKE;
-	if (!seat->conf->listen)
-		allowed_types |= UTERM_VT_REAL;
-
 	ret = uterm_vt_allocate(seat->vtm, &seat->vt,
-				allowed_types, seat->name,
+				vt_types, seat->name,
 				seat->input, seat->conf->vt, seat_vt_event,
 				seat);
 	if (ret)
