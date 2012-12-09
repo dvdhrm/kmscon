@@ -35,7 +35,6 @@
 #include "conf.h"
 #include "eloop.h"
 #include "kmscon_cdev.h"
-#include "kmscon_compositor.h"
 #include "kmscon_conf.h"
 #include "kmscon_dummy.h"
 #include "kmscon_seat.h"
@@ -790,14 +789,6 @@ void kmscon_seat_startup(struct kmscon_seat *seat)
 			log_notice("cdev sessions not compiled in");
 		else if (ret)
 			log_error("cannot register cdev session");
-	}
-
-	if (seat->conf->session_control) {
-		ret = kmscon_compositor_register(&s, seat);
-		if (ret == -EOPNOTSUPP)
-			log_notice("compositor support not compiled in");
-		else if (ret)
-			log_error("cannot register kmscon compositor: %d", ret);
 	}
 
 	if (seat->conf->switchvt ||

@@ -370,7 +370,6 @@ kmscon_SOURCES = \
 	src/text.c \
 	src/kmscon_terminal.h \
 	src/kmscon_dummy.h \
-	src/kmscon_compositor.h \
 	src/kmscon_seat.h \
 	src/kmscon_seat.c \
 	src/kmscon_conf.h \
@@ -401,12 +400,6 @@ if BUILD_ENABLE_SESSION_CDEV
 kmscon_SOURCES += src/kmscon_cdev.c
 kmscon_CPPFLAGS += $(FUSE_CFLAGS)
 kmscon_LDADD += $(FUSE_LIBS)
-endif
-
-if BUILD_ENABLE_SESSION_COMPOSITOR
-kmscon_SOURCES += src/kmscon_compositor.c
-kmscon_CPPFLAGS += $(WAYLAND_CFLAGS)
-kmscon_LDADD += $(WAYLAND_LIBS)
 endif
 
 if BUILD_ENABLE_RENDERER_BBLIT

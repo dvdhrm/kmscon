@@ -333,12 +333,10 @@ AC_ARG_WITH([sessions],
 enable_session_dummy="no"
 enable_session_terminal="no"
 enable_session_cdev="no"
-enable_session_compositor="no"
 if test "x$with_sessions" = "x" ; then
         enable_session_dummy="yes (default)"
         enable_session_terminal="yes (default)"
         enable_session_cdev="yes (default)"
-        enable_session_compositor="no (default)"
         with_sessions="dummy,terminal,cdev (default)"
 else
         SAVEIFS="$IFS"
@@ -350,8 +348,6 @@ else
                         enable_session_terminal="yes"
                 elif test "x$i" = "xcdev" ; then
                         enable_session_cdev="yes"
-                elif test "x$i" = "xcompositor" ; then
-                        enable_session_compositor="yes"
                 else
                         IFS="$SAVEIFS"
                         AC_ERROR([Unknown session type $i])
@@ -568,16 +564,6 @@ if test ! "x$enable_session_cdev" = "xno" ; then
         fi
 fi
 
-# session compositor
-session_compositor_avail=no
-if test ! "x$enable_session_compositor" = "xno" ; then
-        if test "x$have_wayland" = "xyes" ; then
-                session_compositor_avail=yes
-        elif test "x$enable_session_compositor" = "xyes" ; then
-                AC_ERROR([wayland libraries not found for kmscon compositor session])
-        fi
-fi
-
 # kmscon
 kmscon_avail=no
 if test ! "x$enable_kmscon" = "xno" ; then
@@ -643,14 +629,6 @@ if test "x$kmscon_avail" = "xyes" ; then
                 kmscon_enabled=yes
                 enable_eloop=yes
                 enable_uterm=yes
-        fi
-fi
-
-# session compositor
-session_compositor_enabled=no
-if test "x$session_compositor_avail" = "xyes" ; then
-        if test "x${enable_session_compositor% *}" = "xyes" ; then
-                session_compositor_enabled=yes
         fi
 fi
 
@@ -1013,15 +991,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_SESSION_CDEV],
                [test "x$session_cdev_enabled" = "xyes"])
 
-# session compositor
-if test "x$session_compositor_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_SESSION_COMPOSITOR], [1],
-                  [Build compositor session])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_SESSION_COMPOSITOR],
-               [test "x$session_compositor_enabled" = "xyes"])
-
 # kmscon
 AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
                [test "x$kmscon_enabled" = "xyes"])
@@ -1140,6 +1109,5 @@ AC_MSG_NOTICE([Build configuration:
                 dummy: $session_dummy_enabled ($session_dummy_avail)
              terminal: $session_terminal_enabled ($session_terminal_avail)
                  cdev: $session_cdev_enabled ($session_cdev_avail)
-           compositor: $session_compositor_enabled ($session_compositor_avail)
 
         Run "make" to start compilation process])
