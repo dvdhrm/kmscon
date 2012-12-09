@@ -370,6 +370,7 @@ kmscon_SOURCES = \
 	src/text.c \
 	src/kmscon_terminal.h \
 	src/kmscon_dummy.h \
+	src/kmscon_cdev.h \
 	src/kmscon_seat.h \
 	src/kmscon_seat.c \
 	src/kmscon_conf.h \
