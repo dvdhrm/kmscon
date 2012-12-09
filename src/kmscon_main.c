@@ -52,6 +52,7 @@ struct app_video {
 struct app_seat {
 	struct shl_dlist list;
 	struct kmscon_app *app;
+	struct uterm_monitor_seat *useat;
 
 	bool awake;
 	char *name;
@@ -143,7 +144,7 @@ static int app_seat_event(struct kmscon_seat *s, unsigned int event,
 }
 
 static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
-			const char *sname)
+			const char *sname, struct uterm_monitor_seat *useat)
 {
 	struct app_seat *seat;
 	int ret;
@@ -177,6 +178,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	}
 	memset(seat, 0, sizeof(*seat));
 	seat->app = app;
+	seat->useat = useat;
 	shl_dlist_init(&seat->videos);
 
 	seat->name = strdup(sname);
@@ -204,6 +206,7 @@ static int app_seat_new(struct kmscon_app *app, struct app_seat **out,
 	seat->conf_ctx = kmscon_seat_get_conf(seat->seat);
 	seat->conf = conf_ctx_get_mem(seat->conf_ctx);
 
+	uterm_monitor_set_seat_data(seat->useat, seat);
 	shl_dlist_link(&app->seats, &seat->list);
 	++app->running_seats;
 	*out = seat;
@@ -221,6 +224,7 @@ static void app_seat_free(struct app_seat *seat)
 	log_debug("free seat %s", seat->name);
 
 	shl_dlist_unlink(&seat->list);
+	uterm_monitor_set_seat_data(seat->useat, NULL);
 	kmscon_seat_free(seat->seat);
 	free(seat->name);
 	free(seat);
@@ -400,10 +404,9 @@ static void app_monitor_event(struct uterm_monitor *mon,
 
 	switch (ev->type) {
 	case UTERM_MONITOR_NEW_SEAT:
-		ret = app_seat_new(app, &seat, ev->seat_name);
+		ret = app_seat_new(app, &seat, ev->seat_name, ev->seat);
 		if (ret)
 			return;
-		uterm_monitor_set_seat_data(ev->seat, seat);
 		break;
 	case UTERM_MONITOR_FREE_SEAT:
 		if (ev->seat_data)
