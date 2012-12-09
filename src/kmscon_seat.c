@@ -800,7 +800,8 @@ void kmscon_seat_startup(struct kmscon_seat *seat)
 			log_error("cannot register kmscon compositor: %d", ret);
 	}
 
-	if (seat->conf->switchvt)
+	if (seat->conf->switchvt ||
+	    uterm_vt_get_type(seat->vt) == UTERM_VT_FAKE)
 		uterm_vt_activate(seat->vt);
 }
 

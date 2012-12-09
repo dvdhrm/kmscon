@@ -154,12 +154,6 @@
                 option makes kmscon activate this VT during startup. The same
                 way, during shutdown kmscon will reactivate the VT that was
                 previously active. (default: on)</para>
-
-          <para>Note that this option is required on seats without virtual
-                terminals, as there is no way to notify kmscon to activate
-                later.
-                So disable this option only during debugging or on seats with
-                virtual terminals.</para>
         </listitem>
       </varlistentry>
 
