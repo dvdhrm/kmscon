@@ -201,7 +201,7 @@ exec_child(const char *term, char **argv, const char *seat)
 	if (!term)
 		term = "vt220";
 	if (!argv)
-		argv = (char*[]){ "/bin/sh", "-l", NULL };
+		argv = (char*[]){ "/bin/login", NULL };
 
 	setenv("TERM", term, 1);
 	if (seat)
