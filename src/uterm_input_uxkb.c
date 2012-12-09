@@ -151,7 +151,7 @@ static void uxkb_dev_update_keyboard_leds(struct uterm_input_dev *dev)
 		{ LED_SCROLLL, XKB_LED_NAME_SCROLL },
 	};
 	struct input_event events[sizeof(leds) / sizeof(*leds)];
-	int i;
+	int i, ret;
 
 	if (!(dev->capabilities & UTERM_DEVICE_HAS_LEDS))
 		return;
@@ -166,7 +166,9 @@ static void uxkb_dev_update_keyboard_leds(struct uterm_input_dev *dev)
 			events[i].value = 1;
 	}
 
-	write(dev->rfd, events, sizeof(events));
+	ret = write(dev->rfd, events, sizeof(events));
+	if (ret != sizeof(events))
+		log_warning("cannot update LED state (%d): %m", errno);
 }
 
 static inline int uxkb_dev_resize_event(struct uterm_input_dev *dev, size_t s)
