@@ -523,12 +523,13 @@ test_key_LDADD = \
 
 MAN_XML_FILES = ${patsubst %.1,%.xml,${patsubst %.3,%.xml,${patsubst %.5,%.xml,${patsubst %.7,%.xml,$(MANPAGES)}}}}
 man_MANS =
+EXTRA_DIST += $(MAN_XML_FILES)
 
 if BUILD_HAVE_XSLTPROC
 if BUILD_HAVE_MANPAGES_STYLESHEET
 
 CLEANFILES += $(MANPAGES) $(MANPAGES_ALIASES)
-EXTRA_DIST += $(MANPAGES) $(MANPAGES_ALIASES) $(XML_FILES)
+EXTRA_DIST += $(MANPAGES) $(MANPAGES_ALIASES)
 man_MANS += $(MANPAGES) $(MANPAGES_ALIASES) man_fixup_aliases
 
 XSLTPROC_FLAGS = \
