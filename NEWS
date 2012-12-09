@@ -60,6 +60,16 @@ CHANGES WITH 6:
 	* We print hints if keyboard-shortcut names are written with wrong
 	  capitalization.
 
+	* Improve systemd integration
+
+	* CDev sessions emulate enough of the VT API to make X-Server run as
+	  kmscon session. You can even run kmscon in default-mode as client in
+	  another kmscon manager.
+
+	* Bold fonts are now supported.
+
+	* kmscon.1 manpage is available now.
+
 	* ... and a lot of bugfixes
 
 CHANGES WITH 5:
