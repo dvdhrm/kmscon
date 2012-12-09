@@ -10,7 +10,10 @@ include_HEADERS =
 EXTRA_DIST = \
 	README \
 	COPYING \
-	NEWS
+	NEWS \
+	docs/kmscon.service \
+	docs/kmscon@.service \
+	docs/getty@.service
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
