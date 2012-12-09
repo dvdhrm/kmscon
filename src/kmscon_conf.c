@@ -73,8 +73,7 @@ static void print_help()
 		"Seat Options:\n"
 		"\t    --vt <vt>               [auto]  Select which VT to run on\n"
 		"\t    --switchvt              [on]    Automatically switch to VT\n"
-		"\t    --seats <list,of,seats> [seat0] Select seats or pass 'all' to make\n"
-		"\t                                    kmscon run on all seats\n"
+		"\t    --seats <list,of,seats> [current] Select seats to run on\n"
 		"\n"
 		"Session Options:\n"
 		"\t    --session-max <max>         [50]  Maximum number of sessions\n"
@@ -494,7 +493,7 @@ static int aftercheck_listen(struct conf_option *opt, int argc, char **argv,
  * speeds up config-parser considerably.
  */
 
-static char *def_seats[] = { "seat0", NULL };
+static char *def_seats[] = { "current", NULL };
 
 static struct conf_grab def_grab_scroll_up =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Up);

@@ -156,6 +156,11 @@ int kmscon_conf_load_main(struct conf_ctx *ctx, int argc, char **argv);
 int kmscon_conf_load_seat(struct conf_ctx *ctx, const struct conf_ctx *main,
 			  const char *seat);
 
+static inline bool kmscon_conf_is_current_seat(struct kmscon_conf_t *conf)
+{
+	return conf && shl_string_list_is(conf->seats, "current");
+}
+
 static inline bool kmscon_conf_is_all_seats(struct kmscon_conf_t *conf)
 {
 	return conf && shl_string_list_is(conf->seats, "all");

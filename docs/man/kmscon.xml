@@ -162,7 +162,8 @@
         <listitem>
           <para>List of seats kmscon will run on. Use 'all' to make kmscon run
                 on all seats. Use 'all,' to make kmscon run on a seat called
-                'all' (empty entries are ignored). (default: "seat0")</para>
+                'all' (empty entries are ignored). Use 'current' to make kmscon
+                run on the current seat. (default: "current")</para>
 
           <para>If kmscon runs on multiple seats, all seats are independent of
                 each other. You can either run a different kmscon process on

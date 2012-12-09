@@ -155,6 +155,7 @@ static int app_seat_new(struct kmscon_app *app, const char *sname,
 	int ret;
 	unsigned int i, types;
 	bool found;
+	char *cseat;
 
 	if (app->exiting)
 		return -EBUSY;
@@ -162,6 +163,12 @@ static int app_seat_new(struct kmscon_app *app, const char *sname,
 	found = false;
 	if (kmscon_conf_is_all_seats(app->conf)) {
 		found = true;
+	} else if (kmscon_conf_is_current_seat(app->conf)) {
+		cseat = getenv("XDG_SEAT");
+		if (!cseat)
+			cseat = "seat0";
+		if (!strcmp(cseat, sname))
+			found = true;
 	} else {
 		for (i = 0; app->conf->seats[i]; ++i) {
 			if (!strcmp(app->conf->seats[i], sname)) {
