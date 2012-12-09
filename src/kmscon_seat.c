@@ -638,7 +638,6 @@ int kmscon_seat_new(struct kmscon_seat **out,
 {
 	struct kmscon_seat *seat;
 	int ret;
-	struct kmscon_session *s;
 
 	if (!out || !eloop || !vtm || !seatname)
 		return -EINVAL;
@@ -699,50 +698,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 	ev_eloop_ref(seat->eloop);
 	uterm_vt_master_ref(seat->vtm);
 	*out = seat;
-
-	/* register built-in sessions */
-
-	ret = kmscon_dummy_register(&s, seat);
-	if (ret == -EOPNOTSUPP) {
-		log_notice("dummy sessions not compiled in");
-	} else if (ret) {
-		log_error("cannot register dummy session: %d", ret);
-	} else {
-		seat->dummy_sess = s;
-		kmscon_session_enable(s);
-	}
-
-	if (seat->conf->terminal_session) {
-		ret = kmscon_terminal_register(&s, seat);
-		if (ret == -EOPNOTSUPP)
-			log_notice("terminal support not compiled in");
-		else if (ret)
-			goto err_sessions;
-		else
-			kmscon_session_enable(s);
-	}
-
-	if (seat->conf->cdev_session) {
-		ret = kmscon_cdev_register(&s, seat);
-		if (ret == -EOPNOTSUPP)
-			log_notice("cdev sessions not compiled in");
-		else if (ret)
-			goto err_sessions;
-	}
-
-	if (seat->conf->session_control) {
-		ret = kmscon_compositor_register(&s, seat);
-		if (ret == -EOPNOTSUPP)
-			log_notice("compositor support not compiled in");
-		else if (ret)
-			log_error("cannot register kmscon compositor: %d", ret);
-	}
-
 	return 0;
-
-err_sessions:
-	kmscon_seat_free(seat);
-	return ret;
 
 err_input_cb:
 	uterm_input_unregister_cb(seat->input, seat_input_event, seat);
@@ -798,6 +754,54 @@ void kmscon_seat_free(struct kmscon_seat *seat)
 	uterm_vt_master_unref(seat->vtm);
 	ev_eloop_unref(seat->eloop);
 	free(seat);
+}
+
+void kmscon_seat_startup(struct kmscon_seat *seat)
+{
+	int ret;
+	struct kmscon_session *s;
+
+	if (!seat)
+		return;
+
+	ret = kmscon_dummy_register(&s, seat);
+	if (ret == -EOPNOTSUPP) {
+		log_notice("dummy sessions not compiled in");
+	} else if (ret) {
+		log_error("cannot register dummy session: %d", ret);
+	} else {
+		seat->dummy_sess = s;
+		kmscon_session_enable(s);
+	}
+
+	if (seat->conf->terminal_session) {
+		ret = kmscon_terminal_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("terminal support not compiled in");
+		else if (ret)
+			log_error("cannot register terminal session");
+		else
+			kmscon_session_enable(s);
+	}
+
+	if (seat->conf->cdev_session) {
+		ret = kmscon_cdev_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("cdev sessions not compiled in");
+		else if (ret)
+			log_error("cannot register cdev session");
+	}
+
+	if (seat->conf->session_control) {
+		ret = kmscon_compositor_register(&s, seat);
+		if (ret == -EOPNOTSUPP)
+			log_notice("compositor support not compiled in");
+		else if (ret)
+			log_error("cannot register kmscon compositor: %d", ret);
+	}
+
+	if (seat->conf->switchvt)
+		uterm_vt_activate(seat->vt);
 }
 
 int kmscon_seat_add_display(struct kmscon_seat *seat,

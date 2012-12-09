@@ -210,6 +210,9 @@ static int app_seat_new(struct kmscon_app *app, const char *sname,
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	shl_dlist_link(&app->seats, &seat->list);
 	++app->running_seats;
+
+	kmscon_seat_startup(seat->seat);
+
 	return 0;
 
 err_name:
@@ -600,11 +603,6 @@ int main(int argc, char **argv)
 	ret = setup_app(&app);
 	if (ret)
 		goto err_unload;
-
-	if (app.conf->switchvt) {
-		log_debug("activating VTs during startup");
-		uterm_vt_master_activate_all(app.vtm);
-	}
 
 	if (!app.conf->listen && !app.running_seats) {
 		log_notice("no running seats; exiting");

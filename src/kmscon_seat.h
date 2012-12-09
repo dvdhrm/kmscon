@@ -79,6 +79,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		    kmscon_seat_cb_t cb,
 		    void *data);
 void kmscon_seat_free(struct kmscon_seat *seat);
+void kmscon_seat_startup(struct kmscon_seat *seat);
 
 int kmscon_seat_add_display(struct kmscon_seat *seat,
 			    struct uterm_display *disp);
