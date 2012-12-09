@@ -1,0 +1,627 @@
+<?xml version='1.0'?> <!--*-nxml-*-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+          "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+
+<!--
+  Written 2012 by David Herrmann <dh.herrmann@googlemail.com>
+  Dedicated to the Public Domain
+-->
+
+<refentry id="kmscon">
+  <refentryinfo>
+    <title>kmscon</title>
+    <productname>kmscon</productname>
+    <date>December 2012</date>
+    <authorgroup>
+      <author>
+        <contrib>Developer</contrib>
+        <firstname>David</firstname>
+        <surname>Herrmann</surname>
+        <email>dh.herrmann@googlemail.com</email>
+      </author>
+    </authorgroup>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>kmscon</refentrytitle>
+    <manvolnum>1</manvolnum>
+  </refmeta>
+
+  <refnamediv>
+    <refname>kmscon</refname>
+    <refpurpose>KMS/DRM based System Console</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>kmscon <arg choice="opt" rep="repeat">OPTIONS</arg></command>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>kmscon -l <arg choice="opt" rep="repeat">OPTIONS</arg> -- /bin/login <arg choice="opt" rep="repeat">/bin/login-OPTIONS</arg></command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Description</title>
+    <para>kmscon is a KMS/DRM-based system console with an integrated terminal
+          emulator for linux operating systems. It was designed as a replacement
+          for the linux kernel console and virtual terminals.</para>
+
+    <para>When run in default mode, kmscon allocates a virtual terminal and
+          provides a terminal emulator on it. It can thus be used as replacement
+          for the linux console and
+          <citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+          on virtual terminals.
+          Compared to the linux console, kmscon provides a rich set of enhanced
+          features including full internationalized keyboard support, full UTF-8
+          input/font support, hardware-accelerated rendering, multi-seat
+          support and more.</para>
+
+    <para>When run in listener mode, kmscon watches the system for new seats and
+          automatically provides a system console on it.</para>
+
+    <para>Default configuration directory is <filename>/etc/kmscon/</filename>
+          and the main configuration file is called
+          <filename>/etc/kmscon/kmscon.conf</filename>. You can provide an
+          additional configuration file for each seat via
+          <filename>/etc/kmscon/{seatname}.kmscon.conf</filename>.
+          Any command-line option that can be passed to kmscon can also be put
+          into those configuration files. Command-line options overwrite
+          configuration file options. And per-seat configuration files overwrite
+          the global configuration file.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Options</title>
+    <para>Boolean options take no arguments. If the default value is true, then
+          you can disable the option by prefixing it with
+          <emphasis>no-</emphasis>.</para>
+
+    <para>General Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>-h</option></term>
+        <term><option>--help</option></term>
+        <listitem>
+          <para>Prints a short help text and exits. (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-v</option></term>
+        <term><option>--verbose</option></term>
+        <listitem>
+          <para>Be more verbose. (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--debug</option></term>
+        <listitem>
+          <para>Print debug messages. Works only if kmscon was compiled with
+                debug mode enabled. (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--silent</option></term>
+        <listitem>
+          <para>Suppress notices and warnings. (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--configdir {/path/to/config/dir/}</option></term>
+        <listitem>
+          <para>Specify path to config directory. (default: /etc/kmscon/)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--listen</option></term>
+        <listitem>
+          <para>Run kmscon in listen-mode. See section below for more
+                information. (default: off)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Seat Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--vt {/path/to/vt}</option></term>
+        <listitem>
+          <para>Use this VT. If not specified, kmscon tries to find a VT by
+                itself. On seats without VTs, kmscon simply activates itself
+                automatically without using any VT. Please note that you cannot
+                use this option if kmscon runs on multiple seats
+                (see <option>--seats</option>). To avoid this, specify this
+                option in a seat configuration
+                <filename>/etc/kmscon/{seat}.kmscon.conf</filename>.</para>
+          <para>You must not run multiple applications on a single VT,
+                otherwise, you might get an unresponsive system. Also note, by
+                default, kmscon tries to use it's controlling terminal as VT and
+                if that fails, it tries to allocate a new unused VT.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--switchvt</option></term>
+        <listitem>
+          <para>If kmscon is started on a VT that is currently not active, this
+                option makes kmscon activate this VT during startup. The same
+                way, during shutdown kmscon will reactivate the VT that was
+                previously active. (default: on)</para>
+
+          <para>Note that this option is required on seats without virtual
+                terminals, as there is no way to notify kmscon to activate
+                later.
+                So disable this option only during debugging or on seats with
+                virtual terminals.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--seats {list,of,seats}</option></term>
+        <listitem>
+          <para>List of seats kmscon will run on. Use 'all' to make kmscon run
+                on all seats. Use 'all,' to make kmscon run on a seat called
+                'all' (empty entries are ignored). (default: "seat0")</para>
+
+          <para>If kmscon runs on multiple seats, all seats are independent of
+                each other. You can either run a different kmscon process on
+                ecah seat or make a single kmscon process run on multiple seats.
+                In the latter case, global state can be shared to reduce memory
+                consumption (like glyph-caches).</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Session Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--session-max {num}</option></term>
+        <listitem>
+          <para>Change the maximum number of sessions that are allowed on each
+                seat. Use '0' for no limit. (default: 50)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--session-control</option></term>
+        <listitem>
+          <para>Allow keyboard-shortcuts to control the session manager. This
+                allows the use to create new sessions, kill sessions and switch
+                sessions via keyboard input. (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--terminal-session</option></term>
+        <listitem>
+          <para>Start a terminal session after setup is done.
+                (default: on)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--cdev-session</option></term>
+        <listitem>
+          <para>Start cdev-VT-emulation session after setup is done. This is
+                limited to
+                <option>--listen</option> mode. (default: off)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Terminal Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>-l</option></term>
+        <term><option>--login</option></term>
+        <listitem>
+          <para>Specify the application that is started on new terminal
+                sessions. This takes no argument but instead everything left
+                after all options have been parsed is used as argument to this
+                option. Note that nothing after two dashes <option>--</option>
+                is parsed as regular option by kmscon.
+                (default: /bin/login)</para>
+
+          <para>This example starts '/bin/bash -i' on each new terminal session:
+                ./kmscon --login --debug --no-switchvt -- /bin/bash -i</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>-t {term}</option></term>
+        <term><option>--term {term}</option></term>
+        <listitem>
+          <para>This changes the <varname>$TERM</varname> environment variable
+                that is set on new terminal sessions.
+                (default: xterm-256color)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--palette {name}</option></term>
+        <listitem>
+          <para>Change the default color-palette. This shouldn't be used
+                anymore. Dynamic color palettes should be implemented
+                instead.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--sb-size {size}</option></term>
+        <listitem>
+          <para>Maximum scrollback-buffer line count. (default: 1000)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Input Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--xkb-model {model}</option></term>
+        <listitem>
+          <para>Keyboard model. This should normally not be changed.
+                (default: {xkb default})</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--xkb-layout {layout}</option></term>
+        <listitem>
+          <para>Keyboard layout. (default: {xkb default})</para>
+          <para>German keyboard example: --xkb-layout=de</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--xkb-variant {variant}</option></term>
+        <listitem>
+          <para>Keyboard variant. (default: {xkb default})</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--xkb-options {options}</option></term>
+        <listitem>
+          <para>Keyboard options. (default: {xkb default})</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--xkb-repeat-delay {delay}</option></term>
+        <listitem>
+          <para>Delay after key was pressed until key-repeat starts (in
+                milliseconds). (default: 250)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--xkb-repeat-rate {rate}</option></term>
+        <listitem>
+          <para>Time between two key-repeats (in milliseconds).
+                (default: 50)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Grabs / Keyboard-Shortcuts:</para>
+    <para>All keyboard shortcuts (here: grabs) in kmscon can be modified with
+          these options. The argument to such an option is a list of
+          comma-separated
+          keyboard-shortcuts that should trigger the specified action. To
+          disable a shortcut, pass an empty argument (empty list). A keyboard
+          shortcut exists of a list of modifiers followed by a single key. All
+          modifiers must be down when the key is pressed for the shortcut to be
+          detected. A modifier is sorrounded by '&lt;' and '&gt;' (like
+          '&lt;shift&gt;'). A key is the name of a keysym (like 'a' or
+          'Return'). Keysyms are case-sensitive and kmscon will suggest a keysym
+          name if you entered a wrong case. However, kmscon can not always guess
+          the right case as lower-case-only keysyms are ambiguous.</para>
+
+    <para>If a key generates multiple keysyms in your keyboard layout, you can
+          match these keys by concatenating the keysyms with a '+' (like
+          'H+E+L+L+O'). This does not mean that all the listed keys must be
+          pressed! It's rather a way to match multi-keysym keys.</para>
+
+    <para>Valid modifiers are: Shift, Control/Ctrl, Alt, Logo (Windows/Apple
+          key)</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--grab-scroll-up {grab}</option></term>
+        <listitem>
+          <para>Scroll up in scrollback buffer by one line.
+                (default: &lt;Shift&gt;Up)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-scroll-down {grab}</option></term>
+        <listitem>
+          <para>Scroll down in scrollback buffer by one line.
+                (default: &lt;Shift&gt;Down)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-page-up {grab}</option></term>
+        <listitem>
+          <para>Scroll up in scrollback buffer by one page.
+                (default: &lt;Shift&gt;Prior/PageUp)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-page-down {grab}</option></term>
+        <listitem>
+          <para>Scroll down in scrollback buffer by one page.
+                (default: &lt;Shift&gt;Next/PageDown)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-session-next {grab}</option></term>
+        <listitem>
+          <para>Switch to next session.
+                (default: &lt;Ctrl&gt;&lt;Logo&gt;Right)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-session-prev {grab}</option></term>
+        <listitem>
+          <para>Switch to previous session.
+                (default: &lt;Ctrl&gt;&lt;Logo&gt;Left)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-session-dummy {grab}</option></term>
+        <listitem>
+          <para>Switch to dummy session (black screen).
+                (default: &lt;Ctrl&gt;&lt;Logo&gt;Escape)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-session-close {grab}</option></term>
+        <listitem>
+          <para>Close current session (press twice to kill it).
+                (default: &lt;Ctrl&gt;&lt;Logo&gt;BackSpace)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-terminal-new {grab}</option></term>
+        <listitem>
+          <para>Create new terminal session next to current session.
+                (default: &lt;Ctrl&gt;&lt;Logo&gt;Return)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Video Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--drm</option></term>
+        <listitem>
+          <para>Use DRM devices as display devices, too. fbdev devices are
+                always used, but DRM devices are only used if this option is on.
+                (default: on)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--hwaccel</option></term>
+        <listitem>
+          <para>Use 3D hardware acceleration. Note that this should be used in
+                conjunction with <option>--drm</option>. On newer hardware, this
+                can speed up rendering by multiple orders of magnitude. However,
+                on older hardware this might even slow down rendering speed.
+                (default: off)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--gpus {all,aux,primary}</option></term>
+        <listitem>
+          <para>GPU selection algorithm. If 'all' then all found GPUs are used.
+                If 'aux' then primary and auxiliary GPUs are used. If 'primary'
+                then only primary GPUs are used. Primary GPUs are the default
+                GPU on a seat. There is always only one primary GPU on a seat.
+                Auxiliary GPUs are hotpluggable GPUs that provide additional
+                independent displays. (default: all)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--render-engine {engine}</option></term>
+        <listitem>
+          <para>Select console render engine. Available engines are 'bblit',
+                'bbulk' and 'gltex'. (default: detect by GPU type)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--render-timing</option></term>
+        <listitem>
+          <para>Display timing information of the render engines. This should
+                only be used to debug render engines. (default: off)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+
+    <para>Font Options:</para>
+
+    <variablelist>
+      <varlistentry>
+        <term><option>--font-engine {engine}</option></term>
+        <listitem>
+          <para>Select font-engine. Available engines are 'pango', 'freetype2',
+                'unifont' and '8x16'. (default: pango)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--font-size {points}</option></term>
+        <listitem>
+          <para>Font size in points. (default: 15)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--font-name {name}</option></term>
+        <listitem>
+          <para>Font name. (default: monospace)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--font-dpi {dpi}</option></term>
+        <listitem>
+          <para>DPI used for font-rendering. Per monitor DPI values overwrite
+                this global default. (default: 96)</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Default Mode</title>
+    <para>In default mode, kmscon acts as a replacement for
+          <citerefentry><refentrytitle>agetty</refentrytitle><manvolnum>1</manvolnum></citerefentry>.
+          kmscon opens a virtual terminal and
+          provides a system console on it. It replaces the linux-console on this
+          VT. You can select the virtual terminal
+          via the <option>--vt</option> option. kmscon will seamlessly integrate
+          into existing setups so you can use X, Wayland or any other Graphics
+          Systems simultaneously. You can even use the linux-console on all the
+          other virtual terminals.</para>
+
+    <para>By default, kmscon runs on
+          <emphasis>seat0</emphasis> but you can change the seat via the
+          <option>--seats</option> option. For seats without virtual terminals,
+          kmscon will automatically activate itself and run exclusively on that
+          seat. If the virtual terminal or the seat that kmscon
+          runs on is gone, kmscon will automatically exit. See the
+          <emphasis>Listener-Mode</emphasis> to avoid this.</para>
+
+    <para>kmscon spawns
+          <citerefentry><refentrytitle>login</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+          on each new terminal. After a session exits, kmscon automatically
+          respawns the next session. You can change the program that is spawned
+          with the <option>--login</option> option. To stop kmscon, send SIGTERM
+          to the kmscon process.</para>
+
+    <para>Keyboard input is done by <emphasis>libxkbcommon</emphasis>. This
+          provides the same features as the X11 Keyboard System but without any
+          dependencies on X11 libraries. See the
+          <emphasis>--xkb-{option}</emphasis> options for ways to change the
+          keyboard layout, model, repeat rates and more. For instance
+          <option>--xkb-layout=de</option> changes the keyboard layout to
+          German.</para>
+
+    <para>kmscon uses KMS/DRM to access graphics devices (like the X-Server
+          does). Compared to the linux console this allows kmscon to provide
+          much better font-rendering and enhanced monitor control. However, for
+          backwards compatibility, kmscon can also use fbdev devices.
+          Hotpluggable graphics devices are marked as auxiliary devices, primary
+          GPUs on a seat are marked as primary. Other GPUs stay unmarked. By
+          default kmscon uses all graphics devices but you can make it use only
+          primary or auxiliary devices with the <option>--gpus</option>
+          option.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Listener Mode</title>
+    <para>If started in listen-mode (<option>--listen</option>) kmscon will run
+          as system daemon and provide a system console on each seat that shows
+          up if that seat does not have virtual terminals. On seats with virtual
+          terminals you should run kmscon in default mode.</para>
+
+    <para>Several options are exclusively limited to listen-mode, other than
+          these, kmscon behaves the same way as in default-mode.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Sessions</title>
+    <para>If kmscon is active on a seat, the internal session-manager is woken
+          up. At most times, only the terminal-session is active, but kmscon can
+          also support any other session type. You can switch between sessions
+          with keyboard-shortcuts and you can create/destroy sessions during
+          runtime.</para>
+
+    <para>Dummy sessions simply show a black screen and are used if no other
+          session is available. Otherwise, dummy sessions are hidden from the
+          user so they cannot switch to it.</para>
+
+    <para>Terminal sessions provide a terminal emulator. They are the main
+          session type and provide all the terminal-emulation
+          functionality.</para>
+
+    <para>CDev sessions provide a way to hook-up external applications as kmscon
+          sessions. They provide fake virtual terminals on seats that don't have
+          them so you can switch between multiple graphics applications/servers
+          without needing VTs. See <emphasis>Virtual Terminals</emphasis>
+          below.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Virtual Terminals</title>
+    <para>Historically, linux provides virtual terminals (VT) only on seat
+          <emphasis>seat0</emphasis>. This is because only one VT can be active
+          at a time but in multi-seat environments you want multiple active VTs,
+          one per seat. It is easy to run kmscon on seat0 on a VT, however, if
+          you want to run kmscon on another seat, there are no VTs. This means,
+          you can only run one application that uses graphics devices on these
+          seats. In most environments this is the X-Server. But if you want to
+          run kmscon together with the X-Server (or any other graphics server),
+          you need a mechanism to notify these servers when they are active.
+          This is done via VT APIs on seat0. But note that if the kernel is
+          compiled without CONFIG_VT (which controls whether VTs are available),
+          then even seat0 does not have VTs.</para>
+
+    <para>On seats without VTs we need a replacement API. However, a new
+          API would require modifying every application that uses the VT API to
+          also support the new replacement if you want to run it on those seats.
+          Therefore, kmscon provides a backwards-compatible API. It uses the
+          linux CUSE API to create VTs for all seats that have no VTs. You need
+          to pass <option>--cdev-session</option> to kmscon to enable this.
+          kmscon will then create one cdev (<emphasis>c</emphasis>haracter
+          <emphasis>dev</emphasis>ice) for each seat and calls it
+          <filename>/dev/ttyF{seatname}</filename> ('F' for 'fake'). This
+          character device provides the same API as a VT so your X-Server (or
+          even kmscon in default-mode) can use it instead of a real VT.</para>
+
+    <para>In contrast to real VTs, each application that opens this fake VT will
+          get a different VT assigned. So you can use multiple X-Servers all
+          opening <filename>/dev/ttyF{seatname}</filename> and they will each
+          show up as different kmscon session. But note that not all TTY ioctls
+          are available on fake VTs. kmscon only emulates the API that is
+          currently used by most VT users. If you want to run an application
+          that needs more functionality, please open a bug-report.</para>
+
+    <para>Switching VTs is done by signaling the active process to go asleep and
+          signaling the new VT to wake up. If kmscon emulates VTs, it needs to
+          be able to send these signals to the processes running on fake VTs. In
+          most situations this means kmscon must have root priviledges.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+    <para>
+      <citerefentry><refentrytitle>kmscon.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+      <citerefentry><refentrytitle>console</refentrytitle><manvolnum>4</manvolnum></citerefentry>
+    </para>
+  </refsect1>
+</refentry>

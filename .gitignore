@@ -38,3 +38,7 @@ docs/reference/*.stamp
 docs/reference/version.xml
 docs/reference/*/
 wlterm
+docs/man/*.1
+docs/man/*.3
+docs/man/*.5
+docs/man/*.7

@@ -12,7 +12,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER(config.h)
 
-AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-bzip2 no-dist-gzip tar-pax -Wall -Werror])
+AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-bzip2 no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
 AM_SILENT_RULES([yes])
 
 #
@@ -1064,6 +1064,25 @@ if test x$have_gbm = xyes ; then
         CFLAGS="$save_CFLAGS"
         LIBS="$save_LIBS"
         LDFLAGS="$save_LDFLAGS"
+fi
+
+# check for xsltproc
+AC_PATH_PROG(XSLTPROC, xsltproc)
+AM_CONDITIONAL([BUILD_HAVE_XSLTPROC], [test "x$XSLTPROC" != "x"])
+
+# check for offline man-pages stylesheet
+AC_MSG_CHECKING([for docbook manpages stylesheet])
+BUILD_MANPAGES_STYLESHEET="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl"
+AC_PATH_PROGS_FEATURE_CHECK([XSLTPROC_TMP], [xsltproc],
+                            AS_IF([`"$ac_path_XSLTPROC_TMP" --nonet "$BUILD_MANPAGES_STYLESHEET" > /dev/null 2>&1`],
+                                  [BUILD_HAVE_MANPAGES_STYLESHEET=yes]))
+if test "x$BUILD_HAVE_MANPAGES_STYLESHEET" = "xyes"; then
+        AM_CONDITIONAL([BUILD_HAVE_MANPAGES_STYLESHEET], true)
+        AC_SUBST(BUILD_MANPAGES_STYLESHEET)
+        AC_MSG_RESULT([yes])
+else
+        AM_CONDITIONAL([BUILD_HAVE_MANPAGES_STYLESHEET], false)
+        AC_MSG_RESULT([no])
 fi
 
 #

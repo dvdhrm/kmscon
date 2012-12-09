@@ -14,6 +14,8 @@ EXTRA_DIST = \
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
+MANPAGES =
+MANPAGES_ALIASES =
 
 bin_PROGRAMS =
 check_PROGRAMS =
@@ -424,6 +426,7 @@ kmscon_SOURCES += \
 nodist_kmscon_SOURCES += src/static_shaders.c
 kmscon_CPPFLAGS += $(GLES2_CFLAGS)
 kmscon_LDADD += $(GLES2_LIBS)
+MANPAGES += docs/man/kmscon.1
 endif
 
 #
@@ -519,3 +522,46 @@ test_key_CPPFLAGS = \
 	$(test_cflags)
 test_key_LDADD = \
 	$(test_libs)
+
+#
+# Manpages
+#
+
+MAN_XML_FILES = ${patsubst %.1,%.xml,${patsubst %.3,%.xml,${patsubst %.5,%.xml,${patsubst %.7,%.xml,$(MANPAGES)}}}}
+man_MANS =
+
+if BUILD_HAVE_XSLTPROC
+if BUILD_HAVE_MANPAGES_STYLESHEET
+
+CLEANFILES += $(MANPAGES) $(MANPAGES_ALIASES)
+EXTRA_DIST += $(MANPAGES) $(MANPAGES_ALIASES) $(XML_FILES)
+man_MANS += $(MANPAGES) $(MANPAGES_ALIASES) man_fixup_aliases
+
+XSLTPROC_FLAGS = \
+	--stringparam man.authors.section.enabled 0 \
+	--stringparam man.copyright.section.enabled 0 \
+	--stringparam funcsynopsis.style ansi \
+	--stringparam man.output.quietly 1 \
+	--nonet
+
+XSLTPROC_PROCESS_MAN = \
+	$(AM_V_GEN)$(MKDIR_P) $(dir $@) && \
+	$(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) $(BUILD_MANPAGES_STYLESHEET) $<
+
+man_fixup_aliases: $(MANPAGES) $(MANPAGES_ALIASES)
+	$(AM_V_GEN)if test -n "$(MANPAGES_ALIASES)" ; then $(SED) -i -e 's/^\.so \([a-z_]\+\)\.\([0-9]\)$$/\.so man\2\/\1\.\2/' $(MANPAGES_ALIASES) ; fi
+
+docs/man/%.1: docs/man/%.xml
+	$(XSLTPROC_PROCESS_MAN)
+
+docs/man/%.3: docs/man/%.xml
+	$(XSLTPROC_PROCESS_MAN)
+
+docs/man/%.5: docs/man/%.xml
+	$(XSLTPROC_PROCESS_MAN)
+
+docs/man/%.7: docs/man/%.xml
+	$(XSLTPROC_PROCESS_MAN)
+
+endif # BUILD_HAVE_MANPAGES_STYLESHEET
+endif # BUILD_HAVE_XSLTPROC
