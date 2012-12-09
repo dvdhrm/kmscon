@@ -66,9 +66,9 @@ struct app_seat {
 struct kmscon_app {
 	struct conf_ctx *conf_ctx;
 	struct kmscon_conf_t *conf;
+	bool exiting;
 
 	struct ev_eloop *eloop;
-	struct ev_eloop *vt_eloop;
 	unsigned int vt_exit_count;
 
 	struct uterm_vt_master *vtm;
@@ -107,8 +107,12 @@ static int app_seat_event(struct kmscon_seat *s, unsigned int event,
 			log_debug("deactivating VT on exit, %d to go",
 				  app->vt_exit_count - 1);
 			if (!--app->vt_exit_count)
-				ev_eloop_exit(app->vt_eloop);
+				ev_eloop_exit(app->eloop);
 		}
+		break;
+	case KMSCON_SEAT_WAKE_UP:
+		if (app->exiting)
+			return -EBUSY;
 		break;
 	case KMSCON_SEAT_HUP:
 		kmscon_seat_free(seat->seat);
@@ -151,6 +155,9 @@ static int app_seat_new(struct kmscon_app *app, const char *sname,
 	int ret;
 	unsigned int i, types;
 	bool found;
+
+	if (app->exiting)
+		return -EBUSY;
 
 	found = false;
 	if (kmscon_conf_is_all_seats(app->conf)) {
@@ -241,7 +248,8 @@ static void app_seat_video_event(struct uterm_video *video,
 
 	switch (ev->action) {
 	case UTERM_NEW:
-		kmscon_seat_add_display(vid->seat->seat, ev->display);
+		if (!vid->seat->app->exiting)
+			kmscon_seat_add_display(vid->seat->seat, ev->display);
 		break;
 	case UTERM_GONE:
 		kmscon_seat_remove_display(vid->seat->seat, ev->display);
@@ -303,6 +311,9 @@ static int app_seat_add_video(struct app_seat *seat,
 	int ret;
 	unsigned int mode;
 	struct app_video *vid;
+
+	if (seat->app->exiting)
+		return -EBUSY;
 
 	if (app_seat_gpu_is_ignored(seat, type,
 				    flags & UTERM_MONITOR_DRM_BACKED,
@@ -497,7 +508,6 @@ static void destroy_app(struct kmscon_app *app)
 {
 	uterm_monitor_unref(app->mon);
 	uterm_vt_master_unref(app->vtm);
-	ev_eloop_rm_eloop(app->vt_eloop);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGPIPE, app_sig_ignore,
 				      app);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGINT, app_sig_generic,
@@ -540,13 +550,7 @@ static int setup_app(struct kmscon_app *app)
 		goto err_app;
 	}
 
-	ret = ev_eloop_new_eloop(app->eloop, &app->vt_eloop);
-	if (ret) {
-		log_error("cannot create VT eloop object: %d", ret);
-		goto err_app;
-	}
-
-	ret = uterm_vt_master_new(&app->vtm, app->vt_eloop);
+	ret = uterm_vt_master_new(&app->vtm, app->eloop);
 	if (ret) {
 		log_error("cannot create VT master: %d", ret);
 		goto err_app;
@@ -611,6 +615,8 @@ int main(int argc, char **argv)
 		ev_eloop_run(app.eloop, -1);
 	}
 
+	app.exiting = true;
+
 	if (app.conf->switchvt) {
 		/* The VT subsystem needs to acknowledge the VT-leave so if it
 		 * returns -EINPROGRESS we need to wait for the VT-leave SIGUSR2
@@ -618,16 +624,13 @@ int main(int argc, char **argv)
 		 * which is used by the VT system only. Therefore, waiting on
 		 * this eloop allows us to safely wait 50ms for the SIGUSR2 to
 		 * arrive.
-		 * We use a timeout of 100ms to avoid haning on exit.
-		 * We could also wait on app.eloop but this would allow other
-		 * subsystems to continue receiving events and this is not what
-		 * we want. */
+		 * We use a timeout of 100ms to avoid hanging on exit. */
 		log_debug("deactivating VTs during shutdown");
 		ret = uterm_vt_master_deactivate_all(app.vtm);
 		if (ret > 0) {
 			log_debug("waiting for %d VTs to deactivate", ret);
 			app.vt_exit_count = ret;
-			ev_eloop_run(app.vt_eloop, 50);
+			ev_eloop_run(app.eloop, 50);
 		}
 	}
 
