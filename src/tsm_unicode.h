@@ -30,8 +30,8 @@
  * and output much easier.
  */
 
-#ifndef KMSCON_UNICODE_H
-#define KMSCON_UNICODE_H
+#ifndef TSM_UNICODE_H
+#define TSM_UNICODE_H
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -85,4 +85,4 @@ int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char c);
 uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach);
 void tsm_utf8_mach_reset(struct tsm_utf8_mach *mach);
 
-#endif /* KMSCON_UNICODE_H */
+#endif /* TSM_UNICODE_H */
