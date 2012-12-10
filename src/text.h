@@ -70,6 +70,7 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 
 struct kmscon_glyph {
 	struct uterm_video_buffer buf;
+	unsigned int width;
 	void *data;
 };
 

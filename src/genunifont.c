@@ -107,13 +107,14 @@ static void print_unifont_glyph(FILE *out, const struct unifont_glyph *g)
 	}
 
 	fprintf(out, "\t{ /* %d 0x%x */\n"
+		     "\t\t.width = %d,\n"
 		     "\t\t.buf = {\n"
 		     "\t\t\t.width = %d,\n"
 		     "\t\t\t.height = 16,\n"
 		     "\t\t\t.stride = %d,\n"
 		     "\t\t\t.format = UTERM_FORMAT_GREY,\n"
 		     "\t\t\t.data = (uint8_t[]){\n",
-		     g->codepoint,  g->codepoint,
+		     g->codepoint,  g->codepoint, 1,
 		     width * 4, width * 4);
 
 	for (i = 0; i < g->len; ++i) {

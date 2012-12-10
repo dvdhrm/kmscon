@@ -147,8 +147,14 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	FT_Bitmap *bmap;
 	FT_GlyphSlot slot;
 	bool res;
-	unsigned int i, j, wmax, hmax, idx1, idx2;
+	unsigned int i, j, wmax, hmax, idx1, idx2, cwidth;
 	int ret, hoff1, hoff2, woff1, woff2;
+
+	if (!len)
+		return -ERANGE;
+	cwidth = tsm_ucs4_get_width(*ch);
+	if (!cwidth)
+		return -ERANGE;
 
 	pthread_mutex_lock(&face->glyph_lock);
 	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
@@ -170,6 +176,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	memset(glyph, 0, sizeof(*glyph) + sizeof(struct glyph));
 	glyph->data = (void*)(((uint8_t*)glyph) + sizeof(*glyph));
 	data = glyph->data;
+	glyph->width = cwidth;
 
 	/* We currently ignore composed-symbols. That is, we only use the first
 	 * UCS-4 code and draw this character. This works great for most simple
@@ -208,7 +215,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	}
 
 	data->width = bmap->width;
-	glyph->buf.width = face->real_attr.width;
+	glyph->buf.width = face->real_attr.width * cwidth;
 	glyph->buf.height = face->real_attr.height;
 	glyph->buf.stride = glyph->buf.width;
 	glyph->buf.format = UTERM_FORMAT_GREY;
@@ -535,6 +542,7 @@ static int generate_specials(struct face *face)
 	int ret;
 	static const uint32_t question_mark = '?';
 
+	face->empty.width = 1;
 	face->empty.data = NULL;
 	face->empty.buf.width = face->real_attr.width;
 	face->empty.buf.height = face->real_attr.height;
@@ -649,7 +657,7 @@ static int kmscon_font_freetype2_render(struct kmscon_font *font, uint32_t id,
 	data = glyph->data;
 	if (face->shrink && !data->shrinked) {
 		data->shrinked = true;
-		glyph->buf.width = face->real_attr.width;
+		glyph->buf.width = face->real_attr.width * glyph->width;
 	}
 
 	*out = glyph;

@@ -117,10 +117,17 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	PangoRectangle rec;
 	PangoLayoutLine *line;
 	FT_Bitmap bitmap;
+	unsigned int cwidth;
 	size_t ulen, cnt;
 	char *val;
 	bool res;
 	int ret;
+
+	if (!len)
+		return -ERANGE;
+	cwidth = tsm_ucs4_get_width(*ch);
+	if (!cwidth)
+		return -ERANGE;
 
 	pthread_mutex_lock(&face->glyph_lock);
 	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
@@ -140,6 +147,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 		goto out_unlock;
 	}
 	memset(glyph, 0, sizeof(*glyph));
+	glyph->width = cwidth;
 
 	layout = pango_layout_new(face->ctx);
 
@@ -166,7 +174,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	line = pango_layout_get_line_readonly(layout, 0);
 
 	pango_layout_line_get_pixel_extents(line, NULL, &rec);
-	glyph->buf.width = face->real_attr.width;
+	glyph->buf.width = face->real_attr.width * cwidth;
 	glyph->buf.height = face->real_attr.height;
 	glyph->buf.stride = glyph->buf.width;
 	glyph->buf.format = UTERM_FORMAT_GREY;
