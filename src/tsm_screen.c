@@ -358,10 +358,14 @@ static void screen_scroll_down(struct tsm_screen *con, unsigned int num)
 }
 
 static void screen_write(struct tsm_screen *con, unsigned int x,
-			  unsigned int y, tsm_symbol_t ch,
+			  unsigned int y, tsm_symbol_t ch, unsigned int len,
 			  const struct tsm_screen_attr *attr)
 {
 	struct line *line;
+	unsigned int i;
+
+	if (!len)
+		return;
 
 	if (x >= con->size_x || y >= con->size_y) {
 		llog_warn(con, "writing beyond buffer boundary");
@@ -370,11 +374,17 @@ static void screen_write(struct tsm_screen *con, unsigned int x,
 
 	line = con->lines[y];
 
-	if ((con->flags & TSM_SCREEN_INSERT_MODE) && x < (con->size_x - 1))
-		memmove(&line->cells[x + 1], &line->cells[x],
-			sizeof(struct cell) * (con->size_x - 1 - x));
+	if ((con->flags & TSM_SCREEN_INSERT_MODE) &&
+	    (int)x < ((int)con->size_x - len))
+		memmove(&line->cells[x + len], &line->cells[x],
+			sizeof(struct cell) * (con->size_x - len - x));
+
 	line->cells[x].ch = ch;
+	line->cells[x].width = len;
 	memcpy(&line->cells[x].attr, attr, sizeof(*attr));
+
+	for (i = 1; i < len && i + x < con->size_x; ++i)
+		line->cells[x + i].width = 0;
 }
 
 static void screen_erase_region(struct tsm_screen *con,
@@ -951,9 +961,13 @@ void tsm_screen_reset_all_tabstops(struct tsm_screen *con)
 void tsm_screen_write(struct tsm_screen *con, tsm_symbol_t ch,
 			  const struct tsm_screen_attr *attr)
 {
-	unsigned int last;
+	unsigned int last, len;
 
 	if (!con)
+		return;
+
+	len = tsm_symbol_get_width(NULL, ch);
+	if (!len)
 		return;
 
 	if (con->cursor_y <= con->margin_bottom ||
@@ -976,8 +990,8 @@ void tsm_screen_write(struct tsm_screen *con, tsm_symbol_t ch,
 		screen_scroll_up(con, 1);
 	}
 
-	screen_write(con, con->cursor_x, con->cursor_y, ch, attr);
-	++con->cursor_x;
+	screen_write(con, con->cursor_x, con->cursor_y, ch, len, attr);
+	con->cursor_x += len;
 }
 
 void tsm_screen_newline(struct tsm_screen *con)
