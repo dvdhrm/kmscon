@@ -59,9 +59,12 @@ tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t sym, uint32_t ucs4);
 const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t *sym, size_t *size);
+unsigned int tsm_symbol_get_width(struct tsm_symbol_table *tbl,
+				  tsm_symbol_t sym);
 
 /* ucs4 to utf8 converter */
 
+unsigned int tsm_ucs4_get_width(uint32_t ucs4);
 size_t tsm_ucs4_to_utf8(uint32_t ucs4, char *out);
 char *tsm_ucs4_to_utf8_alloc(const uint32_t *ucs4, size_t len, size_t *len_out);
 

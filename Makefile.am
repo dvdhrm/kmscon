@@ -153,7 +153,9 @@ libtsm_la_SOURCES = \
 	src/tsm_unicode.c \
 	src/tsm_vte.h \
 	src/tsm_vte.c \
-	src/tsm_vte_charsets.c
+	src/tsm_vte_charsets.c \
+	external/wcwidth.h \
+	external/wcwidth.c
 
 libtsm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \

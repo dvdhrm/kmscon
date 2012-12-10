@@ -58,6 +58,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include "external/wcwidth.h"
 #include "shl_array.h"
 #include "shl_hashtable.h"
 #include "tsm_unicode.h"
@@ -331,6 +332,30 @@ err_id:
 	return sym;
 }
 
+unsigned int tsm_symbol_get_width(struct tsm_symbol_table *tbl,
+				  tsm_symbol_t sym)
+{
+	int ret;
+	const uint32_t *ch;
+	size_t len;
+
+	if (!tbl)
+		tbl = tsm_symbol_table_default;
+
+	if (!tbl) {
+		ret = tsm_symbol_table_new(&tbl);
+		if (ret)
+			return sym;
+		tsm_symbol_table_default = tbl;
+	}
+
+	ch = tsm_symbol_get(tbl, &sym, &len);
+	if (len == 0)
+		return 0;
+
+	return tsm_ucs4_get_width(*ch);
+}
+
 /*
  * Convert UCS4 character to UTF-8. This creates one of:
  *   0xxxxxxx
@@ -350,6 +375,17 @@ err_id:
  * greater than 0x10FFFF, the range 0xFDD0-0xFDEF and codepoints ending with
  * 0xFFFF or 0xFFFE.
  */
+
+unsigned int tsm_ucs4_get_width(uint32_t ucs4)
+{
+	int ret;
+
+	ret = mk_wcwidth(ucs4);
+	if (ret <= 0)
+		return 0;
+
+	return ret;
+}
 
 size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 {
