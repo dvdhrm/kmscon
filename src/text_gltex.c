@@ -277,7 +277,7 @@ static unsigned int next_pow2(unsigned int num)
 }
 
 /* returns an atlas with at least 1 free glyph position; NULL on error */
-static struct atlas *get_atlas(struct kmscon_text *txt)
+static struct atlas *get_atlas(struct kmscon_text *txt, unsigned int num)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
@@ -289,7 +289,7 @@ static struct atlas *get_atlas(struct kmscon_text *txt)
 	if (!shl_dlist_empty(&gt->atlases)) {
 		atlas = shl_dlist_entry(gt->atlases.next, struct atlas,
 					   list);
-		if (atlas->fill < atlas->count)
+		if (atlas->fill + num <= atlas->count)
 			return atlas;
 	}
 
@@ -408,10 +408,6 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 		return 0;
 	}
 
-	atlas = get_atlas(txt);
-	if (!atlas)
-		return -EFAULT;
-
 	glyph = malloc(sizeof(*glyph));
 	if (!glyph)
 		return -ENOMEM;
@@ -426,6 +422,12 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 		ret = kmscon_font_render_inval(font, &glyph->glyph);
 		if (ret)
 			goto err_free;
+	}
+
+	atlas = get_atlas(txt, glyph->glyph->width);
+	if (!atlas) {
+		ret = -EFAULT;
+		goto err_free;
 	}
 
 	/* Funnily, not all OpenGLESv2 implementations support specifying the
@@ -507,7 +509,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	if (ret)
 		goto err_free;
 
-	++atlas->fill;
+	atlas->fill += glyph->glyph->width;
 
 	*out = glyph;
 	return 0;
@@ -542,6 +544,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 
 static int gltex_draw(struct kmscon_text *txt,
 		      uint32_t id, const uint32_t *ch, size_t len,
+		      unsigned int width,
 		      unsigned int posx, unsigned int posy,
 		      const struct tsm_screen_attr *attr)
 {
@@ -549,6 +552,9 @@ static int gltex_draw(struct kmscon_text *txt,
 	struct atlas *atlas;
 	struct glyph *glyph;
 	int ret, i, idx;
+
+	if (!width)
+		return 0;
 
 	ret = find_glyph(txt, &glyph, id, ch, len, attr->bold);
 	if (ret)
@@ -567,7 +573,7 @@ static int gltex_draw(struct kmscon_text *txt,
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 3] =
 		gt->advance_y * posy + gt->advance_y - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 4] =
-		gt->advance_x * posx + gt->advance_x - 1;
+		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 5] =
 		gt->advance_y * posy + gt->advance_y - 1;
 
@@ -576,11 +582,11 @@ static int gltex_draw(struct kmscon_text *txt,
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 7] =
 		gt->advance_y * posy - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 8] =
-		gt->advance_x * posx + gt->advance_x - 1;
+		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 9] =
 		gt->advance_y * posy + gt->advance_y - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 10] =
-		gt->advance_x * posx + gt->advance_x - 1;
+		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 11] =
 		gt->advance_y * posy - 1;
 
@@ -588,14 +594,14 @@ static int gltex_draw(struct kmscon_text *txt,
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 1] = 0.0;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 2] = glyph->texoff;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 3] = 1.0;
-	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 4] = glyph->texoff + 1;
+	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 4] = glyph->texoff + width;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 5] = 1.0;
 
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 6] = glyph->texoff;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 7] = 0.0;
-	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 8] = glyph->texoff + 1;
+	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 8] = glyph->texoff + width;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 9] = 1.0;
-	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 10] = glyph->texoff + 1;
+	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 10] = glyph->texoff + width;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 11] = 0.0;
 
 	for (i = 0; i < 6; ++i) {

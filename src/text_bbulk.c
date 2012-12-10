@@ -112,6 +112,7 @@ static void bbulk_unset(struct kmscon_text *txt)
 
 static int bbulk_draw(struct kmscon_text *txt,
 		      uint32_t id, const uint32_t *ch, size_t len,
+		      unsigned int width,
 		      unsigned int posx, unsigned int posy,
 		      const struct tsm_screen_attr *attr)
 {
@@ -120,6 +121,11 @@ static int bbulk_draw(struct kmscon_text *txt,
 	int ret;
 	struct uterm_video_blend_req *req;
 	struct kmscon_font *font;
+
+	if (!width) {
+		bb->reqs[posy * txt->cols + posx].buf = NULL;
+		return 0;
+	}
 
 	if (attr->bold)
 		font = txt->bold_font;

@@ -45,6 +45,7 @@
 
 struct cell {
 	tsm_symbol_t ch;
+	unsigned int width;
 	struct tsm_screen_attr attr;
 };
 
@@ -108,6 +109,7 @@ struct tsm_screen {
 static void cell_init(struct tsm_screen *con, struct cell *cell)
 {
 	cell->ch = 0;
+	cell->width = 1;
 	memcpy(&cell->attr, &con->def_attr, sizeof(cell->attr));
 }
 
@@ -1843,8 +1845,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 			ch = tsm_symbol_get(NULL, &cell->ch, &len);
 			if (cell->ch == ' ' || cell->ch == 0)
 				len = 0;
-			ret = draw_cb(con, cell->ch, ch, len, j, i, &attr,
-				      data);
+			ret = draw_cb(con, cell->ch, ch, len, cell->width,
+				      j, i, &attr, data);
 			if (ret && warned++ < 3) {
 				llog_debug(con,
 					   "cannot draw glyph at %ux%u via text-renderer",
@@ -1860,7 +1862,8 @@ void tsm_screen_draw(struct tsm_screen *con,
 			if (!(con->flags & TSM_SCREEN_HIDE_CURSOR)) {
 				if (!(con->flags & TSM_SCREEN_INVERSE))
 					attr.inverse = !attr.inverse;
-				draw_cb(con, 0, NULL, 0, cur_x, i, &attr, data);
+				draw_cb(con, 0, NULL, 0, 1,
+					cur_x, i, &attr, data);
 			}
 		}
 	}

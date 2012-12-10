@@ -88,6 +88,7 @@ struct wlt_terminal {
 
 static int draw_cell(struct tsm_screen *scr,
 		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int chwidth,
 		     unsigned int posx, unsigned int posy,
 		     const struct tsm_screen_attr *attr, void *data)
 {
@@ -99,6 +100,9 @@ static int draw_cell(struct tsm_screen *scr,
 	const struct uterm_video_buffer *buf;
 	unsigned int fr, fg, fb, br, bg, bb;
 	uint32_t val;
+
+	if (!chwidth)
+		return 0;
 
 	if (!len)
 		ret = kmscon_font_render_empty(term->font_normal, &glyph);

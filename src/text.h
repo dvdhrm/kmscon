@@ -140,6 +140,7 @@ struct kmscon_text_ops {
 	int (*prepare) (struct kmscon_text *txt);
 	int (*draw) (struct kmscon_text *txt,
 		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int width,
 		     unsigned int posx, unsigned int posy,
 		     const struct tsm_screen_attr *attr);
 	int (*render) (struct kmscon_text *txt);
@@ -164,6 +165,7 @@ unsigned int kmscon_text_get_rows(struct kmscon_text *txt);
 int kmscon_text_prepare(struct kmscon_text *txt);
 int kmscon_text_draw(struct kmscon_text *txt,
 		     uint32_t id, const uint32_t *ch, size_t len,
+		     unsigned int width,
 		     unsigned int posx, unsigned int posy,
 		     const struct tsm_screen_attr *attr);
 int kmscon_text_render(struct kmscon_text *txt);
@@ -172,6 +174,7 @@ void kmscon_text_abort(struct kmscon_text *txt);
 int kmscon_text_prepare_cb(struct tsm_screen *con, void *data);
 int kmscon_text_draw_cb(struct tsm_screen *con,
 			uint32_t id, const uint32_t *ch, size_t len,
+			unsigned int width,
 			unsigned int posx, unsigned int posy,
 			const struct tsm_screen_attr *attr, void *data);
 int kmscon_text_render_cb(struct tsm_screen *con, void *data);
