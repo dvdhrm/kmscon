@@ -7,7 +7,7 @@ console. See kmscon(1) man-page for usage information.
 == Requirements ==
 
   Kmscon requires the following software:
-    - libudev: providing input, video, etc. device hotplug support
+    - libudev: providing input, video, etc. device hotplug support (>=v172)
     - libxkbcommon: providing internationalized keyboard handling
 
   Everything else is optional:

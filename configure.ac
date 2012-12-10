@@ -59,7 +59,7 @@ PKG_CHECK_MODULES([SYSTEMD], [libsystemd-daemon libsystemd-login],
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)
 
-PKG_CHECK_MODULES([UDEV], [libudev],
+PKG_CHECK_MODULES([UDEV], [libudev >= 172],
                   [have_udev=yes], [have_udev=no])
 AC_SUBST(UDEV_CFLAGS)
 AC_SUBST(UDEV_LIBS)
