@@ -545,6 +545,10 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	if (ret)
 		goto err_pty;
 
+	ret = kmscon_pty_set_colorterm(term->pty, "kmscon");
+	if (ret)
+		goto err_pty;
+
 	ret = kmscon_pty_set_argv(term->pty, term->conf->argv);
 	if (ret)
 		goto err_pty;
