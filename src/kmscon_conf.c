@@ -82,7 +82,7 @@ static void print_help()
 		"\t    --cdev-session              [off] Enable kernel VT emulation session\n"
 		"\n"
 		"Terminal Options:\n"
-		"\t-l, --login                 [/bin/sh]\n"
+		"\t-l, --login                 [/bin/login -p]\n"
 		"\t                              Start the given login process instead\n"
 		"\t                              of the default process; all arguments\n"
 		"\t                              following '--' will be be parsed as\n"
@@ -230,7 +230,7 @@ static const struct conf_type conf_vt = {
  * special handling that the command-line does.
  */
 
-static char *def_argv[] = { "/bin/login", NULL };
+static char *def_argv[] = { "/bin/login", "-p", NULL };
 
 static void conf_default_login(struct conf_option *opt)
 {

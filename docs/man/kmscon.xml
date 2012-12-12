@@ -224,7 +224,7 @@
                 after all options have been parsed is used as argument to this
                 option. Note that nothing after two dashes <option>--</option>
                 is parsed as regular option by kmscon.
-                (default: /bin/login)</para>
+                (default: /bin/login -p)</para>
 
           <para>This example starts '/bin/bash -i' on each new terminal session:
                 ./kmscon --login --debug --no-switchvt -- /bin/bash -i</para>
