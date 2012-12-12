@@ -63,6 +63,7 @@ struct kmscon_pty {
 	char *colorterm;
 	char **argv;
 	char *seat;
+	bool env_reset;
 };
 
 int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
@@ -192,6 +193,14 @@ int kmscon_pty_set_seat(struct kmscon_pty *pty, const char *seat)
 	return 0;
 }
 
+void kmscon_pty_set_env_reset(struct kmscon_pty *pty, bool do_reset)
+{
+	if (!pty)
+		return;
+
+	pty->env_reset = do_reset;
+}
+
 int kmscon_pty_get_fd(struct kmscon_pty *pty)
 {
 	if (!pty)
@@ -215,19 +224,39 @@ static bool pty_is_open(struct kmscon_pty *pty)
 
 static void __attribute__((noreturn))
 exec_child(const char *term, const char *colorterm, char **argv,
-	   const char *seat)
+	   const char *seat, bool env_reset)
 {
+	char **env;
+	char **def_argv;
+
+	if (env_reset) {
+		env = malloc(sizeof(char*));
+		if (!env) {
+			log_error("cannot allocate memory for environment (%d): %m",
+				  errno);
+			exit(EXIT_FAILURE);
+		}
+
+		memset(env, 0, sizeof(char*));
+		environ = env;
+
+		def_argv = (char*[]){ "/bin/login", "-p", NULL };
+	} else {
+		def_argv = (char*[]){ "/bin/login", NULL };
+	}
+
 	if (!term)
 		term = "vt220";
 	if (!argv)
-		argv = (char*[]){ "/bin/login", NULL };
+		argv = def_argv;
 
 	setenv("TERM", term, 1);
 	if (colorterm)
 		setenv("COLORTERM", colorterm, 1);
 	if (seat)
 		setenv("XDG_SEAT", seat, 1);
-	execvp(argv[0], argv);
+
+	execve(argv[0], argv, environ);
 
 	log_err("failed to exec child %s: %m", argv[0]);
 
@@ -343,7 +372,8 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->term, pty->colorterm, pty->argv, pty->seat);
+		exec_child(pty->term, pty->colorterm, pty->argv, pty->seat,
+			   pty->env_reset);
 		exit(EXIT_FAILURE);
 	default:
 		log_debug("forking child %d", pid);
