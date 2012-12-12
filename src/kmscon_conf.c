@@ -92,6 +92,9 @@ static void print_help()
 		"\t-t, --term <TERM>           [xterm-256color]\n"
 		"\t                              Value of the TERM environment variable\n"
 		"\t                              for the child process\n"
+		"\t    --reset-env             [on]\n"
+		"\t                              Reset environment before running child\n"
+		"\t                              process\n"
 		"\t    --palette <name>        [default]\n"
 		"\t                              Select the used color palette\n"
 		"\t    --sb-size <num>         [1000]\n"
@@ -559,6 +562,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		/* Terminal Options */
 		CONF_OPTION(0, 'l', "login", &conf_login, aftercheck_login, NULL, file_login, &conf->login, false),
 		CONF_OPTION_STRING('t', "term", &conf->term, "xterm-256color"),
+		CONF_OPTION_BOOL(0, "reset-env", &conf->reset_env, true),
 		CONF_OPTION_STRING(0, "palette", &conf->palette, NULL),
 		CONF_OPTION_UINT(0, "sb-size", &conf->sb_size, 1000),
 

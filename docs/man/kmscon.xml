@@ -242,6 +242,14 @@
       </varlistentry>
 
       <varlistentry>
+        <term><option>--reset-env</option></term>
+        <listitem>
+          <para>Reset environment before spawning the child process.
+                (default: on)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>--palette {name}</option></term>
         <listitem>
           <para>Change the default color-palette. This shouldn't be used

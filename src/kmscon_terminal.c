@@ -539,6 +539,8 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	if (ret)
 		goto err_vte;
 
+	kmscon_pty_set_env_reset(term->pty, term->conf->reset_env);
+
 	ret = kmscon_pty_set_term(term->pty, term->conf->term);
 	if (ret)
 		goto err_pty;

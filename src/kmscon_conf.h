@@ -88,6 +88,8 @@ struct kmscon_conf_t {
 	char **argv;
 	/* TERM value */
 	char *term;
+	/* reset environment */
+	bool reset_env;
 	/* color palette */
 	char *palette;
 	/* terminal scroll-back buffer size */
