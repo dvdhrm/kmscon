@@ -60,6 +60,7 @@ struct kmscon_pty {
 	void *data;
 
 	char *term;
+	char *colorterm;
 	char **argv;
 	char *seat;
 };
@@ -119,6 +120,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 	kmscon_pty_close(pty);
 	free(pty->seat);
 	free(pty->argv);
+	free(pty->colorterm);
 	free(pty->term);
 	shl_ring_free(pty->msgbuf);
 	ev_eloop_unref(pty->eloop);
@@ -137,6 +139,22 @@ int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term)
 		return -ENOMEM;
 	free(pty->term);
 	pty->term = t;
+
+	return 0;
+}
+
+int kmscon_pty_set_colorterm(struct kmscon_pty *pty, const char *colorterm)
+{
+	char *t;
+
+	if (!pty || !colorterm)
+		return -EINVAL;
+
+	t = strdup(colorterm);
+	if (!t)
+		return -ENOMEM;
+	free(pty->colorterm);
+	pty->colorterm = t;
 
 	return 0;
 }
@@ -196,7 +214,8 @@ static bool pty_is_open(struct kmscon_pty *pty)
 }
 
 static void __attribute__((noreturn))
-exec_child(const char *term, char **argv, const char *seat)
+exec_child(const char *term, const char *colorterm, char **argv,
+	   const char *seat)
 {
 	if (!term)
 		term = "vt220";
@@ -204,6 +223,8 @@ exec_child(const char *term, char **argv, const char *seat)
 		argv = (char*[]){ "/bin/login", NULL };
 
 	setenv("TERM", term, 1);
+	if (colorterm)
+		setenv("COLORTERM", colorterm, 1);
 	if (seat)
 		setenv("XDG_SEAT", seat, 1);
 	execvp(argv[0], argv);
@@ -322,7 +343,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 		return -errno;
 	case 0:
 		setup_child(master, &ws);
-		exec_child(pty->term, pty->argv, pty->seat);
+		exec_child(pty->term, pty->colorterm, pty->argv, pty->seat);
 		exit(EXIT_FAILURE);
 	default:
 		log_debug("forking child %d", pid);
