@@ -1,0 +1,48 @@
+#
+# KMSCON system console on VTs on seat0
+# This unit takes as template argument a VT name (same as getty@.service) and
+# spawns KMSCON on this VT. Note that this does automatically limit KMSCON to
+# seat0. You cannot spawn KMSCON on other seats with this unit.
+#
+# You can replace the default getty@.service that is shipped with systemd by
+# linking it with:
+#   ln -s /usr/lib/systemd/system/kmscon@.service /etc/systemd/system/autovt@.service
+# This will make systemd start KMSCON instead of agetty on each VT. Or more
+# precisely, this will make systemd-logind use kmscon@.service instead of
+# getty@.service for new VTs. In fact, all other units/scripts/... that use
+# getty@.service will not be affected by this change.
+#
+# Note that by default getty@.service installs itself as getty@tty1.service.
+# This unit does the same and overrules getty@tty1.service via the "Conflict"
+# line below.
+#
+# If KMSCON cannot start for whatever reason, this unit will cause
+# getty@.service to be started instead. So you will always have a safe fallback.
+# Furthermore, if no VTs are available, this unit will not start anything.
+#
+# You can still use getty@.service and kmsconvt@.service simultaneously on
+# different VTs, but you cannot use both on the same VT (and this wouldn't make
+# any sense).
+#
+
+[Unit]
+Description=KMS System Console on %I
+Documentation=man:kmscon(1)
+After=systemd-user-sessions.service
+After=plymouth-quit-wait.service
+Before=getty.target
+Conflicts=getty@%i.service
+OnFailure=getty@%i.service
+IgnoreOnIsolate=yes
+ConditionPathExists=/dev/tty0
+
+[Service]
+ExecStart=/usr/bin/kmscon "--vt=%I" --seats=seat0 --no-switchvt
+UtmpIdentifier=%I
+TTYPath=/dev/%I
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+[Install]
+Alias=getty.target.wants/kmsconvt@tty1.service
