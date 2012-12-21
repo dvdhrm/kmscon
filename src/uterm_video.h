@@ -102,10 +102,9 @@ struct drm_mode {
 };
 
 struct drm_rb {
+	struct uterm_display *disp;
 	struct gbm_bo *bo;
 	uint32_t fb;
-	EGLImageKHR image;
-	GLuint rb;
 };
 
 struct drm_display {
@@ -113,17 +112,20 @@ struct drm_display {
 	int crtc_id;
 	drmModeCrtc *saved_crtc;
 
-	int current_rb;
-	struct drm_rb rb[2];
-	GLuint fb;
+	struct gbm_surface *gbm;
+	EGLSurface surface;
+	struct drm_rb *current;
+	struct drm_rb *next;
+	unsigned int ignore_flips;
 };
 
 struct drm_video {
 	int fd;
 	struct ev_fd *efd;
 	struct gbm_device *gbm;
-	EGLDisplay *disp;
-	EGLContext *ctx;
+	EGLDisplay disp;
+	EGLConfig conf;
+	EGLContext ctx;
 
 	unsigned int sinit;
 	bool supports_rowlen;

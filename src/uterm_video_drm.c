@@ -66,21 +66,35 @@ static unsigned int mode_get_height(const struct uterm_mode *mode)
 	return mode->drm.info.vdisplay;
 }
 
-static int init_rb(struct uterm_display *disp, struct drm_rb *rb)
+static void bo_destroy_event(struct gbm_bo *bo, void *data)
 {
-	unsigned int stride, handle;
-	int ret;
-	struct uterm_video *video = disp->video;
+	struct drm_rb *rb = data;
 
-	rb->bo = gbm_bo_create(video->drm.gbm,
-				disp->current_mode->drm.info.hdisplay,
-				disp->current_mode->drm.info.vdisplay,
-				GBM_BO_FORMAT_XRGB8888,
-				GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
-	if (!rb->bo) {
-		log_err("cannot create gbm-bo");
-		return -EFAULT;
+	if (!rb)
+		return;
+
+	drmModeRmFB(rb->disp->video->drm.fd, rb->fb);
+	free(rb);
+}
+
+static struct drm_rb *bo_to_rb(struct uterm_display *disp, struct gbm_bo *bo)
+{
+	struct drm_rb *rb = gbm_bo_get_user_data(bo);
+	struct uterm_video *video = disp->video;
+	int ret;
+	unsigned int stride, handle, width, height;;
+
+	if (rb)
+		return rb;
+
+	rb = malloc(sizeof(*rb));
+	if (!rb) {
+		log_error("cannot allocate memory for render buffer (%d): %m",
+			  errno);
+		return NULL;
 	}
+	rb->disp = disp;
+	rb->bo = bo;
 
 #ifdef BUILD_HAVE_GBM_BO_GET_PITCH
 	stride = gbm_bo_get_pitch(rb->bo);
@@ -88,46 +102,19 @@ static int init_rb(struct uterm_display *disp, struct drm_rb *rb)
 	stride = gbm_bo_get_stride(rb->bo);
 #endif
 	handle = gbm_bo_get_handle(rb->bo).u32;
+	width = gbm_bo_get_width(rb->bo);
+	height = gbm_bo_get_height(rb->bo);
 
-	/* TODO: how can we choose 24/32 dynamically? */
-	ret = drmModeAddFB(video->drm.fd,
-					disp->current_mode->drm.info.hdisplay,
-					disp->current_mode->drm.info.vdisplay,
-					24, 32, stride, handle, &rb->fb);
+	ret = drmModeAddFB(video->drm.fd, width, height, 24, 32, stride,
+			   handle, &rb->fb);
 	if (ret) {
-		log_err("cannot add drm-fb");
-		ret = -EFAULT;
-		goto err_gbm;
+		log_err("cannot add drm-fb (%d): %m", errno);
+		free(rb);
+		return NULL;
 	}
 
-	rb->image = eglCreateImageKHR(video->drm.disp, NULL,
-					EGL_NATIVE_PIXMAP_KHR, rb->bo, NULL);
-	if (!rb->image) {
-		log_err("cannot create egl image");
-		ret = -EFAULT;
-		goto err_fb;
-	}
-
-	glGenRenderbuffers(1, &rb->rb);
-	glBindRenderbuffer(GL_RENDERBUFFER, rb->rb);
-	glEGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, rb->image);
-
-	return 0;
-
-err_fb:
-	drmModeRmFB(video->drm.fd, rb->fb);
-err_gbm:
-	gbm_bo_destroy(rb->bo);
-	return ret;
-}
-
-static void destroy_rb(struct uterm_display *disp, struct drm_rb *rb)
-{
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glDeleteRenderbuffers(1, &rb->rb);
-	eglDestroyImageKHR(disp->video->drm.disp, rb->image);
-	drmModeRmFB(disp->video->drm.fd, rb->fb);
-	gbm_bo_destroy(rb->bo);
+	gbm_bo_set_user_data(bo, rb, bo_destroy_event);
+	return rb;
 }
 
 static int find_crtc(struct uterm_video *video, drmModeRes *res,
@@ -158,18 +145,15 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	drmModeRes *res;
 	drmModeConnector *conn;
 	drmModeEncoder *enc;
+	struct gbm_bo *bo;
 
 	if (!video || !video_is_awake(video) || !mode)
 		return -EINVAL;
 	if (display_is_online(disp))
 		return -EINVAL;
 
-	ret = video_do_use(disp->video);
-	if (ret)
-		return ret;
-
 	log_info("activating display %p to %ux%u", disp,
-			mode->drm.info.hdisplay, mode->drm.info.vdisplay);
+		 mode->drm.info.hdisplay, mode->drm.info.vdisplay);
 
 	res = drmModeGetResources(video->drm.fd);
 	if (!res) {
@@ -203,63 +187,86 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	}
 
 	disp->drm.crtc_id = crtc;
-	disp->drm.current_rb = 0;
+	disp->drm.current = NULL;
+	disp->drm.next = NULL;
 	disp->current_mode = mode;
 	disp->drm.saved_crtc = drmModeGetCrtc(video->drm.fd,
-							disp->drm.crtc_id);
+					      disp->drm.crtc_id);
 
-	ret = init_rb(disp, &disp->drm.rb[0]);
-	if (ret)
+	disp->drm.gbm = gbm_surface_create(video->drm.gbm,
+					   mode->drm.info.hdisplay,
+					   mode->drm.info.vdisplay,
+					   GBM_FORMAT_XRGB8888,
+					   GBM_BO_USE_SCANOUT |
+					   GBM_BO_USE_RENDERING);
+	if (!disp->drm.gbm) {
+		log_error("cannot create gbm surface (%d): %m", errno);
+		ret = -EFAULT;
 		goto err_saved;
-
-	ret = init_rb(disp, &disp->drm.rb[1]);
-	if (ret)
-		goto err_rb;
-
-	glGenFramebuffers(1, &disp->drm.fb);
-	glBindFramebuffer(GL_FRAMEBUFFER, disp->drm.fb);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-				  GL_RENDERBUFFER, disp->drm.rb[0].rb);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-		log_err("cannot create gl-framebuffer");
-		ret = -EFAULT;
-		goto err_fb;
 	}
 
-	glClearColor(0, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-				  GL_RENDERBUFFER, disp->drm.rb[1].rb);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-		log_warn("cannot set gl-renderbuffer");
+	disp->drm.surface = eglCreateWindowSurface(video->drm.disp,
+						   video->drm.conf,
+						   (EGLNativeWindowType)disp->drm.gbm,
+						   NULL);
+	if (disp->drm.surface == EGL_NO_SURFACE) {
+		log_error("cannot create EGL window surface");
 		ret = -EFAULT;
-		goto err_fb;
+		goto err_gbm;
 	}
 
+	if (!eglMakeCurrent(video->drm.disp, disp->drm.surface,
+			    disp->drm.surface, video->drm.ctx)) {
+		log_error("cannot activate EGL context");
+		ret = -EFAULT;
+		goto err_surface;
+	}
+
+	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
+	if (!eglSwapBuffers(video->drm.disp, disp->drm.surface)) {
+		log_error("cannot swap buffers");
+		ret = -EFAULT;
+		goto err_noctx;
+	}
+
+	bo = gbm_surface_lock_front_buffer(disp->drm.gbm);
+	if (!bo) {
+		log_error("cannot lock front buffer during creation");
+		ret = -EFAULT;
+		goto err_noctx;
+	}
+
+	disp->drm.current = bo_to_rb(disp, bo);
+	if (!disp->drm.current) {
+		log_error("cannot lock front buffer");
+		ret = -EFAULT;
+		goto err_bo;
+	}
 
 	ret = drmModeSetCrtc(video->drm.fd, disp->drm.crtc_id,
-			disp->drm.rb[0].fb, 0, 0, &disp->drm.conn_id, 1,
-						&disp->current_mode->drm.info);
+			     disp->drm.current->fb, 0, 0, &disp->drm.conn_id, 1,
+			     &disp->current_mode->drm.info);
 	if (ret) {
 		log_err("cannot set drm-crtc");
 		ret = -EFAULT;
-		goto err_fb;
+		goto err_bo;
 	}
 
 	disp->flags |= DISPLAY_ONLINE;
 	return 0;
 
-err_fb:
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDeleteFramebuffers(1, &disp->drm.fb);
-	destroy_rb(disp, &disp->drm.rb[1]);
-err_rb:
-	destroy_rb(disp, &disp->drm.rb[0]);
+err_bo:
+	gbm_surface_release_buffer(disp->drm.gbm, bo);
+err_noctx:
+	eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+		       video->drm.ctx);
+err_surface:
+	eglDestroySurface(video->drm.disp, disp->drm.surface);
+err_gbm:
+	gbm_surface_destroy(disp->drm.gbm);
 err_saved:
+	disp->drm.crtc_id = 0;
 	disp->current_mode = NULL;
 	if (disp->drm.saved_crtc) {
 		drmModeFreeCrtc(disp->drm.saved_crtc);
@@ -270,7 +277,6 @@ err_saved:
 
 static void display_deactivate(struct uterm_display *disp)
 {
-	int ret;
 
 	if (!display_is_online(disp))
 		return;
@@ -290,14 +296,22 @@ static void display_deactivate(struct uterm_display *disp)
 		disp->drm.saved_crtc = NULL;
 	}
 
-	ret = video_do_use(disp->video);
-	if (ret)
-		return;
+	eglMakeCurrent(disp->video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+		       disp->video->drm.ctx);
+	eglDestroySurface(disp->video->drm.disp, disp->drm.surface);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDeleteFramebuffers(1, &disp->drm.fb);
-	destroy_rb(disp, &disp->drm.rb[1]);
-	destroy_rb(disp, &disp->drm.rb[0]);
+	if (disp->drm.current) {
+		gbm_surface_release_buffer(disp->drm.gbm,
+					   disp->drm.current->bo);
+		disp->drm.current = NULL;
+	}
+	if (disp->drm.next) {
+		gbm_surface_release_buffer(disp->drm.gbm,
+					   disp->drm.next->bo);
+		disp->drm.next = NULL;
+	}
+
+	gbm_surface_destroy(disp->drm.gbm);
 	disp->current_mode = NULL;
 	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
 	log_info("deactivating display %p", disp);
@@ -372,23 +386,119 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 
 static int display_use(struct uterm_display *disp)
 {
-	int ret;
-
 	if (!display_is_online(disp))
 		return -EINVAL;
 
-	ret = video_do_use(disp->video);
-	if (ret)
-		return ret;
-
-	/* TODO: we need triple buffering as a VSYNC may still be pending */
-	glBindFramebuffer(GL_FRAMEBUFFER, disp->drm.fb);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-		GL_RENDERBUFFER, disp->drm.rb[disp->drm.current_rb ^ 1].rb);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-		log_warn("cannot set gl-renderbuffer");
+	if (!eglMakeCurrent(disp->video->drm.disp, disp->drm.surface,
+			    disp->drm.surface, disp->video->drm.ctx)) {
+		log_error("cannot activate EGL context");
 		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int swap_display(struct uterm_display *disp, bool immediate)
+{
+	int ret;
+	struct gbm_bo *bo;
+	struct drm_rb *rb;
+
+	if (!display_is_online(disp) || !video_is_awake(disp->video))
+		return -EINVAL;
+	if (disp->dpms != UTERM_DPMS_ON)
+		return -EINVAL;
+	if (!immediate &&
+	    ((disp->flags & DISPLAY_VSYNC) || disp->drm.ignore_flips))
+		return -EBUSY;
+
+	/* TODO: immediate page-flips are somewhat buggy and can cause
+	 * dead-locks in the kernel. This is being worked on and will hopefully
+	 * be fixed soon. However, until then, we prevent immediate page-flips
+	 * if there is another vsync'ed flip pending and print a warning
+	 * instead. If this is fixed, simply remove this warning and everything
+	 * should work. */
+	if (disp->flags & DISPLAY_VSYNC) {
+		log_warning("immediate page-flip canceled as another page-flip is pending");
+		return 0;
+	}
+
+	if (!gbm_surface_has_free_buffers(disp->drm.gbm)) {
+		if (disp->drm.next) {
+			log_debug("no free buffer, releasing next-buffer");
+			gbm_surface_release_buffer(disp->drm.gbm,
+						   disp->drm.next->bo);
+			disp->drm.next = NULL;
+		} else if (disp->drm.current) {
+			log_debug("no free buffer, releasing current-buffer");
+			gbm_surface_release_buffer(disp->drm.gbm,
+						   disp->drm.current->bo);
+			disp->drm.current = NULL;
+		}
+
+		if (!gbm_surface_has_free_buffers(disp->drm.gbm)) {
+			log_warning("gbm ran out of free buffers");
+			return -EFAULT;
+		}
+	}
+
+	if (!eglSwapBuffers(disp->video->drm.disp, disp->drm.surface)) {
+		log_error("cannot swap EGL buffers (%d): %m", errno);
+		return -EFAULT;
+	}
+
+	bo = gbm_surface_lock_front_buffer(disp->drm.gbm);
+	if (!bo) {
+		log_error("cannot lock front buffer");
+		return -EFAULT;
+	}
+
+	rb = bo_to_rb(disp, bo);
+	if (!rb) {
+		log_error("cannot lock front gbm buffer (%d): %m", errno);
+		gbm_surface_release_buffer(disp->drm.gbm, bo);
+		return -EFAULT;
+	}
+
+	if (immediate) {
+		ret = drmModeSetCrtc(disp->video->drm.fd, disp->drm.crtc_id,
+				     rb->fb, 0, 0, &disp->drm.conn_id, 1,
+				     &disp->current_mode->drm.info);
+		if (ret) {
+			log_err("cannot set drm-crtc");
+			gbm_surface_release_buffer(disp->drm.gbm, bo);
+			return -EFAULT;
+		}
+
+		if (disp->drm.current) {
+			gbm_surface_release_buffer(disp->drm.gbm,
+						   disp->drm.current->bo);
+			disp->drm.current = NULL;
+		}
+		if (disp->drm.next) {
+			gbm_surface_release_buffer(disp->drm.gbm,
+						   disp->drm.next->bo);
+			disp->drm.next = NULL;
+		}
+		disp->drm.current = rb;
+
+		if (disp->flags & DISPLAY_VSYNC) {
+			disp->flags &= ~DISPLAY_VSYNC;
+			disp->drm.ignore_flips++;
+			DISPLAY_CB(disp, UTERM_PAGE_FLIP);
+		}
+	} else {
+		ret = drmModePageFlip(disp->video->drm.fd, disp->drm.crtc_id,
+				      rb->fb, DRM_MODE_PAGE_FLIP_EVENT, disp);
+		if (ret) {
+			log_warn("page-flip failed %d %d", ret, errno);
+			gbm_surface_release_buffer(disp->drm.gbm, bo);
+			return -EFAULT;
+		}
+
+		disp->drm.next = rb;
+		uterm_display_ref(disp);
+		disp->flags |= DISPLAY_VSYNC;
 	}
 
 	return 0;
@@ -396,29 +506,7 @@ static int display_use(struct uterm_display *disp)
 
 static int display_swap(struct uterm_display *disp)
 {
-	int ret;
-
-	if (!display_is_online(disp) || !video_is_awake(disp->video))
-		return -EINVAL;
-	if (disp->dpms != UTERM_DPMS_ON)
-		return -EINVAL;
-
-	/* TODO: is glFlush sufficient here? */
-	glFinish();
-
-	errno = 0;
-	disp->drm.current_rb ^= 1;
-	ret = drmModePageFlip(disp->video->drm.fd, disp->drm.crtc_id,
-				disp->drm.rb[disp->drm.current_rb].fb,
-				DRM_MODE_PAGE_FLIP_EVENT, disp);
-	if (ret) {
-		log_warn("page-flip failed %d %d", ret, errno);
-		return -EFAULT;
-	}
-	uterm_display_ref(disp);
-	disp->flags |= DISPLAY_VSYNC;
-
-	return 0;
+	return swap_display(disp, false);
 }
 
 extern const char *gl_static_fill_vert;
@@ -876,11 +964,8 @@ static void show_displays(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_display *iter;
-	struct drm_rb *rb;
 
 	if (!video_is_awake(video))
-		return;
-	if (video_do_use(video))
 		return;
 
 	for (iter = video->displays; iter; iter = iter->next) {
@@ -889,28 +974,13 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
-		rb = &iter->drm.rb[iter->drm.current_rb];
-
-		glBindFramebuffer(GL_FRAMEBUFFER, iter->drm.fb);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-					  GL_RENDERBUFFER, rb->rb);
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) !=
-						GL_FRAMEBUFFER_COMPLETE) {
-			log_warn("cannot set gl-renderbuffer");
+		ret = display_use(iter);
+		if (ret)
 			continue;
-		}
 
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
-		glFinish();
-
-		ret = drmModeSetCrtc(video->drm.fd, iter->drm.crtc_id,
-				     rb->fb, 0, 0, &iter->drm.conn_id, 1,
-				     &iter->current_mode->drm.info);
-		if (ret) {
-			log_err("cannot set drm-crtc on display %p", iter);
-			continue;
-		}
+		swap_display(iter, true);
 	}
 }
 
@@ -1006,15 +1076,25 @@ static void unbind_display(struct uterm_display *disp)
 }
 
 static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
-						unsigned int usec, void *data)
+			      unsigned int usec, void *data)
 {
 	struct uterm_display *disp = data;
 
-	uterm_display_unref(disp);
-	if (disp->flags & DISPLAY_VSYNC) {
+	if (disp->drm.ignore_flips) {
+		--disp->drm.ignore_flips;
+	} else if (disp->flags & DISPLAY_VSYNC) {
 		disp->flags &= ~DISPLAY_VSYNC;
+		if (disp->drm.next) {
+			if (disp->drm.current)
+				gbm_surface_release_buffer(disp->drm.gbm,
+							   disp->drm.current->bo);
+			disp->drm.current = disp->drm.next;
+			disp->drm.next = NULL;
+		}
 		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 	}
+
+	uterm_display_unref(disp);
 }
 
 static void event(struct ev_fd *fd, int mask, void *data)
@@ -1022,6 +1102,7 @@ static void event(struct ev_fd *fd, int mask, void *data)
 	struct uterm_video *video = data;
 	drmEventContext ev;
 
+	/* TODO: forward HUP to caller */
 	if (mask & (EV_HUP | EV_ERR)) {
 		log_err("error or hangup on DRM fd");
 		ev_eloop_rm_fd(video->drm.efd);
@@ -1041,15 +1122,32 @@ static int video_init(struct uterm_video *video, const char *node)
 {
 	const char *ext;
 	int ret;
-	EGLint major, minor;
+	EGLint major, minor, n;
 	EGLenum api;
-	static const EGLint ctx_att[] =
-		{ EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE };
+	EGLBoolean b;
+	static const EGLint conf_att[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 0,
+		EGL_NONE,
+	};
+	static const EGLint ctx_att[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 2,
+		EGL_NONE
+	};
 	struct drm_video *drm = &video->drm;
 
 	log_info("probing %s", node);
 
-	drm->fd = open(node, O_RDWR | O_CLOEXEC);
+	/* TODO: Unfortunately DRM drivers automatically set DRM-Master for the
+	 * first application that opens a DRM devices This introduces a short
+	 * race-condition if we don't want to be DRM-Master but another
+	 * application that opens it shortly after us wants to become
+	 * DRM-Master. Should be fixed kernel-side. */
+	drm->fd = open(node, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (drm->fd < 0) {
 		log_err("cannot open drm device %s (%d): %m", node, errno);
 		return -EFAULT;
@@ -1065,44 +1163,56 @@ static int video_init(struct uterm_video *video, const char *node)
 	}
 
 	drm->disp = eglGetDisplay((EGLNativeDisplayType) drm->gbm);
-	if (!drm->disp) {
+	if (drm->disp == EGL_NO_DISPLAY) {
 		log_err("cannot retrieve egl display for %s", node);
 		ret = -EFAULT;
 		goto err_gbm;
 	}
 
-	ret = eglInitialize(drm->disp, &major, &minor);
-	if (!ret) {
+	b = eglInitialize(drm->disp, &major, &minor);
+	if (!b) {
 		log_err("cannot init egl display for %s", node);
 		ret = -EFAULT;
 		goto err_gbm;
 	}
 
+	log_debug("EGL Init %d.%d", major, minor);
+	log_debug("EGL Version %s", eglQueryString(drm->disp, EGL_VERSION));
+	log_debug("EGL Vendor %s", eglQueryString(drm->disp, EGL_VENDOR));
 	ext = eglQueryString(drm->disp, EGL_EXTENSIONS);
-	if (!ext || (!strstr(ext, "EGL_KHR_surfaceless_opengl") && !strstr(ext, "EGL_KHR_surfaceless_context"))) {
+	log_debug("EGL Extensions %s", ext);
+
+	if (!ext || !strstr(ext, "EGL_KHR_surfaceless_context")) {
 		log_err("surfaceless opengl not supported");
 		ret = -EFAULT;
 		goto err_disp;
 	}
 
 	api = EGL_OPENGL_ES_API;
-	/* TODO: allow api = EGL_OPENGL_API */
 	if (!eglBindAPI(api)) {
 		log_err("cannot bind opengl-es api");
 		ret = -EFAULT;
 		goto err_disp;
 	}
 
-	drm->ctx = eglCreateContext(drm->disp, NULL, EGL_NO_CONTEXT, ctx_att);
-	if (!drm->ctx) {
-		log_err("cannot create egl context");
+	b = eglChooseConfig(drm->disp, conf_att, &drm->conf, 1, &n);
+	if (!b || n != 1) {
+		log_error("cannot find a proper EGL framebuffer configuration");
 		ret = -EFAULT;
 		goto err_disp;
 	}
 
-	if (!eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
-			    drm->ctx)) {
-		log_err("cannot activate egl context");
+	video->drm.ctx = eglCreateContext(video->drm.disp, video->drm.conf,
+					  EGL_NO_CONTEXT, ctx_att);
+	if (video->drm.ctx == EGL_NO_CONTEXT) {
+		log_error("cannot create egl context");
+		ret = -EFAULT;
+		goto err_disp;
+	}
+
+	if (!eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			    video->drm.ctx)) {
+		log_error("cannot activate surfaceless EGL context");
 		ret = -EFAULT;
 		goto err_ctx;
 	}
@@ -1113,8 +1223,8 @@ static int video_init(struct uterm_video *video, const char *node)
 	else
 		log_warning("your GL implementation does not support GL_EXT_unpack_subimage, rendering may be slower than usual");
 
-	ret = ev_eloop_new_fd(video->eloop, &drm->efd, drm->fd,
-				EV_READABLE, event, video);
+	ret = ev_eloop_new_fd(video->eloop, &drm->efd, drm->fd, EV_READABLE,
+			      event, video);
 	if (ret)
 		goto err_noctx;
 
@@ -1124,9 +1234,7 @@ static int video_init(struct uterm_video *video, const char *node)
 	return 0;
 
 err_noctx:
-	eglMakeCurrent(drm->disp,
-		       EGL_NO_SURFACE,
-		       EGL_NO_SURFACE,
+	eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
 		       EGL_NO_CONTEXT);
 err_ctx:
 	eglDestroyContext(drm->disp, drm->ctx);
@@ -1153,32 +1261,18 @@ static void video_destroy(struct uterm_video *video)
 	log_info("free drm device");
 	ev_eloop_rm_fd(drm->efd);
 
-	video_do_use(video);
+	if (!eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+			    video->drm.ctx))
+		log_error("cannot activate GL context during destruction");
 	deinit_shaders(video);
 
-	eglMakeCurrent(drm->disp,
-			EGL_NO_SURFACE,
-			EGL_NO_SURFACE,
-			EGL_NO_CONTEXT);
+	eglMakeCurrent(drm->disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+		       EGL_NO_CONTEXT);
 	eglDestroyContext(drm->disp, drm->ctx);
 	eglTerminate(drm->disp);
 	gbm_device_destroy(drm->gbm);
 	drmDropMaster(drm->fd);
 	close(drm->fd);
-}
-
-static int video_use(struct uterm_video *video)
-{
-	if (eglGetCurrentContext() == video->drm.ctx)
-		return 0;
-
-	if (!eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
-				video->drm.ctx)) {
-		log_err("cannot activate egl context");
-		return -EFAULT;
-	}
-
-	return 0;
 }
 
 static int hotplug(struct uterm_video *video)
@@ -1311,7 +1405,7 @@ const struct video_ops drm_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
-	.use = video_use,
+	.use = NULL,
 	.poll = video_poll,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
