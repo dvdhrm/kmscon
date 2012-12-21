@@ -567,28 +567,28 @@ static int gltex_draw(struct kmscon_text *txt,
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 0] =
 		gt->advance_x * posx - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 1] =
-		gt->advance_y * posy - 1;
+		1 - gt->advance_y * posy;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 2] =
 		gt->advance_x * posx - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 3] =
-		gt->advance_y * posy + gt->advance_y - 1;
+		1 - (gt->advance_y * posy + gt->advance_y);
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 4] =
 		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 5] =
-		gt->advance_y * posy + gt->advance_y - 1;
+		1 - (gt->advance_y * posy + gt->advance_y);
 
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 6] =
 		gt->advance_x * posx - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 7] =
-		gt->advance_y * posy - 1;
+		1 - gt->advance_y * posy;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 8] =
 		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 9] =
-		gt->advance_y * posy + gt->advance_y - 1;
+		1 - (gt->advance_y * posy + gt->advance_y);
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 10] =
 		gt->advance_x * posx + width * gt->advance_x - 1;
 	atlas->cache_pos[atlas->cache_num * 2 * 6 + 11] =
-		gt->advance_y * posy - 1;
+		1 - gt->advance_y * posy;
 
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 0] = glyph->texoff;
 	atlas->cache_texpos[atlas->cache_num * 2 * 6 + 1] = 0.0;
