@@ -141,7 +141,7 @@ static void print_help()
 		"Font Options:\n"
 		"\t    --font-engine <engine>  [pango]\n"
 		"\t                              Font engine\n"
-		"\t    --font-size <points>    [15]\n"
+		"\t    --font-size <points>    [12]\n"
 		"\t                              Font size in points\n"
 		"\t    --font-name <name>      [monospace]\n"
 		"\t                              Font name\n"

@@ -478,7 +478,7 @@
       <varlistentry>
         <term><option>--font-size {points}</option></term>
         <listitem>
-          <para>Font size in points. (default: 15)</para>
+          <para>Font size in points. (default: 12)</para>
         </listitem>
       </varlistentry>
 
