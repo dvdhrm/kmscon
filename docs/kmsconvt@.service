@@ -6,9 +6,9 @@
 #
 # You can replace the default getty@.service that is shipped with systemd by
 # linking it with:
-#   ln -s /usr/lib/systemd/system/kmscon@.service /etc/systemd/system/autovt@.service
+#   ln -s /usr/lib/systemd/system/kmsconvt@.service /etc/systemd/system/autovt@.service
 # This will make systemd start KMSCON instead of agetty on each VT. Or more
-# precisely, this will make systemd-logind use kmscon@.service instead of
+# precisely, this will make systemd-logind use kmsconvt@.service instead of
 # getty@.service for new VTs. In fact, all other units/scripts/... that use
 # getty@.service will not be affected by this change.
 #
