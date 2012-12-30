@@ -63,8 +63,9 @@ endif
 # The SHL subsystem contains several small code pieces used all over kmscon and
 # other applications.
 #
-# Simply include $(SHL_*) in your source-file list. Except for SHL_MISC none of
-# these have external dependencies. SHL_MISC needs xkbcommon.
+# Simply include $(SHL_*) in your source-file list.
+# SHL_MISC needs xkbcommon
+# SHL_REGISTER needs pthread
 #
 
 SHL_DLIST = \
@@ -86,6 +87,9 @@ SHL_HOOK = \
 	$(SHL_DLIST)
 SHL_MISC = \
 	src/shl_misc.h
+SHL_REGISTER = \
+	src/shl_register.h \
+	$(SHL_DLIST)
 
 #
 # libeloop
