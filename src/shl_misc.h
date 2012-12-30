@@ -31,15 +31,32 @@
 #ifndef SHL_MISC_H
 #define SHL_MISC_H
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 
 #define SHL_HAS_BITS(_bitmask, _bits) (((_bitmask) & (_bits)) == (_bits))
 #define SHL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+
+static inline int shl_dirent(const char *path, struct dirent **ent)
+{
+	size_t len;
+	struct dirent *tmp;
+
+	len = offsetof(struct dirent, d_name) +
+					pathconf(path, _PC_NAME_MAX) + 1;
+	tmp = malloc(len);
+	if (!tmp)
+		return -ENOMEM;
+
+	*ent = tmp;
+	return 0;
+}
 
 static inline int shl_strtou(const char *input, unsigned int *output)
 {
