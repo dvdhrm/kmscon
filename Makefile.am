@@ -370,6 +370,7 @@ kmscon_SOURCES = \
 	$(SHL_RING) \
 	$(SHL_TIMER) \
 	$(SHL_HOOK) \
+	$(SHL_REGISTER) \
 	src/conf.h \
 	src/conf.c \
 	src/log.h \

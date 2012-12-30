@@ -121,6 +121,7 @@ struct kmscon_text_ops;
 
 struct kmscon_text {
 	unsigned long ref;
+	struct shl_register_record *record;
 	const struct kmscon_text_ops *ops;
 	void *data;
 

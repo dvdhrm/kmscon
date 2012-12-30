@@ -37,28 +37,13 @@
 #include <string.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_register.h"
 #include "text.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text"
 
-struct text_backend {
-	struct shl_dlist list;
-	const struct kmscon_text_ops *ops;
-};
-
-static pthread_mutex_t text_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct shl_dlist text__list = SHL_DLIST_INIT(text__list);
-
-static void text_lock()
-{
-	pthread_mutex_lock(&text_mutex);
-}
-
-static void text_unlock()
-{
-	pthread_mutex_unlock(&text_mutex);
-}
+static struct shl_register text_reg = SHL_REGISTER_INIT(text_reg);
 
 /**
  * kmscon_text_register:
@@ -76,43 +61,21 @@ static void text_unlock()
  */
 int kmscon_text_register(const struct kmscon_text_ops *ops)
 {
-	struct shl_dlist *iter;
-	struct text_backend *be;
 	int ret;
 
-	if (!ops || !ops->name)
+	if (!ops)
 		return -EINVAL;
 
 	log_debug("register text backend %s", ops->name);
 
-	text_lock();
-
-	shl_dlist_for_each(iter, &text__list) {
-		be = shl_dlist_entry(iter, struct text_backend, list);
-		if (!strcmp(be->ops->name, ops->name)) {
-			log_error("registering already available backend %s",
-				  ops->name);
-			ret = -EALREADY;
-			goto out_unlock;
-		}
+	ret = shl_register_add(&text_reg, ops->name, (void*)ops);
+	if (ret) {
+		log_error("cannot register text backend %s: %d", ops->name,
+			  ret);
+		return ret;
 	}
 
-	be = malloc(sizeof(*be));
-	if (!be) {
-		log_error("cannot allocate memory for backend");
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
-	memset(be, 0, sizeof(*be));
-	be->ops = ops;
-	shl_dlist_link(&text__list, &be->list);
-
-	ret = 0;
-
-out_unlock:
-	text_unlock();
-	return ret;
+	return 0;
 }
 
 /**
@@ -120,39 +83,48 @@ out_unlock:
  * @name: Name of backend
  *
  * This unregisters the text-backend that is registered with name @name. If
- * @name is not found, a warning is printed but nothing else is done.
+ * @name is not found, nothing is done.
  */
 void kmscon_text_unregister(const char *name)
 {
-	struct shl_dlist *iter;
-	struct text_backend *be;
-
-	if (!name)
-		return;
-
 	log_debug("unregister backend %s", name);
+	shl_register_remove(&text_reg, name);
+}
 
-	text_lock();
+static int new_text(struct kmscon_text *text, const char *backend)
+{
+	struct shl_register_record *record;
+	const char *name = backend ? backend : "<default>";
+	int ret;
 
-	shl_dlist_for_each(iter, &text__list) {
-		be = shl_dlist_entry(iter, struct text_backend, list);
-		if (strcmp(name, be->ops->name))
-			continue;
+	memset(text, 0, sizeof(*text));
+	text->ref = 1;
 
-		shl_dlist_unlink(&be->list);
-		break;
+	if (backend)
+		record = shl_register_find(&text_reg, backend);
+	else
+		record = shl_register_first(&text_reg);
+
+	if (!record) {
+		log_error("requested backend '%s' not found", name);
+		return -ENOENT;
 	}
 
-	if (iter == &text__list)
-		be = NULL;
+	text->record = record;
+	text->ops = record->data;
 
-	text_unlock();
+	if (text->ops->init)
+		ret = text->ops->init(text);
+	else
+		ret = 0;
 
-	if (!be) {
-		log_error("cannot unregister backend %s: not found", name);
-	} else {
-		free(be);
+	if (ret) {
+		log_warning("backend %s cannot create renderer", name);
+		shl_register_record_unref(record);
+		return ret;
 	}
+
+	return 0;
 }
 
 /**
@@ -162,94 +134,34 @@ void kmscon_text_unregister(const char *name)
  *
  * Returns: 0 on success, error code on failure
  */
-int kmscon_text_new(struct kmscon_text **out,
-		    const char *backend)
+int kmscon_text_new(struct kmscon_text **out, const char *backend)
 {
 	struct kmscon_text *text;
-	struct shl_dlist *iter;
-	struct text_backend *be, *def;
 	int ret;
 
 	if (!out)
 		return -EINVAL;
 
-	text_lock();
-
-	if (shl_dlist_empty(&text__list)) {
-		log_error("no text backend available");
-		ret = -EFAULT;
-	} else {
-		ret = 0;
-		def = shl_dlist_entry(text__list.prev,
-					 struct text_backend,
-					 list);
-		if (!backend) {
-			be = def;
-		} else {
-			shl_dlist_for_each(iter, &text__list) {
-				be = shl_dlist_entry(iter,
-							struct text_backend,
-							list);
-				if (!strcmp(backend, be->ops->name))
-					break;
-			}
-			if (iter == &text__list) {
-				log_warning("requested backend %s not found",
-					    backend);
-				be = def;
-			}
-		}
-	}
-
-	if (ret)
-		goto out_unlock;
-
 	text = malloc(sizeof(*text));
 	if (!text) {
 		log_error("cannot allocate memory for new text-renderer");
-		ret = -ENOMEM;
-		goto out_unlock;
+		return -ENOMEM;
 	}
-	memset(text, 0, sizeof(*text));
-	text->ref = 1;
-	text->ops = be->ops;
 
-	if (text->ops->init)
-		ret = text->ops->init(text);
-	else
-		ret = 0;
-
+	ret = new_text(text, backend);
 	if (ret) {
-		if (be == def) {
-			log_error("default backend %s cannot create renderer",
-				  text->ops->name);
+		if (backend)
+			ret = new_text(text, NULL);
+		if (ret)
 			goto err_free;
-		}
-
-		log_warning("backend %s cannot create renderer; trying default backend %s",
-			    be->ops->name, def->ops->name);
-
-		memset(text, 0, sizeof(*text));
-		text->ref = 1;
-		text->ops = def->ops;
-
-		ret = text->ops->init(text);
-		if (ret) {
-			log_error("default backend %s cannot create renderer",
-				  text->ops->name);
-			goto err_free;
-		}
 	}
 
 	log_debug("using: be: %s", text->ops->name);
 	*out = text;
-	ret = 0;
-	goto out_unlock;
+	return 0;
 
 err_free:
 	free(text);
-out_unlock:
-	text_unlock();
 	return ret;
 }
 
@@ -282,13 +194,10 @@ void kmscon_text_unref(struct kmscon_text *text)
 	log_debug("freeing text renderer");
 	kmscon_text_unset(text);
 
-	text_lock();
-
 	if (text->ops->destroy)
 		text->ops->destroy(text);
+	shl_register_record_unref(text->record);
 	free(text);
-
-	text_unlock();
 }
 
 /**
