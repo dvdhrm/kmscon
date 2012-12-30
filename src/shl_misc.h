@@ -95,6 +95,19 @@ static inline int shl_dup(void **out, const void *data, size_t size)
 	return 0;
 }
 
+static inline bool shl_ends_with(const char *str, const char *suffix)
+{
+	size_t len, slen;
+
+	len = strlen(str);
+	slen = strlen(suffix);
+
+	if (len < slen)
+		return false;
+
+	return !memcmp(str + len - slen, suffix, slen);
+}
+
 /* This parses \arg and splits the string into a new allocated array. The array
  * is stored in \out and is NULL terminated. Empty entries are removed from the
  * array if \keep_empty is false. \out_num is the number of entries in the
