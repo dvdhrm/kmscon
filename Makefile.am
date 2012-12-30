@@ -314,6 +314,7 @@ libtext_font_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_HASHTABLE) \
 	$(SHL_HOOK) \
+	$(SHL_REGISTER) \
 	src/text.h \
 	src/text_font.c
 nodist_libtext_font_la_SOURCES =

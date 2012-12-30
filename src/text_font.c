@@ -58,28 +58,13 @@
 #include <string.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_register.h"
 #include "text.h"
 #include "uterm.h"
 
 #define LOG_SUBSYSTEM "text_font"
 
-struct font_backend {
-	struct shl_dlist list;
-	const struct kmscon_font_ops *ops;
-};
-
-static pthread_mutex_t font_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct shl_dlist font__list = SHL_DLIST_INIT(font__list);
-
-static void font_lock()
-{
-	pthread_mutex_lock(&font_mutex);
-}
-
-static void font_unlock()
-{
-	pthread_mutex_unlock(&font_mutex);
-}
+static struct shl_register font_reg = SHL_REGISTER_INIT(font_reg);
 
 /**
  * kmscon_font_attr_normalize:
@@ -164,43 +149,21 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
  */
 int kmscon_font_register(const struct kmscon_font_ops *ops)
 {
-	struct shl_dlist *iter;
-	struct font_backend *be;
 	int ret;
 
-	if (!ops || !ops->name)
+	if (!ops)
 		return -EINVAL;
 
 	log_debug("register font backend %s", ops->name);
 
-	font_lock();
-
-	shl_dlist_for_each(iter, &font__list) {
-		be = shl_dlist_entry(iter, struct font_backend, list);
-		if (!strcmp(be->ops->name, ops->name)) {
-			log_error("registering already available font backend %s",
-				  ops->name);
-			ret = -EALREADY;
-			goto out_unlock;
-		}
+	ret = shl_register_add(&font_reg, ops->name, (void*)ops);
+	if (ret) {
+		log_error("cannot register font backend %s: %d", ops->name,
+			  ret);
+		return ret;
 	}
 
-	be = malloc(sizeof(*be));
-	if (!be) {
-		log_error("cannot allocate memory for font backend");
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
-	memset(be, 0, sizeof(*be));
-	be->ops = ops;
-	shl_dlist_link(&font__list, &be->list);
-
-	ret = 0;
-
-out_unlock:
-	font_unlock();
-	return ret;
+	return 0;
 }
 
 /**
@@ -212,35 +175,45 @@ out_unlock:
  */
 void kmscon_font_unregister(const char *name)
 {
-	struct shl_dlist *iter;
-	struct font_backend *be;
-
-	if (!name)
-		return;
-
 	log_debug("unregister font backend %s", name);
+	shl_register_remove(&font_reg, name);
+}
 
-	font_lock();
+static int new_font(struct kmscon_font *font,
+		    const struct kmscon_font_attr *attr, const char *backend)
+{
+	struct shl_register_record *record;
+	const char *name = backend ? backend : "<default>";
+	int ret;
 
-	shl_dlist_for_each(iter, &font__list) {
-		be = shl_dlist_entry(iter, struct font_backend, list);
-		if (strcmp(name, be->ops->name))
-			continue;
+	memset(font, 0, sizeof(*font));
+	font->ref = 1;
 
-		shl_dlist_unlink(&be->list);
-		break;
+	if (backend)
+		record = shl_register_find(&font_reg, backend);
+	else
+		record = shl_register_first(&font_reg);
+
+	if (!record) {
+		log_error("requested backend '%s' not found", name);
+		return -ENOENT;
 	}
 
-	if (iter == &font__list)
-		be = NULL;
+	font->record = record;
+	font->ops = record->data;
 
-	font_unlock();
+	if (font->ops->init)
+		ret = font->ops->init(font, attr);
+	else
+		ret = 0;
 
-	if (!be) {
-		log_error("cannot unregister font backend %s: not found", name);
-	} else {
-		free(be);
+	if (ret) {
+		log_warning("backend %s cannot create font", name);
+		shl_register_record_unref(record);
+		return ret;
 	}
+
+	return 0;
 }
 
 /**
@@ -322,80 +295,28 @@ int kmscon_font_find(struct kmscon_font **out,
 		     const char *backend)
 {
 	struct kmscon_font *font;
-	struct shl_dlist *iter;
-	struct font_backend *be, *def;
 	int ret;
 
 	if (!out || !attr)
 		return -EINVAL;
-
-	font_lock();
 
 	log_debug("searching for: be: %s nm: %s ppi: %u pt: %u b: %d i: %d he: %u wt: %u",
 		  backend, attr->name, attr->ppi, attr->points,
 		  attr->bold, attr->italic, attr->height,
 		  attr->width);
 
-	if (shl_dlist_empty(&font__list)) {
-		log_error("no font backend available");
-		ret = -EFAULT;
-	} else {
-		ret = 0;
-		def = shl_dlist_entry(font__list.prev,
-					 struct font_backend,
-					 list);
-		if (!backend) {
-			be = def;
-		} else {
-			shl_dlist_for_each(iter, &font__list) {
-				be = shl_dlist_entry(iter,
-							struct font_backend,
-							list);
-				if (!strcmp(backend, be->ops->name))
-					break;
-			}
-			if (iter == &font__list) {
-				log_warning("requested backend %s not found",
-					    backend);
-				be = def;
-			}
-		}
-	}
-
-	if (ret)
-		goto out_unlock;
-
 	font = malloc(sizeof(*font));
 	if (!font) {
 		log_error("cannot allocate memory for new font");
-		ret = -ENOMEM;
-		goto out_unlock;
+		return -ENOMEM;
 	}
-	memset(font, 0, sizeof(*font));
-	font->ref = 1;
-	font->ops = be->ops;
 
-	ret = font->ops->init(font, attr);
+	ret = new_font(font, attr, backend);
 	if (ret) {
-		if (be == def) {
-			log_error("default backend %s cannot find font",
-				  font->ops->name);
+		if (backend)
+			ret = new_font(font, attr, NULL);
+		if (ret)
 			goto err_free;
-		}
-
-		log_warning("backend %s cannot find font; trying default backend %s",
-			    be->ops->name, def->ops->name);
-
-		memset(font, 0, sizeof(*font));
-		font->ref = 1;
-		font->ops = def->ops;
-
-		ret = font->ops->init(font, attr);
-		if (ret) {
-			log_error("default backend %s cannot find font",
-				  font->ops->name);
-			goto err_free;
-		}
 	}
 
 	log_debug("using: be: %s nm: %s ppi: %u pt: %u b: %d i: %d he: %u wt: %u",
@@ -403,13 +324,10 @@ int kmscon_font_find(struct kmscon_font **out,
 		  font->attr.points, font->attr.bold, font->attr.italic,
 		  font->attr.height, font->attr.width);
 	*out = font;
-	ret = 0;
-	goto out_unlock;
+	return 0;
 
 err_free:
 	free(font);
-out_unlock:
-	font_unlock();
 	return ret;
 }
 
@@ -439,11 +357,11 @@ void kmscon_font_unref(struct kmscon_font *font)
 	if (!font || !font->ref || --font->ref)
 		return;
 
-	font_lock();
 	log_debug("freeing font");
-	font->ops->destroy(font);
+	if (font->ops->destroy)
+		font->ops->destroy(font);
+	shl_register_record_unref(font->record);
 	free(font);
-	font_unlock();
 }
 
 /**

@@ -76,6 +76,7 @@ struct kmscon_glyph {
 
 struct kmscon_font {
 	unsigned long ref;
+	struct shl_register_record *record;
 	const struct kmscon_font_ops *ops;
 	struct kmscon_font_attr attr;
 	unsigned int baseline;
