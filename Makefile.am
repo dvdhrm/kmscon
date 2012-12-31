@@ -19,6 +19,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
 MANPAGES =
 MANPAGES_ALIASES =
+TPHONY =
 
 bin_PROGRAMS =
 check_PROGRAMS =
@@ -554,6 +555,7 @@ XSLTPROC_PROCESS_MAN = \
 	$(AM_V_GEN)$(MKDIR_P) $(dir $@) && \
 	$(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) $(BUILD_MANPAGES_STYLESHEET) $<
 
+TPHONY += man_fixup_aliases
 man_fixup_aliases: $(MANPAGES) $(MANPAGES_ALIASES)
 	$(AM_V_GEN)if test -n "$(MANPAGES_ALIASES)" ; then $(SED) -i -e 's/^\.so \([a-z_]\+\)\.\([0-9]\)$$/\.so man\2\/\1\.\2/' $(MANPAGES_ALIASES) ; fi
 
@@ -571,3 +573,9 @@ docs/man/%.7: docs/man/%.xml
 
 endif # BUILD_HAVE_MANPAGES_STYLESHEET
 endif # BUILD_HAVE_XSLTPROC
+
+#
+# Phony targets
+#
+
+.PHONY: $(TPHONY)
