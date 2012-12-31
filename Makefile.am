@@ -203,7 +203,7 @@ nodist_libuterm_la_SOURCES =
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS)
-libuterm_la_LIBADD =
+libuterm_la_LIBADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la
 libuterm_la_LDFLAGS = \
