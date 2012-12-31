@@ -30,6 +30,7 @@ genshader
 genunifont
 src/static_shaders.c
 src/genshader.c
+src/githead.h
 src/text_font_unifont_data.c
 docs/reference/*.txt
 docs/reference/*.bak

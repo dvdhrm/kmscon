@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "githead.h"
 #include "log.h"
 
 /*
@@ -66,19 +67,6 @@ static void log__time(long long *sec, long long *usec)
 		}
 	}
 }
-
-/*
- * Build-Count
- * This is incremented for every build. ISO-C does not provide a method to do
- * this so we default to 1 if no external build-number is specified.
- */
-
-/* TODO: define LOG_BUILD as incremental build number */
-#ifdef LOG_BUILD
-static unsigned long log_build = LOG_BUILD;
-#else
-static unsigned long log_build = 1;
-#endif
 
 /*
  * Default Values
@@ -512,6 +500,6 @@ void log_print_init(const char *appname)
 	if (!appname)
 		appname = "<unknown>";
 	log_format(LOG_DEFAULT_CONF, NULL, LOG_NOTICE,
-			"%s Build #%lu %s %s", appname,
-			log_build, __DATE__, __TIME__);
+		   "%s Revision %s %s %s", appname,
+		   BUILD_GIT_HEAD, __DATE__, __TIME__);
 }

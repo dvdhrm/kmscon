@@ -93,6 +93,42 @@ SHL_REGISTER = \
 	$(SHL_DLIST)
 
 #
+# GIT-HEAD helper
+# The file ./src/githead.h contains a constant BUILD_GIT_HEAD which is defined
+# to the string returned by "git describe". We need to adjust this string for
+# every build and correctly rebuild any sources that depend on it. Therefore,
+# you should use this file rarely as it causes rebuilds on every git-commit.
+#
+# We have a helper-script ./src/genversion.sh that takes as argument the header
+# file and creates it if necessary. It updates it only if the new git-describe
+# string is different to the old one. So the file is only modified on changes.
+# Hence, we can use it as normal dependency in this Makefile.
+# However, we need to run this script on _every_ "make" invocation before any
+# recipy is executed. To achieve this, we use $(shell ...) and assign it to a
+# "simply expanded" variable (:=) so the shell command is executed on
+# variable-declaration and not during expansion.
+#
+# Note that we must not clean ./src/githead.h ever! If we would, a distribution
+# tarball might delete that file and have no way to recreate it.
+# We could delete it on something like "make maintainerclean", but then again,
+# it seems unnecessary so lets simply not clean it at all.
+#
+# If the helper-script is executed in a directory that is not a git-repository
+# (like a distribution tarball) and githead.h exists, then it does nothing as it
+# expects githead.h to be correctly written by "make dist".
+# However, if githead.h does not exist, it will print a warning and write
+# "<unknown>" as git-revision.
+# This guarantees, that githead.h is always present and has the most correct
+# value that we can get under any conditions.
+#
+# The $(emptyvariable) expansion below is used for broken $(shell ...)
+# syntax-highlighting algorithms in many existing editors.
+#
+
+EXTRA_DIST += src/genversion.sh
+GITHEAD:=$(shell $(emptyvariable)"$(srcdir)/src/genversion.sh" "$(srcdir)/src/githead.h")
+
+#
 # libeloop
 # This library contains the whole event-loop implementation of kmscon. It is
 # compiled into a separate object to allow using it in several other programs.
@@ -372,6 +408,7 @@ kmscon_SOURCES = \
 	$(SHL_TIMER) \
 	$(SHL_HOOK) \
 	$(SHL_REGISTER) \
+	src/githead.h \
 	src/conf.h \
 	src/conf.c \
 	src/log.h \
