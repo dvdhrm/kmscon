@@ -604,7 +604,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	kmscon_font_load_all();
+	kmscon_font_register(&kmscon_font_8x16_ops);
 	kmscon_text_load_all();
 
 	memset(&app, 0, sizeof(app));
@@ -646,7 +646,7 @@ int main(int argc, char **argv)
 	destroy_app(&app);
 err_unload:
 	kmscon_text_unload_all();
-	kmscon_font_unload_all();
+	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 err_conf:
 	kmscon_conf_free(conf_ctx);
 err_out:

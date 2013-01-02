@@ -111,7 +111,7 @@ static int kmscon_font_unifont_render_empty(struct kmscon_font *font,
 	}
 }
 
-static const struct kmscon_font_ops kmscon_font_unifont_ops = {
+const struct kmscon_font_ops kmscon_font_unifont_ops = {
 	.name = "unifont",
 	.init = kmscon_font_unifont_init,
 	.destroy = kmscon_font_unifont_destroy,
@@ -119,21 +119,3 @@ static const struct kmscon_font_ops kmscon_font_unifont_ops = {
 	.render_empty = kmscon_font_unifont_render_empty,
 	.render_inval = kmscon_font_unifont_render_inval,
 };
-
-int kmscon_font_unifont_load(void)
-{
-	int ret;
-
-	ret = kmscon_font_register(&kmscon_font_unifont_ops);
-	if (ret) {
-		log_error("cannot register unifont font");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_font_unifont_unload(void)
-{
-	kmscon_font_unregister(kmscon_font_unifont_ops.name);
-}

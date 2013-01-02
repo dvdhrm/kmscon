@@ -428,7 +428,7 @@ static int kmscon_font_pango_render_inval(struct kmscon_font *font,
 					out);
 }
 
-static const struct kmscon_font_ops kmscon_font_pango_ops = {
+const struct kmscon_font_ops kmscon_font_pango_ops = {
 	.name = "pango",
 	.init = kmscon_font_pango_init,
 	.destroy = kmscon_font_pango_destroy,
@@ -436,21 +436,3 @@ static const struct kmscon_font_ops kmscon_font_pango_ops = {
 	.render_empty = kmscon_font_pango_render_empty,
 	.render_inval = kmscon_font_pango_render_inval,
 };
-
-int kmscon_font_pango_load(void)
-{
-	int ret;
-
-	ret = kmscon_font_register(&kmscon_font_pango_ops);
-	if (ret) {
-		log_error("cannot register pango font");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_font_pango_unload(void)
-{
-	kmscon_font_unregister(kmscon_font_pango_ops.name);
-}

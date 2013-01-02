@@ -433,7 +433,7 @@ int main(int argc, char **argv)
 
 	log_print_init("wlterm");
 
-	kmscon_font_load_all();
+	kmscon_font_register(&kmscon_font_8x16_ops);
 
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
@@ -443,14 +443,14 @@ int main(int argc, char **argv)
 	ev_eloop_run(app.eloop, -1);
 
 	destroy_app(&app);
-	kmscon_font_unload_all();
+	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 	conf_ctx_free(conf);
 	log_info("exiting");
 
 	return EXIT_SUCCESS;
 
 err_unload:
-	kmscon_font_unload_all();
+	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 err_conf:
 	conf_ctx_free(conf);
 err_out:

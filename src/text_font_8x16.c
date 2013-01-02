@@ -105,7 +105,7 @@ static int kmscon_font_8x16_render_inval(struct kmscon_font *font,
 	return 0;
 }
 
-static const struct kmscon_font_ops kmscon_font_8x16_ops = {
+const struct kmscon_font_ops kmscon_font_8x16_ops = {
 	.name = "8x16",
 	.init = kmscon_font_8x16_init,
 	.destroy = kmscon_font_8x16_destroy,
@@ -113,24 +113,6 @@ static const struct kmscon_font_ops kmscon_font_8x16_ops = {
 	.render_empty = kmscon_font_8x16_render_empty,
 	.render_inval = kmscon_font_8x16_render_inval,
 };
-
-int kmscon_font_8x16_load(void)
-{
-	int ret;
-
-	ret = kmscon_font_register(&kmscon_font_8x16_ops);
-	if (ret) {
-		log_error("cannot register 8x16 font");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_font_8x16_unload(void)
-{
-	kmscon_font_unregister(kmscon_font_8x16_ops.name);
-}
 
 static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {
 	{ /* 0 0x00 */
