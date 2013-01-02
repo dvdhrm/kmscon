@@ -397,6 +397,7 @@ check_PROGRAMS += \
 	test_vt \
 	test_input \
 	test_key
+MANPAGES += docs/man/kmscon.1
 endif
 
 kmscon_SOURCES = \
@@ -469,7 +470,6 @@ kmscon_SOURCES += \
 nodist_kmscon_SOURCES += src/static_shaders.c
 kmscon_CPPFLAGS += $(GLES2_CFLAGS)
 kmscon_LDADD += $(GLES2_LIBS)
-MANPAGES += docs/man/kmscon.1
 endif
 
 #
@@ -570,16 +570,14 @@ test_key_LDADD = \
 # Manpages
 #
 
-MAN_XML_FILES = ${patsubst %.1,%.xml,${patsubst %.3,%.xml,${patsubst %.5,%.xml,${patsubst %.7,%.xml,$(MANPAGES)}}}}
 man_MANS =
-EXTRA_DIST += $(MAN_XML_FILES)
+EXTRA_DIST += ${patsubst %.1,%.xml,${patsubst %.3,%.xml,${patsubst %.5,%.xml,${patsubst %.7,%.xml,$(MANPAGES)}}}}
+CLEANFILES += $(MANPAGES) $(MANPAGES_ALIASES) .man_fixup
 
 if BUILD_HAVE_XSLTPROC
 if BUILD_HAVE_MANPAGES_STYLESHEET
 
-CLEANFILES += $(MANPAGES) $(MANPAGES_ALIASES)
-EXTRA_DIST += $(MANPAGES) $(MANPAGES_ALIASES)
-man_MANS += $(MANPAGES) $(MANPAGES_ALIASES) man_fixup_aliases
+man_MANS += $(MANPAGES) $(MANPAGES_ALIASES)
 
 XSLTPROC_FLAGS = \
 	--stringparam man.authors.section.enabled 0 \
@@ -590,11 +588,15 @@ XSLTPROC_FLAGS = \
 
 XSLTPROC_PROCESS_MAN = \
 	$(AM_V_GEN)$(MKDIR_P) $(dir $@) && \
-	$(XSLTPROC) -o $@ $(XSLTPROC_FLAGS) $(BUILD_MANPAGES_STYLESHEET) $<
+	$(XSLTPROC) -o "$@" $(XSLTPROC_FLAGS) $(BUILD_MANPAGES_STYLESHEET) "$<" && \
+	touch .man_fixup
 
-TPHONY += man_fixup_aliases
-man_fixup_aliases: $(MANPAGES) $(MANPAGES_ALIASES)
-	$(AM_V_GEN)if test -n "$(MANPAGES_ALIASES)" ; then $(SED) -i -e 's/^\.so \([a-z_]\+\)\.\([0-9]\)$$/\.so man\2\/\1\.\2/' $(MANPAGES_ALIASES) ; fi
+# Force .man_fixup if $(MANPAGES) are not built
+.man_fixup: | $(MANPAGES)
+	@touch .man_fixup
+
+$(MANPAGES_ALIASES): $(MANPAGES) .man_fixup
+	$(AM_V_GEN)if test -n "$@" ; then $(SED) -i -e 's/^\.so \([a-z_]\+\)\.\([0-9]\)$$/\.so man\2\/\1\.\2/' "$@" ; fi
 
 docs/man/%.1: docs/man/%.xml
 	$(XSLTPROC_PROCESS_MAN)

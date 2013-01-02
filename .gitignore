@@ -26,6 +26,7 @@ stamp-*
 .deps
 .dirstamp
 .libs
+.man_fixup
 genshader
 genunifont
 src/static_shaders.c
