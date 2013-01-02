@@ -339,49 +339,62 @@ src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 # It has a build-time dependency to UTERM and runtime dependencies to TSM.
 #
 
+TEXT_FONT_LIBS = libtext-font.la
+if BUILD_ENABLE_FONT_UNIFONT
+TEXT_FONT_LIBS += libtext-font-unifont.la
+endif
+if BUILD_ENABLE_FONT_FREETYPE2
+TEXT_FONT_LIBS += libtext-font-freetype2.la
+endif
+if BUILD_ENABLE_FONT_PANGO
+TEXT_FONT_LIBS += libtext-font-pango.la
+endif
+
 if BUILD_ENABLE_KMSCON
-noinst_LTLIBRARIES += libtext-font.la
+noinst_LTLIBRARIES += $(TEXT_FONT_LIBS)
 else
 if BUILD_ENABLE_WLTERM
-noinst_LTLIBRARIES += libtext-font.la
+noinst_LTLIBRARIES += $(TEXT_FONT_LIBS)
 endif
 endif
 
 libtext_font_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HASHTABLE) \
-	$(SHL_HOOK) \
 	$(SHL_REGISTER) \
 	src/text.h \
-	src/text_font.c
-nodist_libtext_font_la_SOURCES =
-
-libtext_font_la_CPPFLAGS = \
-	$(AM_CPPFLAGS)
+	src/text_font.c \
+	src/text_font_8x16.c
 libtext_font_la_LIBADD = \
+	-lpthread
+libtext_font_la_LDFLAGS = \
+	-rdynamic
+
+libtext_font_unifont_la_SOURCES = src/text_font_unifont.c
+nodist_libtext_font_unifont_la_SOURCES = src/text_font_unifont_data.c
+
+libtext_font_freetype2_la_SOURCES = \
+	$(SHL_DLIST) \
+	$(SHL_HASHTABLE) \
+	src/text_font_freetype2.c
+libtext_font_freetype2_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(FREETYPE2_CFLAGS)
+libtext_font_freetype2_la_LIBADD = \
+	$(FREETYPE2_LIBS) \
 	-lpthread \
 	libtsm.la
 
-if BUILD_ENABLE_FONT_8X16
-libtext_font_la_SOURCES += src/text_font_8x16.c
-endif
-
-if BUILD_ENABLE_FONT_UNIFONT
-libtext_font_la_SOURCES += src/text_font_unifont.c
-nodist_libtext_font_la_SOURCES += src/text_font_unifont_data.c
-endif
-
-if BUILD_ENABLE_FONT_FREETYPE2
-libtext_font_la_SOURCES += src/text_font_freetype2.c
-libtext_font_la_CPPFLAGS += $(FREETYPE2_CFLAGS)
-libtext_font_la_LIBADD += $(FREETYPE2_LIBS)
-endif
-
-if BUILD_ENABLE_FONT_PANGO
-libtext_font_la_SOURCES += src/text_font_pango.c
-libtext_font_la_CPPFLAGS += $(PANGO_CFLAGS)
-libtext_font_la_LIBADD += $(PANGO_LIBS)
-endif
+libtext_font_pango_la_SOURCES = \
+	$(SHL_DLIST) \
+	$(SHL_HASHTABLE) \
+	src/githead.h \
+	src/text_font_pango.c
+libtext_font_pango_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(PANGO_CFLAGS)
+libtext_font_pango_la_LIBADD = \
+	$(PANGO_LIBS) \
+	-lpthread \
+	libtsm.la
 
 #
 # Binaries
@@ -435,7 +448,7 @@ kmscon_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libuterm.la \
-	libtext-font.la \
+	$(TEXT_FONT_LIBS) \
 	-lpthread
 
 if BUILD_ENABLE_SESSION_DUMMY
@@ -508,7 +521,7 @@ wlterm_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libtsm.la \
-	libtext-font.la \
+	$(TEXT_FONT_LIBS) \
 	-lpthread
 
 #

@@ -183,23 +183,8 @@ int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 
 /* modularized backends */
 
-#ifdef BUILD_ENABLE_FONT_8X16
-
 int kmscon_font_8x16_load(void);
 void kmscon_font_8x16_unload(void);
-
-#else
-
-static inline int kmscon_font_8x16_load(void)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void kmscon_font_8x16_unload(void)
-{
-}
-
-#endif
 
 #ifdef BUILD_ENABLE_FONT_UNIFONT
 

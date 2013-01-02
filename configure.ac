@@ -295,23 +295,19 @@ AC_MSG_CHECKING([which font backends the user wants])
 AC_ARG_WITH([fonts],
             [AS_HELP_STRING([--with-fonts],
               [specify list of optional font backends])])
-enable_font_8x16="no"
 enable_font_unifont="no"
 enable_font_freetype2="no"
 enable_font_pango="no"
 if test "x$with_fonts" = "x" ; then
-        enable_font_8x16="yes (default)"
         enable_font_unifont="no (default)"
         enable_font_freetype2="yes (default)"
         enable_font_pango="yes (default)"
-        with_fonts="8x16,freetype2,pango (default)"
+        with_fonts="freetype2,pango (default)"
 else
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_fonts ; do
-                if test "x$i" = "x8x16" ; then
-                        enable_font_8x16="yes"
-                elif test "x$i" = "xunifont" ; then
+                if test "x$i" = "xunifont" ; then
                         enable_font_unifont="yes"
                 elif test "x$i" = "xfreetype2" ; then
                         enable_font_freetype2="yes"
@@ -592,15 +588,6 @@ else
         renderer_gltex_missing="enable-renderer-gltex"
 fi
 
-# font 8x16
-font_8x16_avail=no
-font_8x16_missing=""
-if test ! "x$enable_font_8x16" = "xno" ; then
-        font_8x16_avail=yes
-else
-        font_8x16_missing="enable-font-8x16"
-fi
-
 # font unifont
 font_unifont_avail=no
 font_unifont_missing=""
@@ -832,14 +819,6 @@ font_unifont_enabled=no
 if test "x$font_unifont_avail" = "xyes" ; then
         if test "x${enable_font_unifont% *}" = "xyes" ; then
                 font_unifont_enabled=yes
-        fi
-fi
-
-# font 8x16
-font_8x16_enabled=no
-if test "x$font_8x16_avail" = "xyes" ; then
-        if test "x${enable_font_8x16% *}" = "xyes" ; then
-                font_8x16_enabled=yes
         fi
 fi
 
@@ -1082,15 +1061,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_RENDERER_GLTEX],
                [test "x$renderer_gltex_enabled" = "xyes"])
 
-# font 8x16
-if test "x$font_8x16_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_FONT_8X16], [1],
-                  [Build static 8x16 font backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_FONT_8X16],
-               [test "x$font_8x16_enabled" = "xyes"])
-
 # font unifont
 if test "x$font_unifont_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_FONT_UNIFONT], [1],
@@ -1254,7 +1224,6 @@ AC_MSG_NOTICE([Build configuration:
                   drm: $video_drm_enabled ($video_drm_avail: $video_drm_missing)
 
   Font Backends:
-                 8x16: $font_8x16_enabled ($font_8x16_avail: $font_8x16_missing)
               unifont: $font_unifont_enabled ($font_unifont_avail: $font_unifont_missing)
             freetype2: $font_freetype2_enabled ($font_freetype2_avail: $font_freetype2_missing)
                 pango: $font_pango_enabled ($font_pango_avail: $font_pango_missing)
