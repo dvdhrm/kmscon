@@ -337,27 +337,6 @@ src/font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 	$(AM_V_GEN)./genunifont$(EXEEXT) src/font_unifont_data.c $(UNIFONT)
 
 #
-# Font library
-# The font library is used by kmscon _and_ wlterm but is currently linked
-# statically as it hasn't been cleaned up entirely.
-# It has a build-time dependency to UTERM and runtime dependencies to TSM.
-#
-
-if BUILD_ENABLE_KMSCON
-noinst_LTLIBRARIES += libfont.la
-endif
-
-libfont_la_SOURCES = \
-	$(SHL_REGISTER) \
-	src/font.h \
-	src/font.c \
-	src/font_8x16.c
-libfont_la_LIBADD = \
-	-lpthread
-libfont_la_LDFLAGS = \
-	-rdynamic
-
-#
 # Kmscon Modules
 #
 
@@ -489,6 +468,9 @@ kmscon_SOURCES = \
 	src/log.c \
 	src/pty.h \
 	src/pty.c \
+	src/font.h \
+	src/font.c \
+	src/font_8x16.c \
 	src/text.h \
 	src/text.c \
 	src/kmscon_module_interface.h \
