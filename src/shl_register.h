@@ -45,6 +45,8 @@
 #include <string.h>
 #include "shl_dlist.h"
 
+typedef void (*shl_register_destroy_cb) (void *data);
+
 struct shl_register_record {
 	struct shl_dlist list;
 
@@ -52,6 +54,7 @@ struct shl_register_record {
 	unsigned long ref;
 	char *name;
 	void *data;
+	shl_register_destroy_cb destroy;
 };
 
 struct shl_register {
@@ -95,6 +98,8 @@ static inline void shl_register_record_unref(struct shl_register_record *record)
 	if (ref)
 		return;
 
+	if (record->destroy)
+		record->destroy(record->data);
 	pthread_mutex_destroy(&record->mutex);
 	free(record->name);
 	free(record);
@@ -147,8 +152,9 @@ static inline void shl_register_free(struct shl_register *reg)
 	free(reg);
 }
 
-static inline int shl_register_add(struct shl_register *reg, const char *name,
-				   void *data)
+static inline int shl_register_add_cb(struct shl_register *reg,
+				      const char *name, void *data,
+				      shl_register_destroy_cb destroy)
 {
 	struct shl_dlist *iter;
 	struct shl_register_record *record;
@@ -178,6 +184,7 @@ static inline int shl_register_add(struct shl_register *reg, const char *name,
 	memset(record, 0, sizeof(*record));
 	record->ref = 1;
 	record->data = data;
+	record->destroy = destroy;
 
 	ret = pthread_mutex_init(&record->mutex, NULL);
 	if (ret) {
@@ -202,6 +209,12 @@ err_free:
 out_unlock:
 	pthread_mutex_unlock(&reg->mutex);
 	return ret;
+}
+
+static inline int shl_register_add(struct shl_register *reg, const char *name,
+				   void *data)
+{
+	return shl_register_add_cb(reg, name, data, NULL);
 }
 
 static inline void shl_register_remove(struct shl_register *reg,
