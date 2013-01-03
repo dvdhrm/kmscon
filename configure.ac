@@ -300,7 +300,7 @@ enable_font_freetype2="no"
 enable_font_pango="no"
 if test "x$with_fonts" = "x" ; then
         enable_font_unifont="no (default)"
-        enable_font_freetype2="yes (default)"
+        enable_font_freetype2="no (default)"
         enable_font_pango="yes (default)"
         with_fonts="freetype2,pango (default)"
 else
