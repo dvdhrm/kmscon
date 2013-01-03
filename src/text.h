@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "font.h"
+#include "kmscon_module.h"
 #include "tsm_screen.h"
 #include "uterm.h"
 
@@ -60,6 +61,7 @@ struct kmscon_text {
 
 struct kmscon_text_ops {
 	const char *name;
+	struct kmscon_module *owner;
 	int (*init) (struct kmscon_text *txt);
 	void (*destroy) (struct kmscon_text *txt);
 	int (*set) (struct kmscon_text *txt);
@@ -107,6 +109,10 @@ int kmscon_text_draw_cb(struct tsm_screen *con,
 int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 
 /* modularized backends */
+
+extern struct kmscon_text_ops kmscon_text_bblit_ops;
+extern struct kmscon_text_ops kmscon_text_bbulk_ops;
+extern struct kmscon_text_ops kmscon_text_gltex_ops;
 
 #ifdef BUILD_ENABLE_RENDERER_BBLIT
 

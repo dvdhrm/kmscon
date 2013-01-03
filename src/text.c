@@ -45,6 +45,13 @@
 
 static struct shl_register text_reg = SHL_REGISTER_INIT(text_reg);
 
+static inline void kmscon_text_destroy(void *data)
+{
+	const struct kmscon_text_ops *ops = data;
+
+	kmscon_module_unref(ops->owner);
+}
+
 /**
  * kmscon_text_register:
  * @ops: Text operations and name for new backend
@@ -68,13 +75,15 @@ int kmscon_text_register(const struct kmscon_text_ops *ops)
 
 	log_debug("register text backend %s", ops->name);
 
-	ret = shl_register_add(&text_reg, ops->name, (void*)ops);
+	ret = shl_register_add_cb(&text_reg, ops->name, (void*)ops,
+				  kmscon_text_destroy);
 	if (ret) {
 		log_error("cannot register text backend %s: %d", ops->name,
 			  ret);
 		return ret;
 	}
 
+	kmscon_module_ref(ops->owner);
 	return 0;
 }
 

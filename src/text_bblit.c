@@ -1,7 +1,7 @@
 /*
  * kmscon - Bit-Blitting Text Renderer Backend
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -109,8 +109,9 @@ static int bblit_draw(struct kmscon_text *txt,
 	return ret;
 }
 
-static const struct kmscon_text_ops kmscon_text_bblit_ops = {
+struct kmscon_text_ops kmscon_text_bblit_ops = {
 	.name = "bblit",
+	.owner = NULL,
 	.init = NULL,
 	.destroy = NULL,
 	.set = bblit_set,

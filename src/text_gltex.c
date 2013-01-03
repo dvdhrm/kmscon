@@ -1,7 +1,7 @@
 /*
  * kmscon - OpenGL Textures Text Renderer Backend
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -682,8 +682,9 @@ static int gltex_render(struct kmscon_text *txt)
 	return 0;
 }
 
-static const struct kmscon_text_ops kmscon_text_gltex_ops = {
+struct kmscon_text_ops kmscon_text_gltex_ops = {
 	.name = "gltex",
+	.owner = NULL,
 	.init = gltex_init,
 	.destroy = gltex_destroy,
 	.set = gltex_set,
