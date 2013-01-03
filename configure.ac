@@ -162,7 +162,7 @@ AC_ARG_ENABLE([wlterm],
               [AS_HELP_STRING([--enable-wlterm],
                               [build wlterm])])
 if test "x$enable_wlterm" = "x" ; then
-        enable_wlterm="yes (default)"
+        enable_wlterm="no (default)"
 fi
 AC_MSG_RESULT([$enable_wlterm])
 
