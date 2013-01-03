@@ -401,6 +401,32 @@ libtext_font_pango_la_LIBADD = \
 	libtsm.la
 
 #
+# Kmscon Modules
+#
+
+if BUILD_ENABLE_FONT_PANGO
+module_LTLIBRARIES += mod-pango.la
+endif
+
+mod_pango_la_SOURCES = \
+	$(SHL_DLIST) \
+	$(SHL_HASHTABLE) \
+	src/kmscon_module_interface.h \
+	src/githead.h \
+	src/text_font_pango.c \
+	src/kmscon_mod_pango.c
+mod_pango_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(PANGO_CFLAGS)
+mod_pango_la_LIBADD = \
+	$(PANGO_LIBS) \
+	-lpthread \
+	libtsm.la
+mod_pango_la_LDFLAGS = \
+	-module \
+	-avoid-version
+
+#
 # Binaries
 # These are the sources for the main binaries and test programs. They mostly
 # consists of a single source file only and include all the libraries that are
