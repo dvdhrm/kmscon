@@ -132,24 +132,6 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_RENDERER_BBULK
-
-int kmscon_text_bbulk_load(void);
-void kmscon_text_bbulk_unload(void);
-
-#else
-
-static inline int kmscon_text_bbulk_load(void)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void kmscon_text_bbulk_unload(void)
-{
-}
-
-#endif
-
 #ifdef BUILD_ENABLE_RENDERER_GLTEX
 
 int kmscon_text_gltex_load(void);
@@ -170,7 +152,6 @@ static inline void kmscon_text_gltex_unload(void)
 
 static inline void kmscon_text_load_all(void)
 {
-	kmscon_text_bbulk_load();
 	kmscon_text_bblit_load();
 	kmscon_text_gltex_load();
 }
@@ -179,7 +160,6 @@ static inline void kmscon_text_unload_all(void)
 {
 	kmscon_text_gltex_unload();
 	kmscon_text_bblit_unload();
-	kmscon_text_bbulk_unload();
 }
 
 #endif /* KMSCON_TEXT_H */

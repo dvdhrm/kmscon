@@ -247,7 +247,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	else if (!ret)
 		be = "gltex";
 	else
-		be = NULL;
+		be = "bbulk";
 
 	ret = kmscon_text_new(&scr->txt, be);
 	if (ret) {

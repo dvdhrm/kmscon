@@ -420,6 +420,19 @@ mod_pango_la_LDFLAGS = \
 	-module \
 	-avoid-version
 
+if BUILD_ENABLE_RENDERER_BBULK
+module_LTLIBRARIES += mod-bbulk.la
+endif
+
+mod_bbulk_la_SOURCES = \
+	src/kmscon_module_interface.h \
+	src/githead.h \
+	src/text_bbulk.c \
+	src/kmscon_mod_bbulk.c
+mod_bbulk_la_LDFLAGS = \
+	-module \
+	-avoid-version
+
 #
 # Binaries
 # These are the sources for the main binaries and test programs. They mostly
@@ -497,10 +510,6 @@ endif
 
 if BUILD_ENABLE_RENDERER_BBLIT
 kmscon_SOURCES += src/text_bblit.c
-endif
-
-if BUILD_ENABLE_RENDERER_BBULK
-kmscon_SOURCES += src/text_bbulk.c
 endif
 
 if BUILD_ENABLE_RENDERER_GLTEX
