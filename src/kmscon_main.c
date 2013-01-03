@@ -34,6 +34,7 @@
 #include "conf.h"
 #include "eloop.h"
 #include "kmscon_conf.h"
+#include "kmscon_module.h"
 #include "kmscon_seat.h"
 #include "log.h"
 #include "shl_dlist.h"
@@ -604,6 +605,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
+	kmscon_load_modules();
 	kmscon_font_register(&kmscon_font_8x16_ops);
 	kmscon_text_load_all();
 
@@ -647,6 +649,7 @@ int main(int argc, char **argv)
 err_unload:
 	kmscon_text_unload_all();
 	kmscon_font_unregister(kmscon_font_8x16_ops.name);
+	kmscon_unload_modules();
 err_conf:
 	kmscon_conf_free(conf_ctx);
 err_out:

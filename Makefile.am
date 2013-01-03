@@ -29,6 +29,9 @@ noinst_PROGRAMS = \
 noinst_LTLIBRARIES =
 lib_LTLIBRARIES =
 
+moduledir = @libdir@/kmscon
+module_LTLIBRARIES =
+
 #
 # Default CFlags
 # Make all files include "config.h" by default. This shouldn't cause any
@@ -44,6 +47,7 @@ lib_LTLIBRARIES =
 AM_CFLAGS = \
 	-Wall
 AM_CPPFLAGS = \
+	-DBUILD_MODULE_DIR='"$(moduledir)"' \
 	-include $(top_builddir)/config.h \
 	-I $(srcdir)/src
 AM_LDFLAGS = \
@@ -431,6 +435,9 @@ kmscon_SOURCES = \
 	src/pty.c \
 	src/text.h \
 	src/text.c \
+	src/kmscon_module_interface.h \
+	src/kmscon_module.h \
+	src/kmscon_module.c \
 	src/kmscon_terminal.h \
 	src/kmscon_dummy.h \
 	src/kmscon_cdev.h \
@@ -450,6 +457,8 @@ kmscon_LDADD = \
 	libuterm.la \
 	$(TEXT_FONT_LIBS) \
 	-lpthread
+kmscon_LDFLAGS = \
+	-rdynamic
 
 if BUILD_ENABLE_SESSION_DUMMY
 kmscon_SOURCES += src/kmscon_dummy.c
