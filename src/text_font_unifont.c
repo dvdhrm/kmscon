@@ -111,11 +111,12 @@ static int kmscon_font_unifont_render_empty(struct kmscon_font *font,
 	}
 }
 
-const struct kmscon_font_ops kmscon_font_unifont_ops = {
+struct kmscon_font_ops kmscon_font_unifont_ops = {
 	.name = "unifont",
 	.init = kmscon_font_unifont_init,
 	.destroy = kmscon_font_unifont_destroy,
 	.render = kmscon_font_unifont_render,
 	.render_empty = kmscon_font_unifont_render_empty,
 	.render_inval = kmscon_font_unifont_render_inval,
+	.finalize = NULL,
 };

@@ -105,13 +105,14 @@ static int kmscon_font_8x16_render_inval(struct kmscon_font *font,
 	return 0;
 }
 
-const struct kmscon_font_ops kmscon_font_8x16_ops = {
+struct kmscon_font_ops kmscon_font_8x16_ops = {
 	.name = "8x16",
 	.init = kmscon_font_8x16_init,
 	.destroy = kmscon_font_8x16_destroy,
 	.render = kmscon_font_8x16_render,
 	.render_empty = kmscon_font_8x16_render_empty,
 	.render_inval = kmscon_font_8x16_render_inval,
+	.finalize = NULL,
 };
 
 static const struct kmscon_glyph kmscon_font_8x16_glyphs[256] = {

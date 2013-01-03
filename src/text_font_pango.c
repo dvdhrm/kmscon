@@ -428,11 +428,12 @@ static int kmscon_font_pango_render_inval(struct kmscon_font *font,
 					out);
 }
 
-const struct kmscon_font_ops kmscon_font_pango_ops = {
+struct kmscon_font_ops kmscon_font_pango_ops = {
 	.name = "pango",
 	.init = kmscon_font_pango_init,
 	.destroy = kmscon_font_pango_destroy,
 	.render = kmscon_font_pango_render,
 	.render_empty = kmscon_font_pango_render_empty,
 	.render_inval = kmscon_font_pango_render_inval,
+	.finalize = NULL,
 };

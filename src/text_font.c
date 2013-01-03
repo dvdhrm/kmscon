@@ -133,6 +133,14 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 	return true;
 }
 
+static inline void kmscon_font_destroy(void *data)
+{
+	const struct kmscon_font_ops *ops = data;
+
+	if (ops->finalize)
+		ops->finalize();
+}
+
 /**
  * kmscon_font_register:
  * @ops: Font operations and name for new font backend
@@ -156,7 +164,8 @@ int kmscon_font_register(const struct kmscon_font_ops *ops)
 
 	log_debug("register font backend %s", ops->name);
 
-	ret = shl_register_add(&font_reg, ops->name, (void*)ops);
+	ret = shl_register_add_cb(&font_reg, ops->name, (void*)ops,
+				  kmscon_font_destroy);
 	if (ret) {
 		log_error("cannot register font backend %s: %d", ops->name,
 			  ret);

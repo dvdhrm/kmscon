@@ -95,6 +95,7 @@ struct kmscon_font_ops {
 			     const struct kmscon_glyph **out);
 	int (*render_inval) (struct kmscon_font *font,
 			     const struct kmscon_glyph **out);
+	void (*finalize) (void);
 };
 
 int kmscon_font_register(const struct kmscon_font_ops *ops);
@@ -183,10 +184,10 @@ int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 
 /* modularized backends */
 
-extern const struct kmscon_font_ops kmscon_font_8x16_ops;
-extern const struct kmscon_font_ops kmscon_font_unifont_ops;
-extern const struct kmscon_font_ops kmscon_font_freetype2_ops;
-extern const struct kmscon_font_ops kmscon_font_pango_ops;
+extern struct kmscon_font_ops kmscon_font_8x16_ops;
+extern struct kmscon_font_ops kmscon_font_unifont_ops;
+extern struct kmscon_font_ops kmscon_font_freetype2_ops;
+extern struct kmscon_font_ops kmscon_font_pango_ops;
 
 #ifdef BUILD_ENABLE_RENDERER_BBLIT
 
