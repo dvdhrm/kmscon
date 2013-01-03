@@ -30,9 +30,9 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include "font.h"
 #include "kmscon_module_interface.h"
 #include "log.h"
-#include "text.h"
 
 #define LOG_SUBSYSTEM "mod_pango"
 
