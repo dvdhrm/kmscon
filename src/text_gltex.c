@@ -694,21 +694,3 @@ struct kmscon_text_ops kmscon_text_gltex_ops = {
 	.render = gltex_render,
 	.abort = NULL,
 };
-
-int kmscon_text_gltex_load(void)
-{
-	int ret;
-
-	ret = kmscon_text_register(&kmscon_text_gltex_ops);
-	if (ret) {
-		log_error("cannot register gltex renderer");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_text_gltex_unload(void)
-{
-	kmscon_text_unregister(kmscon_text_gltex_ops.name);
-}

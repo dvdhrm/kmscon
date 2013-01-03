@@ -185,21 +185,3 @@ struct kmscon_text_ops kmscon_text_bbulk_ops = {
 	.render = bbulk_render,
 	.abort = NULL,
 };
-
-int kmscon_text_bbulk_load(void)
-{
-	int ret;
-
-	ret = kmscon_text_register(&kmscon_text_bbulk_ops);
-	if (ret) {
-		log_error("cannot register bbulk renderer");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_text_bbulk_unload(void)
-{
-	kmscon_text_unregister(kmscon_text_bbulk_ops.name);
-}

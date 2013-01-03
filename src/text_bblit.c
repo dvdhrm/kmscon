@@ -121,21 +121,3 @@ struct kmscon_text_ops kmscon_text_bblit_ops = {
 	.render = NULL,
 	.abort = NULL,
 };
-
-int kmscon_text_bblit_load(void)
-{
-	int ret;
-
-	ret = kmscon_text_register(&kmscon_text_bblit_ops);
-	if (ret) {
-		log_error("cannot register bblit renderer");
-		return ret;
-	}
-
-	return 0;
-}
-
-void kmscon_text_bblit_unload(void)
-{
-	kmscon_text_unregister(kmscon_text_bblit_ops.name);
-}
