@@ -40,6 +40,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include "kmscon_module.h"
 #include "tsm_screen.h"
 #include "uterm.h"
 
@@ -85,6 +86,7 @@ struct kmscon_font {
 
 struct kmscon_font_ops {
 	const char *name;
+	struct kmscon_module *owner;
 	int (*init) (struct kmscon_font *out,
 		     const struct kmscon_font_attr *attr);
 	void (*destroy) (struct kmscon_font *font);
@@ -95,7 +97,6 @@ struct kmscon_font_ops {
 			     const struct kmscon_glyph **out);
 	int (*render_inval) (struct kmscon_font *font,
 			     const struct kmscon_glyph **out);
-	void (*finalize) (void);
 };
 
 int kmscon_font_register(const struct kmscon_font_ops *ops);

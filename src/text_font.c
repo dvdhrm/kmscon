@@ -56,6 +56,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include "kmscon_module.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_register.h"
@@ -137,8 +138,7 @@ static inline void kmscon_font_destroy(void *data)
 {
 	const struct kmscon_font_ops *ops = data;
 
-	if (ops->finalize)
-		ops->finalize();
+	kmscon_module_unref(ops->owner);
 }
 
 /**
@@ -172,6 +172,7 @@ int kmscon_font_register(const struct kmscon_font_ops *ops)
 		return ret;
 	}
 
+	kmscon_module_ref(ops->owner);
 	return 0;
 }
 
