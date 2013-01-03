@@ -132,33 +132,13 @@ static inline void kmscon_text_bblit_unload(void)
 
 #endif
 
-#ifdef BUILD_ENABLE_RENDERER_GLTEX
-
-int kmscon_text_gltex_load(void);
-void kmscon_text_gltex_unload(void);
-
-#else
-
-static inline int kmscon_text_gltex_load(void)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void kmscon_text_gltex_unload(void)
-{
-}
-
-#endif
-
 static inline void kmscon_text_load_all(void)
 {
 	kmscon_text_bblit_load();
-	kmscon_text_gltex_load();
 }
 
 static inline void kmscon_text_unload_all(void)
 {
-	kmscon_text_gltex_unload();
 	kmscon_text_bblit_unload();
 }
 

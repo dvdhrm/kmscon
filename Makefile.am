@@ -433,6 +433,29 @@ mod_bbulk_la_LDFLAGS = \
 	-module \
 	-avoid-version
 
+if BUILD_ENABLE_RENDERER_GLTEX
+module_LTLIBRARIES += mod-gltex.la
+endif
+
+mod_gltex_la_SOURCES = \
+	src/kmscon_module_interface.h \
+	src/githead.h \
+	src/text_gltex.c \
+	src/static_gl.h \
+	src/static_gl_math.c \
+	src/static_gl_shader.c \
+	src/kmscon_mod_gltex.c
+nodist_mod_gltex_la_SOURCES = \
+	src/static_shaders.c
+mod_gltex_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(GLES2_CFLAGS)
+mod_gltex_la_LIBADD = \
+	$(GLES2_LIBS)
+mod_gltex_la_LDFLAGS = \
+	-module \
+	-avoid-version
+
 #
 # Binaries
 # These are the sources for the main binaries and test programs. They mostly
@@ -510,17 +533,6 @@ endif
 
 if BUILD_ENABLE_RENDERER_BBLIT
 kmscon_SOURCES += src/text_bblit.c
-endif
-
-if BUILD_ENABLE_RENDERER_GLTEX
-kmscon_SOURCES += \
-	src/text_gltex.c \
-	src/static_gl.h \
-	src/static_gl_math.c \
-	src/static_gl_shader.c
-nodist_kmscon_SOURCES += src/static_shaders.c
-kmscon_CPPFLAGS += $(GLES2_CFLAGS)
-kmscon_LDADD += $(GLES2_LIBS)
 endif
 
 #
