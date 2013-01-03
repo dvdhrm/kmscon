@@ -361,6 +361,21 @@ libfont_la_LDFLAGS = \
 # Kmscon Modules
 #
 
+if BUILD_ENABLE_FONT_UNIFONT
+module_LTLIBRARIES += mod-unifont.la
+endif
+
+mod_unifont_la_SOURCES = \
+	src/kmscon_module_interface.h \
+	src/githead.h \
+	src/font_unifont.c \
+	src/kmscon_mod_unifont.c
+nodist_mod_unifont_la_SOURCES = \
+	src/font_unifont_data.c
+mod_unifont_la_LDFLAGS = \
+	-module \
+	-avoid-version
+
 if BUILD_ENABLE_FONT_PANGO
 module_LTLIBRARIES += mod-pango.la
 endif
