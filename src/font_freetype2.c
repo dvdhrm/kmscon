@@ -1,7 +1,7 @@
 /*
- * kmscon - Freetype2 backend for font handling of text renderer
+ * kmscon - Freetype2 font backend
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,9 +25,9 @@
  */
 
 /**
- * SECTION:text_font_freetype2.c
- * @short_description: Freetype2 backend for font handling of text renderer
- * @include: text.h
+ * SECTION:font_freetype2.c
+ * @short_description: Freetype2 font backend
+ * @include: font.h
  *
  * The freetype2 backend uses freetype2 to render glyphs into memory
  * buffers. It uses a hashmap to cache all rendered glyphs of a single
@@ -44,13 +44,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "font.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
-#include "text.h"
 #include "uterm.h"
 
-#define LOG_SUBSYSTEM "text_font_freetype2"
+#define LOG_SUBSYSTEM "font_freetype2"
 
 struct glyph {
 	bool shrinked;

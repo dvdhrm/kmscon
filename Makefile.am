@@ -327,78 +327,35 @@ src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
 # This generates the unifont sources from raw hex-encoded font data.
 #
 
-UNIFONT = src/text_font_unifont_data.hex
+UNIFONT = src/font_unifont_data.hex
 
 EXTRA_DIST += $(UNIFONT)
-CLEANFILES += src/text_font_unifont_data.c
+CLEANFILES += src/font_unifont_data.c
 genunifont_SOURCES = src/genunifont.c
 
-src/text_font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
-	$(AM_V_GEN)./genunifont$(EXEEXT) src/text_font_unifont_data.c $(UNIFONT)
+src/font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
+	$(AM_V_GEN)./genunifont$(EXEEXT) src/font_unifont_data.c $(UNIFONT)
 
 #
-# Text-font library
-# The text-font library is used by kmscon _and_ wlterm but is currently linked
+# Font library
+# The font library is used by kmscon _and_ wlterm but is currently linked
 # statically as it hasn't been cleaned up entirely.
 # It has a build-time dependency to UTERM and runtime dependencies to TSM.
 #
 
-TEXT_FONT_LIBS = libtext-font.la
-if BUILD_ENABLE_FONT_UNIFONT
-TEXT_FONT_LIBS += libtext-font-unifont.la
-endif
-if BUILD_ENABLE_FONT_FREETYPE2
-TEXT_FONT_LIBS += libtext-font-freetype2.la
-endif
-if BUILD_ENABLE_FONT_PANGO
-TEXT_FONT_LIBS += libtext-font-pango.la
-endif
-
 if BUILD_ENABLE_KMSCON
-noinst_LTLIBRARIES += $(TEXT_FONT_LIBS)
-else
-if BUILD_ENABLE_WLTERM
-noinst_LTLIBRARIES += $(TEXT_FONT_LIBS)
-endif
+noinst_LTLIBRARIES += libfont.la
 endif
 
-libtext_font_la_SOURCES = \
+libfont_la_SOURCES = \
 	$(SHL_REGISTER) \
-	src/text.h \
-	src/text_font.c \
-	src/text_font_8x16.c
-libtext_font_la_LIBADD = \
+	src/font.h \
+	src/font.c \
+	src/font_8x16.c
+libfont_la_LIBADD = \
 	-lpthread
-libtext_font_la_LDFLAGS = \
+libfont_la_LDFLAGS = \
 	-rdynamic
-
-libtext_font_unifont_la_SOURCES = src/text_font_unifont.c
-nodist_libtext_font_unifont_la_SOURCES = src/text_font_unifont_data.c
-
-libtext_font_freetype2_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HASHTABLE) \
-	src/text_font_freetype2.c
-libtext_font_freetype2_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(FREETYPE2_CFLAGS)
-libtext_font_freetype2_la_LIBADD = \
-	$(FREETYPE2_LIBS) \
-	-lpthread \
-	libtsm.la
-
-libtext_font_pango_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HASHTABLE) \
-	src/githead.h \
-	src/text_font_pango.c
-libtext_font_pango_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(PANGO_CFLAGS)
-libtext_font_pango_la_LIBADD = \
-	$(PANGO_LIBS) \
-	-lpthread \
-	libtsm.la
 
 #
 # Kmscon Modules
@@ -413,7 +370,7 @@ mod_pango_la_SOURCES = \
 	$(SHL_HASHTABLE) \
 	src/kmscon_module_interface.h \
 	src/githead.h \
-	src/text_font_pango.c \
+	src/font_pango.c \
 	src/kmscon_mod_pango.c
 mod_pango_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
@@ -481,7 +438,7 @@ kmscon_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libuterm.la \
-	$(TEXT_FONT_LIBS) \
+	libfont.la \
 	-lpthread
 kmscon_LDFLAGS = \
 	-rdynamic
@@ -556,7 +513,6 @@ wlterm_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libtsm.la \
-	$(TEXT_FONT_LIBS) \
 	-lpthread
 
 #

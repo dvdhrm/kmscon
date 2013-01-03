@@ -319,7 +319,7 @@ int main(int argc, char **argv)
 				 "by genunifont.c */\n\n"
 				 "#include <stdint.h>\n"
 				 "#include <stdlib.h>\n"
-				 "#include \"text.h\"\n\n";
+				 "#include \"font.h\"\n\n";
 	int ret = EXIT_FAILURE;
 
 	if (argc < 2) {

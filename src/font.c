@@ -1,7 +1,7 @@
 /*
- * kmscon - Font handling of Text Renderer
+ * kmscon - Font handling
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,9 +24,9 @@
  */
 
 /**
- * SECTION:text_font
- * @short_description: Font handling of text renderer
- * @include: text.h
+ * SECTION:font
+ * @short_description: Font handling
+ * @include: font.h
  *
  * The text renderer needs a backend that draws glyphs which then can be shown
  * on the screen. This font handling subsystem provides a very simple API to
@@ -56,14 +56,13 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include "font.h"
 #include "kmscon_module.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_register.h"
-#include "text.h"
-#include "uterm.h"
 
-#define LOG_SUBSYSTEM "text_font"
+#define LOG_SUBSYSTEM "font"
 
 static struct shl_register font_reg = SHL_REGISTER_INIT(font_reg);
 

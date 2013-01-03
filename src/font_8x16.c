@@ -1,7 +1,7 @@
 /*
- * kmscon - Fixed 8x16 font for font handling of text renderer
+ * kmscon - Fixed 8x16 font
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,9 +24,9 @@
  */
 
 /**
- * SECTION:text_font_8x16.c
- * @short_description: Fixed 8x16 font for font handling of text renderer
- * @include: text.h
+ * SECTION:font_8x16.c
+ * @short_description: Fixed 8x16 font
+ * @include: font.h
  *
  * This is a fixed font renderer backend that supports just one font which is
  * statically compiled into the file. This font is a very simple 8x16 font with
@@ -47,11 +47,11 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include "font.h"
 #include "log.h"
-#include "text.h"
 #include "uterm.h"
 
-#define LOG_SUBSYSTEM "text_font_8x16"
+#define LOG_SUBSYSTEM "font_8x16"
 
 /* forward declaration; see end of file for real array */
 static const struct kmscon_glyph kmscon_font_8x16_glyphs[256];

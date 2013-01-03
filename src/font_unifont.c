@@ -1,8 +1,8 @@
 /*
- * kmscon - Fixed unifont font for font handling of text renderer
+ * kmscon - Fixed unifont font
  *
  * Copyright (c) 2012 Ted Kotz <ted@kotz.us>
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -25,9 +25,9 @@
  */
 
 /**
- * SECTION:text_font_unifont.c
- * @short_description: Fixed unifont font for font handling of text renderer
- * @include: text.h
+ * SECTION:font_unifont.c
+ * @short_description: Fixed unifont font
+ * @include: font.h
  * 
  * This is a fixed font renderer backend that supports just one font which is
  * statically compiled into the file. This bitmap font has 8x16 and 16x16 
@@ -35,22 +35,22 @@
  * hex format. This font is from the GNU unifont project available at: 
  * http://unifoundry.com/unifont.html
  *
- * This file is heavily based on text_font_8x16.c
+ * This file is heavily based on font_8x16.c
  * 
  */
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include "font.h"
 #include "log.h"
-#include "text.h"
 #include "uterm.h"
 
-#define LOG_SUBSYSTEM "text_font_unifont"
+#define LOG_SUBSYSTEM "font_unifont"
 
 /* array is generated and compiled externally */
-extern const struct kmscon_glyph kmscon_text_font_unifont_data_hex_glyphs[];
-extern size_t kmscon_text_font_unifont_data_hex_len;
+extern const struct kmscon_glyph kmscon_font_unifont_data_hex_glyphs[];
+extern size_t kmscon_font_unifont_data_hex_len;
 
 static int kmscon_font_unifont_init(struct kmscon_font *out,
 				    const struct kmscon_font_attr *attr)
@@ -80,22 +80,22 @@ static int kmscon_font_unifont_render(struct kmscon_font *font, uint32_t id,
 				      const uint32_t *ch, size_t len,
 				      const struct kmscon_glyph **out)
 {
-	if (len > 1 || *ch >= kmscon_text_font_unifont_data_hex_len)
+	if (len > 1 || *ch >= kmscon_font_unifont_data_hex_len)
 		return -ERANGE;
 
-	*out = &kmscon_text_font_unifont_data_hex_glyphs[*ch];
+	*out = &kmscon_font_unifont_data_hex_glyphs[*ch];
 	return 0;
 }
 
 static int kmscon_font_unifont_render_inval(struct kmscon_font *font,
 					    const struct kmscon_glyph **out)
 {
-	if (0xfffd < kmscon_text_font_unifont_data_hex_len)
-		*out = &kmscon_text_font_unifont_data_hex_glyphs[0xfffd];
-	else if ('?' < kmscon_text_font_unifont_data_hex_len)
-		*out = &kmscon_text_font_unifont_data_hex_glyphs['?'];
+	if (0xfffd < kmscon_font_unifont_data_hex_len)
+		*out = &kmscon_font_unifont_data_hex_glyphs[0xfffd];
+	else if ('?' < kmscon_font_unifont_data_hex_len)
+		*out = &kmscon_font_unifont_data_hex_glyphs['?'];
 	else
-		*out = &kmscon_text_font_unifont_data_hex_glyphs[0];
+		*out = &kmscon_font_unifont_data_hex_glyphs[0];
 
 	return 0;
 }
@@ -103,8 +103,8 @@ static int kmscon_font_unifont_render_inval(struct kmscon_font *font,
 static int kmscon_font_unifont_render_empty(struct kmscon_font *font,
 					    const struct kmscon_glyph **out)
 {
-	if (' ' < kmscon_text_font_unifont_data_hex_len) {
-		*out = &kmscon_text_font_unifont_data_hex_glyphs[' '];
+	if (' ' < kmscon_font_unifont_data_hex_len) {
+		*out = &kmscon_font_unifont_data_hex_glyphs[' '];
 		return 0;
 	} else {
 		return kmscon_font_unifont_render_inval(font, out);

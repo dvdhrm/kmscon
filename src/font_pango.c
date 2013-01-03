@@ -1,7 +1,7 @@
 /*
- * kmscon - Pango backend for font handling of text renderer
+ * kmscon - Pango font backend
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -25,9 +25,9 @@
  */
 
 /**
- * SECTION:text_font_pango.c
- * @short_description: Pango backend for font handling of text renderer
- * @include: text.h
+ * SECTION:font_pango.c
+ * @short_description: Pango font backend
+ * @include: font.h
  *
  * The pango backend uses pango and freetype2 to render glyphs into memory
  * buffers. It uses a hashmap to cache all rendered glyphs of a single
@@ -51,14 +51,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "font.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
-#include "text.h"
 #include "tsm_unicode.h"
 #include "uterm.h"
 
-#define LOG_SUBSYSTEM "text_font_pango"
+#define LOG_SUBSYSTEM "font_pango"
 
 struct face {
 	unsigned long ref;
