@@ -114,32 +114,4 @@ extern struct kmscon_text_ops kmscon_text_bblit_ops;
 extern struct kmscon_text_ops kmscon_text_bbulk_ops;
 extern struct kmscon_text_ops kmscon_text_gltex_ops;
 
-#ifdef BUILD_ENABLE_RENDERER_BBLIT
-
-int kmscon_text_bblit_load(void);
-void kmscon_text_bblit_unload(void);
-
-#else
-
-static inline int kmscon_text_bblit_load(void)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void kmscon_text_bblit_unload(void)
-{
-}
-
-#endif
-
-static inline void kmscon_text_load_all(void)
-{
-	kmscon_text_bblit_load();
-}
-
-static inline void kmscon_text_unload_all(void)
-{
-	kmscon_text_bblit_unload();
-}
-
 #endif /* KMSCON_TEXT_H */

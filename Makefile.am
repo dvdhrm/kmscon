@@ -473,6 +473,7 @@ kmscon_SOURCES = \
 	src/font_8x16.c \
 	src/text.h \
 	src/text.c \
+	src/text_bblit.c \
 	src/kmscon_module_interface.h \
 	src/kmscon_module.h \
 	src/kmscon_module.c \
@@ -511,10 +512,6 @@ if BUILD_ENABLE_SESSION_CDEV
 kmscon_SOURCES += src/kmscon_cdev.c
 kmscon_CPPFLAGS += $(FUSE_CFLAGS)
 kmscon_LDADD += $(FUSE_LIBS)
-endif
-
-if BUILD_ENABLE_RENDERER_BBLIT
-kmscon_SOURCES += src/text_bblit.c
 endif
 
 #

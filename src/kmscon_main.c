@@ -607,7 +607,7 @@ int main(int argc, char **argv)
 
 	kmscon_load_modules();
 	kmscon_font_register(&kmscon_font_8x16_ops);
-	kmscon_text_load_all();
+	kmscon_text_register(&kmscon_text_bblit_ops);
 
 	memset(&app, 0, sizeof(app));
 	app.conf_ctx = conf_ctx;
@@ -647,7 +647,7 @@ int main(int argc, char **argv)
 
 	destroy_app(&app);
 err_unload:
-	kmscon_text_unload_all();
+	kmscon_text_unregister(kmscon_text_bblit_ops.name);
 	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 	kmscon_unload_modules();
 err_conf:

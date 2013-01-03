@@ -263,21 +263,17 @@ AC_MSG_CHECKING([which render backends the user wants])
 AC_ARG_WITH([renderers],
             [AS_HELP_STRING([--with-renderers],
               [specify list of optional render backends])])
-enable_renderer_bblit="no"
 enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
 if test "x$with_renderers" = "x" ; then
-        enable_renderer_bblit="yes (default)"
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
-        with_renderers="bblit,bbulk,gltex (default)"
+        with_renderers="bbulk,gltex (default)"
 else
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_renderers ; do
-                if test "x$i" = "xbblit" ; then
-                        enable_renderer_bblit="yes"
-                elif test "x$i" = "xbbulk" ; then
+                if test "x$i" = "xbbulk" ; then
                         enable_renderer_bbulk="yes"
                 elif test "x$i" = "xgltex" ; then
                         enable_renderer_gltex="yes"
@@ -549,15 +545,6 @@ if test ! "x$enable_pciaccess" = "xno" ; then
         fi
 else
         pciaccess_missing="enable-pciaccess"
-fi
-
-# renderer bblit
-renderer_bblit_avail=no
-renderer_bblit_missing=""
-if test ! "x$enable_renderer_bblit" = "xno" ; then
-        renderer_bblit_avail=yes
-else
-        renderer_bblit_missing="enable-renderer-bblit"
 fi
 
 # renderer bbulk
@@ -838,14 +825,6 @@ if test "x$renderer_bbulk_avail" = "xyes" ; then
         fi
 fi
 
-# renderer bblit
-renderer_bblit_enabled=no
-if test "x$renderer_bblit_avail" = "xyes" ; then
-        if test "x${enable_renderer_bblit% *}" = "xyes" ; then
-                renderer_bblit_enabled=yes
-        fi
-fi
-
 # pciaccess
 pciaccess_enabled=no
 if test "x$pciaccess_avail" = "xyes" ; then
@@ -1034,15 +1013,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_PCIACCESS],
                [test "x$pciaccess_enabled" = "xyes"])
 
-# renderer bblit
-if test "x$renderer_bblit_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_RENDERER_BBLIT], [1],
-                  [Build bblit rendering backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_RENDERER_BBLIT],
-               [test "x$renderer_bblit_enabled" = "xyes"])
-
 # renderer bbulk
 if test "x$renderer_bbulk_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_RENDERER_BBULK], [1],
@@ -1229,7 +1199,6 @@ AC_MSG_NOTICE([Build configuration:
                 pango: $font_pango_enabled ($font_pango_avail: $font_pango_missing)
 
   Renderers:
-                bblit: $renderer_bblit_enabled ($renderer_bblit_avail: $renderer_bblit_missing)
                 bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail: $renderer_bbulk_missing)
                 gltex: $renderer_gltex_enabled ($renderer_gltex_avail: $renderer_gltex_missing)
 
