@@ -12,8 +12,7 @@ EXTRA_DIST = \
 	COPYING \
 	NEWS \
 	docs/kmscon.service \
-	docs/kmsconvt@.service \
-	docs/getty@.service
+	docs/kmsconvt@.service
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
