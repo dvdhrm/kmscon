@@ -25,8 +25,8 @@
 
 /* Internal definitions */
 
-#ifndef UTERM_INPUT_H
-#define UTERM_INPUT_H
+#ifndef UTERM_INPUT_INTERNAL_H
+#define UTERM_INPUT_INTERNAL_H
 
 #include <inttypes.h>
 #include <limits.h>
@@ -97,4 +97,4 @@ int uxkb_dev_process(struct uterm_input_dev *dev,
 void uxkb_dev_sleep(struct uterm_input_dev *dev);
 void uxkb_dev_wake_up(struct uterm_input_dev *dev);
 
-#endif /* UTERM_INPUT_H */
+#endif /* UTERM_INPUT_INTERNAL_H */

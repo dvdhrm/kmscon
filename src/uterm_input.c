@@ -41,7 +41,7 @@
 #include "shl_dlist.h"
 #include "shl_hook.h"
 #include "uterm.h"
-#include "uterm_input.h"
+#include "uterm_input_internal.h"
 
 #define LOG_SUBSYSTEM "input"
 

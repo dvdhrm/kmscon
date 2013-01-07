@@ -36,7 +36,7 @@
 #include "shl_hook.h"
 #include "shl_misc.h"
 #include "uterm.h"
-#include "uterm_input.h"
+#include "uterm_input_internal.h"
 
 #define LOG_SUBSYSTEM "input_uxkb"
 
