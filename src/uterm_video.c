@@ -38,7 +38,7 @@
 #include "log.h"
 #include "shl_hook.h"
 #include "uterm.h"
-#include "uterm_video.h"
+#include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "video"
 

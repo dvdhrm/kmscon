@@ -228,7 +228,7 @@ libuterm_la_SOURCES = \
 	$(SHL_MISC) \
 	src/uterm.h \
 	src/uterm_input_internal.h \
-	src/uterm_video.h \
+	src/uterm_video_internal.h \
 	src/uterm_pci.h \
 	src/uterm_systemd.h \
 	src/uterm_video.c \

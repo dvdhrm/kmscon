@@ -47,7 +47,7 @@
 #include "eloop.h"
 #include "log.h"
 #include "uterm.h"
-#include "uterm_video.h"
+#include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "video_drm"
 
