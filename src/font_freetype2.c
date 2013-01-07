@@ -48,7 +48,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "font_freetype2"
 

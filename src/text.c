@@ -39,7 +39,7 @@
 #include "shl_dlist.h"
 #include "shl_register.h"
 #include "text.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "text"
 

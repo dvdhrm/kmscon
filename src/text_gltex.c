@@ -50,7 +50,7 @@
 #include "shl_hashtable.h"
 #include "static_gl.h"
 #include "text.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "text_gltex"
 

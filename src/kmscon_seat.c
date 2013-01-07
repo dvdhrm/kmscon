@@ -42,6 +42,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "seat"
 

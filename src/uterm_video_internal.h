@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include "eloop.h"
 #include "shl_hook.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 /* backend-operations */
 

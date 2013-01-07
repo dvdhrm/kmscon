@@ -36,7 +36,7 @@
 #include "kmscon_conf.h"
 #include "log.h"
 #include "shl_misc.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 static void print_help()
 {

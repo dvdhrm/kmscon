@@ -56,7 +56,7 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "tsm_unicode.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "font_pango"
 

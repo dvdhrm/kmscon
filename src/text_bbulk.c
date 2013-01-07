@@ -38,7 +38,7 @@
 #include <string.h>
 #include "log.h"
 #include "text.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "text_bbulk"
 

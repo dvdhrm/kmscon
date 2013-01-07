@@ -46,6 +46,7 @@
 #include "tsm_screen.h"
 #include "tsm_vte.h"
 #include "uterm.h"
+#include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "terminal"
 

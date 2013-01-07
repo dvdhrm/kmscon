@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "kmscon_module.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 /* fonts */
 

@@ -41,6 +41,7 @@
 #include "shl_misc.h"
 #include "text.h"
 #include "uterm.h"
+#include "uterm_video.h"
 
 struct app_video {
 	struct shl_dlist list;

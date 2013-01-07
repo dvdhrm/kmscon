@@ -38,7 +38,7 @@
 #include "font.h"
 #include "kmscon_module.h"
 #include "tsm_screen.h"
-#include "uterm.h"
+#include "uterm_video.h"
 
 /* text renderer */
 

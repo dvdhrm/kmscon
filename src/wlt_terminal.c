@@ -44,6 +44,7 @@
 #include "tsm_unicode.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"
+#include "uterm_video.h"
 #include "wlt_main.h"
 #include "wlt_terminal.h"
 #include "wlt_toolkit.h"
