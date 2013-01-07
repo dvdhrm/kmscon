@@ -230,7 +230,7 @@ libuterm_la_SOURCES = \
 	src/uterm_input_internal.h \
 	src/uterm_video_internal.h \
 	src/uterm_pci.h \
-	src/uterm_systemd.h \
+	src/uterm_systemd_internal.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
 	src/uterm_vt.c \

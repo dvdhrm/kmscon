@@ -38,7 +38,7 @@
 #include <systemd/sd-login.h>
 #include "log.h"
 #include "uterm.h"
-#include "uterm_systemd.h"
+#include "uterm_systemd_internal.h"
 
 #define LOG_SUBSYSTEM "systemd"
 

@@ -44,7 +44,7 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 #include "uterm_pci.h"
-#include "uterm_systemd.h"
+#include "uterm_systemd_internal.h"
 #include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "monitor"
