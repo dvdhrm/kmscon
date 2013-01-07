@@ -44,7 +44,6 @@
 #include "shl_dlist.h"
 #include "uterm.h"
 #include "uterm_systemd_internal.h"
-#include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "monitor"
 
@@ -466,12 +465,61 @@ static bool is_drm_primary(struct uterm_monitor *mon, struct udev_device *dev,
 	return false;
 }
 
+/*
+ * DRM doesn't provide public uapi headers but instead provides the ABI via
+ * libdrm... GREAT! That means we either need a build-time dependency to libdrm
+ * or we copy the parts we use in here. As we only need the VERSION ioctl, we
+ * simply copy it from drm.h.
+ */
+
+struct uterm_drm_version {
+	int version_major;	  /**< Major version */
+	int version_minor;	  /**< Minor version */
+	int version_patchlevel;	  /**< Patch level */
+	size_t name_len;	  /**< Length of name buffer */
+	char *name;	  /**< Name of driver */
+	size_t date_len;	  /**< Length of date buffer */
+	char *date;	  /**< User-space buffer to hold date */
+	size_t desc_len;	  /**< Length of desc buffer */
+	char *desc;	  /**< User-space buffer to hold desc */
+};
+#define UTERM_DRM_IOCTL_VERSION _IOWR('d', 0x00, struct uterm_drm_version)
+
+static inline char *get_drm_name(int fd)
+{
+	struct uterm_drm_version v;
+	unsigned int len;
+	int ret;
+
+	memset(&v, 0, sizeof(v));
+	ret = ioctl(fd, UTERM_DRM_IOCTL_VERSION, &v);
+	if (ret < 0)
+		return NULL;
+
+	if (!v.name_len)
+		return NULL;
+
+	len = v.name_len;
+	v.name = malloc(len + 1);
+	if (!v.name)
+		return NULL;
+
+	ret = ioctl(fd, UTERM_DRM_IOCTL_VERSION, &v);
+	if (ret < 0) {
+		free(v.name);
+		return NULL;
+	}
+
+	v.name[len] = 0;
+	return v.name;
+}
+
 static bool is_drm_usb(struct uterm_monitor *mon, const char *node, int fd)
 {
 	char *name;
 	bool res;
 
-	name = video_drm_get_name(fd);
+	name = get_drm_name(fd);
 	if (!name) {
 		log_warning("cannot get driver name for DRM device %s (%d): %m",
 			    node, errno);
@@ -484,7 +532,7 @@ static bool is_drm_usb(struct uterm_monitor *mon, const char *node, int fd)
 		res = false;
 
 	log_debug("DRM device %s uses driver %s", node, name);
-	video_drm_free_name(name);
+	free(name);
 	return res;
 }
 
