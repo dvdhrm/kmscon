@@ -43,7 +43,6 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "uterm.h"
-#include "uterm_pci.h"
 #include "uterm_systemd_internal.h"
 #include "uterm_video_internal.h"
 
@@ -74,8 +73,6 @@ struct uterm_monitor {
 
 	struct uterm_sd *sd;
 	struct ev_fd *sd_mon_fd;
-
-	char *pci_primary_id;
 
 	struct udev *udev;
 	struct udev_monitor *umon;
@@ -451,27 +448,22 @@ out_close:
 	return flags;
 }
 
-static bool is_drm_primary(struct uterm_monitor *mon, const char *node, int fd)
+static bool is_drm_primary(struct uterm_monitor *mon, struct udev_device *dev,
+			   const char *node)
 {
-	char *id;
-	bool res;
+	struct udev_device *pci;
+	const char *id;
 
-	if (!mon->pci_primary_id)
-		return false;
-
-	id = video_drm_get_id(fd);
-	if (!id) {
-		log_warning("cannot get bus-id for DRM device %s (%d): %m",
-			    node, errno);
-		return false;
+	pci = udev_device_get_parent_with_subsystem_devtype(dev, "pci", NULL);
+	if (pci) {
+		id = udev_device_get_sysattr_value(pci, "boot_vga");
+		if (id && !strcmp(id, "1")) {
+			log_debug("DRM device %s is primary PCI GPU", node);
+			return true;
+		}
 	}
 
-	res = !strcmp(id, mon->pci_primary_id);
-	video_drm_free_id(id);
-
-	if (res)
-		log_debug("DRM device %s is primary PCI GPU", node);
-	return res;
+	return false;
 }
 
 static bool is_drm_usb(struct uterm_monitor *mon, const char *node, int fd)
@@ -496,7 +488,8 @@ static bool is_drm_usb(struct uterm_monitor *mon, const char *node, int fd)
 	return res;
 }
 
-static unsigned int get_drm_flags(struct uterm_monitor *mon, const char *node)
+static unsigned int get_drm_flags(struct uterm_monitor *mon,
+				  struct udev_device *dev, const char *node)
 {
 	int fd;
 	unsigned int flags = 0;
@@ -508,7 +501,7 @@ static unsigned int get_drm_flags(struct uterm_monitor *mon, const char *node)
 		return flags;
 	}
 
-	if (is_drm_primary(mon, node, fd))
+	if (is_drm_primary(mon, dev, node))
 		flags |= UTERM_MONITOR_PRIMARY;
 	if (is_drm_usb(mon, node, fd))
 		flags |= UTERM_MONITOR_AUX;
@@ -560,7 +553,7 @@ static void monitor_udev_add(struct uterm_monitor *mon,
 		}
 		sname = udev_device_get_property_value(dev, "ID_SEAT");
 		type = UTERM_MONITOR_DRM;
-		flags = get_drm_flags(mon, node);
+		flags = get_drm_flags(mon, dev, node);
 	} else if (!strcmp(subs, "graphics")) {
 		if (mon->sd && udev_device_has_tag(dev, "seat") != 1) {
 			log_debug("adding non-seat'ed device %s", name);
@@ -738,10 +731,6 @@ int uterm_monitor_new(struct uterm_monitor **out,
 	mon->data = data;
 	shl_dlist_init(&mon->seats);
 
-	ret = uterm_pci_get_primary_id(&mon->pci_primary_id);
-	if (ret)
-		log_warning("cannot get PCI primary ID");
-
 	ret = monitor_sd_init(mon);
 	if (ret)
 		goto err_free;
@@ -833,7 +822,6 @@ err_udev:
 err_sd:
 	monitor_sd_deinit(mon);
 err_free:
-	free(mon->pci_primary_id);
 	free(mon);
 	return ret;
 }
@@ -865,7 +853,6 @@ void uterm_monitor_unref(struct uterm_monitor *mon)
 	udev_unref(mon->udev);
 	monitor_sd_deinit(mon);
 	ev_eloop_unref(mon->eloop);
-	free(mon->pci_primary_id);
 	free(mon);
 }
 
