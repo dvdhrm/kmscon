@@ -43,6 +43,7 @@
 #include "uterm.h"
 #include "uterm_input.h"
 #include "uterm_video.h"
+#include "uterm_vt.h"
 
 struct app_video {
 	struct shl_dlist list;

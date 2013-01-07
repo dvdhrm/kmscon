@@ -41,9 +41,9 @@
 #include "kmscon_terminal.h"
 #include "log.h"
 #include "shl_dlist.h"
-#include "uterm.h"
 #include "uterm_input.h"
 #include "uterm_video.h"
+#include "uterm_vt.h"
 
 #define LOG_SUBSYSTEM "seat"
 

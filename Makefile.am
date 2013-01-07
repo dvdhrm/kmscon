@@ -221,7 +221,8 @@ lib_LTLIBRARIES += libuterm.la
 include_HEADERS += \
 	src/uterm.h \
 	src/uterm_input.h \
-	src/uterm_video.h
+	src/uterm_video.h \
+	src/uterm_vt.h
 pkgconfig_DATA += docs/pc/libuterm.pc
 endif
 
@@ -232,6 +233,7 @@ libuterm_la_SOURCES = \
 	src/uterm.h \
 	src/uterm_input.h \
 	src/uterm_video.h \
+	src/uterm_vt.h \
 	src/uterm_input_internal.h \
 	src/uterm_video_internal.h \
 	src/uterm_systemd_internal.h \
