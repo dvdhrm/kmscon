@@ -104,11 +104,6 @@ PKG_CHECK_MODULES([FUSE], [fuse],
 AC_SUBST(FUSE_CFLAGS)
 AC_SUBST(FUSE_LIBS)
 
-PKG_CHECK_MODULES([PCIACCESS], [pciaccess],
-                  [have_pciaccess=yes], [have_pciaccess=no])
-AC_SUBST(PCIACCESS_CFLAGS)
-AC_SUBST(PCIACCESS_LIBS)
-
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -205,16 +200,6 @@ if test "x$enable_hotplug" = "x" ; then
         enable_hotplug="yes (default)"
 fi
 AC_MSG_RESULT([$enable_hotplug])
-
-# pciaccess
-AC_MSG_CHECKING([whether user wants pciaccess device detection])
-AC_ARG_ENABLE([pciaccess],
-              [AS_HELP_STRING([--enable-pciaccess],
-                              [enable device detection via pciaccess])])
-if test "x$enable_pciaccess" = "x" ; then
-        enable_pciaccess="yes (default)"
-fi
-AC_MSG_RESULT([$enable_pciaccess])
 
 # eloop-dbus
 AC_MSG_CHECKING([whether user wants eloop dbus support])
@@ -528,25 +513,6 @@ else
         hotplug_missing="enable-hotplug"
 fi
 
-# pciaccess
-pciaccess_avail=no
-pciaccess_missing=""
-if test ! "x$enable_pciaccess" = "xno" ; then
-        pciaccess_avail=yes
-        if test "x$have_pciaccess" = "xno" ; then
-                pciaccess_avail=no
-                pciaccess_missing="libpciaccess"
-        fi
-
-        if test "x$pciaccess_avail" = "xno" ; then
-                if test "x$enable_pciaccess" = "xyes" ; then
-                        AC_ERROR([missing for pciaccess: $pciaccess_missing])
-                fi
-        fi
-else
-        pciaccess_missing="enable-pciaccess"
-fi
-
 # renderer bbulk
 renderer_bbulk_avail=no
 renderer_bbulk_missing=""
@@ -825,14 +791,6 @@ if test "x$renderer_bbulk_avail" = "xyes" ; then
         fi
 fi
 
-# pciaccess
-pciaccess_enabled=no
-if test "x$pciaccess_avail" = "xyes" ; then
-        if test "x${enable_pciaccess% *}" = "xyes" ; then
-                pciaccess_enabled=yes
-        fi
-fi
-
 # hotplug
 hotplug_enabled=no
 if test "x$hotplug_avail" = "xyes" ; then
@@ -1003,15 +961,6 @@ fi
 
 AM_CONDITIONAL([BUILD_ENABLE_HOTPLUG],
                [test "x$hotplug_enabled" = "xyes"])
-
-# pciaccess
-if test "x$pciaccess_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_PCIACCESS], [1],
-                  [Use pciaccess for device detection])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_PCIACCESS],
-               [test "x$pciaccess_enabled" = "xyes"])
 
 # renderer bbulk
 if test "x$renderer_bbulk_enabled" = "xyes" ; then
@@ -1185,7 +1134,6 @@ AC_MSG_NOTICE([Build configuration:
         optimizations: $optimizations_enabled ($optimizations_avail: $optimizations_missing)
            multi-seat: $multi_seat_enabled ($multi_seat_avail: $multi_seat_missing)
               hotplug: $hotplug_enabled ($hotplug_avail: $hotplug_missing)
-            pciaccess: $pciaccess_enabled ($pciaccess_avail: $pciaccess_missing)
            eloop-dbus: $eloop_dbus_enabled ($eloop_dbus_avail: $eloop_dbus_missing)
 
   Video Backends:

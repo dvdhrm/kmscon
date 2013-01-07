@@ -43,7 +43,7 @@ console. See kmscon(1) man-page for usage information.
 
   If you want only a very basic kmscon program without any major dependencies,
   use:
-    $ ./configure --disable-debug --with-video=fbdev --disable-multi-seat --with-fonts=8x16 --disable-pciaccess --with-sessions=dummy,terminal
+    $ ./configure --disable-debug --with-video=fbdev --disable-multi-seat --with-fonts=8x16 --with-sessions=dummy,terminal
   However, you will loose a lot of functionality by dropping all dependencies.
 
   The following configure options are available. If build-time dependencies
@@ -53,7 +53,6 @@ console. See kmscon(1) man-page for usage information.
                          multi-seat support for kmscon. [default: on]
     --enable-hotplug: This requires libudev for hotplugging support. This is
                       currently mandatory and cannot be disabled. [default: on]
-    --enable-pciaccess: Enable GPU detection via pciaccess [default: on]
     --enable-debug: Enable debug mode/messages [default: on]
     --enable-optimizations: Enable code optimizations [default: on]
     --enable-eloop-dbus: Build dbus extension for eloop library [default: off]

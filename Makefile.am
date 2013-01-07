@@ -229,7 +229,6 @@ libuterm_la_SOURCES = \
 	src/uterm.h \
 	src/uterm_input_internal.h \
 	src/uterm_video_internal.h \
-	src/uterm_pci.h \
 	src/uterm_systemd_internal.h \
 	src/uterm_video.c \
 	src/uterm_monitor.c \
@@ -257,12 +256,6 @@ endif
 if BUILD_ENABLE_HOTPLUG
 libuterm_la_CPPFLAGS += $(UDEV_CFLAGS)
 libuterm_la_LIBADD += $(UDEV_LIBS)
-endif
-
-if BUILD_ENABLE_PCIACCESS
-libuterm_la_CPPFLAGS += $(PCIACCESS_CFLAGS)
-libuterm_la_LIBADD += $(PCIACCESS_LIBS)
-libuterm_la_SOURCES += src/uterm_pci.c
 endif
 
 if BUILD_ENABLE_VIDEO_FBDEV
