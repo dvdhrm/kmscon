@@ -40,8 +40,8 @@
 #include "shl_dlist.h"
 #include "shl_misc.h"
 #include "text.h"
-#include "uterm.h"
 #include "uterm_input.h"
+#include "uterm_monitor.h"
 #include "uterm_video.h"
 #include "uterm_vt.h"
 

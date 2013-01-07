@@ -42,7 +42,7 @@
 #include <unistd.h>
 #include "log.h"
 #include "shl_dlist.h"
-#include "uterm.h"
+#include "uterm_monitor.h"
 #include "uterm_systemd_internal.h"
 
 #define LOG_SUBSYSTEM "monitor"

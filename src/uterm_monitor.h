@@ -1,7 +1,7 @@
 /*
- * uterm - Linux User-Space Terminal
+ * uterm - Linux User-Space Terminal System Monitor
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -24,31 +24,18 @@
  */
 
 /*
- * Linux User-Space Terminal
- * Historically, terminals were implemented in kernel-space on linux. With the
- * development of KMS and the linux input-API it is now possible to implement
- * all we need in user-space. This allows to disable the in-kernel CONFIG_VT and
- * similar options and reduce the kernel-overhead.
- * This library provides an API to implement terminals in user-space. This is
- * not limited to classic text-terminals but rather to all kind of applications
- * that need graphical output (with OpenGL) or direct keyboard/mouse/etc. input
- * from the kernel.
+ * System Monitor
+ * This watches the system for new seats, graphics devices or other devices that
+ * are used by terminals.
  */
 
-#ifndef UTERM_UTERM_H
-#define UTERM_UTERM_H
+#ifndef UTERM_UTERM_MONITOR_H
+#define UTERM_UTERM_MONITOR_H
 
 #include <eloop.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <uterm_input.h>
-
-/*
- * System Monitor
- * This watches the system for new seats, graphics devices or other devices that
- * are used by terminals.
- */
 
 struct uterm_monitor;
 struct uterm_monitor_seat;
@@ -89,13 +76,11 @@ struct uterm_monitor_event {
 };
 
 typedef void (*uterm_monitor_cb) (struct uterm_monitor *mon,
-					struct uterm_monitor_event *event,
-					void *data);
+				  struct uterm_monitor_event *event,
+				  void *data);
 
-int uterm_monitor_new(struct uterm_monitor **out,
-			struct ev_eloop *eloop,
-			uterm_monitor_cb cb,
-			void *data);
+int uterm_monitor_new(struct uterm_monitor **out, struct ev_eloop *eloop,
+		      uterm_monitor_cb cb, void *data);
 void uterm_monitor_ref(struct uterm_monitor *mon);
 void uterm_monitor_unref(struct uterm_monitor *mon);
 void uterm_monitor_scan(struct uterm_monitor *mon);
@@ -103,4 +88,4 @@ void uterm_monitor_scan(struct uterm_monitor *mon);
 void uterm_monitor_set_seat_data(struct uterm_monitor_seat *seat, void *data);
 void uterm_monitor_set_dev_data(struct uterm_monitor_dev *dev, void *data);
 
-#endif /* UTERM_UTERM_H */
+#endif /* UTERM_UTERM_MONITOR_H */

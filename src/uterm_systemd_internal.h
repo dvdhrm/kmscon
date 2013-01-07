@@ -33,7 +33,7 @@
 #define UTERM_SYSTEMD_H
 
 #include <stdlib.h>
-#include "uterm.h"
+#include "uterm_monitor.h"
 
 struct uterm_sd;
 

@@ -219,8 +219,8 @@ libtsm_la_LDFLAGS = \
 if BUILD_ENABLE_UTERM
 lib_LTLIBRARIES += libuterm.la
 include_HEADERS += \
-	src/uterm.h \
 	src/uterm_input.h \
+	src/uterm_monitor.h \
 	src/uterm_video.h \
 	src/uterm_vt.h
 pkgconfig_DATA += docs/pc/libuterm.pc
@@ -230,8 +230,8 @@ libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_HOOK) \
 	$(SHL_MISC) \
-	src/uterm.h \
 	src/uterm_input.h \
+	src/uterm_monitor.h \
 	src/uterm_video.h \
 	src/uterm_vt.h \
 	src/uterm_input_internal.h \
