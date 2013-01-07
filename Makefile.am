@@ -220,6 +220,7 @@ if BUILD_ENABLE_UTERM
 lib_LTLIBRARIES += libuterm.la
 include_HEADERS += \
 	src/uterm.h \
+	src/uterm_input.h \
 	src/uterm_video.h
 pkgconfig_DATA += docs/pc/libuterm.pc
 endif
@@ -229,6 +230,7 @@ libuterm_la_SOURCES = \
 	$(SHL_HOOK) \
 	$(SHL_MISC) \
 	src/uterm.h \
+	src/uterm_input.h \
 	src/uterm_video.h \
 	src/uterm_input_internal.h \
 	src/uterm_video_internal.h \

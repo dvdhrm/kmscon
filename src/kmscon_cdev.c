@@ -50,7 +50,7 @@
 #include "shl_ring.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"
-#include "uterm.h"
+#include "uterm_input.h"
 
 #include <fuse/fuse.h>
 #include <fuse/fuse_common.h>

@@ -36,7 +36,7 @@
 #include "eloop.h"
 #include "shl_dlist.h"
 #include "shl_misc.h"
-#include "uterm.h"
+#include "uterm_input.h"
 
 enum uterm_input_device_capability {
 	UTERM_DEVICE_HAS_KEYS = (1 << 0),

@@ -49,6 +49,7 @@
 #include "shl_dlist.h"
 #include "shl_misc.h"
 #include "uterm.h"
+#include "uterm_input.h"
 
 #define LOG_SUBSYSTEM "vt"
 
