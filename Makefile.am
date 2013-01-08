@@ -493,7 +493,8 @@ kmscon_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libuterm.la \
-	-lpthread
+	-lpthread \
+	-ldl
 kmscon_LDFLAGS = \
 	-rdynamic
 
