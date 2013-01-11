@@ -215,66 +215,6 @@ struct dumb_video {
 
 #endif /* BUILD_ENABLE_VIDEO_DUMB */
 
-/* fbdev */
-
-#ifdef BUILD_ENABLE_VIDEO_FBDEV
-
-#include <linux/fb.h>
-
-struct fbdev_mode {
-	unsigned int width;
-	unsigned int height;
-};
-
-struct fbdev_display {
-	char *node;
-	int fd;
-	bool pending_intro;
-
-	struct fb_fix_screeninfo finfo;
-	struct fb_var_screeninfo vinfo;
-	unsigned int rate;
-
-	unsigned int bufid;
-	size_t xres;
-	size_t yres;
-	size_t len;
-	uint8_t *map;
-	unsigned int stride;
-
-	bool xrgb32;
-	unsigned int Bpp;
-	unsigned int off_r;
-	unsigned int off_g;
-	unsigned int off_b;
-	unsigned int len_r;
-	unsigned int len_g;
-	unsigned int len_b;
-	int_fast32_t dither_r;
-	int_fast32_t dither_g;
-	int_fast32_t dither_b;
-};
-
-struct fbdev_video {
-	int unused;
-};
-
-#else /* !BUILD_ENABLE_VIDEO_FBDEV */
-
-struct fbdev_mode {
-	int unused;
-};
-
-struct fbdev_display {
-	int unused;
-};
-
-struct fbdev_video {
-	int unused;
-};
-
-#endif /* BUILD_ENABLE_VIDEO_FBDEV */
-
 /* uterm_mode */
 
 struct uterm_mode {
@@ -286,7 +226,6 @@ struct uterm_mode {
 	union {
 		struct drm_mode drm;
 		struct dumb_mode dumb;
-		struct fbdev_mode fbdev;
 	};
 };
 
@@ -322,7 +261,6 @@ struct uterm_display {
 	union {
 		struct drm_display drm;
 		struct dumb_display dumb;
-		struct fbdev_display fbdev;
 	};
 };
 
@@ -366,7 +304,6 @@ struct uterm_video {
 	union {
 		struct drm_video drm;
 		struct dumb_video dumb;
-		struct fbdev_video fbdev;
 	};
 };
 
