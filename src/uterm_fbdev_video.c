@@ -318,6 +318,7 @@ static int display_activate_force(struct uterm_display *disp,
 		m->next = disp->modes;
 		disp->modes = m;
 
+		fbdev_mode = m->data;
 		fbdev_mode->width = fbdev->xres;
 		fbdev_mode->height = fbdev->yres;
 		disp->current_mode = disp->modes;
