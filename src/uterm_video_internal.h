@@ -282,6 +282,7 @@ struct uterm_mode {
 	struct uterm_mode *next;
 
 	const struct mode_ops *ops;
+	void *data;
 	union {
 		struct drm_mode drm;
 		struct dumb_mode dumb;
@@ -317,6 +318,7 @@ struct uterm_display {
 	struct ev_timer *vblank_timer;
 
 	const struct display_ops *ops;
+	void *data;
 	union {
 		struct drm_display drm;
 		struct dumb_display dumb;
@@ -360,6 +362,7 @@ struct uterm_video {
 
 	const struct uterm_video_module *mod;
 	const struct video_ops *ops;
+	void *data;
 	union {
 		struct drm_video drm;
 		struct dumb_video dumb;
