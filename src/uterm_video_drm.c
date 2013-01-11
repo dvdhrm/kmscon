@@ -582,18 +582,18 @@ static int display_blit(struct uterm_display *disp,
 	vertices[11] = -1.0;
 
 	texpos[0] = 0.0;
-	texpos[1] = 0.0;
+	texpos[1] = 1.0;
 	texpos[2] = 0.0;
-	texpos[3] = 1.0;
+	texpos[3] = 0.0;
 	texpos[4] = 1.0;
-	texpos[5] = 1.0;
+	texpos[5] = 0.0;
 
 	texpos[6] = 0.0;
-	texpos[7] = 0.0;
+	texpos[7] = 1.0;
 	texpos[8] = 1.0;
-	texpos[9] = 1.0;
+	texpos[9] = 0.0;
 	texpos[10] = 1.0;
-	texpos[11] = 0.0;
+	texpos[11] = 1.0;
 
 	tmp = x + buf->width;
 	if (tmp < x || x >= sw)
@@ -611,7 +611,7 @@ static int display_blit(struct uterm_display *disp,
 	else
 		height = buf->height;
 
-	glViewport(x, y, width, height);
+	glViewport(x, sh - y - height, width, height);
 	glDisable(GL_BLEND);
 
 	gl_shader_use(v3d->blit_shader);
