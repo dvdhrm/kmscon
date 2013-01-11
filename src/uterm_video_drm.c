@@ -977,8 +977,6 @@ static const struct display_ops drm_display_ops = {
 	.use = display_use,
 	.swap = display_swap,
 	.blit = display_blit,
-	.blend = display_blend,
-	.blendv = display_fake_blendv,
 	.fake_blendv = display_fake_blendv,
 	.fill = display_fill,
 };

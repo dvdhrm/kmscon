@@ -440,8 +440,6 @@ static const struct display_ops fbdev_display_ops = {
 	.use = NULL,
 	.swap = display_swap,
 	.blit = uterm_fbdev_display_blit,
-	.blend = uterm_fbdev_display_blend,
-	.blendv = uterm_fbdev_display_fake_blendv,
 	.fake_blendv = uterm_fbdev_display_fake_blendv,
 	.fill = uterm_fbdev_display_fill,
 };

@@ -426,86 +426,6 @@ static int display_blit(struct uterm_display *disp,
 	return 0;
 }
 
-static int display_blend(struct uterm_display *disp,
-			 const struct uterm_video_buffer *buf,
-			 unsigned int x, unsigned int y,
-			 uint8_t fr, uint8_t fg, uint8_t fb,
-			 uint8_t br, uint8_t bg, uint8_t bb)
-{
-	unsigned int tmp;
-	uint8_t *dst, *src;
-	struct dumb_rb *rb;
-	unsigned int width, height, i;
-	unsigned int sw, sh;
-	unsigned int r, g, b;
-
-	if (!disp->video || !display_is_online(disp))
-		return -EINVAL;
-	if (!buf || !video_is_awake(disp->video))
-		return -EINVAL;
-
-	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
-	sw = disp->current_mode->dumb.info.hdisplay;
-	sh = disp->current_mode->dumb.info.vdisplay;
-
-	tmp = x + buf->width;
-	if (tmp < x || x >= sw)
-		return -EINVAL;
-	if (tmp > sw)
-		width = sw - x;
-	else
-		width = buf->width;
-
-	tmp = y + buf->height;
-	if (tmp < y || y >= sh)
-		return -EINVAL;
-	if (tmp > sh)
-		height = sh - y;
-	else
-		height = buf->height;
-
-	dst = rb->map;
-	dst = &dst[y * rb->stride + x * 4];
-	src = buf->data;
-
-	if (buf->format == UTERM_FORMAT_GREY) {
-		while (height--) {
-			for (i = 0; i < width; ++i) {
-				/* Division by 256 instead of 255 increases
-				 * speed by like 20% on slower machines.
-				 * Downside is, full white is 254/254/254
-				 * instead of 255/255/255. */
-				if (src[i] == 0) {
-					r = br;
-					g = bg;
-					b = bb;
-				} else if (src[i] == 255) {
-					r = fr;
-					g = fg;
-					b = fb;
-				} else {
-					r = fr * src[i] +
-					    br * (255 - src[i]);
-					r /= 256;
-					g = fg * src[i] +
-					    bg * (255 - src[i]);
-					g /= 256;
-					b = fb * src[i] +
-					    bb * (255 - src[i]);
-					b /= 256;
-				}
-				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
-			}
-			dst += rb->stride;
-			src += buf->stride;
-		}
-	} else {
-		log_warning("using unsupported buffer format for blending");
-	}
-
-	return 0;
-}
-
 static int display_fake_blendv(struct uterm_display *disp,
 			       const struct uterm_video_blend_req *req,
 			       size_t num)
@@ -639,8 +559,6 @@ static const struct display_ops dumb_display_ops = {
 	.use = NULL,
 	.swap = display_swap,
 	.blit = display_blit,
-	.blend = display_blend,
-	.blendv = display_fake_blendv,
 	.fake_blendv = display_fake_blendv,
 	.fill = display_fill,
 };

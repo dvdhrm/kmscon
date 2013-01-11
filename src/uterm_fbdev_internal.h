@@ -72,11 +72,6 @@ struct fbdev_display {
 int uterm_fbdev_display_blit(struct uterm_display *disp,
 			     const struct uterm_video_buffer *buf,
 			     unsigned int x, unsigned int y);
-int uterm_fbdev_display_blend(struct uterm_display *disp,
-			      const struct uterm_video_buffer *buf,
-			      unsigned int x, unsigned int y,
-			      uint8_t fr, uint8_t fg, uint8_t fb,
-			      uint8_t br, uint8_t bg, uint8_t bb);
 int uterm_fbdev_display_fake_blendv(struct uterm_display *disp,
 				    const struct uterm_video_blend_req *req,
 				    size_t num);
