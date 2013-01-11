@@ -28,9 +28,11 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "log.h"
@@ -326,6 +328,78 @@ void uterm_drm_display_unbind(struct uterm_display *disp)
 	disp->flags &= ~DISPLAY_AVAILABLE;
 }
 
+static void event(struct ev_fd *fd, int mask, void *data)
+{
+	struct uterm_video *video = data;
+	struct uterm_drm_video *vdrm = video->data;
+	drmEventContext ev;
+
+	/* TODO: run this in a loop with O_NONBLOCK */
+	if (mask & EV_READABLE) {
+		memset(&ev, 0, sizeof(ev));
+		ev.version = DRM_EVENT_CONTEXT_VERSION;
+		ev.page_flip_handler = vdrm->page_flip;
+		drmHandleEvent(vdrm->fd, &ev);
+	}
+
+	/* TODO: forward HUP to caller */
+	if (mask & (EV_HUP | EV_ERR)) {
+		log_err("error or hangup on DRM fd");
+		ev_eloop_rm_fd(vdrm->efd);
+		vdrm->efd = NULL;
+		return;
+	}
+}
+
+int uterm_drm_video_init(struct uterm_video *video, const char *node,
+			 uterm_drm_page_flip_t pflip, void *data)
+{
+	struct uterm_drm_video *vdrm;
+	int ret;
+
+	log_info("new drm device via %s", node);
+
+	vdrm = malloc(sizeof(*vdrm));
+	if (!vdrm)
+		return -ENOMEM;
+	memset(vdrm, 0, sizeof(*vdrm));
+	video->data = vdrm;
+	vdrm->data = data;
+	vdrm->page_flip = pflip;
+
+	vdrm->fd = open(node, O_RDWR | O_CLOEXEC);
+	if (vdrm->fd < 0) {
+		log_err("cannot open drm device %s (%d): %m", node, errno);
+		ret = -EFAULT;
+		goto err_free;
+	}
+	/* TODO: fix the race-condition with DRM-Master-on-open */
+	drmDropMaster(vdrm->fd);
+
+	ret = ev_eloop_new_fd(video->eloop, &vdrm->efd, vdrm->fd, EV_READABLE,
+			      event, video);
+	if (ret)
+		goto err_close;
+
+	video->flags |= VIDEO_HOTPLUG;
+	return 0;
+
+err_close:
+	close(vdrm->fd);
+err_free:
+	free(vdrm);
+	return ret;
+}
+
+void uterm_drm_video_destroy(struct uterm_video *video)
+{
+	struct uterm_drm_video *vdrm = video->data;
+
+	ev_eloop_rm_fd(vdrm->efd);
+	close(vdrm->fd);
+	free(video->data);
+}
+
 int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 			      drmModeEncoder *enc)
 {
@@ -347,4 +421,98 @@ int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 	}
 
 	return -1;
+}
+
+static void bind_display(struct uterm_video *video, drmModeRes *res,
+			 drmModeConnector *conn,
+			 const struct display_ops *ops)
+{
+	struct uterm_drm_video *vdrm = video->data;
+	struct uterm_display *disp;
+	int ret;
+
+	ret = display_new(&disp, ops, video);
+	if (ret)
+		return;
+
+	ret = uterm_drm_display_bind(video, disp, res, conn, vdrm->fd);
+	if (ret) {
+		uterm_display_unref(disp);
+		return;
+	}
+}
+
+static void unbind_display(struct uterm_display *disp)
+{
+	if (!display_is_conn(disp))
+		return;
+
+	uterm_drm_display_unbind(disp);
+	uterm_display_unref(disp);
+}
+
+int uterm_drm_video_hotplug(struct uterm_video *video,
+			    const struct display_ops *ops)
+{
+	struct uterm_drm_video *vdrm = video->data;
+	drmModeRes *res;
+	drmModeConnector *conn;
+	struct uterm_display *disp, *tmp;
+	struct uterm_drm_display *ddrm;
+	int i;
+
+	if (!video_is_awake(video) || !video_need_hotplug(video))
+		return 0;
+
+	res = drmModeGetResources(vdrm->fd);
+	if (!res) {
+		log_err("cannot retrieve drm resources");
+		return -EACCES;
+	}
+
+	for (disp = video->displays; disp; disp = disp->next)
+		disp->flags &= ~DISPLAY_AVAILABLE;
+
+	for (i = 0; i < res->count_connectors; ++i) {
+		conn = drmModeGetConnector(vdrm->fd, res->connectors[i]);
+		if (!conn)
+			continue;
+		if (conn->connection == DRM_MODE_CONNECTED) {
+			for (disp = video->displays; disp; disp = disp->next) {
+				ddrm = disp->data;
+				if (ddrm->conn_id == res->connectors[i]) {
+					disp->flags |= DISPLAY_AVAILABLE;
+					break;
+				}
+			}
+			if (!disp)
+				bind_display(video, res, conn, ops);
+		}
+		drmModeFreeConnector(conn);
+	}
+
+	drmModeFreeResources(res);
+
+	while (video->displays) {
+		tmp = video->displays;
+		if (tmp->flags & DISPLAY_AVAILABLE)
+			break;
+
+		video->displays = tmp->next;
+		tmp->next = NULL;
+		unbind_display(tmp);
+	}
+	for (disp = video->displays; disp && disp->next; ) {
+		tmp = disp->next;
+		if (tmp->flags & DISPLAY_AVAILABLE) {
+			disp = tmp;
+		} else {
+			disp->next = tmp->next;
+			tmp->next = NULL;
+			unbind_display(tmp);
+		}
+	}
+
+	video->flags &= ~VIDEO_HOTPLUG;
+	return 0;
 }

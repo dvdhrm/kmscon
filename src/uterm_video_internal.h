@@ -81,70 +81,6 @@ struct uterm_video_module {
 
 #define VIDEO_CALL(func, els, ...) (func ? func(__VA_ARGS__) : els)
 
-/* drm */
-
-#ifdef BUILD_ENABLE_VIDEO_DRM
-
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <gbm.h>
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#include "static_gl.h"
-
-struct drm_video {
-	int fd;
-	struct ev_fd *efd;
-	struct gbm_device *gbm;
-	EGLDisplay disp;
-	EGLConfig conf;
-	EGLContext ctx;
-
-	unsigned int sinit;
-	bool supports_rowlen;
-	GLuint tex;
-
-	struct gl_shader *fill_shader;
-	GLuint uni_fill_proj;
-
-	struct gl_shader *blend_shader;
-	GLuint uni_blend_proj;
-	GLuint uni_blend_tex;
-	GLuint uni_blend_fgcol;
-	GLuint uni_blend_bgcol;
-
-	struct gl_shader *blit_shader;
-	GLuint uni_blit_proj;
-	GLuint uni_blit_tex;
-};
-
-#else /* !BUILD_ENABLE_VIDEO_DRM */
-
-struct drm_video {
-	int unused;
-};
-
-#endif /* BUILD_ENABLE_VIDEO_DRM */
-
-/* dumb drm */
-
-#ifdef BUILD_ENABLE_VIDEO_DUMB
-
-struct dumb_video {
-	int fd;
-	struct ev_fd *efd;
-};
-
-#else /* !BUILD_ENABLE_VIDEO_DUMB */
-
-struct dumb_video {
-	int unused;
-};
-
-#endif /* BUILD_ENABLE_VIDEO_DUMB */
-
 /* uterm_mode */
 
 struct uterm_mode {
@@ -223,10 +159,6 @@ struct uterm_video {
 	const struct uterm_video_module *mod;
 	const struct video_ops *ops;
 	void *data;
-	union {
-		struct drm_video drm;
-		struct dumb_video dumb;
-	};
 };
 
 static inline bool video_is_awake(const struct uterm_video *video)

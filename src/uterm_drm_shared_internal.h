@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "eloop.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
@@ -88,7 +89,30 @@ static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
 
 /* drm video */
 
+typedef void (*uterm_drm_page_flip_t) (int fd, unsigned int frame,
+				       unsigned int sec, unsigned int usec,
+				       void *data);
+
+struct uterm_drm_video {
+	int fd;
+	struct ev_fd *efd;
+	uterm_drm_page_flip_t page_flip;
+	void *data;
+};
+
+int uterm_drm_video_init(struct uterm_video *video, const char *node,
+			 uterm_drm_page_flip_t pflip, void *data);
+void uterm_drm_video_destroy(struct uterm_video *video);
 int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 			      drmModeEncoder *enc);
+int uterm_drm_video_hotplug(struct uterm_video *video,
+			    const struct display_ops *ops);
+
+static inline void *uterm_drm_video_get_data(struct uterm_video *video)
+{
+	struct uterm_drm_video *v = video->data;
+
+	return v->data;
+}
 
 #endif /* UTERM_DRM_SHARED_INTERNAL_H */
