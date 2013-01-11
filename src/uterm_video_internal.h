@@ -94,24 +94,6 @@ struct uterm_video_module {
 #include <xf86drmMode.h>
 #include "static_gl.h"
 
-struct drm_rb {
-	struct uterm_display *disp;
-	struct gbm_bo *bo;
-	uint32_t fb;
-};
-
-struct drm_display {
-	uint32_t conn_id;
-	int crtc_id;
-	drmModeCrtc *saved_crtc;
-
-	struct gbm_surface *gbm;
-	EGLSurface surface;
-	struct drm_rb *current;
-	struct drm_rb *next;
-	unsigned int ignore_flips;
-};
-
 struct drm_video {
 	int fd;
 	struct ev_fd *efd;
@@ -140,10 +122,6 @@ struct drm_video {
 
 #else /* !BUILD_ENABLE_VIDEO_DRM */
 
-struct drm_display {
-	int unused;
-};
-
 struct drm_video {
 	int unused;
 };
@@ -154,37 +132,12 @@ struct drm_video {
 
 #ifdef BUILD_ENABLE_VIDEO_DUMB
 
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-
-struct dumb_rb {
-	uint32_t fb;
-	uint32_t handle;
-	uint32_t stride;
-	uint64_t size;
-
-	void *map;
-};
-
-struct dumb_display {
-	uint32_t conn_id;
-	int crtc_id;
-	drmModeCrtc *saved_crtc;
-
-	int current_rb;
-	struct dumb_rb rb[2];
-};
-
 struct dumb_video {
 	int fd;
 	struct ev_fd *efd;
 };
 
 #else /* !BUILD_ENABLE_VIDEO_DUMB */
-
-struct dumb_display {
-	int unused;
-};
 
 struct dumb_video {
 	int unused;
@@ -231,10 +184,6 @@ struct uterm_display {
 
 	const struct display_ops *ops;
 	void *data;
-	union {
-		struct drm_display drm;
-		struct dumb_display dumb;
-	};
 };
 
 int display_new(struct uterm_display **out, const struct display_ops *ops,

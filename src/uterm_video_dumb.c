@@ -45,7 +45,45 @@
 
 #define LOG_SUBSYSTEM "video_dumb"
 
-static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
+struct uterm_drm2d_rb {
+	uint32_t fb;
+	uint32_t handle;
+	uint32_t stride;
+	uint64_t size;
+	void *map;
+};
+
+struct uterm_drm2d_display {
+	int current_rb;
+	struct uterm_drm2d_rb rb[2];
+};
+
+static int display_init(struct uterm_display *disp)
+{
+	struct uterm_drm2d_display *d2d;
+	int ret;
+
+	d2d = malloc(sizeof(*d2d));
+	if (!d2d)
+		return -ENOMEM;
+	memset(d2d, 0, sizeof(*d2d));
+
+	ret = uterm_drm_display_init(disp, d2d);
+	if (ret) {
+		free(d2d);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void display_destroy(struct uterm_display *disp)
+{
+	free(uterm_drm_display_get_data(disp));
+	uterm_drm_display_destroy(disp);
+}
+
+static int init_rb(struct uterm_display *disp, struct uterm_drm2d_rb *rb)
 {
 	int ret;
 	struct uterm_video *video = disp->video;
@@ -111,7 +149,7 @@ err_buf:
 	return ret;
 }
 
-static void destroy_rb(struct uterm_display *disp, struct dumb_rb *rb)
+static void destroy_rb(struct uterm_display *disp, struct uterm_drm2d_rb *rb)
 {
 	struct drm_mode_destroy_dumb dreq;
 	int ret;
@@ -127,34 +165,12 @@ static void destroy_rb(struct uterm_display *disp, struct dumb_rb *rb)
 			    ret, errno);
 }
 
-static int find_crtc(struct uterm_video *video, drmModeRes *res,
-							drmModeEncoder *enc)
-{
-	int i, crtc;
-	struct uterm_display *iter;
-
-	for (i = 0; i < res->count_crtcs; ++i) {
-		if (enc->possible_crtcs & (1 << i)) {
-			crtc = res->crtcs[i];
-			for (iter = video->displays; iter; iter = iter->next) {
-				if (iter->dumb.crtc_id == crtc)
-					break;
-			}
-			if (!iter)
-				return crtc;
-		}
-	}
-
-	return -1;
-}
-
 static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 {
 	struct uterm_video *video = disp->video;
-	int ret, crtc, i;
-	drmModeRes *res;
-	drmModeConnector *conn;
-	drmModeEncoder *enc;
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
+	int ret;
 	drmModeModeInfo *minfo;
 
 	if (!video || !video_is_awake(video) || !mode)
@@ -166,54 +182,24 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	log_info("activating display %p to %ux%u", disp,
 		 minfo->hdisplay, minfo->vdisplay);
 
-	res = drmModeGetResources(video->dumb.fd);
-	if (!res) {
-		log_err("cannot get resources for display %p", disp);
-		return -EFAULT;
-	}
-	conn = drmModeGetConnector(video->dumb.fd, disp->dumb.conn_id);
-	if (!conn) {
-		log_err("cannot get connector for display %p", disp);
-		drmModeFreeResources(res);
-		return -EFAULT;
-	}
+	ret = uterm_drm_display_activate(disp, video->dumb.fd);
+	if (ret)
+		return ret;
 
-	crtc = -1;
-	for (i = 0; i < conn->count_encoders; ++i) {
-		enc = drmModeGetEncoder(video->dumb.fd, conn->encoders[i]);
-		if (!enc)
-			continue;
-		crtc = find_crtc(video, res, enc);
-		drmModeFreeEncoder(enc);
-		if (crtc >= 0)
-			break;
-	}
-
-	drmModeFreeConnector(conn);
-	drmModeFreeResources(res);
-
-	if (crtc < 0) {
-		log_warn("cannot find crtc for new display");
-		return -ENODEV;
-	}
-
-	disp->dumb.crtc_id = crtc;
-	disp->dumb.current_rb = 0;
+	d2d->current_rb = 0;
 	disp->current_mode = mode;
-	disp->dumb.saved_crtc = drmModeGetCrtc(video->dumb.fd,
-					       disp->dumb.crtc_id);
 
-	ret = init_rb(disp, &disp->dumb.rb[0]);
+	ret = init_rb(disp, &d2d->rb[0]);
 	if (ret)
 		goto err_saved;
 
-	ret = init_rb(disp, &disp->dumb.rb[1]);
+	ret = init_rb(disp, &d2d->rb[1]);
 	if (ret)
 		goto err_rb;
 
-	ret = drmModeSetCrtc(video->dumb.fd, disp->dumb.crtc_id,
-			disp->dumb.rb[0].fb, 0, 0, &disp->dumb.conn_id, 1,
-			minfo);
+	ret = drmModeSetCrtc(video->dumb.fd, ddrm->crtc_id,
+			     d2d->rb[0].fb, 0, 0, &ddrm->conn_id, 1,
+			     minfo);
 	if (ret) {
 		log_err("cannot set drm-crtc");
 		ret = -EFAULT;
@@ -224,48 +210,36 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	return 0;
 
 err_fb:
-	destroy_rb(disp, &disp->dumb.rb[1]);
+	destroy_rb(disp, &d2d->rb[1]);
 err_rb:
-	destroy_rb(disp, &disp->dumb.rb[0]);
+	destroy_rb(disp, &d2d->rb[0]);
 err_saved:
 	disp->current_mode = NULL;
-	if (disp->dumb.saved_crtc) {
-		drmModeFreeCrtc(disp->dumb.saved_crtc);
-		disp->dumb.saved_crtc = NULL;
-	}
+	uterm_drm_display_deactivate(disp, video->dumb.fd);
 	return ret;
 }
 
 static void display_deactivate(struct uterm_display *disp)
 {
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
+
 	if (!display_is_online(disp))
 		return;
 
-	if (disp->dumb.saved_crtc) {
-		if (disp->video->flags & VIDEO_AWAKE) {
-			drmModeSetCrtc(disp->video->dumb.fd,
-					disp->dumb.saved_crtc->crtc_id,
-					disp->dumb.saved_crtc->buffer_id,
-					disp->dumb.saved_crtc->x,
-					disp->dumb.saved_crtc->y,
-					&disp->dumb.conn_id,
-					1,
-					&disp->dumb.saved_crtc->mode);
-		}
-		drmModeFreeCrtc(disp->dumb.saved_crtc);
-		disp->dumb.saved_crtc = NULL;
-	}
+	log_info("deactivating display %p", disp);
 
-	destroy_rb(disp, &disp->dumb.rb[1]);
-	destroy_rb(disp, &disp->dumb.rb[0]);
+	uterm_drm_display_deactivate(disp, disp->video->dumb.fd);
+
+	destroy_rb(disp, &d2d->rb[1]);
+	destroy_rb(disp, &d2d->rb[0]);
 	disp->current_mode = NULL;
 	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
-	log_info("deactivating display %p", disp);
 }
 
 static int display_set_dpms(struct uterm_display *disp, int state)
 {
 	int ret;
+	struct uterm_drm_display *ddrm = disp->data;
 
 	if (!display_is_conn(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
@@ -273,8 +247,7 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	log_info("setting DPMS of display %p to %s", disp,
 		 uterm_dpms_to_name(state));
 
-	ret = uterm_drm_set_dpms(disp->video->dumb.fd, disp->dumb.conn_id,
-				 state);
+	ret = uterm_drm_set_dpms(disp->video->dumb.fd, ddrm->conn_id, state);
 	if (ret < 0)
 		return ret;
 
@@ -285,6 +258,8 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 static int display_swap(struct uterm_display *disp)
 {
 	int ret;
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
 	if (!display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
@@ -292,10 +267,10 @@ static int display_swap(struct uterm_display *disp)
 		return -EINVAL;
 
 	errno = 0;
-	disp->dumb.current_rb ^= 1;
-	ret = drmModePageFlip(disp->video->dumb.fd, disp->dumb.crtc_id,
-				disp->dumb.rb[disp->dumb.current_rb].fb,
-				DRM_MODE_PAGE_FLIP_EVENT, disp);
+	d2d->current_rb ^= 1;
+	ret = drmModePageFlip(disp->video->dumb.fd, ddrm->crtc_id,
+			      d2d->rb[d2d->current_rb].fb,
+			      DRM_MODE_PAGE_FLIP_EVENT, disp);
 	if (ret) {
 		log_warn("page-flip failed %d %d", ret, errno);
 		return -EFAULT;
@@ -312,9 +287,10 @@ static int display_blit(struct uterm_display *disp,
 {
 	unsigned int tmp;
 	uint8_t *dst, *src;
-	struct dumb_rb *rb;
 	unsigned int width, height;
 	unsigned int sw, sh;
+	struct uterm_drm2d_rb *rb;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
 	if (!disp->video || !display_is_online(disp))
 		return -EINVAL;
@@ -323,7 +299,7 @@ static int display_blit(struct uterm_display *disp,
 	if (buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
-	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	rb = &d2d->rb[d2d->current_rb ^ 1];
 	sw = uterm_drm_mode_get_width(disp->current_mode);
 	sh = uterm_drm_mode_get_height(disp->current_mode);
 
@@ -362,17 +338,18 @@ static int display_fake_blendv(struct uterm_display *disp,
 {
 	unsigned int tmp;
 	uint8_t *dst, *src;
-	struct dumb_rb *rb;
 	unsigned int width, height, i, j;
 	unsigned int sw, sh;
 	unsigned int r, g, b;
+	struct uterm_drm2d_rb *rb;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
 	if (!disp->video || !display_is_online(disp))
 		return -EINVAL;
 	if (!req || !video_is_awake(disp->video))
 		return -EINVAL;
 
-	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	rb = &d2d->rb[d2d->current_rb ^ 1];
 	sw = uterm_drm_mode_get_width(disp->current_mode);
 	sh = uterm_drm_mode_get_height(disp->current_mode);
 
@@ -445,15 +422,16 @@ static int display_fill(struct uterm_display *disp,
 {
 	unsigned int tmp, i;
 	uint8_t *dst;
-	struct dumb_rb *rb;
 	unsigned int sw, sh;
+	struct uterm_drm2d_rb *rb;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
 	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
 		return -EINVAL;
 	if (!video_is_awake(disp->video))
 		return -EINVAL;
 
-	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
+	rb = &d2d->rb[d2d->current_rb ^ 1];
 	sw = uterm_drm_mode_get_width(disp->current_mode);
 	sh = uterm_drm_mode_get_height(disp->current_mode);
 
@@ -481,8 +459,8 @@ static int display_fill(struct uterm_display *disp,
 }
 
 static const struct display_ops dumb_display_ops = {
-	.init = NULL,
-	.destroy = NULL,
+	.init = display_init,
+	.destroy = display_destroy,
 	.activate = display_activate,
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
@@ -497,7 +475,9 @@ static void show_displays(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_display *iter;
-	struct dumb_rb *rb;
+	struct uterm_drm_display *ddrm;
+	struct uterm_drm2d_display *d2d;
+	struct uterm_drm2d_rb *rb;
 
 	if (!video_is_awake(video))
 		return;
@@ -508,10 +488,13 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
-		rb = &iter->dumb.rb[iter->dumb.current_rb];
+		ddrm = iter->data;
+		d2d = uterm_drm_display_get_data(iter);
+		rb = &d2d->rb[d2d->current_rb];
+
 		memset(rb->map, 0, rb->size);
-		ret = drmModeSetCrtc(video->dumb.fd, iter->dumb.crtc_id,
-				     rb->fb, 0, 0, &iter->dumb.conn_id, 1,
+		ret = drmModeSetCrtc(video->dumb.fd, ddrm->crtc_id,
+				     rb->fb, 0, 0, &ddrm->conn_id, 1,
 				     uterm_drm_mode_get_info(iter->current_mode));
 		if (ret) {
 			log_err("cannot set drm-crtc on display %p", iter);
@@ -524,40 +507,17 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 							drmModeConnector *conn)
 {
 	struct uterm_display *disp;
-	struct uterm_mode *mode;
-	int ret, i;
+	int ret;
 
 	ret = display_new(&disp, &dumb_display_ops, video);
 	if (ret)
 		return;
 
-	for (i = 0; i < conn->count_modes; ++i) {
-		ret = mode_new(&mode, &uterm_drm_mode_ops);
-		if (ret)
-			continue;
-		uterm_drm_mode_set(mode, &conn->modes[i]);
-		mode->next = disp->modes;
-		disp->modes = mode;
-
-		/* TODO: more sophisticated default-mode selection */
-		if (!disp->default_mode)
-			disp->default_mode = mode;
-	}
-
-	if (!disp->modes) {
-		log_warn("no valid mode for display found");
+	ret = uterm_drm_display_bind(video, disp, res, conn, video->dumb.fd);
+	if (ret) {
 		uterm_display_unref(disp);
 		return;
 	}
-
-	disp->dumb.conn_id = conn->connector_id;
-	disp->flags |= DISPLAY_AVAILABLE;
-	disp->next = video->displays;
-	video->displays = disp;
-	disp->dpms = uterm_drm_get_dpms(disp->video->dumb.fd, conn);
-	log_info("display %p DPMS is %s", disp,
-			uterm_dpms_to_name(disp->dpms));
-	VIDEO_CB(video, disp, UTERM_NEW);
 }
 
 static void unbind_display(struct uterm_display *disp)
@@ -565,10 +525,7 @@ static void unbind_display(struct uterm_display *disp)
 	if (!display_is_conn(disp))
 		return;
 
-	VIDEO_CB(disp->video, disp, UTERM_GONE);
-	display_deactivate(disp);
-	disp->video = NULL;
-	disp->flags &= ~DISPLAY_AVAILABLE;
+	uterm_drm_display_unbind(disp);
 	uterm_display_unref(disp);
 }
 
@@ -663,6 +620,7 @@ static int hotplug(struct uterm_video *video)
 	drmModeRes *res;
 	drmModeConnector *conn;
 	struct uterm_display *disp, *tmp;
+	struct uterm_drm_display *ddrm;
 	int i;
 
 	if (!video_is_awake(video) || !video_need_hotplug(video))
@@ -683,7 +641,8 @@ static int hotplug(struct uterm_video *video)
 			continue;
 		if (conn->connection == DRM_MODE_CONNECTED) {
 			for (disp = video->displays; disp; disp = disp->next) {
-				if (disp->dumb.conn_id == res->connectors[i]) {
+				ddrm = disp->data;
+				if (ddrm->conn_id == res->connectors[i]) {
 					disp->flags |= DISPLAY_AVAILABLE;
 					break;
 				}

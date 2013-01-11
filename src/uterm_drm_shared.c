@@ -191,3 +191,160 @@ int uterm_drm_get_dpms(int fd, drmModeConnector *conn)
 		log_warn("display does not support DPMS");
 	return UTERM_DPMS_UNKNOWN;
 }
+
+int uterm_drm_display_init(struct uterm_display *disp, void *data)
+{
+	struct uterm_drm_display *d;
+
+	d = malloc(sizeof(*d));
+	if (!d)
+		return -ENOMEM;
+	memset(d, 0, sizeof(*d));
+	disp->data = d;
+	d->data = data;
+
+	return 0;
+}
+
+void uterm_drm_display_destroy(struct uterm_display *disp)
+{
+	free(disp->data);
+}
+
+int uterm_drm_display_activate(struct uterm_display *disp, int fd)
+{
+	struct uterm_video *video = disp->video;
+	struct uterm_drm_display *ddrm = disp->data;
+	drmModeRes *res;
+	drmModeConnector *conn;
+	drmModeEncoder *enc;
+	int crtc, i;
+
+	res = drmModeGetResources(fd);
+	if (!res) {
+		log_err("cannot get resources for display %p", disp);
+		return -EFAULT;
+	}
+	conn = drmModeGetConnector(fd, ddrm->conn_id);
+	if (!conn) {
+		log_err("cannot get connector for display %p", disp);
+		drmModeFreeResources(res);
+		return -EFAULT;
+	}
+
+	crtc = -1;
+	for (i = 0; i < conn->count_encoders; ++i) {
+		enc = drmModeGetEncoder(fd, conn->encoders[i]);
+		if (!enc)
+			continue;
+		crtc = uterm_drm_video_find_crtc(video, res, enc);
+		drmModeFreeEncoder(enc);
+		if (crtc >= 0)
+			break;
+	}
+
+	drmModeFreeConnector(conn);
+	drmModeFreeResources(res);
+
+	if (crtc < 0) {
+		log_warn("cannot find crtc for new display");
+		return -ENODEV;
+	}
+
+	ddrm->crtc_id = crtc;
+	if (ddrm->saved_crtc)
+		drmModeFreeCrtc(ddrm->saved_crtc);
+	ddrm->saved_crtc = drmModeGetCrtc(fd, ddrm->crtc_id);
+
+	return 0;
+}
+
+void uterm_drm_display_deactivate(struct uterm_display *disp, int fd)
+{
+	struct uterm_drm_display *ddrm = disp->data;
+
+	if (ddrm->saved_crtc) {
+		if (disp->video->flags & VIDEO_AWAKE) {
+			drmModeSetCrtc(fd, ddrm->saved_crtc->crtc_id,
+				       ddrm->saved_crtc->buffer_id,
+				       ddrm->saved_crtc->x,
+				       ddrm->saved_crtc->y,
+				       &ddrm->conn_id, 1,
+				       &ddrm->saved_crtc->mode);
+		}
+		drmModeFreeCrtc(ddrm->saved_crtc);
+		ddrm->saved_crtc = NULL;
+	}
+
+	ddrm->crtc_id = 0;
+}
+
+int uterm_drm_display_bind(struct uterm_video *video,
+			   struct uterm_display *disp, drmModeRes *res,
+			   drmModeConnector *conn, int fd)
+{
+	struct uterm_mode *mode;
+	int ret, i;
+	struct uterm_drm_display *ddrm = disp->data;
+
+	for (i = 0; i < conn->count_modes; ++i) {
+		ret = mode_new(&mode, &uterm_drm_mode_ops);
+		if (ret)
+			continue;
+		uterm_drm_mode_set(mode, &conn->modes[i]);
+		mode->next = disp->modes;
+		disp->modes = mode;
+
+		/* TODO: more sophisticated default-mode selection */
+		if (!disp->default_mode)
+			disp->default_mode = mode;
+	}
+
+	if (!disp->modes) {
+		log_warn("no valid mode for display found");
+		return -EFAULT;
+	}
+
+	ddrm->conn_id = conn->connector_id;
+	disp->flags |= DISPLAY_AVAILABLE;
+	disp->next = video->displays;
+	video->displays = disp;
+	disp->dpms = uterm_drm_get_dpms(fd, conn);
+
+	log_info("display %p DPMS is %s", disp,
+		 uterm_dpms_to_name(disp->dpms));
+
+	VIDEO_CB(video, disp, UTERM_NEW);
+	return 0;
+}
+
+void uterm_drm_display_unbind(struct uterm_display *disp)
+{
+	VIDEO_CB(disp->video, disp, UTERM_GONE);
+	uterm_display_deactivate(disp);
+	disp->video = NULL;
+	disp->flags &= ~DISPLAY_AVAILABLE;
+}
+
+int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
+			      drmModeEncoder *enc)
+{
+	int i, crtc;
+	struct uterm_display *iter;
+	struct uterm_drm_display *ddrm;
+
+	for (i = 0; i < res->count_crtcs; ++i) {
+		if (enc->possible_crtcs & (1 << i)) {
+			crtc = res->crtcs[i];
+			for (iter = video->displays; iter; iter = iter->next) {
+				ddrm = iter->data;
+				if (ddrm->crtc_id == crtc)
+					break;
+			}
+			if (!iter)
+				return crtc;
+		}
+	}
+
+	return -1;
+}

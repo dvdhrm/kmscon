@@ -61,4 +61,34 @@ extern const struct mode_ops uterm_drm_mode_ops;
 int uterm_drm_set_dpms(int fd, uint32_t conn_id, int state);
 int uterm_drm_get_dpms(int fd, drmModeConnector *conn);
 
+/* drm display */
+
+struct uterm_drm_display {
+	uint32_t conn_id;
+	int crtc_id;
+	drmModeCrtc *saved_crtc;
+	void *data;
+};
+
+int uterm_drm_display_init(struct uterm_display *disp, void *data);
+void uterm_drm_display_destroy(struct uterm_display *disp);
+int uterm_drm_display_activate(struct uterm_display *disp, int fd);
+void uterm_drm_display_deactivate(struct uterm_display *disp, int fd);
+int uterm_drm_display_bind(struct uterm_video *video,
+			   struct uterm_display *disp, drmModeRes *res,
+			   drmModeConnector *conn, int fd);
+void uterm_drm_display_unbind(struct uterm_display *disp);
+
+static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
+{
+	struct uterm_drm_display *d = disp->data;
+
+	return d->data;
+}
+
+/* drm video */
+
+int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
+			      drmModeEncoder *enc);
+
 #endif /* UTERM_DRM_SHARED_INTERNAL_H */

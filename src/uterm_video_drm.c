@@ -52,9 +52,48 @@
 
 #define LOG_SUBSYSTEM "video_drm"
 
+struct uterm_drm3d_rb {
+	struct uterm_display *disp;
+	struct gbm_bo *bo;
+	uint32_t fb;
+};
+
+struct uterm_drm3d_display {
+	struct gbm_surface *gbm;
+	EGLSurface surface;
+	struct uterm_drm3d_rb *current;
+	struct uterm_drm3d_rb *next;
+	unsigned int ignore_flips;
+};
+
+static int display_init(struct uterm_display *disp)
+{
+	struct uterm_drm3d_display *d3d;
+	int ret;
+
+	d3d = malloc(sizeof(*d3d));
+	if (!d3d)
+		return -ENOMEM;
+	memset(d3d, 0, sizeof(*d3d));
+
+	ret = uterm_drm_display_init(disp, d3d);
+	if (ret) {
+		free(d3d);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void display_destroy(struct uterm_display *disp)
+{
+	free(uterm_drm_display_get_data(disp));
+	uterm_drm_display_destroy(disp);
+}
+
 static void bo_destroy_event(struct gbm_bo *bo, void *data)
 {
-	struct drm_rb *rb = data;
+	struct uterm_drm3d_rb *rb = data;
 
 	if (!rb)
 		return;
@@ -63,9 +102,10 @@ static void bo_destroy_event(struct gbm_bo *bo, void *data)
 	free(rb);
 }
 
-static struct drm_rb *bo_to_rb(struct uterm_display *disp, struct gbm_bo *bo)
+static struct uterm_drm3d_rb *bo_to_rb(struct uterm_display *disp,
+				       struct gbm_bo *bo)
 {
-	struct drm_rb *rb = gbm_bo_get_user_data(bo);
+	struct uterm_drm3d_rb *rb = gbm_bo_get_user_data(bo);
 	struct uterm_video *video = disp->video;
 	int ret;
 	unsigned int stride, handle, width, height;;
@@ -103,34 +143,13 @@ static struct drm_rb *bo_to_rb(struct uterm_display *disp, struct gbm_bo *bo)
 	return rb;
 }
 
-static int find_crtc(struct uterm_video *video, drmModeRes *res,
-							drmModeEncoder *enc)
-{
-	int i, crtc;
-	struct uterm_display *iter;
-
-	for (i = 0; i < res->count_crtcs; ++i) {
-		if (enc->possible_crtcs & (1 << i)) {
-			crtc = res->crtcs[i];
-			for (iter = video->displays; iter; iter = iter->next) {
-				if (iter->drm.crtc_id == crtc)
-					break;
-			}
-			if (!iter)
-				return crtc;
-		}
-	}
-
-	return -1;
-}
-
-static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
+static int display_activate(struct uterm_display *disp,
+			    struct uterm_mode *mode)
 {
 	struct uterm_video *video = disp->video;
-	int ret, crtc, i;
-	drmModeRes *res;
-	drmModeConnector *conn;
-	drmModeEncoder *enc;
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
+	int ret;
 	struct gbm_bo *bo;
 	drmModeModeInfo *minfo;
 
@@ -143,67 +162,35 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	log_info("activating display %p to %ux%u", disp,
 		 minfo->hdisplay, minfo->vdisplay);
 
-	res = drmModeGetResources(video->drm.fd);
-	if (!res) {
-		log_err("cannot get resources for display %p", disp);
-		return -EFAULT;
-	}
-	conn = drmModeGetConnector(video->drm.fd, disp->drm.conn_id);
-	if (!conn) {
-		log_err("cannot get connector for display %p", disp);
-		drmModeFreeResources(res);
-		return -EFAULT;
-	}
+	ret = uterm_drm_display_activate(disp, video->drm.fd);
+	if (ret)
+		return ret;
 
-	crtc = -1;
-	for (i = 0; i < conn->count_encoders; ++i) {
-		enc = drmModeGetEncoder(video->drm.fd, conn->encoders[i]);
-		if (!enc)
-			continue;
-		crtc = find_crtc(video, res, enc);
-		drmModeFreeEncoder(enc);
-		if (crtc >= 0)
-			break;
-	}
-
-	drmModeFreeConnector(conn);
-	drmModeFreeResources(res);
-
-	if (crtc < 0) {
-		log_warn("cannot find crtc for new display");
-		return -ENODEV;
-	}
-
-	disp->drm.crtc_id = crtc;
-	disp->drm.current = NULL;
-	disp->drm.next = NULL;
+	d3d->current = NULL;
+	d3d->next = NULL;
 	disp->current_mode = mode;
-	disp->drm.saved_crtc = drmModeGetCrtc(video->drm.fd,
-					      disp->drm.crtc_id);
 
-	disp->drm.gbm = gbm_surface_create(video->drm.gbm,
-					   minfo->hdisplay, minfo->vdisplay,
-					   GBM_FORMAT_XRGB8888,
-					   GBM_BO_USE_SCANOUT |
-					   GBM_BO_USE_RENDERING);
-	if (!disp->drm.gbm) {
+	d3d->gbm = gbm_surface_create(video->drm.gbm, minfo->hdisplay,
+				      minfo->vdisplay, GBM_FORMAT_XRGB8888,
+				      GBM_BO_USE_SCANOUT |
+				      GBM_BO_USE_RENDERING);
+	if (!d3d->gbm) {
 		log_error("cannot create gbm surface (%d): %m", errno);
 		ret = -EFAULT;
 		goto err_saved;
 	}
 
-	disp->drm.surface = eglCreateWindowSurface(video->drm.disp,
-						   video->drm.conf,
-						   (EGLNativeWindowType)disp->drm.gbm,
-						   NULL);
-	if (disp->drm.surface == EGL_NO_SURFACE) {
+	d3d->surface = eglCreateWindowSurface(video->drm.disp, video->drm.conf,
+					      (EGLNativeWindowType)d3d->gbm,
+					      NULL);
+	if (d3d->surface == EGL_NO_SURFACE) {
 		log_error("cannot create EGL window surface");
 		ret = -EFAULT;
 		goto err_gbm;
 	}
 
-	if (!eglMakeCurrent(video->drm.disp, disp->drm.surface,
-			    disp->drm.surface, video->drm.ctx)) {
+	if (!eglMakeCurrent(video->drm.disp, d3d->surface, d3d->surface,
+			    video->drm.ctx)) {
 		log_error("cannot activate EGL context");
 		ret = -EFAULT;
 		goto err_surface;
@@ -211,29 +198,28 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	if (!eglSwapBuffers(video->drm.disp, disp->drm.surface)) {
+	if (!eglSwapBuffers(video->drm.disp, d3d->surface)) {
 		log_error("cannot swap buffers");
 		ret = -EFAULT;
 		goto err_noctx;
 	}
 
-	bo = gbm_surface_lock_front_buffer(disp->drm.gbm);
+	bo = gbm_surface_lock_front_buffer(d3d->gbm);
 	if (!bo) {
 		log_error("cannot lock front buffer during creation");
 		ret = -EFAULT;
 		goto err_noctx;
 	}
 
-	disp->drm.current = bo_to_rb(disp, bo);
-	if (!disp->drm.current) {
+	d3d->current = bo_to_rb(disp, bo);
+	if (!d3d->current) {
 		log_error("cannot lock front buffer");
 		ret = -EFAULT;
 		goto err_bo;
 	}
 
-	ret = drmModeSetCrtc(video->drm.fd, disp->drm.crtc_id,
-			     disp->drm.current->fb, 0, 0, &disp->drm.conn_id, 1,
-			     minfo);
+	ret = drmModeSetCrtc(video->drm.fd, ddrm->crtc_id, d3d->current->fb,
+			     0, 0, &ddrm->conn_id, 1, minfo);
 	if (ret) {
 		log_err("cannot set drm-crtc");
 		ret = -EFAULT;
@@ -244,69 +230,56 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	return 0;
 
 err_bo:
-	gbm_surface_release_buffer(disp->drm.gbm, bo);
+	gbm_surface_release_buffer(d3d->gbm, bo);
 err_noctx:
 	eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
 		       video->drm.ctx);
 err_surface:
-	eglDestroySurface(video->drm.disp, disp->drm.surface);
+	eglDestroySurface(video->drm.disp, d3d->surface);
 err_gbm:
-	gbm_surface_destroy(disp->drm.gbm);
+	gbm_surface_destroy(d3d->gbm);
 err_saved:
-	disp->drm.crtc_id = 0;
 	disp->current_mode = NULL;
-	if (disp->drm.saved_crtc) {
-		drmModeFreeCrtc(disp->drm.saved_crtc);
-		disp->drm.saved_crtc = NULL;
-	}
+	uterm_drm_display_deactivate(disp, video->drm.fd);
 	return ret;
 }
 
 static void display_deactivate(struct uterm_display *disp)
 {
+	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
+	struct uterm_video *video = disp->video;
 
 	if (!display_is_online(disp))
 		return;
 
-	if (disp->drm.saved_crtc) {
-		if (disp->video->flags & VIDEO_AWAKE) {
-			drmModeSetCrtc(disp->video->drm.fd,
-					disp->drm.saved_crtc->crtc_id,
-					disp->drm.saved_crtc->buffer_id,
-					disp->drm.saved_crtc->x,
-					disp->drm.saved_crtc->y,
-					&disp->drm.conn_id,
-					1,
-					&disp->drm.saved_crtc->mode);
-		}
-		drmModeFreeCrtc(disp->drm.saved_crtc);
-		disp->drm.saved_crtc = NULL;
+	log_info("deactivating display %p", disp);
+
+	uterm_drm_display_deactivate(disp, disp->video->drm.fd);
+
+	eglMakeCurrent(video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
+		       video->drm.ctx);
+	eglDestroySurface(video->drm.disp, d3d->surface);
+
+	if (d3d->current) {
+		gbm_surface_release_buffer(d3d->gbm,
+					   d3d->current->bo);
+		d3d->current = NULL;
+	}
+	if (d3d->next) {
+		gbm_surface_release_buffer(d3d->gbm,
+					   d3d->next->bo);
+		d3d->next = NULL;
 	}
 
-	eglMakeCurrent(disp->video->drm.disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
-		       disp->video->drm.ctx);
-	eglDestroySurface(disp->video->drm.disp, disp->drm.surface);
-
-	if (disp->drm.current) {
-		gbm_surface_release_buffer(disp->drm.gbm,
-					   disp->drm.current->bo);
-		disp->drm.current = NULL;
-	}
-	if (disp->drm.next) {
-		gbm_surface_release_buffer(disp->drm.gbm,
-					   disp->drm.next->bo);
-		disp->drm.next = NULL;
-	}
-
-	gbm_surface_destroy(disp->drm.gbm);
+	gbm_surface_destroy(d3d->gbm);
 	disp->current_mode = NULL;
 	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
-	log_info("deactivating display %p", disp);
 }
 
 static int display_set_dpms(struct uterm_display *disp, int state)
 {
 	int ret;
+	struct uterm_drm_display *ddrm = disp->data;
 
 	if (!display_is_conn(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
@@ -314,8 +287,7 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	log_info("setting DPMS of display %p to %s", disp,
 		 uterm_dpms_to_name(state));
 
-	ret = uterm_drm_set_dpms(disp->video->drm.fd, disp->drm.conn_id,
-				 state);
+	ret = uterm_drm_set_dpms(disp->video->drm.fd, ddrm->conn_id, state);
 	if (ret < 0)
 		return ret;
 
@@ -325,11 +297,13 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 
 static int display_use(struct uterm_display *disp)
 {
+	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
+
 	if (!display_is_online(disp))
 		return -EINVAL;
 
-	if (!eglMakeCurrent(disp->video->drm.disp, disp->drm.surface,
-			    disp->drm.surface, disp->video->drm.ctx)) {
+	if (!eglMakeCurrent(disp->video->drm.disp, d3d->surface,
+			    d3d->surface, disp->video->drm.ctx)) {
 		log_error("cannot activate EGL context");
 		return -EFAULT;
 	}
@@ -341,14 +315,16 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 {
 	int ret;
 	struct gbm_bo *bo;
-	struct drm_rb *rb;
+	struct uterm_drm3d_rb *rb;
+	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
+	struct uterm_drm_display *ddrm = disp->data;
 
 	if (!display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 	if (disp->dpms != UTERM_DPMS_ON)
 		return -EINVAL;
 	if (!immediate &&
-	    ((disp->flags & DISPLAY_VSYNC) || disp->drm.ignore_flips))
+	    ((disp->flags & DISPLAY_VSYNC) || d3d->ignore_flips))
 		return -EBUSY;
 
 	/* TODO: immediate page-flips are somewhat buggy and can cause
@@ -362,31 +338,29 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 		return 0;
 	}
 
-	if (!gbm_surface_has_free_buffers(disp->drm.gbm)) {
-		if (disp->drm.next) {
+	if (!gbm_surface_has_free_buffers(d3d->gbm)) {
+		if (d3d->next) {
 			log_debug("no free buffer, releasing next-buffer");
-			gbm_surface_release_buffer(disp->drm.gbm,
-						   disp->drm.next->bo);
-			disp->drm.next = NULL;
-		} else if (disp->drm.current) {
+			gbm_surface_release_buffer(d3d->gbm, d3d->next->bo);
+			d3d->next = NULL;
+		} else if (d3d->current) {
 			log_debug("no free buffer, releasing current-buffer");
-			gbm_surface_release_buffer(disp->drm.gbm,
-						   disp->drm.current->bo);
-			disp->drm.current = NULL;
+			gbm_surface_release_buffer(d3d->gbm, d3d->current->bo);
+			d3d->current = NULL;
 		}
 
-		if (!gbm_surface_has_free_buffers(disp->drm.gbm)) {
+		if (!gbm_surface_has_free_buffers(d3d->gbm)) {
 			log_warning("gbm ran out of free buffers");
 			return -EFAULT;
 		}
 	}
 
-	if (!eglSwapBuffers(disp->video->drm.disp, disp->drm.surface)) {
+	if (!eglSwapBuffers(disp->video->drm.disp, d3d->surface)) {
 		log_error("cannot swap EGL buffers (%d): %m", errno);
 		return -EFAULT;
 	}
 
-	bo = gbm_surface_lock_front_buffer(disp->drm.gbm);
+	bo = gbm_surface_lock_front_buffer(d3d->gbm);
 	if (!bo) {
 		log_error("cannot lock front buffer");
 		return -EFAULT;
@@ -395,47 +369,45 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 	rb = bo_to_rb(disp, bo);
 	if (!rb) {
 		log_error("cannot lock front gbm buffer (%d): %m", errno);
-		gbm_surface_release_buffer(disp->drm.gbm, bo);
+		gbm_surface_release_buffer(d3d->gbm, bo);
 		return -EFAULT;
 	}
 
 	if (immediate) {
-		ret = drmModeSetCrtc(disp->video->drm.fd, disp->drm.crtc_id,
-				     rb->fb, 0, 0, &disp->drm.conn_id, 1,
+		ret = drmModeSetCrtc(disp->video->drm.fd, ddrm->crtc_id,
+				     rb->fb, 0, 0, &ddrm->conn_id, 1,
 				     uterm_drm_mode_get_info(disp->current_mode));
 		if (ret) {
 			log_err("cannot set drm-crtc");
-			gbm_surface_release_buffer(disp->drm.gbm, bo);
+			gbm_surface_release_buffer(d3d->gbm, bo);
 			return -EFAULT;
 		}
 
-		if (disp->drm.current) {
-			gbm_surface_release_buffer(disp->drm.gbm,
-						   disp->drm.current->bo);
-			disp->drm.current = NULL;
+		if (d3d->current) {
+			gbm_surface_release_buffer(d3d->gbm, d3d->current->bo);
+			d3d->current = NULL;
 		}
-		if (disp->drm.next) {
-			gbm_surface_release_buffer(disp->drm.gbm,
-						   disp->drm.next->bo);
-			disp->drm.next = NULL;
+		if (d3d->next) {
+			gbm_surface_release_buffer(d3d->gbm, d3d->next->bo);
+			d3d->next = NULL;
 		}
-		disp->drm.current = rb;
+		d3d->current = rb;
 
 		if (disp->flags & DISPLAY_VSYNC) {
 			disp->flags &= ~DISPLAY_VSYNC;
-			disp->drm.ignore_flips++;
+			d3d->ignore_flips++;
 			DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 		}
 	} else {
-		ret = drmModePageFlip(disp->video->drm.fd, disp->drm.crtc_id,
+		ret = drmModePageFlip(disp->video->drm.fd, ddrm->crtc_id,
 				      rb->fb, DRM_MODE_PAGE_FLIP_EVENT, disp);
 		if (ret) {
 			log_warn("page-flip failed %d %d", ret, errno);
-			gbm_surface_release_buffer(disp->drm.gbm, bo);
+			gbm_surface_release_buffer(d3d->gbm, bo);
 			return -EFAULT;
 		}
 
-		disp->drm.next = rb;
+		d3d->next = rb;
 		uterm_display_ref(disp);
 		disp->flags |= DISPLAY_VSYNC;
 	}
@@ -900,8 +872,8 @@ static int display_fill(struct uterm_display *disp,
 }
 
 static const struct display_ops drm_display_ops = {
-	.init = NULL,
-	.destroy = NULL,
+	.init = display_init,
+	.destroy = display_destroy,
 	.activate = display_activate,
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
@@ -937,43 +909,20 @@ static void show_displays(struct uterm_video *video)
 }
 
 static void bind_display(struct uterm_video *video, drmModeRes *res,
-							drmModeConnector *conn)
+			 drmModeConnector *conn)
 {
 	struct uterm_display *disp;
-	struct uterm_mode *mode;
-	int ret, i;
+	int ret;
 
 	ret = display_new(&disp, &drm_display_ops, video);
 	if (ret)
 		return;
 
-	for (i = 0; i < conn->count_modes; ++i) {
-		ret = mode_new(&mode, &uterm_drm_mode_ops);
-		if (ret)
-			continue;
-		uterm_drm_mode_set(mode, &conn->modes[i]);
-		mode->next = disp->modes;
-		disp->modes = mode;
-
-		/* TODO: more sophisticated default-mode selection */
-		if (!disp->default_mode)
-			disp->default_mode = mode;
-	}
-
-	if (!disp->modes) {
-		log_warn("no valid mode for display found");
+	ret = uterm_drm_display_bind(video, disp, res, conn, video->drm.fd);
+	if (ret) {
 		uterm_display_unref(disp);
 		return;
 	}
-
-	disp->drm.conn_id = conn->connector_id;
-	disp->flags |= DISPLAY_AVAILABLE;
-	disp->next = video->displays;
-	video->displays = disp;
-	disp->dpms = uterm_drm_get_dpms(disp->video->drm.fd, conn);
-	log_info("display %p DPMS is %s", disp,
-			uterm_dpms_to_name(disp->dpms));
-	VIDEO_CB(video, disp, UTERM_NEW);
 }
 
 static void unbind_display(struct uterm_display *disp)
@@ -981,10 +930,7 @@ static void unbind_display(struct uterm_display *disp)
 	if (!display_is_conn(disp))
 		return;
 
-	VIDEO_CB(disp->video, disp, UTERM_GONE);
-	display_deactivate(disp);
-	disp->video = NULL;
-	disp->flags &= ~DISPLAY_AVAILABLE;
+	uterm_drm_display_unbind(disp);
 	uterm_display_unref(disp);
 }
 
@@ -992,17 +938,18 @@ static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
 			      unsigned int usec, void *data)
 {
 	struct uterm_display *disp = data;
+	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
 
-	if (disp->drm.ignore_flips) {
-		--disp->drm.ignore_flips;
+	if (d3d->ignore_flips) {
+		--d3d->ignore_flips;
 	} else if (disp->flags & DISPLAY_VSYNC) {
 		disp->flags &= ~DISPLAY_VSYNC;
-		if (disp->drm.next) {
-			if (disp->drm.current)
-				gbm_surface_release_buffer(disp->drm.gbm,
-							   disp->drm.current->bo);
-			disp->drm.current = disp->drm.next;
-			disp->drm.next = NULL;
+		if (d3d->next) {
+			if (d3d->current)
+				gbm_surface_release_buffer(d3d->gbm,
+							   d3d->current->bo);
+			d3d->current = d3d->next;
+			d3d->next = NULL;
 		}
 		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 	}
@@ -1193,6 +1140,7 @@ static int hotplug(struct uterm_video *video)
 	drmModeRes *res;
 	drmModeConnector *conn;
 	struct uterm_display *disp, *tmp;
+	struct uterm_drm_display *ddrm;
 	int i;
 
 	if (!video_is_awake(video) || !video_need_hotplug(video))
@@ -1213,7 +1161,8 @@ static int hotplug(struct uterm_video *video)
 			continue;
 		if (conn->connection == DRM_MODE_CONNECTED) {
 			for (disp = video->displays; disp; disp = disp->next) {
-				if (disp->drm.conn_id == res->connectors[i]) {
+				ddrm = disp->data;
+				if (ddrm->conn_id == res->connectors[i]) {
 					disp->flags |= DISPLAY_AVAILABLE;
 					break;
 				}
