@@ -93,3 +93,101 @@ const struct mode_ops uterm_drm_mode_ops = {
 	.get_width = uterm_drm_mode_get_width,
 	.get_height = uterm_drm_mode_get_height,
 };
+
+int uterm_drm_set_dpms(int fd, uint32_t conn_id, int state)
+{
+	int i, ret, set;
+	drmModeConnector *conn;
+	drmModePropertyRes *prop;
+
+	switch (state) {
+	case UTERM_DPMS_ON:
+		set = DRM_MODE_DPMS_ON;
+		break;
+	case UTERM_DPMS_STANDBY:
+		set = DRM_MODE_DPMS_STANDBY;
+		break;
+	case UTERM_DPMS_SUSPEND:
+		set = DRM_MODE_DPMS_SUSPEND;
+		break;
+	case UTERM_DPMS_OFF:
+		set = DRM_MODE_DPMS_OFF;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	conn = drmModeGetConnector(fd, conn_id);
+	if (!conn) {
+		log_err("cannot get display connector");
+		return -EFAULT;
+	}
+
+	ret = state;
+	for (i = 0; i < conn->count_props; ++i) {
+		prop = drmModeGetProperty(fd, conn->props[i]);
+		if (!prop) {
+			log_error("cannot get DRM property (%d): %m", errno);
+			continue;
+		}
+
+		if (!strcmp(prop->name, "DPMS")) {
+			ret = drmModeConnectorSetProperty(fd, conn_id,
+							  prop->prop_id, set);
+			if (ret) {
+				log_info("cannot set DPMS");
+				ret = -EFAULT;
+			}
+			drmModeFreeProperty(prop);
+			break;
+		}
+		drmModeFreeProperty(prop);
+	}
+
+	if (i == conn->count_props) {
+		log_warn("display does not support DPMS");
+		ret = UTERM_DPMS_UNKNOWN;
+	}
+
+	drmModeFreeConnector(conn);
+	return ret;
+}
+
+int uterm_drm_get_dpms(int fd, drmModeConnector *conn)
+{
+	int i, ret;
+	drmModePropertyRes *prop;
+
+	for (i = 0; i < conn->count_props; ++i) {
+		prop = drmModeGetProperty(fd, conn->props[i]);
+		if (!prop) {
+			log_error("cannot get DRM property (%d): %m", errno);
+			continue;
+		}
+
+		if (!strcmp(prop->name, "DPMS")) {
+			switch (conn->prop_values[i]) {
+			case DRM_MODE_DPMS_ON:
+				ret = UTERM_DPMS_ON;
+				break;
+			case DRM_MODE_DPMS_STANDBY:
+				ret = UTERM_DPMS_STANDBY;
+				break;
+			case DRM_MODE_DPMS_SUSPEND:
+				ret = UTERM_DPMS_SUSPEND;
+				break;
+			case DRM_MODE_DPMS_OFF:
+			default:
+				ret = UTERM_DPMS_OFF;
+			}
+
+			drmModeFreeProperty(prop);
+			return ret;
+		}
+		drmModeFreeProperty(prop);
+	}
+
+	if (i == conn->count_props)
+		log_warn("display does not support DPMS");
+	return UTERM_DPMS_UNKNOWN;
+}

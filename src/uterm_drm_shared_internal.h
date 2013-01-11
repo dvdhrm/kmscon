@@ -34,6 +34,8 @@
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
+/* drm mode */
+
 struct uterm_drm_mode {
 	drmModeModeInfo info;
 };
@@ -53,5 +55,10 @@ static inline drmModeModeInfo *uterm_drm_mode_get_info(struct uterm_mode *m)
 }
 
 extern const struct mode_ops uterm_drm_mode_ops;
+
+/* drm dpms */
+
+int uterm_drm_set_dpms(int fd, uint32_t conn_id, int state);
+int uterm_drm_get_dpms(int fd, drmModeConnector *conn);
 
 #endif /* UTERM_DRM_SHARED_INTERNAL_H */
