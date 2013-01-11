@@ -59,6 +59,14 @@ static unsigned int mode_get_height(const struct uterm_mode *mode)
 	return mode->dumb.info.vdisplay;
 }
 
+static const struct mode_ops dumb_mode_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.get_name = mode_get_name,
+	.get_width = mode_get_width,
+	.get_height = mode_get_height,
+};
+
 static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
 {
 	int ret;
@@ -622,6 +630,21 @@ static int display_fill(struct uterm_display *disp,
 	return 0;
 }
 
+static const struct display_ops dumb_display_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.activate = display_activate,
+	.deactivate = display_deactivate,
+	.set_dpms = display_set_dpms,
+	.use = NULL,
+	.swap = display_swap,
+	.blit = display_blit,
+	.blend = display_blend,
+	.blendv = display_fake_blendv,
+	.fake_blendv = display_fake_blendv,
+	.fill = display_fill,
+};
+
 static void show_displays(struct uterm_video *video)
 {
 	int ret;
@@ -929,30 +952,7 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
-const struct mode_ops dumb_mode_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.get_name = mode_get_name,
-	.get_width = mode_get_width,
-	.get_height = mode_get_height,
-};
-
-const struct display_ops dumb_display_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.activate = display_activate,
-	.deactivate = display_deactivate,
-	.set_dpms = display_set_dpms,
-	.use = NULL,
-	.swap = display_swap,
-	.blit = display_blit,
-	.blend = display_blend,
-	.blendv = display_fake_blendv,
-	.fake_blendv = display_fake_blendv,
-	.fill = display_fill,
-};
-
-const struct video_ops dumb_video_ops = {
+static const struct video_ops dumb_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
@@ -961,3 +961,9 @@ const struct video_ops dumb_video_ops = {
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
 };
+
+static const struct uterm_video_module dumb_module = {
+	.ops = &dumb_video_ops,
+};
+
+const struct uterm_video_module *UTERM_VIDEO_DUMB = &dumb_module;

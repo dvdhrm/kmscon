@@ -57,6 +57,14 @@ static unsigned int mode_get_height(const struct uterm_mode *mode)
 	return mode->fbdev.height;
 }
 
+static const struct mode_ops fbdev_mode_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.get_name = mode_get_name,
+	.get_width = mode_get_width,
+	.get_height = mode_get_height,
+};
+
 static int refresh_info(struct uterm_display *disp)
 {
 	int ret;
@@ -868,6 +876,21 @@ static int display_fill(struct uterm_display *disp,
 	return 0;
 }
 
+static const struct display_ops fbdev_display_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.activate = display_activate,
+	.deactivate = display_deactivate,
+	.set_dpms = display_set_dpms,
+	.use = NULL,
+	.swap = display_swap,
+	.blit = display_blit,
+	.blend = display_blend,
+	.blendv = display_fake_blendv,
+	.fake_blendv = display_fake_blendv,
+	.fill = display_fill,
+};
+
 static void intro_idle_event(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct uterm_display *disp = data;
@@ -976,30 +999,7 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
-const struct mode_ops fbdev_mode_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.get_name = mode_get_name,
-	.get_width = mode_get_width,
-	.get_height = mode_get_height,
-};
-
-const struct display_ops fbdev_display_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.activate = display_activate,
-	.deactivate = display_deactivate,
-	.set_dpms = display_set_dpms,
-	.use = NULL,
-	.swap = display_swap,
-	.blit = display_blit,
-	.blend = display_blend,
-	.blendv = display_fake_blendv,
-	.fake_blendv = display_fake_blendv,
-	.fill = display_fill,
-};
-
-const struct video_ops fbdev_video_ops = {
+static const struct video_ops fbdev_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO */
@@ -1008,3 +1008,9 @@ const struct video_ops fbdev_video_ops = {
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
 };
+
+static const struct uterm_video_module fbdev_module = {
+	.ops = &fbdev_video_ops,
+};
+
+const struct uterm_video_module *UTERM_VIDEO_FBDEV = &fbdev_module;

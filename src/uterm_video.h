@@ -58,6 +58,7 @@
 struct uterm_mode;
 struct uterm_display;
 struct uterm_video;
+struct uterm_video_module;
 
 enum uterm_display_state {
 	UTERM_DISPLAY_ACTIVE,
@@ -72,12 +73,6 @@ enum uterm_display_dpms {
 	UTERM_DPMS_SUSPEND,
 	UTERM_DPMS_OFF,
 	UTERM_DPMS_UNKNOWN,
-};
-
-enum uterm_video_type {
-	UTERM_VIDEO_DRM,
-	UTERM_VIDEO_DUMB,
-	UTERM_VIDEO_FBDEV,
 };
 
 enum uterm_video_action {
@@ -135,7 +130,7 @@ typedef void (*uterm_display_cb) (struct uterm_display *disp,
 /* misc */
 
 const char *uterm_dpms_to_name(int dpms);
-bool uterm_video_available(unsigned int type);
+bool uterm_video_available(const struct uterm_video_module *mod);
 
 /* display modes interface */
 
@@ -191,7 +186,7 @@ int uterm_display_fake_blendv(struct uterm_display *disp,
 /* video interface */
 
 int uterm_video_new(struct uterm_video **out, struct ev_eloop *eloop,
-		    unsigned int type, const char *node);
+		    const char *node, const struct uterm_video_module *mod);
 void uterm_video_ref(struct uterm_video *video);
 void uterm_video_unref(struct uterm_video *video);
 
@@ -207,5 +202,25 @@ void uterm_video_sleep(struct uterm_video *video);
 int uterm_video_wake_up(struct uterm_video *video);
 bool uterm_video_is_awake(struct uterm_video *video);
 void uterm_video_poll(struct uterm_video *video);
+
+/* external modules */
+
+#ifdef BUILD_ENABLE_VIDEO_FBDEV
+extern const struct uterm_video_module *UTERM_VIDEO_FBDEV;
+#else
+#define UTERM_VIDEO_FBDEV NULL
+#endif
+
+#ifdef BUILD_ENABLE_VIDEO_DUMB
+extern const struct uterm_video_module *UTERM_VIDEO_DUMB;
+#else
+#define UTERM_VIDEO_DUMB NULL
+#endif
+
+#ifdef BUILD_ENABLE_VIDEO_DRM
+extern const struct uterm_video_module *UTERM_VIDEO_DRM;
+#else
+#define UTERM_VIDEO_DRM NULL
+#endif
 
 #endif /* UTERM_UTERM_VIDEO_H */

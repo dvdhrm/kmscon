@@ -320,7 +320,7 @@ static int app_seat_add_video(struct app_seat *seat,
 			      struct uterm_monitor_dev *udev)
 {
 	int ret;
-	unsigned int mode;
+	const struct uterm_video_module *mode;
 	struct app_video *vid;
 
 	if (seat->app->exiting)
@@ -362,13 +362,13 @@ static int app_seat_add_video(struct app_seat *seat,
 		mode = UTERM_VIDEO_FBDEV;
 	}
 
-	ret = uterm_video_new(&vid->video, seat->app->eloop, mode, node);
+	ret = uterm_video_new(&vid->video, seat->app->eloop, node, mode);
 	if (ret) {
 		if (mode == UTERM_VIDEO_DRM) {
 			log_info("cannot create drm device %s on seat %s (%d); trying dumb drm mode",
 				 vid->node, seat->name, ret);
 			ret = uterm_video_new(&vid->video, seat->app->eloop,
-					      UTERM_VIDEO_DUMB, node);
+					      node, UTERM_VIDEO_DUMB);
 			if (ret)
 				goto err_node;
 		} else {

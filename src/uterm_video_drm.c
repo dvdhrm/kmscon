@@ -66,6 +66,14 @@ static unsigned int mode_get_height(const struct uterm_mode *mode)
 	return mode->drm.info.vdisplay;
 }
 
+static const struct mode_ops drm_mode_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.get_name = mode_get_name,
+	.get_width = mode_get_width,
+	.get_height = mode_get_height,
+};
+
 static void bo_destroy_event(struct gbm_bo *bo, void *data)
 {
 	struct drm_rb *rb = data;
@@ -960,6 +968,21 @@ static int display_fill(struct uterm_display *disp,
 	return 0;
 }
 
+static const struct display_ops drm_display_ops = {
+	.init = NULL,
+	.destroy = NULL,
+	.activate = display_activate,
+	.deactivate = display_deactivate,
+	.set_dpms = display_set_dpms,
+	.use = display_use,
+	.swap = display_swap,
+	.blit = display_blit,
+	.blend = display_blend,
+	.blendv = display_fake_blendv,
+	.fake_blendv = display_fake_blendv,
+	.fill = display_fill,
+};
+
 static void show_displays(struct uterm_video *video)
 {
 	int ret;
@@ -1378,30 +1401,7 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
-const struct mode_ops drm_mode_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.get_name = mode_get_name,
-	.get_width = mode_get_width,
-	.get_height = mode_get_height,
-};
-
-const struct display_ops drm_display_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.activate = display_activate,
-	.deactivate = display_deactivate,
-	.set_dpms = display_set_dpms,
-	.use = display_use,
-	.swap = display_swap,
-	.blit = display_blit,
-	.blend = display_blend,
-	.blendv = display_fake_blendv,
-	.fake_blendv = display_fake_blendv,
-	.fill = display_fill,
-};
-
-const struct video_ops drm_video_ops = {
+static const struct video_ops drm_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
@@ -1410,3 +1410,9 @@ const struct video_ops drm_video_ops = {
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
 };
+
+static const struct uterm_video_module drm_module = {
+	.ops = &drm_video_ops,
+};
+
+const struct uterm_video_module *UTERM_VIDEO_DRM = &drm_module;

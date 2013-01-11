@@ -25,8 +25,8 @@
 
 /* Internal definitions */
 
-#ifndef UTERM_VIDEO_H
-#define UTERM_VIDEO_H
+#ifndef UTERM_VIDEO_INTERNAL_H
+#define UTERM_VIDEO_INTERNAL_H
 
 #include <inttypes.h>
 #include <limits.h>
@@ -80,6 +80,10 @@ struct video_ops {
 	int (*poll) (struct uterm_video *video);
 	void (*sleep) (struct uterm_video *video);
 	int (*wake_up) (struct uterm_video *video);
+};
+
+struct uterm_video_module {
+	const struct video_ops *ops;
 };
 
 #define VIDEO_CALL(func, els, ...) (func ? func(__VA_ARGS__) : els)
@@ -145,11 +149,6 @@ struct drm_video {
 	GLuint uni_blit_tex;
 };
 
-static const bool drm_available = true;
-extern const struct mode_ops drm_mode_ops;
-extern const struct display_ops drm_display_ops;
-extern const struct video_ops drm_video_ops;
-
 #else /* !BUILD_ENABLE_VIDEO_DRM */
 
 struct drm_mode {
@@ -163,11 +162,6 @@ struct drm_display {
 struct drm_video {
 	int unused;
 };
-
-static const bool drm_available = false;
-static const struct mode_ops drm_mode_ops;
-static const struct display_ops drm_display_ops;
-static const struct video_ops drm_video_ops;
 
 #endif /* BUILD_ENABLE_VIDEO_DRM */
 
@@ -205,11 +199,6 @@ struct dumb_video {
 	struct ev_fd *efd;
 };
 
-static const bool dumb_available = true;
-extern const struct mode_ops dumb_mode_ops;
-extern const struct display_ops dumb_display_ops;
-extern const struct video_ops dumb_video_ops;
-
 #else /* !BUILD_ENABLE_VIDEO_DUMB */
 
 struct dumb_mode {
@@ -223,11 +212,6 @@ struct dumb_display {
 struct dumb_video {
 	int unused;
 };
-
-static const bool dumb_available = false;
-static const struct mode_ops dumb_mode_ops;
-static const struct display_ops dumb_display_ops;
-static const struct video_ops dumb_video_ops;
 
 #endif /* BUILD_ENABLE_VIDEO_DUMB */
 
@@ -275,11 +259,6 @@ struct fbdev_video {
 	int unused;
 };
 
-static const bool fbdev_available = true;
-extern const struct mode_ops fbdev_mode_ops;
-extern const struct display_ops fbdev_display_ops;
-extern const struct video_ops fbdev_video_ops;
-
 #else /* !BUILD_ENABLE_VIDEO_FBDEV */
 
 struct fbdev_mode {
@@ -293,11 +272,6 @@ struct fbdev_display {
 struct fbdev_video {
 	int unused;
 };
-
-static const bool fbdev_available = false;
-static const struct mode_ops fbdev_mode_ops;
-static const struct display_ops fbdev_display_ops;
-static const struct video_ops fbdev_video_ops;
 
 #endif /* BUILD_ENABLE_VIDEO_FBDEV */
 
@@ -384,6 +358,7 @@ struct uterm_video {
 	struct uterm_display *displays;
 	struct shl_hook *hook;
 
+	const struct uterm_video_module *mod;
 	const struct video_ops *ops;
 	union {
 		struct drm_video drm;
@@ -429,4 +404,4 @@ static inline bool video_drm_available(void)
 
 #endif
 
-#endif /* UTERM_VIDEO_H */
+#endif /* UTERM_VIDEO_INTERNAL_H */

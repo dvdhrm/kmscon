@@ -58,27 +58,15 @@ const char *uterm_dpms_to_name(int dpms)
 	}
 }
 
-bool uterm_video_available(unsigned int type)
+bool uterm_video_available(const struct uterm_video_module *mod)
 {
-	switch (type) {
-	case UTERM_VIDEO_DRM:
-#ifdef BUILD_ENABLE_VIDEO_DRM
+	if (!mod)
+		return false;
+
+	if (mod == UTERM_VIDEO_DUMB || mod == UTERM_VIDEO_DRM)
 		return video_drm_available();
-#endif
-		return false;
-	case UTERM_VIDEO_DUMB:
-#ifdef BUILD_ENABLE_VIDEO_DUMB
-		return video_drm_available();
-#endif
-		return false;
-	case UTERM_VIDEO_FBDEV:
-#ifdef BUILD_ENABLE_VIDEO_FBDEV
-		return true;
-#endif
-		return false;
-	default:
-		return false;
-	}
+
+	return true;
 }
 
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops)
@@ -459,51 +447,24 @@ int uterm_display_fake_blendv(struct uterm_display *disp,
 	return VIDEO_CALL(disp->ops->fake_blendv, -EOPNOTSUPP, disp, req, num);
 }
 
-int uterm_video_new(struct uterm_video **out,
-			struct ev_eloop *eloop,
-			unsigned int type,
-			const char *node)
+int uterm_video_new(struct uterm_video **out, struct ev_eloop *eloop,
+		    const char *node, const struct uterm_video_module *mod)
 {
 	struct uterm_video *video;
 	int ret;
-	const struct video_ops *ops;
 
 	if (!out || !eloop)
 		return -EINVAL;
-
-	switch (type) {
-	case UTERM_VIDEO_DRM:
-		if (!drm_available) {
-			log_err("DRM backend is not available");
-			return -EOPNOTSUPP;
-		}
-		ops = &drm_video_ops;
-		break;
-	case UTERM_VIDEO_DUMB:
-		if (!dumb_available) {
-			log_err("Dumb DRM backend is not available");
-			return -EOPNOTSUPP;
-		}
-		ops = &dumb_video_ops;
-		break;
-	case UTERM_VIDEO_FBDEV:
-		if (!fbdev_available) {
-			log_err("FBDEV backend is not available");
-			return -EOPNOTSUPP;
-		}
-		ops = &fbdev_video_ops;
-		break;
-	default:
-		log_err("invalid video backend %d", type);
-		return -EINVAL;
-	}
+	if (!mod || !mod->ops)
+		return -EOPNOTSUPP;
 
 	video = malloc(sizeof(*video));
 	if (!video)
 		return -ENOMEM;
 	memset(video, 0, sizeof(*video));
 	video->ref = 1;
-	video->ops = ops;
+	video->mod = mod;
+	video->ops = mod->ops;
 	video->eloop = eloop;
 
 	ret = shl_hook_new(&video->hook);
