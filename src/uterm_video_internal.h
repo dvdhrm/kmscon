@@ -390,6 +390,8 @@ static inline int video_do_use(struct uterm_video *video)
 
 #if defined(BUILD_ENABLE_VIDEO_DRM) || defined(BUILD_ENABLE_VIDEO_DUMB)
 
+#include <xf86drm.h>
+
 static inline bool video_drm_available(void)
 {
 	return drmAvailable();
