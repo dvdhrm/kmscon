@@ -298,6 +298,18 @@ libuterm_la_LIBADD += \
 	$(GLES2_LIBS)
 endif
 
+# add shared sources only once
+UTERM_DRM_SHARED_SRC = \
+	src/uterm_drm_shared_internal.h \
+	src/uterm_drm_shared.c
+if BUILD_ENABLE_VIDEO_DUMB
+libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
+else
+if BUILD_ENABLE_VIDEO_DRM
+libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
+endif
+endif
+
 #
 # Shaders
 # As there is no need to modify shaders at run-time, we statically compile them

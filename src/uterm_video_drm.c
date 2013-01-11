@@ -46,33 +46,11 @@
 #include <xf86drmMode.h>
 #include "eloop.h"
 #include "log.h"
+#include "uterm_drm_shared_internal.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "video_drm"
-
-static const char *mode_get_name(const struct uterm_mode *mode)
-{
-	return mode->drm.info.name;
-}
-
-static unsigned int mode_get_width(const struct uterm_mode *mode)
-{
-	return mode->drm.info.hdisplay;
-}
-
-static unsigned int mode_get_height(const struct uterm_mode *mode)
-{
-	return mode->drm.info.vdisplay;
-}
-
-static const struct mode_ops drm_mode_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.get_name = mode_get_name,
-	.get_width = mode_get_width,
-	.get_height = mode_get_height,
-};
 
 static void bo_destroy_event(struct gbm_bo *bo, void *data)
 {
@@ -154,14 +132,16 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	drmModeConnector *conn;
 	drmModeEncoder *enc;
 	struct gbm_bo *bo;
+	drmModeModeInfo *minfo;
 
 	if (!video || !video_is_awake(video) || !mode)
 		return -EINVAL;
 	if (display_is_online(disp))
 		return -EINVAL;
 
+	minfo = uterm_drm_mode_get_info(mode);
 	log_info("activating display %p to %ux%u", disp,
-		 mode->drm.info.hdisplay, mode->drm.info.vdisplay);
+		 minfo->hdisplay, minfo->vdisplay);
 
 	res = drmModeGetResources(video->drm.fd);
 	if (!res) {
@@ -202,8 +182,7 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 					      disp->drm.crtc_id);
 
 	disp->drm.gbm = gbm_surface_create(video->drm.gbm,
-					   mode->drm.info.hdisplay,
-					   mode->drm.info.vdisplay,
+					   minfo->hdisplay, minfo->vdisplay,
 					   GBM_FORMAT_XRGB8888,
 					   GBM_BO_USE_SCANOUT |
 					   GBM_BO_USE_RENDERING);
@@ -254,7 +233,7 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 
 	ret = drmModeSetCrtc(video->drm.fd, disp->drm.crtc_id,
 			     disp->drm.current->fb, 0, 0, &disp->drm.conn_id, 1,
-			     &disp->current_mode->drm.info);
+			     minfo);
 	if (ret) {
 		log_err("cannot set drm-crtc");
 		ret = -EFAULT;
@@ -471,7 +450,7 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 	if (immediate) {
 		ret = drmModeSetCrtc(disp->video->drm.fd, disp->drm.crtc_id,
 				     rb->fb, 0, 0, &disp->drm.conn_id, 1,
-				     &disp->current_mode->drm.info);
+				     uterm_drm_mode_get_info(disp->current_mode));
 		if (ret) {
 			log_err("cannot set drm-crtc");
 			gbm_surface_release_buffer(disp->drm.gbm, bo);
@@ -619,8 +598,8 @@ static int display_blit(struct uterm_display *disp,
 	if (ret)
 		return ret;
 
-	sw = disp->current_mode->drm.info.hdisplay;
-	sh = disp->current_mode->drm.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	vertices[0] = -1.0;
 	vertices[1] = -1.0;
@@ -750,8 +729,8 @@ static int display_blend(struct uterm_display *disp,
 	if (ret)
 		return ret;
 
-	sw = disp->current_mode->drm.info.hdisplay;
-	sh = disp->current_mode->drm.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	vertices[0] = -1.0;
 	vertices[1] = -1.0;
@@ -911,8 +890,8 @@ static int display_fill(struct uterm_display *disp,
 	if (ret)
 		return ret;
 
-	sw = disp->current_mode->drm.info.hdisplay;
-	sh = disp->current_mode->drm.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	for (i = 0; i < 6; ++i) {
 		colors[i * 4 + 0] = r / 255.0;
@@ -1056,10 +1035,10 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 		return;
 
 	for (i = 0; i < conn->count_modes; ++i) {
-		ret = mode_new(&mode, &drm_mode_ops);
+		ret = mode_new(&mode, &uterm_drm_mode_ops);
 		if (ret)
 			continue;
-		mode->drm.info = conn->modes[i];
+		uterm_drm_mode_set(mode, &conn->modes[i]);
 		mode->next = disp->modes;
 		disp->modes = mode;
 

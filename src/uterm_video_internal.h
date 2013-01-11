@@ -94,10 +94,6 @@ struct uterm_video_module {
 #include <xf86drmMode.h>
 #include "static_gl.h"
 
-struct drm_mode {
-	drmModeModeInfo info;
-};
-
 struct drm_rb {
 	struct uterm_display *disp;
 	struct gbm_bo *bo;
@@ -144,10 +140,6 @@ struct drm_video {
 
 #else /* !BUILD_ENABLE_VIDEO_DRM */
 
-struct drm_mode {
-	int unused;
-};
-
 struct drm_display {
 	int unused;
 };
@@ -164,10 +156,6 @@ struct drm_video {
 
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-
-struct dumb_mode {
-	drmModeModeInfo info;
-};
 
 struct dumb_rb {
 	uint32_t fb;
@@ -194,10 +182,6 @@ struct dumb_video {
 
 #else /* !BUILD_ENABLE_VIDEO_DUMB */
 
-struct dumb_mode {
-	int unused;
-};
-
 struct dumb_display {
 	int unused;
 };
@@ -216,10 +200,6 @@ struct uterm_mode {
 
 	const struct mode_ops *ops;
 	void *data;
-	union {
-		struct drm_mode drm;
-		struct dumb_mode dumb;
-	};
 };
 
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops);

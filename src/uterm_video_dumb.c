@@ -39,33 +39,11 @@
 #include <xf86drmMode.h>
 #include "eloop.h"
 #include "log.h"
+#include "uterm_drm_shared_internal.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
 #define LOG_SUBSYSTEM "video_dumb"
-
-static const char *mode_get_name(const struct uterm_mode *mode)
-{
-	return mode->dumb.info.name;
-}
-
-static unsigned int mode_get_width(const struct uterm_mode *mode)
-{
-	return mode->dumb.info.hdisplay;
-}
-
-static unsigned int mode_get_height(const struct uterm_mode *mode)
-{
-	return mode->dumb.info.vdisplay;
-}
-
-static const struct mode_ops dumb_mode_ops = {
-	.init = NULL,
-	.destroy = NULL,
-	.get_name = mode_get_name,
-	.get_width = mode_get_width,
-	.get_height = mode_get_height,
-};
 
 static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
 {
@@ -76,8 +54,8 @@ static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
 	struct drm_mode_map_dumb mreq;
 
 	memset(&req, 0, sizeof(req));
-	req.width = disp->current_mode->dumb.info.hdisplay;
-	req.height = disp->current_mode->dumb.info.vdisplay;
+	req.width = uterm_drm_mode_get_width(disp->current_mode);
+	req.height = uterm_drm_mode_get_height(disp->current_mode);
 	req.bpp = 32;
 	req.flags = 0;
 
@@ -91,10 +69,8 @@ static int init_rb(struct uterm_display *disp, struct dumb_rb *rb)
 	rb->stride = req.pitch;
 	rb->size = req.size;
 
-	ret = drmModeAddFB(video->dumb.fd,
-			disp->current_mode->dumb.info.hdisplay,
-			disp->current_mode->dumb.info.vdisplay,
-			24, 32, rb->stride, rb->handle, &rb->fb);
+	ret = drmModeAddFB(video->dumb.fd, req.width, req.height,
+			   24, 32, rb->stride, rb->handle, &rb->fb);
 	if (ret) {
 		log_err("cannot add drm-fb");
 		ret = -EFAULT;
@@ -179,14 +155,16 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	drmModeRes *res;
 	drmModeConnector *conn;
 	drmModeEncoder *enc;
+	drmModeModeInfo *minfo;
 
 	if (!video || !video_is_awake(video) || !mode)
 		return -EINVAL;
 	if (display_is_online(disp))
 		return -EINVAL;
 
+	minfo = uterm_drm_mode_get_info(mode);;
 	log_info("activating display %p to %ux%u", disp,
-			mode->dumb.info.hdisplay, mode->dumb.info.vdisplay);
+		 minfo->hdisplay, minfo->vdisplay);
 
 	res = drmModeGetResources(video->dumb.fd);
 	if (!res) {
@@ -235,7 +213,7 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 
 	ret = drmModeSetCrtc(video->dumb.fd, disp->dumb.crtc_id,
 			disp->dumb.rb[0].fb, 0, 0, &disp->dumb.conn_id, 1,
-			&disp->current_mode->dumb.info);
+			minfo);
 	if (ret) {
 		log_err("cannot set drm-crtc");
 		ret = -EFAULT;
@@ -394,8 +372,8 @@ static int display_blit(struct uterm_display *disp,
 		return -EINVAL;
 
 	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
-	sw = disp->current_mode->dumb.info.hdisplay;
-	sh = disp->current_mode->dumb.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	tmp = x + buf->width;
 	if (tmp < x || x >= sw)
@@ -443,8 +421,8 @@ static int display_fake_blendv(struct uterm_display *disp,
 		return -EINVAL;
 
 	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
-	sw = disp->current_mode->dumb.info.hdisplay;
-	sh = disp->current_mode->dumb.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	for (j = 0; j < num; ++j, ++req) {
 		if (!req->buf)
@@ -524,8 +502,8 @@ static int display_fill(struct uterm_display *disp,
 		return -EINVAL;
 
 	rb = &disp->dumb.rb[disp->dumb.current_rb ^ 1];
-	sw = disp->current_mode->dumb.info.hdisplay;
-	sh = disp->current_mode->dumb.info.vdisplay;
+	sw = uterm_drm_mode_get_width(disp->current_mode);
+	sh = uterm_drm_mode_get_height(disp->current_mode);
 
 	tmp = x + width;
 	if (tmp < x || x >= sw)
@@ -582,7 +560,7 @@ static void show_displays(struct uterm_video *video)
 		memset(rb->map, 0, rb->size);
 		ret = drmModeSetCrtc(video->dumb.fd, iter->dumb.crtc_id,
 				     rb->fb, 0, 0, &iter->dumb.conn_id, 1,
-				     &iter->current_mode->dumb.info);
+				     uterm_drm_mode_get_info(iter->current_mode));
 		if (ret) {
 			log_err("cannot set drm-crtc on display %p", iter);
 			continue;
@@ -641,10 +619,10 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 		return;
 
 	for (i = 0; i < conn->count_modes; ++i) {
-		ret = mode_new(&mode, &dumb_mode_ops);
+		ret = mode_new(&mode, &uterm_drm_mode_ops);
 		if (ret)
 			continue;
-		mode->dumb.info = conn->modes[i];
+		uterm_drm_mode_set(mode, &conn->modes[i]);
 		mode->next = disp->modes;
 		disp->modes = mode;
 
