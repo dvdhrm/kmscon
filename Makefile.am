@@ -266,7 +266,10 @@ libuterm_la_LIBADD += $(UDEV_LIBS)
 endif
 
 if BUILD_ENABLE_VIDEO_FBDEV
-libuterm_la_SOURCES += src/uterm_video_fbdev.c
+libuterm_la_SOURCES += \
+	src/uterm_fbdev_internal.h \
+	src/uterm_fbdev_video.c \
+	src/uterm_fbdev_render.c
 endif
 
 if BUILD_ENABLE_VIDEO_DUMB
