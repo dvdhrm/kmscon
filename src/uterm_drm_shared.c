@@ -458,14 +458,15 @@ err_unref:
 }
 
 int uterm_drm_video_hotplug(struct uterm_video *video,
-			    const struct display_ops *ops)
+			    const struct display_ops *ops,
+			    bool read_dpms)
 {
 	struct uterm_drm_video *vdrm = video->data;
 	drmModeRes *res;
 	drmModeConnector *conn;
 	struct uterm_display *disp;
 	struct uterm_drm_display *ddrm;
-	int i;
+	int i, dpms;
 	struct shl_dlist *iter, *tmp;
 
 	if (!video_is_awake(video) || !video_need_hotplug(video))
@@ -486,21 +487,35 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 		conn = drmModeGetConnector(vdrm->fd, res->connectors[i]);
 		if (!conn)
 			continue;
-		if (conn->connection == DRM_MODE_CONNECTED) {
-			shl_dlist_for_each(iter, &video->displays) {
-				disp = shl_dlist_entry(iter,
-						       struct uterm_display,
-						       list);
-				ddrm = disp->data;
-
-				if (ddrm->conn_id == res->connectors[i]) {
-					disp->flags |= DISPLAY_AVAILABLE;
-					break;
-				}
-			}
-			if (iter == &video->displays)
-				bind_display(video, res, conn, ops);
+		if (conn->connection != DRM_MODE_CONNECTED) {
+			drmModeFreeConnector(conn);
+			continue;
 		}
+
+		shl_dlist_for_each(iter, &video->displays) {
+			disp = shl_dlist_entry(iter, struct uterm_display,
+					       list);
+			ddrm = disp->data;
+
+			if (ddrm->conn_id != res->connectors[i])
+				continue;
+
+			disp->flags |= DISPLAY_AVAILABLE;
+			if (!read_dpms || !display_is_online(disp))
+				break;
+
+			dpms = uterm_drm_get_dpms(vdrm->fd, conn);
+			if (dpms != disp->dpms) {
+				log_debug("DPMS state for display %p changed",
+					  disp);
+				uterm_drm_display_set_dpms(disp, disp->dpms);
+			}
+			break;
+		}
+
+		if (iter == &video->displays)
+			bind_display(video, res, conn, ops);
+
 		drmModeFreeConnector(conn);
 	}
 
@@ -529,7 +544,7 @@ int uterm_drm_video_wake_up(struct uterm_video *video,
 	}
 
 	video->flags |= VIDEO_AWAKE;
-	ret = uterm_drm_video_hotplug(video, ops);
+	ret = uterm_drm_video_hotplug(video, ops, true);
 	if (ret) {
 		drmDropMaster(vdrm->fd);
 		return ret;
@@ -549,5 +564,5 @@ int uterm_drm_video_poll(struct uterm_video *video,
 			 const struct display_ops *ops)
 {
 	video->flags |= VIDEO_HOTPLUG;
-	return uterm_drm_video_hotplug(video, ops);
+	return uterm_drm_video_hotplug(video, ops, false);
 }
