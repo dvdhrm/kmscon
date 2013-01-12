@@ -48,7 +48,7 @@ static void print_help();
 
 #include "eloop.h"
 #include "log.h"
-#include "uterm.h"
+#include "uterm_video.h"
 #include "test_include.h"
 
 /* eloop object */
@@ -193,8 +193,8 @@ int main(int argc, char **argv)
 {
 	struct uterm_video *video;
 	int ret;
-	unsigned int mode;
 	const char *node;
+	const struct uterm_video_module *mode;
 	size_t onum;
 
 	onum = sizeof(options) / sizeof(*options);
@@ -215,12 +215,12 @@ int main(int argc, char **argv)
 
 	log_notice("Creating video object using %s...", node);
 
-	ret = uterm_video_new(&video, eloop, mode, node);
+	ret = uterm_video_new(&video, eloop, node, mode);
 	if (ret) {
 		if (mode == UTERM_VIDEO_DRM) {
 			log_notice("cannot create drm device; trying dumb drm mode");
-			ret = uterm_video_new(&video, eloop,
-					      UTERM_VIDEO_DUMB, node);
+			ret = uterm_video_new(&video, eloop, node,
+					      UTERM_VIDEO_DUMB);
 			if (ret)
 				goto err_exit;
 		} else {

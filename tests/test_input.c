@@ -40,7 +40,8 @@ static void print_help();
 #include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
 #include "log.h"
-#include "uterm.h"
+#include "uterm_input.h"
+#include "uterm_monitor.h"
 #include "test_include.h"
 
 static struct ev_eloop *eloop;

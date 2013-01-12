@@ -44,7 +44,8 @@ static void print_help();
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
-#include "uterm.h"
+#include "uterm_input.h"
+#include "uterm_vt.h"
 #include "test_include.h"
 
 static void print_help()
