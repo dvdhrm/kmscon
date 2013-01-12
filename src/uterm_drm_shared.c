@@ -281,6 +281,27 @@ void uterm_drm_display_deactivate(struct uterm_display *disp, int fd)
 	ddrm->crtc_id = 0;
 }
 
+int uterm_drm_display_set_dpms(struct uterm_display *disp, int state)
+{
+	int ret;
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_drm_video *vdrm;
+
+	if (!display_is_conn(disp) || !video_is_awake(disp->video))
+		return -EINVAL;
+
+	vdrm = disp->video->data;
+	log_info("setting DPMS of display %p to %s", disp,
+		 uterm_dpms_to_name(state));
+
+	ret = uterm_drm_set_dpms(vdrm->fd, ddrm->conn_id, state);
+	if (ret < 0)
+		return ret;
+
+	disp->dpms = ret;
+	return 0;
+}
+
 int uterm_drm_display_bind(struct uterm_video *video,
 			   struct uterm_display *disp, drmModeRes *res,
 			   drmModeConnector *conn, int fd)

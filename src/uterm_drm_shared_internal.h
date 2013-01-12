@@ -79,6 +79,7 @@ int uterm_drm_display_bind(struct uterm_video *video,
 			   struct uterm_display *disp, drmModeRes *res,
 			   drmModeConnector *conn, int fd);
 void uterm_drm_display_unbind(struct uterm_display *disp);
+int uterm_drm_display_set_dpms(struct uterm_display *disp, int state);
 
 static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
 {

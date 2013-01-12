@@ -312,27 +312,6 @@ static void display_deactivate(struct uterm_display *disp)
 	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
 }
 
-static int display_set_dpms(struct uterm_display *disp, int state)
-{
-	int ret;
-	struct uterm_drm_display *ddrm = disp->data;
-	struct uterm_drm_video *vdrm;
-
-	if (!display_is_conn(disp) || !video_is_awake(disp->video))
-		return -EINVAL;
-
-	vdrm = disp->video->data;
-	log_info("setting DPMS of display %p to %s", disp,
-		 uterm_dpms_to_name(state));
-
-	ret = uterm_drm_set_dpms(vdrm->fd, ddrm->conn_id, state);
-	if (ret < 0)
-		return ret;
-
-	disp->dpms = ret;
-	return 0;
-}
-
 static int display_use(struct uterm_display *disp)
 {
 	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
@@ -922,7 +901,7 @@ static const struct display_ops drm_display_ops = {
 	.destroy = display_destroy,
 	.activate = display_activate,
 	.deactivate = display_deactivate,
-	.set_dpms = display_set_dpms,
+	.set_dpms = uterm_drm_display_set_dpms,
 	.use = display_use,
 	.swap = display_swap,
 	.blit = display_blit,
