@@ -571,7 +571,6 @@ static const struct video_ops fbdev_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO */
-	.use = NULL,
 	.poll = NULL,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,

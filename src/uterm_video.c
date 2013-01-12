@@ -574,14 +574,6 @@ void uterm_video_segfault(struct uterm_video *video)
 	VIDEO_CALL(video->ops->segfault, 0, video);
 }
 
-int uterm_video_use(struct uterm_video *video)
-{
-	if (!video)
-		return -EINVAL;
-
-	return video_do_use(video);
-}
-
 struct uterm_display *uterm_video_get_displays(struct uterm_video *video)
 {
 	if (!video || shl_dlist_empty(&video->displays))

@@ -70,7 +70,6 @@ struct video_ops {
 	int (*init) (struct uterm_video *video, const char *node);
 	void (*destroy) (struct uterm_video *video);
 	void (*segfault) (struct uterm_video *video);
-	int (*use) (struct uterm_video *video);
 	int (*poll) (struct uterm_video *video);
 	void (*sleep) (struct uterm_video *video);
 	int (*wake_up) (struct uterm_video *video);
@@ -176,11 +175,6 @@ static inline bool video_need_hotplug(const struct uterm_video *video)
 			.display = (disp), \
 			.action = (act), \
 		})
-
-static inline int video_do_use(struct uterm_video *video)
-{
-	return VIDEO_CALL(video->ops->use, -EOPNOTSUPP, video);
-}
 
 #if defined(BUILD_ENABLE_VIDEO_DRM) || defined(BUILD_ENABLE_VIDEO_DUMB)
 

@@ -1102,7 +1102,6 @@ static const struct video_ops drm_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
-	.use = NULL,
 	.poll = video_poll,
 	.sleep = video_sleep,
 	.wake_up = video_wake_up,
