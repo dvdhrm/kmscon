@@ -41,13 +41,11 @@ struct fbdev_mode {
 };
 
 struct fbdev_display {
-	char *node;
 	int fd;
-	bool pending_intro;
-
 	struct fb_fix_screeninfo finfo;
 	struct fb_var_screeninfo vinfo;
 	unsigned int rate;
+	const char *node;
 
 	unsigned int bufid;
 	size_t xres;
@@ -67,6 +65,12 @@ struct fbdev_display {
 	int_fast32_t dither_r;
 	int_fast32_t dither_g;
 	int_fast32_t dither_b;
+};
+
+struct fbdev_video {
+	char *node;
+	bool pending_intro;
+	struct uterm_display *disp;
 };
 
 int uterm_fbdev_display_blit(struct uterm_display *disp,

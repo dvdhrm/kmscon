@@ -1,7 +1,7 @@
 /*
  * uterm - Linux User-Space Terminal
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -183,9 +183,7 @@ static int display_activate(struct uterm_display *disp,
 	struct gbm_bo *bo;
 	drmModeModeInfo *minfo;
 
-	if (!video || !video_is_awake(video) || !mode)
-		return -EINVAL;
-	if (display_is_online(disp))
+	if (!mode)
 		return -EINVAL;
 
 	vdrm = video->data;
@@ -283,9 +281,6 @@ static void display_deactivate(struct uterm_display *disp)
 	struct uterm_drm_video *vdrm;
 	struct uterm_drm3d_video *v3d;
 
-	if (!display_is_online(disp))
-		return;
-
 	log_info("deactivating display %p", disp);
 
 	vdrm = video->data;
@@ -317,9 +312,6 @@ static int display_use(struct uterm_display *disp)
 	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
 	struct uterm_drm3d_video *v3d;
 
-	if (!display_is_online(disp))
-		return -EINVAL;
-
 	v3d = uterm_drm_video_get_data(disp->video);
 	if (!eglMakeCurrent(v3d->disp, d3d->surface,
 			    d3d->surface, v3d->ctx)) {
@@ -340,8 +332,6 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 	struct uterm_drm3d_video *v3d;
 	struct uterm_drm_video *vdrm;
 
-	if (!display_is_online(disp) || !video_is_awake(disp->video))
-		return -EINVAL;
 	if (disp->dpms != UTERM_DPMS_ON)
 		return -EINVAL;
 	if (!immediate &&
@@ -528,11 +518,7 @@ static int display_blit(struct uterm_display *disp,
 	int ret;
 	uint8_t *packed, *src, *dst;
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!video_is_awake(disp->video))
-		return -EINVAL;
-	if (buf->format != UTERM_FORMAT_XRGB32)
+	if (!buf || buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
 	v3d = uterm_drm_video_get_data(disp->video);
@@ -661,11 +647,7 @@ static int display_blend(struct uterm_display *disp,
 	int ret;
 	uint8_t *packed, *src, *dst;
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!video_is_awake(disp->video))
-		return -EINVAL;
-	if (buf->format != UTERM_FORMAT_GREY)
+	if (!buf || buf->format != UTERM_FORMAT_GREY)
 		return -EINVAL;
 
 	v3d = uterm_drm_video_get_data(disp->video);
@@ -826,11 +808,6 @@ static int display_fill(struct uterm_display *disp,
 	float vertices[6 * 2], colors[6 * 4];
 	int ret;
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!video_is_awake(disp->video))
-		return -EINVAL;
-
 	v3d = uterm_drm_video_get_data(disp->video);
 	ret = display_use(disp);
 	if (ret)
@@ -913,11 +890,14 @@ static void show_displays(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_display *iter;
+	struct shl_dlist *i;
 
 	if (!video_is_awake(video))
 		return;
 
-	for (iter = video->displays; iter; iter = iter->next) {
+	shl_dlist_for_each(i, &video->displays) {
+		iter = shl_dlist_entry(i, struct uterm_display, list);
+
 		if (!display_is_online(iter))
 			continue;
 		if (iter->dpms != UTERM_DPMS_ON)
@@ -988,6 +968,8 @@ static int video_init(struct uterm_video *video, const char *node)
 	if (ret)
 		goto err_free;
 	vdrm = video->data;
+
+	log_debug("initialize 3D layer on %p", video);
 
 	v3d->gbm = gbm_create_device(vdrm->fd);
 	if (!v3d->gbm) {
@@ -1076,16 +1058,8 @@ err_free:
 static void video_destroy(struct uterm_video *video)
 {
 	struct uterm_drm3d_video *v3d = uterm_drm_video_get_data(video);
-	struct uterm_display *disp;
 
 	log_info("free drm video device %p", video);
-
-	while ((disp = video->displays)) {
-		video->displays = disp->next;
-		disp->next = NULL;
-		uterm_drm_display_unbind(disp);
-		uterm_display_unref(disp);
-	}
 
 	if (!eglMakeCurrent(v3d->disp, EGL_NO_SURFACE, EGL_NO_SURFACE,
 			    v3d->ctx))

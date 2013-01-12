@@ -1,7 +1,7 @@
 /*
  * uterm - Linux User-Space Terminal
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -181,9 +181,7 @@ static int display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 	int ret;
 	drmModeModeInfo *minfo;
 
-	if (!video || !video_is_awake(video) || !mode)
-		return -EINVAL;
-	if (display_is_online(disp))
+	if (!mode)
 		return -EINVAL;
 
 	minfo = uterm_drm_mode_get_info(mode);;
@@ -232,9 +230,6 @@ static void display_deactivate(struct uterm_display *disp)
 	struct uterm_drm_video *vdrm;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
-	if (!display_is_online(disp))
-		return;
-
 	vdrm = disp->video->data;
 	log_info("deactivating display %p", disp);
 
@@ -253,8 +248,6 @@ static int display_swap(struct uterm_display *disp)
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 	struct uterm_drm_video *vdrm;
 
-	if (!display_is_online(disp) || !video_is_awake(disp->video))
-		return -EINVAL;
 	if (disp->dpms != UTERM_DPMS_ON)
 		return -EINVAL;
 
@@ -285,11 +278,7 @@ static int display_blit(struct uterm_display *disp,
 	struct uterm_drm2d_rb *rb;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
-	if (!disp->video || !display_is_online(disp))
-		return -EINVAL;
-	if (!buf || !video_is_awake(disp->video))
-		return -EINVAL;
-	if (buf->format != UTERM_FORMAT_XRGB32)
+	if (!buf || buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
 	rb = &d2d->rb[d2d->current_rb ^ 1];
@@ -337,9 +326,7 @@ static int display_fake_blendv(struct uterm_display *disp,
 	struct uterm_drm2d_rb *rb;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
-	if (!disp->video || !display_is_online(disp))
-		return -EINVAL;
-	if (!req || !video_is_awake(disp->video))
+	if (!req)
 		return -EINVAL;
 
 	rb = &d2d->rb[d2d->current_rb ^ 1];
@@ -419,11 +406,6 @@ static int display_fill(struct uterm_display *disp,
 	struct uterm_drm2d_rb *rb;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!video_is_awake(disp->video))
-		return -EINVAL;
-
 	rb = &d2d->rb[d2d->current_rb ^ 1];
 	sw = uterm_drm_mode_get_width(disp->current_mode);
 	sh = uterm_drm_mode_get_height(disp->current_mode);
@@ -472,11 +454,14 @@ static void show_displays(struct uterm_video *video)
 	struct uterm_drm2d_display *d2d;
 	struct uterm_drm2d_rb *rb;
 	struct uterm_drm_video *vdrm = video->data;
+	struct shl_dlist *i;
 
 	if (!video_is_awake(video))
 		return;
 
-	for (iter = video->displays; iter; iter = iter->next) {
+	shl_dlist_for_each(i, &video->displays) {
+		iter = shl_dlist_entry(i, struct uterm_display, list);
+
 		if (!display_is_online(iter))
 			continue;
 		if (iter->dpms != UTERM_DPMS_ON)
@@ -502,11 +487,11 @@ static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
 {
 	struct uterm_display *disp = data;
 
-	uterm_display_unref(disp);
 	if (disp->flags & DISPLAY_VSYNC) {
 		disp->flags &= ~DISPLAY_VSYNC;
 		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 	}
+	uterm_display_unref(disp);
 }
 
 static int video_init(struct uterm_video *video, const char *node)
@@ -520,6 +505,8 @@ static int video_init(struct uterm_video *video, const char *node)
 		return ret;
 	vdrm = video->data;
 
+	log_debug("initialize 2D layer on %p", video);
+
 	if (drmGetCap(vdrm->fd, DRM_CAP_DUMB_BUFFER, &has_dumb) < 0 ||
 	    !has_dumb) {
 		log_err("driver does not support dumb buffers");
@@ -532,17 +519,7 @@ static int video_init(struct uterm_video *video, const char *node)
 
 static void video_destroy(struct uterm_video *video)
 {
-	struct uterm_display *disp;
-
 	log_info("free drm video device %p", video);
-
-	while ((disp = video->displays)) {
-		video->displays = disp->next;
-		disp->next = NULL;
-		uterm_drm_display_unbind(disp);
-		uterm_display_unref(disp);
-	}
-
 	uterm_drm_video_destroy(video);
 }
 

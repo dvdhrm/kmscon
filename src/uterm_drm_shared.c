@@ -285,12 +285,8 @@ int uterm_drm_display_set_dpms(struct uterm_display *disp, int state)
 {
 	int ret;
 	struct uterm_drm_display *ddrm = disp->data;
-	struct uterm_drm_video *vdrm;
+	struct uterm_drm_video *vdrm = disp->video->data;
 
-	if (!display_is_conn(disp) || !video_is_awake(disp->video))
-		return -EINVAL;
-
-	vdrm = disp->video->data;
 	log_info("setting DPMS of display %p to %s", disp,
 		 uterm_dpms_to_name(state));
 
@@ -300,53 +296,6 @@ int uterm_drm_display_set_dpms(struct uterm_display *disp, int state)
 
 	disp->dpms = ret;
 	return 0;
-}
-
-int uterm_drm_display_bind(struct uterm_video *video,
-			   struct uterm_display *disp, drmModeRes *res,
-			   drmModeConnector *conn, int fd)
-{
-	struct uterm_mode *mode;
-	int ret, i;
-	struct uterm_drm_display *ddrm = disp->data;
-
-	for (i = 0; i < conn->count_modes; ++i) {
-		ret = mode_new(&mode, &uterm_drm_mode_ops);
-		if (ret)
-			continue;
-		uterm_drm_mode_set(mode, &conn->modes[i]);
-		mode->next = disp->modes;
-		disp->modes = mode;
-
-		/* TODO: more sophisticated default-mode selection */
-		if (!disp->default_mode)
-			disp->default_mode = mode;
-	}
-
-	if (!disp->modes) {
-		log_warn("no valid mode for display found");
-		return -EFAULT;
-	}
-
-	ddrm->conn_id = conn->connector_id;
-	disp->flags |= DISPLAY_AVAILABLE;
-	disp->next = video->displays;
-	video->displays = disp;
-	disp->dpms = uterm_drm_get_dpms(fd, conn);
-
-	log_info("display %p DPMS is %s", disp,
-		 uterm_dpms_to_name(disp->dpms));
-
-	VIDEO_CB(video, disp, UTERM_NEW);
-	return 0;
-}
-
-void uterm_drm_display_unbind(struct uterm_display *disp)
-{
-	VIDEO_CB(disp->video, disp, UTERM_GONE);
-	uterm_display_deactivate(disp);
-	disp->video = NULL;
-	disp->flags &= ~DISPLAY_AVAILABLE;
 }
 
 static void event(struct ev_fd *fd, int mask, void *data)
@@ -427,16 +376,20 @@ int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 	int i, crtc;
 	struct uterm_display *iter;
 	struct uterm_drm_display *ddrm;
+	struct shl_dlist *it;
 
 	for (i = 0; i < res->count_crtcs; ++i) {
 		if (enc->possible_crtcs & (1 << i)) {
 			crtc = res->crtcs[i];
-			for (iter = video->displays; iter; iter = iter->next) {
+			shl_dlist_for_each(it, &video->displays) {
+				iter = shl_dlist_entry(it,
+						       struct uterm_display,
+						       list);
 				ddrm = iter->data;
 				if (ddrm->crtc_id == crtc)
 					break;
 			}
-			if (!iter)
+			if (it == &video->displays)
 				return crtc;
 		}
 	}
@@ -450,26 +403,58 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 {
 	struct uterm_drm_video *vdrm = video->data;
 	struct uterm_display *disp;
-	int ret;
+	struct uterm_drm_display *ddrm;
+	struct uterm_mode *mode;
+	int ret, i;
 
-	ret = display_new(&disp, ops, video);
+	ret = display_new(&disp, ops);
 	if (ret)
 		return;
+	ddrm = disp->data;
 
-	ret = uterm_drm_display_bind(video, disp, res, conn, vdrm->fd);
-	if (ret) {
-		uterm_display_unref(disp);
-		return;
+	for (i = 0; i < conn->count_modes; ++i) {
+		ret = mode_new(&mode, &uterm_drm_mode_ops);
+		if (ret)
+			continue;
+
+		uterm_drm_mode_set(mode, &conn->modes[i]);
+
+		ret = uterm_mode_bind(mode, disp);
+		if (ret) {
+			uterm_mode_unref(mode);
+			continue;
+		}
+
+		/* TODO: more sophisticated default-mode selection */
+		if (!disp->default_mode)
+			disp->default_mode = mode;
+
+		uterm_mode_unref(mode);
 	}
-}
 
-static void unbind_display(struct uterm_display *disp)
-{
-	if (!display_is_conn(disp))
-		return;
+	if (shl_dlist_empty(&disp->modes)) {
+		log_warn("no valid mode for display found");
+		ret = -EFAULT;
+		goto err_unref;
+	}
 
-	uterm_drm_display_unbind(disp);
+	ddrm->conn_id = conn->connector_id;
+	disp->flags |= DISPLAY_AVAILABLE;
+	disp->dpms = uterm_drm_get_dpms(vdrm->fd, conn);
+
+	log_info("display %p DPMS is %s", disp,
+		 uterm_dpms_to_name(disp->dpms));
+
+	ret = uterm_display_bind(disp, video);
+	if (ret)
+		goto err_unref;
+
 	uterm_display_unref(disp);
+	return;
+
+err_unref:
+	uterm_display_unref(disp);
+	return;
 }
 
 int uterm_drm_video_hotplug(struct uterm_video *video,
@@ -478,9 +463,10 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 	struct uterm_drm_video *vdrm = video->data;
 	drmModeRes *res;
 	drmModeConnector *conn;
-	struct uterm_display *disp, *tmp;
+	struct uterm_display *disp;
 	struct uterm_drm_display *ddrm;
 	int i;
+	struct shl_dlist *iter, *tmp;
 
 	if (!video_is_awake(video) || !video_need_hotplug(video))
 		return 0;
@@ -491,22 +477,28 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 		return -EACCES;
 	}
 
-	for (disp = video->displays; disp; disp = disp->next)
+	shl_dlist_for_each(iter, &video->displays) {
+		disp = shl_dlist_entry(iter, struct uterm_display, list);
 		disp->flags &= ~DISPLAY_AVAILABLE;
+	}
 
 	for (i = 0; i < res->count_connectors; ++i) {
 		conn = drmModeGetConnector(vdrm->fd, res->connectors[i]);
 		if (!conn)
 			continue;
 		if (conn->connection == DRM_MODE_CONNECTED) {
-			for (disp = video->displays; disp; disp = disp->next) {
+			shl_dlist_for_each(iter, &video->displays) {
+				disp = shl_dlist_entry(iter,
+						       struct uterm_display,
+						       list);
 				ddrm = disp->data;
+
 				if (ddrm->conn_id == res->connectors[i]) {
 					disp->flags |= DISPLAY_AVAILABLE;
 					break;
 				}
 			}
-			if (!disp)
+			if (iter == &video->displays)
 				bind_display(video, res, conn, ops);
 		}
 		drmModeFreeConnector(conn);
@@ -514,24 +506,10 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 
 	drmModeFreeResources(res);
 
-	while (video->displays) {
-		tmp = video->displays;
-		if (tmp->flags & DISPLAY_AVAILABLE)
-			break;
-
-		video->displays = tmp->next;
-		tmp->next = NULL;
-		unbind_display(tmp);
-	}
-	for (disp = video->displays; disp && disp->next; ) {
-		tmp = disp->next;
-		if (tmp->flags & DISPLAY_AVAILABLE) {
-			disp = tmp;
-		} else {
-			disp->next = tmp->next;
-			tmp->next = NULL;
-			unbind_display(tmp);
-		}
+	shl_dlist_for_each_safe(iter, tmp, &video->displays) {
+		disp = shl_dlist_entry(iter, struct uterm_display, list);
+		if (!(disp->flags & DISPLAY_AVAILABLE))
+			uterm_display_unbind(disp);
 	}
 
 	video->flags &= ~VIDEO_HOTPLUG;
@@ -553,7 +531,6 @@ int uterm_drm_video_wake_up(struct uterm_video *video,
 	video->flags |= VIDEO_AWAKE;
 	ret = uterm_drm_video_hotplug(video, ops);
 	if (ret) {
-		video->flags &= ~VIDEO_AWAKE;
 		drmDropMaster(vdrm->fd);
 		return ret;
 	}
@@ -566,7 +543,6 @@ void uterm_drm_video_sleep(struct uterm_video *video)
 	struct uterm_drm_video *vdrm = video->data;
 
 	drmDropMaster(vdrm->fd);
-	video->flags &= ~VIDEO_AWAKE;
 }
 
 int uterm_drm_video_poll(struct uterm_video *video,

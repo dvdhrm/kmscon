@@ -1,7 +1,7 @@
 /*
  * uterm - Linux User-Space Terminal
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include "eloop.h"
 #include "log.h"
+#include "shl_dlist.h"
 #include "shl_hook.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
@@ -113,12 +114,34 @@ void uterm_mode_unref(struct uterm_mode *mode)
 	free(mode);
 }
 
-struct uterm_mode *uterm_mode_next(struct uterm_mode *mode)
+int uterm_mode_bind(struct uterm_mode *mode, struct uterm_display *disp)
+{
+	if (!mode || !disp || mode->disp)
+		return -EINVAL;
+
+	mode->disp = disp;
+	shl_dlist_link_tail(&disp->modes, &mode->list);
+	uterm_mode_ref(mode);
+
+	return 0;
+}
+
+void uterm_mode_unbind(struct uterm_mode *mode)
 {
 	if (!mode)
+		return;
+
+	mode->disp = NULL;
+	shl_dlist_unlink(&mode->list);
+	uterm_mode_unref(mode);
+}
+
+struct uterm_mode *uterm_mode_next(struct uterm_mode *mode)
+{
+	if (!mode || mode->list.next == &mode->disp->modes)
 		return NULL;
 
-	return mode->next;
+	return shl_dlist_entry(mode->list.next, struct uterm_mode, list);
 }
 
 const char *uterm_mode_get_name(const struct uterm_mode *mode)
@@ -181,13 +204,12 @@ static void display_vblank_timer_event(struct ev_timer *timer,
 	DISPLAY_CB(disp, UTERM_PAGE_FLIP);
 }
 
-int display_new(struct uterm_display **out, const struct display_ops *ops,
-		struct uterm_video *video)
+int display_new(struct uterm_display **out, const struct display_ops *ops)
 {
 	struct uterm_display *disp;
 	int ret;
 
-	if (!out || !ops || !video)
+	if (!out || !ops)
 		return -EINVAL;
 
 	disp = malloc(sizeof(*disp));
@@ -196,7 +218,9 @@ int display_new(struct uterm_display **out, const struct display_ops *ops,
 	memset(disp, 0, sizeof(*disp));
 	disp->ref = 1;
 	disp->ops = ops;
-	disp->video = video;
+	shl_dlist_init(&disp->modes);
+
+	log_info("new display %p", disp);
 
 	ret = shl_hook_new(&disp->hook);
 	if (ret)
@@ -209,20 +233,13 @@ int display_new(struct uterm_display **out, const struct display_ops *ops,
 	if (ret)
 		goto err_hook;
 
-	ret = ev_eloop_add_timer(video->eloop, disp->vblank_timer);
+	ret = VIDEO_CALL(disp->ops->init, 0, disp);
 	if (ret)
 		goto err_timer;
 
-	ret = VIDEO_CALL(disp->ops->init, 0, disp);
-	if (ret)
-		goto err_eloop_timer;
-
-	log_info("new display %p", disp);
 	*out = disp;
 	return 0;
 
-err_eloop_timer:
-	ev_eloop_rm_timer(disp->vblank_timer);
 err_timer:
 	ev_timer_unref(disp->vblank_timer);
 err_hook:
@@ -249,25 +266,56 @@ void uterm_display_unref(struct uterm_display *disp)
 
 	log_info("free display %p", disp);
 
-	VIDEO_CALL(disp->ops->destroy, 0, disp);
-
-	while ((mode = disp->modes)) {
-		disp->modes = mode->next;
-		mode->next = NULL;
-		uterm_mode_unref(mode);
+	while (!shl_dlist_empty(&disp->modes)) {
+		mode = shl_dlist_entry(disp->modes.prev, struct uterm_mode,
+				       list);
+		uterm_mode_unbind(mode);
 	}
-	ev_eloop_rm_timer(disp->vblank_timer);
+
+	VIDEO_CALL(disp->ops->destroy, 0, disp);
 	ev_timer_unref(disp->vblank_timer);
 	shl_hook_free(disp->hook);
 	free(disp);
 }
 
+int uterm_display_bind(struct uterm_display *disp, struct uterm_video *video)
+{
+	int ret;
+
+	if (!disp || !video || disp->video)
+		return -EINVAL;
+
+	ret = ev_eloop_add_timer(video->eloop, disp->vblank_timer);
+	if (ret)
+		return ret;
+
+	shl_dlist_link_tail(&video->displays, &disp->list);
+	disp->video = video;
+	uterm_display_ref(disp);
+	VIDEO_CB(disp->video, disp, UTERM_NEW);
+
+	return 0;
+}
+
+void uterm_display_unbind(struct uterm_display *disp)
+{
+	if (!disp || !disp->video)
+		return;
+
+	VIDEO_CB(disp->video, disp, UTERM_GONE);
+	uterm_display_deactivate(disp);
+	disp->video = NULL;
+	shl_dlist_unlink(&disp->list);
+	ev_eloop_rm_timer(disp->vblank_timer);
+	uterm_display_unref(disp);
+}
+
 struct uterm_display *uterm_display_next(struct uterm_display *disp)
 {
-	if (!disp)
+	if (!disp || !disp->video || disp->list.next == &disp->video->displays)
 		return NULL;
 
-	return disp->next;
+	return shl_dlist_entry(disp->list.next, struct uterm_display, list);
 }
 
 int uterm_display_register_cb(struct uterm_display *disp, uterm_display_cb cb,
@@ -290,10 +338,10 @@ void uterm_display_unregister_cb(struct uterm_display *disp,
 
 struct uterm_mode *uterm_display_get_modes(struct uterm_display *disp)
 {
-	if (!disp)
+	if (!disp || shl_dlist_empty(&disp->modes))
 		return NULL;
 
-	return disp->modes;
+	return shl_dlist_entry(disp->modes.next, struct uterm_mode, list);
 }
 
 struct uterm_mode *uterm_display_get_current(struct uterm_display *disp)
@@ -333,7 +381,8 @@ int uterm_display_get_state(struct uterm_display *disp)
 
 int uterm_display_activate(struct uterm_display *disp, struct uterm_mode *mode)
 {
-	if (!disp || !display_is_conn(disp) || display_is_online(disp))
+	if (!disp || !disp->video || display_is_online(disp) ||
+	    !video_is_awake(disp->video))
 		return -EINVAL;
 
 	if (!mode)
@@ -352,7 +401,7 @@ void uterm_display_deactivate(struct uterm_display *disp)
 
 int uterm_display_set_dpms(struct uterm_display *disp, int state)
 {
-	if (!disp || !display_is_conn(disp))
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	return VIDEO_CALL(disp->ops->set_dpms, 0, disp, state);
@@ -360,7 +409,7 @@ int uterm_display_set_dpms(struct uterm_display *disp, int state)
 
 int uterm_display_get_dpms(const struct uterm_display *disp)
 {
-	if (!disp || !display_is_conn(disp))
+	if (!disp || !disp->video)
 		return UTERM_DPMS_OFF;
 
 	return disp->dpms;
@@ -376,7 +425,7 @@ int uterm_display_use(struct uterm_display *disp)
 
 int uterm_display_swap(struct uterm_display *disp)
 {
-	if (!disp || !display_is_online(disp))
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	return VIDEO_CALL(disp->ops->swap, 0, disp);
@@ -395,7 +444,7 @@ int uterm_display_fill(struct uterm_display *disp,
 		       unsigned int x, unsigned int y,
 		       unsigned int width, unsigned int height)
 {
-	if (!disp)
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	return VIDEO_CALL(disp->ops->fill, -EOPNOTSUPP, disp, r, g, b, x, y,
@@ -406,7 +455,7 @@ int uterm_display_blit(struct uterm_display *disp,
 		       const struct uterm_video_buffer *buf,
 		       unsigned int x, unsigned int y)
 {
-	if (!disp)
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	return VIDEO_CALL(disp->ops->blit, -EOPNOTSUPP, disp, buf, x, y);
@@ -420,7 +469,7 @@ int uterm_display_fake_blend(struct uterm_display *disp,
 {
 	struct uterm_video_blend_req req;
 
-	if (!disp)
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	memset(&req, 0, sizeof(req));
@@ -441,7 +490,7 @@ int uterm_display_fake_blendv(struct uterm_display *disp,
 			      const struct uterm_video_blend_req *req,
 			      size_t num)
 {
-	if (!disp)
+	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
 	return VIDEO_CALL(disp->ops->fake_blendv, -EOPNOTSUPP, disp, req, num);
@@ -466,6 +515,7 @@ int uterm_video_new(struct uterm_video **out, struct ev_eloop *eloop,
 	video->mod = mod;
 	video->ops = mod->ops;
 	video->eloop = eloop;
+	shl_dlist_init(&video->displays);
 
 	ret = shl_hook_new(&video->hook);
 	if (ret)
@@ -504,14 +554,13 @@ void uterm_video_unref(struct uterm_video *video)
 
 	log_info("free device %p", video);
 
-	VIDEO_CALL(video->ops->destroy, 0, video);
-
-	while ((disp = video->displays)) {
-		video->displays = disp->next;
-		disp->next = NULL;
-		uterm_display_unref(disp);
+	while (!shl_dlist_empty(&video->displays)) {
+		disp = shl_dlist_entry(video->displays.prev,
+				       struct uterm_display, list);
+		uterm_display_unbind(disp);
 	}
 
+	VIDEO_CALL(video->ops->destroy, 0, video);
 	shl_hook_free(video->hook);
 	ev_eloop_unref(video->eloop);
 	free(video);
@@ -535,10 +584,11 @@ int uterm_video_use(struct uterm_video *video)
 
 struct uterm_display *uterm_video_get_displays(struct uterm_video *video)
 {
-	if (!video)
+	if (!video || shl_dlist_empty(&video->displays))
 		return NULL;
 
-	return video->displays;
+	return shl_dlist_entry(video->displays.next, struct uterm_display,
+			       list);
 }
 
 int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
@@ -565,6 +615,7 @@ void uterm_video_sleep(struct uterm_video *video)
 		return;
 
 	VIDEO_CB(video, NULL, UTERM_SLEEP);
+	video->flags &= ~VIDEO_AWAKE;
 	VIDEO_CALL(video->ops->sleep, 0, video);
 }
 
@@ -578,9 +629,12 @@ int uterm_video_wake_up(struct uterm_video *video)
 		return 0;
 
 	ret = VIDEO_CALL(video->ops->wake_up, 0, video);
-	if (ret)
+	if (ret) {
+		video->flags &= ~VIDEO_AWAKE;
 		return ret;
+	}
 
+	video->flags |= VIDEO_AWAKE;
 	VIDEO_CB(video, NULL, UTERM_WAKE_UP);
 	return 0;
 }

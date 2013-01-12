@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "eloop.h"
+#include "shl_dlist.h"
 #include "shl_hook.h"
 #include "uterm_video.h"
 
@@ -84,14 +85,17 @@ struct uterm_video_module {
 /* uterm_mode */
 
 struct uterm_mode {
+	struct shl_dlist list;
 	unsigned long ref;
-	struct uterm_mode *next;
+	struct uterm_display *disp;
 
 	const struct mode_ops *ops;
 	void *data;
 };
 
 int mode_new(struct uterm_mode **out, const struct mode_ops *ops);
+int uterm_mode_bind(struct uterm_mode *mode, struct uterm_display *disp);
+void uterm_mode_unbind(struct uterm_mode *mode);
 
 /* uterm_display */
 
@@ -103,13 +107,13 @@ int mode_new(struct uterm_mode **out, const struct mode_ops *ops);
 #define DISPLAY_DITHERING	0x20
 
 struct uterm_display {
+	struct shl_dlist list;
 	unsigned long ref;
 	unsigned int flags;
-	struct uterm_display *next;
 	struct uterm_video *video;
 
 	struct shl_hook *hook;
-	struct uterm_mode *modes;
+	struct shl_dlist modes;
 	struct uterm_mode *default_mode;
 	struct uterm_mode *current_mode;
 	int dpms;
@@ -122,25 +126,21 @@ struct uterm_display {
 	void *data;
 };
 
-int display_new(struct uterm_display **out, const struct display_ops *ops,
-		struct uterm_video *video);
+int display_new(struct uterm_display **out, const struct display_ops *ops);
 void display_set_vblank_timer(struct uterm_display *disp,
 			      unsigned int msecs);
 int display_schedule_vblank_timer(struct uterm_display *disp);
+int uterm_display_bind(struct uterm_display *disp, struct uterm_video *video);
+void uterm_display_unbind(struct uterm_display *disp);
 
 #define DISPLAY_CB(disp, act) shl_hook_call((disp)->hook, (disp), \
 		&(struct uterm_display_event){ \
 			.action = (act), \
 		})
 
-static inline bool display_is_conn(const struct uterm_display *disp)
-{
-	return disp->video;
-}
-
 static inline bool display_is_online(const struct uterm_display *disp)
 {
-	return display_is_conn(disp) && (disp->flags & DISPLAY_ONLINE);
+	return disp->video && (disp->flags & DISPLAY_ONLINE);
 }
 
 /* uterm_video */
@@ -153,7 +153,7 @@ struct uterm_video {
 	unsigned int flags;
 	struct ev_eloop *eloop;
 
-	struct uterm_display *displays;
+	struct shl_dlist displays;
 	struct shl_hook *hook;
 
 	const struct uterm_video_module *mod;

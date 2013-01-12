@@ -110,11 +110,7 @@ int uterm_fbdev_display_blit(struct uterm_display *disp,
 	uint32_t val;
 	struct fbdev_display *fbdev = disp->data;
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!buf || !video_is_awake(disp->video))
-		return -EINVAL;
-	if (buf->format != UTERM_FORMAT_XRGB32)
+	if (!buf || buf->format != UTERM_FORMAT_XRGB32)
 		return -EINVAL;
 
 	tmp = x + buf->width;
@@ -182,9 +178,7 @@ int uterm_fbdev_display_fake_blendv(struct uterm_display *disp,
 	uint32_t val;
 	struct fbdev_display *fbdev = disp->data;
 
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!req || !video_is_awake(disp->video))
+	if (!req)
 		return -EINVAL;
 
 	for (j = 0; j < num; ++j, ++req) {
@@ -324,11 +318,6 @@ int uterm_fbdev_display_fill(struct uterm_display *disp,
 	uint8_t *dst;
 	uint32_t full_val, rgb32;
 	struct fbdev_display *fbdev = disp->data;
-
-	if (!disp->video || !(disp->flags & DISPLAY_ONLINE))
-		return -EINVAL;
-	if (!video_is_awake(disp->video))
-		return -EINVAL;
 
 	tmp = x + width;
 	if (tmp < x || x >= fbdev->xres)
