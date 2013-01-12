@@ -516,3 +516,41 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 	video->flags &= ~VIDEO_HOTPLUG;
 	return 0;
 }
+
+int uterm_drm_video_wake_up(struct uterm_video *video,
+			    const struct display_ops *ops)
+{
+	int ret;
+	struct uterm_drm_video *vdrm = video->data;
+
+	ret = drmSetMaster(vdrm->fd);
+	if (ret) {
+		log_err("cannot set DRM-master");
+		return -EACCES;
+	}
+
+	video->flags |= VIDEO_AWAKE;
+	ret = uterm_drm_video_hotplug(video, ops);
+	if (ret) {
+		video->flags &= ~VIDEO_AWAKE;
+		drmDropMaster(vdrm->fd);
+		return ret;
+	}
+
+	return 0;
+}
+
+void uterm_drm_video_sleep(struct uterm_video *video)
+{
+	struct uterm_drm_video *vdrm = video->data;
+
+	drmDropMaster(vdrm->fd);
+	video->flags &= ~VIDEO_AWAKE;
+}
+
+int uterm_drm_video_poll(struct uterm_video *video,
+			 const struct display_ops *ops)
+{
+	video->flags |= VIDEO_HOTPLUG;
+	return uterm_drm_video_hotplug(video, ops);
+}

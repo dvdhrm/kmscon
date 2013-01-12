@@ -107,6 +107,11 @@ int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 			      drmModeEncoder *enc);
 int uterm_drm_video_hotplug(struct uterm_video *video,
 			    const struct display_ops *ops);
+int uterm_drm_video_wake_up(struct uterm_video *video,
+			    const struct display_ops *ops);
+void uterm_drm_video_sleep(struct uterm_video *video);
+int uterm_drm_video_poll(struct uterm_video *video,
+			 const struct display_ops *ops);
 
 static inline void *uterm_drm_video_get_data(struct uterm_video *video)
 {

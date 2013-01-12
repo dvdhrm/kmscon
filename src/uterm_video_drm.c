@@ -1124,43 +1124,22 @@ static void video_destroy(struct uterm_video *video)
 
 static int video_poll(struct uterm_video *video)
 {
-	video->flags |= VIDEO_HOTPLUG;
-	return uterm_drm_video_hotplug(video, &drm_display_ops);
+	return uterm_drm_video_poll(video, &drm_display_ops);
 }
 
 static void video_sleep(struct uterm_video *video)
 {
-	struct uterm_drm_video *vdrm = video->data;
-
-	if (!video_is_awake(video))
-		return;
-
 	show_displays(video);
-	drmDropMaster(vdrm->fd);
-	video->flags &= ~VIDEO_AWAKE;
+	uterm_drm_video_sleep(video);
 }
 
 static int video_wake_up(struct uterm_video *video)
 {
 	int ret;
-	struct uterm_drm_video *vdrm = video->data;
 
-	if (video_is_awake(video))
-		return 0;
-
-	ret = drmSetMaster(vdrm->fd);
-	if (ret) {
-		log_err("cannot set DRM-master");
-		return -EACCES;
-	}
-
-	video->flags |= VIDEO_AWAKE;
-	ret = uterm_drm_video_hotplug(video, &drm_display_ops);
-	if (ret) {
-		video->flags &= ~VIDEO_AWAKE;
-		drmDropMaster(vdrm->fd);
+	ret = uterm_drm_video_wake_up(video, &drm_display_ops);
+	if (ret)
 		return ret;
-	}
 
 	show_displays(video);
 	return 0;
