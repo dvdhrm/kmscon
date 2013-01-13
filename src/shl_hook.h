@@ -1,7 +1,7 @@
 /*
  * shl - Hook Handling
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -205,6 +205,7 @@ static inline void shl_hook_call(struct shl_hook *hook, void *parent,
 				 void *arg)
 {
 	struct shl_hook_entry *entry;
+	bool oneshot;
 
 	if (!hook || hook->cur_entry)
 		return;
@@ -214,13 +215,14 @@ static inline void shl_hook_call(struct shl_hook *hook, void *parent,
 		entry = shl_dlist_entry(hook->cur_entry,
 					struct shl_hook_entry, list);
 		hook->cur_entry = entry->list.next;
+		oneshot = entry->oneshot;
 
-		if (entry->oneshot)
+		if (oneshot)
 			shl_dlist_unlink(&entry->list);
 
 		entry->cb(parent, arg, entry->data);
 
-		if (entry->oneshot) {
+		if (oneshot) {
 			free(entry);
 			--hook->num;
 		}
