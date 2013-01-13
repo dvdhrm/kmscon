@@ -43,8 +43,8 @@ struct shl_hook;
 struct shl_hook_entry;
 typedef void (*shl_hook_cb) (void *parent, void *arg, void *data);
 
-#define shl_hook_add_cast(hook, cb, data) \
-	shl_hook_add((hook), (shl_hook_cb)(cb), (data))
+#define shl_hook_add_cast(hook, cb, data, oneshot) \
+	shl_hook_add((hook), (shl_hook_cb)(cb), (data), (oneshot))
 #define shl_hook_rm_cast(hook, cb, data) \
 	shl_hook_rm((hook), (shl_hook_cb)(cb), (data))
 
@@ -52,6 +52,7 @@ struct shl_hook_entry {
 	struct shl_dlist list;
 	shl_hook_cb cb;
 	void *data;
+	bool oneshot;
 };
 
 struct shl_hook {
@@ -110,7 +111,7 @@ static inline unsigned int shl_hook_num(struct shl_hook *hook)
 }
 
 static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
-			       void *data)
+			       void *data, bool oneshot)
 {
 	struct shl_hook_entry *entry;
 
@@ -123,14 +124,18 @@ static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
 	memset(entry, 0, sizeof(*entry));
 	entry->cb = cb;
 	entry->data = data;
+	entry->oneshot = oneshot;
 
 	shl_dlist_link_tail(&hook->entries, &entry->list);
 	hook->num++;
 	return 0;
 }
 
+/* This adds an entry only if it is not already in the list. But notice that if
+ * the entry is already registered twice or with a different \oneshot flag, the
+ * list will _not_ be changed! */
 static inline int shl_hook_add_single(struct shl_hook *hook, shl_hook_cb cb,
-				      void *data)
+				      void *data, bool oneshot)
 {
 	struct shl_hook_entry *entry;
 	struct shl_dlist *iter;
@@ -144,7 +149,7 @@ static inline int shl_hook_add_single(struct shl_hook *hook, shl_hook_cb cb,
 			return 0;
 	}
 
-	return shl_hook_add(hook, cb, data);
+	return shl_hook_add(hook, cb, data, oneshot);
 }
 
 static inline void shl_hook_rm(struct shl_hook *hook, shl_hook_cb cb,
@@ -204,9 +209,17 @@ static inline void shl_hook_call(struct shl_hook *hook, void *parent,
 	     hook->cur_entry != &hook->entries; ) {
 		entry = shl_dlist_entry(hook->cur_entry,
 					struct shl_hook_entry, list);
+		hook->cur_entry = entry->list.next;
+
+		if (entry->oneshot)
+			shl_dlist_unlink(&entry->list);
+
 		entry->cb(parent, arg, entry->data);
-		if (hook->cur_entry == &entry->list)
-			hook->cur_entry = hook->cur_entry->next;
+
+		if (entry->oneshot) {
+			free(entry);
+			--hook->num;
+		}
 	}
 
 	hook->cur_entry = NULL;

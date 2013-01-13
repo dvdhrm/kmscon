@@ -394,7 +394,7 @@ int uterm_input_register_cb(struct uterm_input *input,
 	if (!input || !cb)
 		return -EINVAL;
 
-	return shl_hook_add_cast(input->hook, cb, data);
+	return shl_hook_add_cast(input->hook, cb, data, false);
 }
 
 void uterm_input_unregister_cb(struct uterm_input *input,

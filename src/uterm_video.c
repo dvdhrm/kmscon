@@ -324,7 +324,7 @@ int uterm_display_register_cb(struct uterm_display *disp, uterm_display_cb cb,
 	if (!disp)
 		return -EINVAL;
 
-	return shl_hook_add_cast(disp->hook, cb, data);
+	return shl_hook_add_cast(disp->hook, cb, data, false);
 }
 
 void uterm_display_unregister_cb(struct uterm_display *disp,
@@ -589,7 +589,7 @@ int uterm_video_register_cb(struct uterm_video *video, uterm_video_cb cb,
 	if (!video || !cb)
 		return -EINVAL;
 
-	return shl_hook_add_cast(video->hook, cb, data);
+	return shl_hook_add_cast(video->hook, cb, data, false);
 }
 
 void uterm_video_unregister_cb(struct uterm_video *video, uterm_video_cb cb,

@@ -2196,7 +2196,7 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 			return ret;
 	}
 
-	ret = shl_hook_add_cast(sig->hook, cb, data);
+	ret = shl_hook_add_cast(sig->hook, cb, data, false);
 	if (ret) {
 		signal_free(sig);
 		return ret;
@@ -2257,7 +2257,7 @@ int ev_eloop_register_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 		return -EINVAL;
 
 	empty = !shl_hook_num(loop->chlds);
-	ret = shl_hook_add_cast(loop->chlds, cb, data);
+	ret = shl_hook_add_cast(loop->chlds, cb, data, false);
 	if (ret)
 		return ret;
 
@@ -2311,7 +2311,7 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	ret = shl_hook_add_cast(eloop->idlers, cb, data);
+	ret = shl_hook_add_cast(eloop->idlers, cb, data, false);
 	if (ret)
 		return ret;
 
@@ -2371,7 +2371,7 @@ int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	return shl_hook_add_cast(eloop->pres, cb, data);
+	return shl_hook_add_cast(eloop->pres, cb, data, false);
 }
 
 /**
@@ -2420,7 +2420,7 @@ int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (!eloop)
 		return -EINVAL;
 
-	return shl_hook_add_cast(eloop->posts, cb, data);
+	return shl_hook_add_cast(eloop->posts, cb, data, false);
 }
 
 /**
