@@ -240,6 +240,27 @@ static void display_deactivate(struct uterm_display *disp)
 	disp->current_mode = NULL;
 }
 
+static int display_get_buffer(struct uterm_display *disp,
+			      struct uterm_video_buffer *buffer,
+			      unsigned int formats)
+{
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
+	struct uterm_drm2d_rb *rb;
+
+	if (!(formats & UTERM_FORMAT_XRGB32))
+		return -EOPNOTSUPP;
+
+	rb = &d2d->rb[d2d->current_rb ^ 1];
+
+	buffer->width = uterm_drm_mode_get_width(disp->current_mode);
+	buffer->height = uterm_drm_mode_get_height(disp->current_mode);
+	buffer->stride = rb->stride;
+	buffer->format = UTERM_FORMAT_XRGB32;
+	buffer->data = rb->map;
+
+	return 0;
+}
+
 static int display_swap(struct uterm_display *disp, bool immediate)
 {
 	int ret, rb;
@@ -427,6 +448,7 @@ static const struct display_ops dumb_display_ops = {
 	.deactivate = display_deactivate,
 	.set_dpms = uterm_drm_display_set_dpms,
 	.use = NULL,
+	.get_buffer = display_get_buffer,
 	.swap = display_swap,
 	.blit = display_blit,
 	.fake_blendv = display_fake_blendv,

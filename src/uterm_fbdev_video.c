@@ -323,10 +323,15 @@ static int display_activate_force(struct uterm_display *disp,
 	dfb->dither_g = 0;
 	dfb->dither_b = 0;
 	dfb->xrgb32 = false;
+	dfb->rgb16 = false;
 	if (dfb->len_r == 8 && dfb->len_g == 8 && dfb->len_b == 8 &&
 	    dfb->off_r == 16 && dfb->off_g ==  8 && dfb->off_b ==  0 &&
 	    dfb->Bpp == 4)
 		dfb->xrgb32 = true;
+	else if (dfb->len_r == 5 && dfb->len_g == 6 && dfb->len_b == 5 &&
+		 dfb->off_r == 11 && dfb->off_g == 5 && dfb->off_b == 0 &&
+		 dfb->Bpp == 2)
+		dfb->rgb16 = true;
 
 	/* TODO: make dithering configurable */
 	disp->flags |= DISPLAY_DITHERING;
@@ -425,6 +430,30 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	return 0;
 }
 
+static int display_get_buffer(struct uterm_display *disp,
+			      struct uterm_video_buffer *buffer,
+			      unsigned int formats)
+{
+	struct fbdev_display *dfb = disp->data;
+	unsigned int f = 0;
+
+	if (dfb->xrgb32)
+		f = UTERM_FORMAT_XRGB32;
+	else if (dfb->rgb16)
+		f = UTERM_FORMAT_RGB16;
+
+	if (!(formats & f))
+		return -EOPNOTSUPP;
+
+	buffer->width = dfb->xres;
+	buffer->height = dfb->yres;
+	buffer->stride = dfb->stride;
+	buffer->format = f;
+	buffer->data = dfb->map;
+
+	return 0;
+}
+
 static int display_swap(struct uterm_display *disp, bool immediate)
 {
 	struct fbdev_display *dfb = disp->data;
@@ -466,6 +495,7 @@ static const struct display_ops fbdev_display_ops = {
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
 	.use = NULL,
+	.get_buffer = display_get_buffer,
 	.swap = display_swap,
 	.blit = uterm_fbdev_display_blit,
 	.fake_blendv = uterm_fbdev_display_fake_blendv,

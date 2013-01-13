@@ -96,8 +96,9 @@ struct uterm_display_event {
 };
 
 enum uterm_video_format {
-	UTERM_FORMAT_GREY,
-	UTERM_FORMAT_XRGB32,
+	UTERM_FORMAT_GREY	= 0x01,
+	UTERM_FORMAT_XRGB32	= 0x02,
+	UTERM_FORMAT_RGB16	= 0x04,
 };
 
 struct uterm_video_buffer {
@@ -164,6 +165,9 @@ int uterm_display_set_dpms(struct uterm_display *disp, int state);
 int uterm_display_get_dpms(const struct uterm_display *disp);
 
 int uterm_display_use(struct uterm_display *disp);
+int uterm_display_get_buffer(struct uterm_display *disp,
+			     struct uterm_video_buffer *buffer,
+			     unsigned int formats);
 int uterm_display_swap(struct uterm_display *disp, bool immediate);
 bool uterm_display_is_swapping(struct uterm_display *disp);
 
