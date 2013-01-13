@@ -475,7 +475,7 @@ static void intro_idle_event(struct ev_eloop *eloop, void *unused, void *data)
 	int ret;
 
 	vfb->pending_intro = false;
-	ev_eloop_unregister_idle_cb(eloop, intro_idle_event, data);
+	ev_eloop_unregister_idle_cb(eloop, intro_idle_event, data, EV_NORMAL);
 
 	ret = display_new(&disp, &fbdev_display_ops);
 	if (ret) {
@@ -514,7 +514,8 @@ static int video_init(struct uterm_video *video, const char *node)
 		goto err_free;
 	}
 
-	ret = ev_eloop_register_idle_cb(video->eloop, intro_idle_event, video);
+	ret = ev_eloop_register_idle_cb(video->eloop, intro_idle_event, video,
+					EV_NORMAL);
 	if (ret) {
 		log_error("cannot register idle event: %d", ret);
 		goto err_node;
@@ -538,7 +539,7 @@ static void video_destroy(struct uterm_video *video)
 
 	if (vfb->pending_intro)
 		ev_eloop_unregister_idle_cb(video->eloop, intro_idle_event,
-					    video);
+					    video, EV_NORMAL);
 
 	free(vfb->node);
 	free(vfb);

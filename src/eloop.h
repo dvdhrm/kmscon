@@ -262,10 +262,17 @@ void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 
 /* idle sources */
 
+enum ev_idle_flags {
+	EV_NORMAL	= 0x00,
+	EV_ONESHOT	= 0x01,
+	EV_SINGLE	= 0x02,
+	EV_IDLE_ALL	= EV_ONESHOT | EV_SINGLE,
+};
+
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
-			      void *data);
+			      void *data, unsigned int flags);
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
-				 void *data);
+				 void *data, unsigned int flags);
 
 /* pre dispatch callbacks */
 

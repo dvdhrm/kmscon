@@ -45,8 +45,12 @@ typedef void (*shl_hook_cb) (void *parent, void *arg, void *data);
 
 #define shl_hook_add_cast(hook, cb, data, oneshot) \
 	shl_hook_add((hook), (shl_hook_cb)(cb), (data), (oneshot))
+#define shl_hook_add_single_cast(hook, cb, data, oneshot) \
+	shl_hook_add_single((hook), (shl_hook_cb)(cb), (data), (oneshot))
 #define shl_hook_rm_cast(hook, cb, data) \
 	shl_hook_rm((hook), (shl_hook_cb)(cb), (data))
+#define shl_hook_rm_all_cast(hook, cb, data) \
+	shl_hook_rm_all((hook), (shl_hook_cb)(cb), (data))
 
 struct shl_hook_entry {
 	struct shl_dlist list;

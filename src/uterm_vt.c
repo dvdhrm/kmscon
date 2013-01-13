@@ -177,7 +177,7 @@ static void real_delayed(struct ev_eloop *eloop, void *unused, void *data)
 
 	log_debug("enter VT %d %p during startup", vt->real_num, vt);
 	vt->real_delayed = false;
-	ev_eloop_unregister_idle_cb(eloop, real_delayed, vt);
+	ev_eloop_unregister_idle_cb(eloop, real_delayed, vt, EV_NORMAL);
 	vt_call_activate(vt);
 }
 
@@ -197,7 +197,8 @@ static void real_sig_enter(struct uterm_vt *vt, struct signalfd_siginfo *info)
 
 	if (vt->real_delayed) {
 		vt->real_delayed = false;
-		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt,
+					    EV_NORMAL);
 	} else if (vt->active) {
 		log_warning("activating VT %d even though it's already active",
 			    vt->real_num);
@@ -237,7 +238,8 @@ static void real_sig_leave(struct uterm_vt *vt, struct signalfd_siginfo *info)
 
 	if (vt->real_delayed) {
 		vt->real_delayed = false;
-		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt,
+					    EV_NORMAL);
 		uterm_input_sleep(vt->input);
 	} else if (!active) {
 		log_warning("deactivating VT %d even though it's not active",
@@ -372,7 +374,7 @@ static int real_open(struct uterm_vt *vt, const char *vt_name)
 
 	if (vts.v_active == vt->real_num) {
 		ret = ev_eloop_register_idle_cb(vt->vtm->eloop, real_delayed,
-						vt);
+						vt, EV_NORMAL);
 		if (ret) {
 			log_error("cannot register idle cb for VT switch");
 			goto err_kbdmode;
@@ -417,7 +419,8 @@ static void real_close(struct uterm_vt *vt)
 
 	if (vt->real_delayed) {
 		vt->real_delayed = false;
-		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt);
+		ev_eloop_unregister_idle_cb(vt->vtm->eloop, real_delayed, vt,
+					    EV_NORMAL);
 		uterm_input_sleep(vt->input);
 	} else if (vt->active) {
 		uterm_input_sleep(vt->input);

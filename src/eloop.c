@@ -2297,6 +2297,7 @@ void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
  * @eloop: event loop
  * @cb: user-supplied callback
  * @data: user-supplied data
+ * @flags: flags
  *
  * This register a new idle-source with the given callback and data. @cb must
  * not be NULL!.
@@ -2304,14 +2305,19 @@ void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
  * Returns: 0 on success, negative error code on failure.
  */
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
-			      void *data)
+			      void *data, unsigned int flags)
 {
 	int ret;
+	bool os = flags & EV_ONESHOT;
 
-	if (!eloop)
+	if (!eloop || (flags & ~EV_IDLE_ALL))
 		return -EINVAL;
 
-	ret = shl_hook_add_cast(eloop->idlers, cb, data, false);
+	if ((flags & EV_SINGLE))
+		ret = shl_hook_add_single_cast(eloop->idlers, cb, data, os);
+	else
+		ret = shl_hook_add_cast(eloop->idlers, cb, data, os);
+
 	if (ret)
 		return ret;
 
@@ -2330,6 +2336,7 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * @eloop: event loop
  * @cb: user-supplied callback
  * @data: user-supplied data
+ * @flags: flags
  *
  * This removes an idle-source. The arguments must be the same as for the
  * ev_eloop_register_idle_cb() call. If two identical callbacks are registered,
@@ -2337,12 +2344,15 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * they are identical.
  */
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
-				 void *data)
+				 void *data, unsigned int flags)
 {
-	if (!eloop)
+	if (!eloop || (flags & ~EV_IDLE_ALL))
 		return;
 
-	shl_hook_rm_cast(eloop->idlers, cb, data);
+	if (flags & EV_SINGLE)
+		shl_hook_rm_all_cast(eloop->idlers, cb, data);
+	else
+		shl_hook_rm_cast(eloop->idlers, cb, data);
 }
 
 /*

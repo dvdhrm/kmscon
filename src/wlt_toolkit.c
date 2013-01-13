@@ -1423,7 +1423,8 @@ static void do_frame(struct wlt_window *wnd)
 	bool force;
 
 	wnd->idle_pending = false;
-	ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd);
+	ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd,
+				    EV_NORMAL);
 
 	if (wnd->need_resize) {
 		force = wnd->need_redraw;
@@ -1501,7 +1502,8 @@ static void schedule_frame(struct wlt_window *wnd)
 	if (wnd->need_frame || wnd->idle_pending)
 		return;
 
-	ret = ev_eloop_register_idle_cb(wnd->disp->eloop, idle_frame, wnd);
+	ret = ev_eloop_register_idle_cb(wnd->disp->eloop, idle_frame, wnd,
+					EV_NORMAL);
 	if (ret)
 		log_error("cannot schedule idle callback: %d", ret);
 	else
@@ -1537,7 +1539,7 @@ static void close_window(struct ev_eloop *eloop, void *unused, void *data)
 {
 	struct wlt_window *wnd = data;
 
-	ev_eloop_unregister_idle_cb(eloop, close_window, wnd);
+	ev_eloop_unregister_idle_cb(eloop, close_window, wnd, EV_NORMAL);
 	wnd->close_pending = false;
 
 	if (wnd->close_cb)
@@ -1631,9 +1633,10 @@ void wlt_window_unref(struct wlt_window *wnd)
 
 	if (wnd->close_pending)
 		ev_eloop_unregister_idle_cb(wnd->disp->eloop, close_window,
-					    wnd);
+					    wnd, EV_NORMAL);
 	if (wnd->idle_pending)
-		ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd);
+		ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd,
+					    EV_NORMAL);
 	shl_dlist_unlink(&wnd->list);
 	if (wnd->w_frame)
 		wl_callback_destroy(wnd->w_frame);
@@ -1790,7 +1793,8 @@ void wlt_window_close(struct wlt_window *wnd)
 		return;
 
 	wnd->close_pending = true;
-	ev_eloop_register_idle_cb(wnd->disp->eloop, close_window, wnd);
+	ev_eloop_register_idle_cb(wnd->disp->eloop, close_window, wnd,
+				  EV_NORMAL);
 }
 
 void wlt_window_toggle_maximize(struct wlt_window *wnd)
