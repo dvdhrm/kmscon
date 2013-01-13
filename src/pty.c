@@ -269,7 +269,7 @@ static void setup_child(int master, struct winsize *ws)
 	sigset_t sigset;
 	pid_t pid;
 	char slave_name[128];
-	int slave = -1;
+	int slave = -1, i;
 	struct termios attr;
 
 	/* The child should not inherit our signal mask. */
@@ -277,6 +277,9 @@ static void setup_child(int master, struct winsize *ws)
 	ret = pthread_sigmask(SIG_SETMASK, &sigset, NULL);
 	if (ret)
 		log_warn("cannot reset blocked signals: %m");
+
+	for (i = 1; i < SIGUNUSED; ++i)
+		signal(i, SIG_DFL);
 
 	ret = grantpt(master);
 	if (ret < 0) {
