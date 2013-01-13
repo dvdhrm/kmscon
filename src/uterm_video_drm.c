@@ -64,7 +64,6 @@ struct uterm_drm3d_display {
 	EGLSurface surface;
 	struct uterm_drm3d_rb *current;
 	struct uterm_drm3d_rb *next;
-	unsigned int ignore_flips;
 };
 
 struct uterm_drm3d_video {
@@ -304,7 +303,6 @@ static void display_deactivate(struct uterm_display *disp)
 
 	gbm_surface_destroy(d3d->gbm);
 	disp->current_mode = NULL;
-	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
 }
 
 static int display_use(struct uterm_display *disp)
@@ -328,45 +326,11 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 	struct gbm_bo *bo;
 	struct uterm_drm3d_rb *rb;
 	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
-	struct uterm_drm_display *ddrm = disp->data;
-	struct uterm_drm3d_video *v3d;
-	struct uterm_drm_video *vdrm;
+	struct uterm_video *video = disp->video;
+	struct uterm_drm3d_video *v3d = uterm_drm_video_get_data(video);
 
-	if (disp->dpms != UTERM_DPMS_ON)
-		return -EINVAL;
-	if (!immediate &&
-	    ((disp->flags & DISPLAY_VSYNC) || d3d->ignore_flips))
+	if (!gbm_surface_has_free_buffers(d3d->gbm))
 		return -EBUSY;
-
-	vdrm = disp->video->data;
-	v3d = uterm_drm_video_get_data(disp->video);
-	/* TODO: immediate page-flips are somewhat buggy and can cause
-	 * dead-locks in the kernel. This is being worked on and will hopefully
-	 * be fixed soon. However, until then, we prevent immediate page-flips
-	 * if there is another vsync'ed flip pending and print a warning
-	 * instead. If this is fixed, simply remove this warning and everything
-	 * should work. */
-	if (disp->flags & DISPLAY_VSYNC) {
-		log_warning("immediate page-flip canceled as another page-flip is pending");
-		return 0;
-	}
-
-	if (!gbm_surface_has_free_buffers(d3d->gbm)) {
-		if (d3d->next) {
-			log_debug("no free buffer, releasing next-buffer");
-			gbm_surface_release_buffer(d3d->gbm, d3d->next->bo);
-			d3d->next = NULL;
-		} else if (d3d->current) {
-			log_debug("no free buffer, releasing current-buffer");
-			gbm_surface_release_buffer(d3d->gbm, d3d->current->bo);
-			d3d->current = NULL;
-		}
-
-		if (!gbm_surface_has_free_buffers(d3d->gbm)) {
-			log_warning("gbm ran out of free buffers");
-			return -EFAULT;
-		}
-	}
 
 	if (!eglSwapBuffers(v3d->disp, d3d->surface)) {
 		log_error("cannot swap EGL buffers (%d): %m", errno);
@@ -386,43 +350,23 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 		return -EFAULT;
 	}
 
+	ret = uterm_drm_display_swap(disp, rb->fb, immediate);
+	if (ret) {
+		gbm_surface_release_buffer(d3d->gbm, bo);
+		return ret;
+	}
+
+	if (d3d->next) {
+		gbm_surface_release_buffer(d3d->gbm, d3d->next->bo);
+		d3d->next = NULL;
+	}
+
 	if (immediate) {
-		ret = drmModeSetCrtc(vdrm->fd, ddrm->crtc_id,
-				     rb->fb, 0, 0, &ddrm->conn_id, 1,
-				     uterm_drm_mode_get_info(disp->current_mode));
-		if (ret) {
-			log_err("cannot set drm-crtc");
-			gbm_surface_release_buffer(d3d->gbm, bo);
-			return -EFAULT;
-		}
-
-		if (d3d->current) {
+		if (d3d->current)
 			gbm_surface_release_buffer(d3d->gbm, d3d->current->bo);
-			d3d->current = NULL;
-		}
-		if (d3d->next) {
-			gbm_surface_release_buffer(d3d->gbm, d3d->next->bo);
-			d3d->next = NULL;
-		}
 		d3d->current = rb;
-
-		if (disp->flags & DISPLAY_VSYNC) {
-			disp->flags &= ~DISPLAY_VSYNC;
-			d3d->ignore_flips++;
-			DISPLAY_CB(disp, UTERM_PAGE_FLIP);
-		}
 	} else {
-		ret = drmModePageFlip(vdrm->fd, ddrm->crtc_id,
-				      rb->fb, DRM_MODE_PAGE_FLIP_EVENT, disp);
-		if (ret) {
-			log_warn("page-flip failed %d %d", ret, errno);
-			gbm_surface_release_buffer(d3d->gbm, bo);
-			return -EFAULT;
-		}
-
 		d3d->next = rb;
-		uterm_display_ref(disp);
-		disp->flags |= DISPLAY_VSYNC;
 	}
 
 	return 0;
@@ -913,27 +857,17 @@ static void show_displays(struct uterm_video *video)
 	}
 }
 
-static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
-			      unsigned int usec, void *data)
+static void page_flip_handler(struct uterm_display *disp)
 {
-	struct uterm_display *disp = data;
 	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
 
-	if (d3d->ignore_flips) {
-		--d3d->ignore_flips;
-	} else if (disp->flags & DISPLAY_VSYNC) {
-		disp->flags &= ~DISPLAY_VSYNC;
-		if (d3d->next) {
-			if (d3d->current)
-				gbm_surface_release_buffer(d3d->gbm,
-							   d3d->current->bo);
-			d3d->current = d3d->next;
-			d3d->next = NULL;
-		}
-		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
+	if (d3d->next) {
+		if (d3d->current)
+			gbm_surface_release_buffer(d3d->gbm,
+						   d3d->current->bo);
+		d3d->current = d3d->next;
+		d3d->next = NULL;
 	}
-
-	uterm_display_unref(disp);
 }
 
 static int video_init(struct uterm_video *video, const char *node)

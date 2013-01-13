@@ -230,6 +230,7 @@ libuterm_la_SOURCES = \
 	$(SHL_DLIST) \
 	$(SHL_HOOK) \
 	$(SHL_MISC) \
+	$(SHL_TIMER) \
 	src/uterm_input.h \
 	src/uterm_monitor.h \
 	src/uterm_video.h \

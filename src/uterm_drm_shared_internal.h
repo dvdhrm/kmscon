@@ -32,6 +32,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "eloop.h"
+#include "shl_timer.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
@@ -76,6 +77,9 @@ void uterm_drm_display_destroy(struct uterm_display *disp);
 int uterm_drm_display_activate(struct uterm_display *disp, int fd);
 void uterm_drm_display_deactivate(struct uterm_display *disp, int fd);
 int uterm_drm_display_set_dpms(struct uterm_display *disp, int state);
+int uterm_drm_display_wait_pflip(struct uterm_display *disp);
+int uterm_drm_display_swap(struct uterm_display *disp, uint32_t fb,
+			   bool immediate);
 
 static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
 {
@@ -86,15 +90,14 @@ static inline void *uterm_drm_display_get_data(struct uterm_display *disp)
 
 /* drm video */
 
-typedef void (*uterm_drm_page_flip_t) (int fd, unsigned int frame,
-				       unsigned int sec, unsigned int usec,
-				       void *data);
+typedef void (*uterm_drm_page_flip_t) (struct uterm_display *disp);
 
 struct uterm_drm_video {
 	int fd;
 	struct ev_fd *efd;
 	uterm_drm_page_flip_t page_flip;
 	void *data;
+	struct shl_timer *timer;
 };
 
 int uterm_drm_video_init(struct uterm_video *video, const char *node,
@@ -109,6 +112,8 @@ int uterm_drm_video_wake_up(struct uterm_video *video,
 void uterm_drm_video_sleep(struct uterm_video *video);
 int uterm_drm_video_poll(struct uterm_video *video,
 			 const struct display_ops *ops);
+int uterm_drm_video_wait_pflip(struct uterm_video *video,
+			       unsigned int *mtimeout);
 
 static inline void *uterm_drm_video_get_data(struct uterm_video *video)
 {

@@ -104,6 +104,7 @@ void uterm_mode_unbind(struct uterm_mode *mode);
 #define DISPLAY_OPEN		0x08
 #define DISPLAY_DBUF		0x10
 #define DISPLAY_DITHERING	0x20
+#define DISPLAY_PFLIP		0x40
 
 struct uterm_display {
 	struct shl_dlist list;

@@ -238,33 +238,25 @@ static void display_deactivate(struct uterm_display *disp)
 	destroy_rb(disp, &d2d->rb[1]);
 	destroy_rb(disp, &d2d->rb[0]);
 	disp->current_mode = NULL;
-	disp->flags &= ~(DISPLAY_ONLINE | DISPLAY_VSYNC);
+}
+
+static int swap_display(struct uterm_display *disp, bool immediate)
+{
+	int ret, rb;
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
+
+	rb = d2d->current_rb ^ 1;
+	ret = uterm_drm_display_swap(disp, d2d->rb[rb].fb, immediate);
+	if (ret)
+		return ret;
+
+	d2d->current_rb = rb;
+	return 0;
 }
 
 static int display_swap(struct uterm_display *disp)
 {
-	int ret;
-	struct uterm_drm_display *ddrm = disp->data;
-	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
-	struct uterm_drm_video *vdrm;
-
-	if (disp->dpms != UTERM_DPMS_ON)
-		return -EINVAL;
-
-	vdrm = disp->video->data;
-	errno = 0;
-	d2d->current_rb ^= 1;
-	ret = drmModePageFlip(vdrm->fd, ddrm->crtc_id,
-			      d2d->rb[d2d->current_rb].fb,
-			      DRM_MODE_PAGE_FLIP_EVENT, disp);
-	if (ret) {
-		log_warn("page-flip failed %d %d", ret, errno);
-		return -EFAULT;
-	}
-	uterm_display_ref(disp);
-	disp->flags |= DISPLAY_VSYNC;
-
-	return 0;
+	return swap_display(disp, false);
 }
 
 static int display_blit(struct uterm_display *disp,
@@ -448,12 +440,9 @@ static const struct display_ops dumb_display_ops = {
 
 static void show_displays(struct uterm_video *video)
 {
-	int ret;
 	struct uterm_display *iter;
-	struct uterm_drm_display *ddrm;
 	struct uterm_drm2d_display *d2d;
 	struct uterm_drm2d_rb *rb;
-	struct uterm_drm_video *vdrm = video->data;
 	struct shl_dlist *i;
 
 	if (!video_is_awake(video))
@@ -467,31 +456,17 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
-		ddrm = iter->data;
+		/* We use double-buffering so there might be no free back-buffer
+		 * here. Hence, draw into the current (pending) front-buffer and
+		 * wait for possible page-flips to complete. This might cause
+		 * tearing but that's acceptable as this is only called during
+		 * wakeup/sleep. */
+
 		d2d = uterm_drm_display_get_data(iter);
 		rb = &d2d->rb[d2d->current_rb];
-
 		memset(rb->map, 0, rb->size);
-		ret = drmModeSetCrtc(vdrm->fd, ddrm->crtc_id,
-				     rb->fb, 0, 0, &ddrm->conn_id, 1,
-				     uterm_drm_mode_get_info(iter->current_mode));
-		if (ret) {
-			log_err("cannot set drm-crtc on display %p", iter);
-			continue;
-		}
+		uterm_drm_display_wait_pflip(iter);
 	}
-}
-
-static void page_flip_handler(int fd, unsigned int frame, unsigned int sec,
-			      unsigned int usec, void *data)
-{
-	struct uterm_display *disp = data;
-
-	if (disp->flags & DISPLAY_VSYNC) {
-		disp->flags &= ~DISPLAY_VSYNC;
-		DISPLAY_CB(disp, UTERM_PAGE_FLIP);
-	}
-	uterm_display_unref(disp);
 }
 
 static int video_init(struct uterm_video *video, const char *node)
@@ -500,7 +475,7 @@ static int video_init(struct uterm_video *video, const char *node)
 	uint64_t has_dumb;
 	struct uterm_drm_video *vdrm;
 
-	ret = uterm_drm_video_init(video, node, page_flip_handler, NULL);
+	ret = uterm_drm_video_init(video, node, NULL, NULL);
 	if (ret)
 		return ret;
 	vdrm = video->data;

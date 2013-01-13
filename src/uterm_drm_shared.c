@@ -29,6 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "log.h"
+#include "shl_timer.h"
 #include "uterm_drm_shared_internal.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
@@ -265,6 +267,8 @@ void uterm_drm_display_deactivate(struct uterm_display *disp, int fd)
 {
 	struct uterm_drm_display *ddrm = disp->data;
 
+	uterm_drm_display_wait_pflip(disp);
+
 	if (ddrm->saved_crtc) {
 		if (disp->video->flags & VIDEO_AWAKE) {
 			drmModeSetCrtc(fd, ddrm->saved_crtc->crtc_id,
@@ -279,6 +283,7 @@ void uterm_drm_display_deactivate(struct uterm_display *disp, int fd)
 	}
 
 	ddrm->crtc_id = 0;
+	disp->flags &= ~(DISPLAY_VSYNC | DISPLAY_ONLINE | DISPLAY_PFLIP);
 }
 
 int uterm_drm_display_set_dpms(struct uterm_display *disp, int state)
@@ -298,19 +303,141 @@ int uterm_drm_display_set_dpms(struct uterm_display *disp, int state)
 	return 0;
 }
 
-static void event(struct ev_fd *fd, int mask, void *data)
+int uterm_drm_display_wait_pflip(struct uterm_display *disp)
+{
+	struct uterm_video *video = disp->video;
+	int ret;
+	unsigned int timeout = 1000; /* 1s */
+
+	if ((disp->flags & DISPLAY_PFLIP) || !(disp->flags & DISPLAY_VSYNC))
+		return 0;
+
+	do {
+		ret = uterm_drm_video_wait_pflip(video, &timeout);
+		if (ret < 1)
+			break;
+		else if ((disp->flags & DISPLAY_PFLIP))
+			break;
+	} while (timeout > 0);
+
+	if (ret < 0)
+		return ret;
+	if (ret == 0 || !timeout) {
+		log_warning("timeout waiting for page-flip on display %p",
+			    disp);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+int uterm_drm_display_swap(struct uterm_display *disp, uint32_t fb,
+			   bool immediate)
+{
+	struct uterm_drm_display *ddrm = disp->data;
+	struct uterm_video *video = disp->video;
+	struct uterm_drm_video *vdrm = video->data;
+	int ret;
+	drmModeModeInfo *mode;
+
+	if (disp->dpms != UTERM_DPMS_ON)
+		return -EINVAL;
+
+	if (immediate) {
+		ret = uterm_drm_display_wait_pflip(disp);
+		if (ret)
+			return ret;
+
+		mode = uterm_drm_mode_get_info(disp->current_mode);
+		ret = drmModeSetCrtc(vdrm->fd, ddrm->crtc_id, fb, 0, 0,
+				     &ddrm->conn_id, 1, mode);
+		if (ret) {
+			log_error("cannot set DRM-CRTC (%d): %m", errno);
+			return -EFAULT;
+		}
+	} else {
+		if ((disp->flags & DISPLAY_VSYNC))
+			return -EBUSY;
+
+		ret = drmModePageFlip(vdrm->fd, ddrm->crtc_id, fb,
+				      DRM_MODE_PAGE_FLIP_EVENT, disp);
+		if (ret) {
+			log_error("cannot page-flip on DRM-CRTC (%d): %m",
+				  errno);
+			return -EFAULT;
+		}
+
+		uterm_display_ref(disp);
+		disp->flags |= DISPLAY_VSYNC;
+	}
+
+	return 0;
+}
+
+static void uterm_drm_display_pflip(struct uterm_display *disp)
+{
+	struct uterm_drm_video *vdrm = disp->video->data;
+
+	disp->flags &= ~(DISPLAY_PFLIP | DISPLAY_VSYNC);
+	if (vdrm->page_flip)
+		vdrm->page_flip(disp);
+
+	DISPLAY_CB(disp, UTERM_PAGE_FLIP);
+}
+
+static void display_event(int fd, unsigned int frame, unsigned int sec,
+			  unsigned int usec, void *data)
+{
+	struct uterm_display *disp = data;
+
+	if (disp->video && (disp->flags & DISPLAY_VSYNC))
+		disp->flags |= DISPLAY_PFLIP;
+
+	uterm_display_unref(disp);
+}
+
+static int uterm_drm_video_read_events(struct uterm_video *video)
+{
+	struct uterm_drm_video *vdrm = video->data;
+	drmEventContext ev;
+	int ret;
+
+	/* TODO: DRM subsystem does not support non-blocking reads and it also
+	 * doesn't return 0/-1 if the device is dead. This can lead to serious
+	 * deadlocks in userspace if we read() after a device was unplugged. Fix
+	 * this upstream and then make this code actually loop. */
+	memset(&ev, 0, sizeof(ev));
+	ev.version = DRM_EVENT_CONTEXT_VERSION;
+	ev.page_flip_handler = display_event;
+	errno = 0;
+	ret = drmHandleEvent(vdrm->fd, &ev);
+
+	if (ret < 0 && errno != EAGAIN)
+		return -EFAULT;
+
+	return 0;
+}
+
+static void do_pflips(struct ev_eloop *eloop, void *unused, void *data)
+{
+	struct uterm_video *video = data;
+	struct uterm_display *disp;
+	struct shl_dlist *iter;
+
+	shl_dlist_for_each(iter, &video->displays) {
+		disp = shl_dlist_entry(iter, struct uterm_display, list);
+		if ((disp->flags & DISPLAY_PFLIP))
+			uterm_drm_display_pflip(disp);
+	}
+}
+
+static void io_event(struct ev_fd *fd, int mask, void *data)
 {
 	struct uterm_video *video = data;
 	struct uterm_drm_video *vdrm = video->data;
-	drmEventContext ev;
-
-	/* TODO: run this in a loop with O_NONBLOCK */
-	if (mask & EV_READABLE) {
-		memset(&ev, 0, sizeof(ev));
-		ev.version = DRM_EVENT_CONTEXT_VERSION;
-		ev.page_flip_handler = vdrm->page_flip;
-		drmHandleEvent(vdrm->fd, &ev);
-	}
+	struct uterm_display *disp;
+	struct shl_dlist *iter;
+	int ret;
 
 	/* TODO: forward HUP to caller */
 	if (mask & (EV_HUP | EV_ERR)) {
@@ -318,6 +445,19 @@ static void event(struct ev_fd *fd, int mask, void *data)
 		ev_eloop_rm_fd(vdrm->efd);
 		vdrm->efd = NULL;
 		return;
+	}
+
+	if (!(mask & EV_READABLE))
+		return;
+
+	ret = uterm_drm_video_read_events(video);
+	if (ret)
+		return;
+
+	shl_dlist_for_each(iter, &video->displays) {
+		disp = shl_dlist_entry(iter, struct uterm_display, list);
+		if ((disp->flags & DISPLAY_PFLIP))
+			uterm_drm_display_pflip(disp);
 	}
 }
 
@@ -337,7 +477,7 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 	vdrm->data = data;
 	vdrm->page_flip = pflip;
 
-	vdrm->fd = open(node, O_RDWR | O_CLOEXEC);
+	vdrm->fd = open(node, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (vdrm->fd < 0) {
 		log_err("cannot open drm device %s (%d): %m", node, errno);
 		ret = -EFAULT;
@@ -347,13 +487,19 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 	drmDropMaster(vdrm->fd);
 
 	ret = ev_eloop_new_fd(video->eloop, &vdrm->efd, vdrm->fd, EV_READABLE,
-			      event, video);
+			      io_event, video);
 	if (ret)
 		goto err_close;
+
+	ret = shl_timer_new(&vdrm->timer);
+	if (ret)
+		goto err_fd;
 
 	video->flags |= VIDEO_HOTPLUG;
 	return 0;
 
+err_fd:
+	ev_eloop_rm_fd(vdrm->efd);
 err_close:
 	close(vdrm->fd);
 err_free:
@@ -365,6 +511,8 @@ void uterm_drm_video_destroy(struct uterm_video *video)
 {
 	struct uterm_drm_video *vdrm = video->data;
 
+	ev_eloop_unregister_idle_cb(video->eloop, do_pflips, video, EV_SINGLE);
+	shl_timer_free(vdrm->timer);
 	ev_eloop_rm_fd(vdrm->efd);
 	close(vdrm->fd);
 	free(video->data);
@@ -565,4 +713,50 @@ int uterm_drm_video_poll(struct uterm_video *video,
 {
 	video->flags |= VIDEO_HOTPLUG;
 	return uterm_drm_video_hotplug(video, ops, false);
+}
+
+/* Waits for events on DRM fd for \mtimeout milliseconds and returns 0 if the
+ * timeout expired, -ERR on errors and 1 if a page-flip event has been read.
+ * \mtimeout is adjusted to the remaining time. */
+int uterm_drm_video_wait_pflip(struct uterm_video *video,
+			       unsigned int *mtimeout)
+{
+	struct uterm_drm_video *vdrm = video->data;
+	struct pollfd pfd;
+	int ret;
+	uint64_t elapsed;
+
+	shl_timer_start(vdrm->timer);
+
+	memset(&pfd, 0, sizeof(pfd));
+	pfd.fd = vdrm->fd;
+	pfd.events = POLLIN;
+
+	log_debug("waiting for pageflip on %p", video);
+	ret = poll(&pfd, 1, *mtimeout);
+
+	elapsed = shl_timer_stop(vdrm->timer);
+	*mtimeout = *mtimeout - (elapsed / 1000 + 1);
+
+	if (ret < 0) {
+		log_error("poll() failed on DRM fd (%d): %m", errno);
+		return -EFAULT;
+	} else if (!ret) {
+		log_warning("timeout waiting for page-flip on %p", video);
+		return 0;
+	} else if ((pfd.revents & POLLIN)) {
+		ret = uterm_drm_video_read_events(video);
+		if (ret)
+			return ret;
+
+		ret = ev_eloop_register_idle_cb(video->eloop, do_pflips,
+						video, EV_ONESHOT | EV_SINGLE);
+		if (ret)
+			return ret;
+
+		return 1;
+	} else {
+		log_debug("poll() HUP/ERR on DRM fd (%d)", pfd.revents);
+		return -EFAULT;
+	}
 }
