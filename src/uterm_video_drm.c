@@ -320,7 +320,7 @@ static int display_use(struct uterm_display *disp)
 	return 0;
 }
 
-static int swap_display(struct uterm_display *disp, bool immediate)
+static int display_swap(struct uterm_display *disp, bool immediate)
 {
 	int ret;
 	struct gbm_bo *bo;
@@ -370,11 +370,6 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 	}
 
 	return 0;
-}
-
-static int display_swap(struct uterm_display *disp)
-{
-	return swap_display(disp, false);
 }
 
 extern const char *gl_static_fill_vert;
@@ -853,7 +848,7 @@ static void show_displays(struct uterm_video *video)
 
 		glClearColor(0, 0, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
-		swap_display(iter, true);
+		display_swap(iter, true);
 	}
 }
 

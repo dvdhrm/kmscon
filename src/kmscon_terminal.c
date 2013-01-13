@@ -93,7 +93,7 @@ static void do_redraw_screen(struct screen *scr)
 	scr->pending = false;
 	tsm_screen_draw(scr->term->console, kmscon_text_prepare_cb,
 			kmscon_text_draw_cb, kmscon_text_render_cb, scr->txt);
-	ret = uterm_display_swap(scr->disp);
+	ret = uterm_display_swap(scr->disp, false);
 	if (ret) {
 		log_warning("cannot swap display %p", scr->disp);
 		return;

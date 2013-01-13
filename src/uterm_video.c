@@ -423,12 +423,12 @@ int uterm_display_use(struct uterm_display *disp)
 	return VIDEO_CALL(disp->ops->use, -EOPNOTSUPP, disp);
 }
 
-int uterm_display_swap(struct uterm_display *disp)
+int uterm_display_swap(struct uterm_display *disp, bool immediate)
 {
 	if (!disp || !display_is_online(disp) || !video_is_awake(disp->video))
 		return -EINVAL;
 
-	return VIDEO_CALL(disp->ops->swap, 0, disp);
+	return VIDEO_CALL(disp->ops->swap, 0, disp, immediate);
 }
 
 bool uterm_display_is_swapping(struct uterm_display *disp)

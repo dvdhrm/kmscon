@@ -240,7 +240,7 @@ static void display_deactivate(struct uterm_display *disp)
 	disp->current_mode = NULL;
 }
 
-static int swap_display(struct uterm_display *disp, bool immediate)
+static int display_swap(struct uterm_display *disp, bool immediate)
 {
 	int ret, rb;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
@@ -252,11 +252,6 @@ static int swap_display(struct uterm_display *disp, bool immediate)
 
 	d2d->current_rb = rb;
 	return 0;
-}
-
-static int display_swap(struct uterm_display *disp)
-{
-	return swap_display(disp, false);
 }
 
 static int display_blit(struct uterm_display *disp,

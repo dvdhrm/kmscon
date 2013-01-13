@@ -54,7 +54,7 @@ struct display_ops {
 	void (*deactivate) (struct uterm_display *disp);
 	int (*set_dpms) (struct uterm_display *disp, int state);
 	int (*use) (struct uterm_display *disp);
-	int (*swap) (struct uterm_display *disp);
+	int (*swap) (struct uterm_display *disp, bool immediate);
 	int (*blit) (struct uterm_display *disp,
 		     const struct uterm_video_buffer *buf,
 		     unsigned int x, unsigned int y);
