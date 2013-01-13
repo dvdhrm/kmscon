@@ -129,6 +129,24 @@ static inline int shl_hook_add(struct shl_hook *hook, shl_hook_cb cb,
 	return 0;
 }
 
+static inline int shl_hook_add_single(struct shl_hook *hook, shl_hook_cb cb,
+				      void *data)
+{
+	struct shl_hook_entry *entry;
+	struct shl_dlist *iter;
+
+	if (!hook || !cb)
+		return -EINVAL;
+
+	shl_dlist_for_each(iter, &hook->entries) {
+		entry = shl_dlist_entry(iter, struct shl_hook_entry, list);
+		if (entry->cb == cb && entry->data == data)
+			return 0;
+	}
+
+	return shl_hook_add(hook, cb, data);
+}
+
 static inline void shl_hook_rm(struct shl_hook *hook, shl_hook_cb cb,
 			       void *data)
 {
@@ -148,6 +166,28 @@ static inline void shl_hook_rm(struct shl_hook *hook, shl_hook_cb cb,
 			free(entry);
 			hook->num--;
 			return;
+		}
+	}
+}
+
+static inline void shl_hook_rm_all(struct shl_hook *hook, shl_hook_cb cb,
+				   void *data)
+{
+	struct shl_dlist *iter, *tmp;
+	struct shl_hook_entry *entry;
+
+	if (!hook || !cb)
+		return;
+
+	shl_dlist_for_each_reverse_safe(iter, tmp, &hook->entries) {
+		entry = shl_dlist_entry(iter, struct shl_hook_entry, list);
+		if (entry->cb == cb && entry->data == data) {
+			/* if *_call() is running we must not disturb it */
+			if (hook->cur_entry == iter)
+				hook->cur_entry = iter->next;
+			shl_dlist_unlink(&entry->list);
+			free(entry);
+			hook->num--;
 		}
 	}
 }
