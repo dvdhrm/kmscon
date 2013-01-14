@@ -147,6 +147,7 @@ static int gltex_set(struct kmscon_text *txt)
 	GLint s;
 	const char *ext;
 	struct uterm_mode *mode;
+	bool opengl;
 
 	memset(gt, 0, sizeof(*gt));
 	shl_dlist_init(&gt->atlases);
@@ -163,8 +164,8 @@ static int gltex_set(struct kmscon_text *txt)
 	if (ret)
 		goto err_htable;
 
-	ret = uterm_display_use(txt->disp);
-	if (ret) {
+	ret = uterm_display_use(txt->disp, &opengl);
+	if (ret < 0 || !opengl) {
 		if (ret == -EOPNOTSUPP)
 			log_error("display doesn't support hardware-acceleration");
 		goto err_bold_htable;
@@ -231,7 +232,7 @@ static void gltex_unset(struct kmscon_text *txt)
 	struct atlas *atlas;
 	bool gl = true;
 
-	ret = uterm_display_use(txt->disp);
+	ret = uterm_display_use(txt->disp, NULL);
 	if (ret) {
 		gl = false;
 		log_warning("cannot activate OpenGL-CTX during destruction");
@@ -526,7 +527,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 	struct shl_dlist *iter;
 	int ret;
 
-	ret = uterm_display_use(txt->disp);
+	ret = uterm_display_use(txt->disp, NULL);
 	if (ret)
 		return ret;
 

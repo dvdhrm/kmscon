@@ -53,7 +53,7 @@ struct display_ops {
 	int (*activate) (struct uterm_display *disp, struct uterm_mode *mode);
 	void (*deactivate) (struct uterm_display *disp);
 	int (*set_dpms) (struct uterm_display *disp, int state);
-	int (*use) (struct uterm_display *disp);
+	int (*use) (struct uterm_display *disp, bool *opengl);
 	int (*get_buffers) (struct uterm_display *disp,
 			    struct uterm_video_buffer *buffer,
 			    unsigned int formats);

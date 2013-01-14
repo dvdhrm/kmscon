@@ -415,12 +415,12 @@ int uterm_display_get_dpms(const struct uterm_display *disp)
 	return disp->dpms;
 }
 
-int uterm_display_use(struct uterm_display *disp)
+int uterm_display_use(struct uterm_display *disp, bool *opengl)
 {
 	if (!disp || !display_is_online(disp))
 		return -EINVAL;
 
-	return VIDEO_CALL(disp->ops->use, -EOPNOTSUPP, disp);
+	return VIDEO_CALL(disp->ops->use, -EOPNOTSUPP, disp, opengl);
 }
 
 int uterm_display_get_buffers(struct uterm_display *disp,

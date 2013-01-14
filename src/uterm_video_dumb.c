@@ -240,6 +240,16 @@ static void display_deactivate(struct uterm_display *disp)
 	disp->current_mode = NULL;
 }
 
+static int display_use(struct uterm_display *disp, bool *opengl)
+{
+	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
+
+	if (opengl)
+		*opengl = false;
+
+	return d2d->current_rb ^ 1;
+}
+
 static int display_get_buffers(struct uterm_display *disp,
 			       struct uterm_video_buffer *buffer,
 			       unsigned int formats)
@@ -449,7 +459,7 @@ static const struct display_ops dumb_display_ops = {
 	.activate = display_activate,
 	.deactivate = display_deactivate,
 	.set_dpms = uterm_drm_display_set_dpms,
-	.use = NULL,
+	.use = display_use,
 	.get_buffers = display_get_buffers,
 	.swap = display_swap,
 	.blit = display_blit,

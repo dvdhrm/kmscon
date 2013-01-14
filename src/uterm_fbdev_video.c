@@ -430,6 +430,19 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	return 0;
 }
 
+static int display_use(struct uterm_display *disp, bool *opengl)
+{
+	struct fbdev_display *dfb = disp->data;
+
+	if (opengl)
+		*opengl = false;
+
+	if (!(disp->flags & DISPLAY_DBUF))
+		return 0;
+
+	return dfb->bufid ^ 1;
+}
+
 static int display_get_buffers(struct uterm_display *disp,
 			       struct uterm_video_buffer *buffer,
 			       unsigned int formats)
@@ -499,7 +512,7 @@ static const struct display_ops fbdev_display_ops = {
 	.activate = display_activate,
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
-	.use = NULL,
+	.use = display_use,
 	.get_buffers = display_get_buffers,
 	.swap = display_swap,
 	.blit = uterm_fbdev_display_blit,

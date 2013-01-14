@@ -305,7 +305,7 @@ static void display_deactivate(struct uterm_display *disp)
 	disp->current_mode = NULL;
 }
 
-static int display_use(struct uterm_display *disp)
+static int display_use(struct uterm_display *disp, bool *opengl)
 {
 	struct uterm_drm3d_display *d3d = uterm_drm_display_get_data(disp);
 	struct uterm_drm3d_video *v3d;
@@ -317,6 +317,10 @@ static int display_use(struct uterm_display *disp)
 		return -EFAULT;
 	}
 
+	if (opengl)
+		*opengl = true;
+
+	/* TODO: lets find a way how to retrieve the current front buffer */
 	return 0;
 }
 
@@ -461,7 +465,7 @@ static int display_blit(struct uterm_display *disp,
 		return -EINVAL;
 
 	v3d = uterm_drm_video_get_data(disp->video);
-	ret = display_use(disp);
+	ret = display_use(disp, NULL);
 	if (ret)
 		return ret;
 	ret = init_shaders(disp->video);
@@ -590,7 +594,7 @@ static int display_blend(struct uterm_display *disp,
 		return -EINVAL;
 
 	v3d = uterm_drm_video_get_data(disp->video);
-	ret = display_use(disp);
+	ret = display_use(disp, NULL);
 	if (ret)
 		return ret;
 	ret = init_shaders(disp->video);
@@ -748,7 +752,7 @@ static int display_fill(struct uterm_display *disp,
 	int ret;
 
 	v3d = uterm_drm_video_get_data(disp->video);
-	ret = display_use(disp);
+	ret = display_use(disp, NULL);
 	if (ret)
 		return ret;
 	ret = init_shaders(disp->video);
@@ -843,7 +847,7 @@ static void show_displays(struct uterm_video *video)
 		if (iter->dpms != UTERM_DPMS_ON)
 			continue;
 
-		ret = display_use(iter);
+		ret = display_use(iter, NULL);
 		if (ret)
 			continue;
 

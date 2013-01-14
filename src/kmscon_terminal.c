@@ -201,6 +201,7 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	unsigned int cols, rows;
 	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 	const char *be;
+	bool opengl;
 
 	attr.ppi = term->conf->font_ppi;
 	attr.points = term->conf->font_size;
@@ -242,10 +243,10 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		kmscon_font_ref(scr->bold_font);
 	}
 
-	ret = uterm_display_use(scr->disp);
+	ret = uterm_display_use(scr->disp, &opengl);
 	if (term->conf->render_engine)
 		be = term->conf->render_engine;
-	else if (!ret)
+	else if (ret >= 0 && opengl)
 		be = "gltex";
 	else
 		be = "bbulk";
