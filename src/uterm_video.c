@@ -423,14 +423,14 @@ int uterm_display_use(struct uterm_display *disp)
 	return VIDEO_CALL(disp->ops->use, -EOPNOTSUPP, disp);
 }
 
-int uterm_display_get_buffer(struct uterm_display *disp,
-			     struct uterm_video_buffer *buffer,
-			     unsigned int formats)
+int uterm_display_get_buffers(struct uterm_display *disp,
+			      struct uterm_video_buffer *buffer,
+			      unsigned int formats)
 {
 	if (!disp || !display_is_online(disp) || !buffer)
 		return -EINVAL;
 
-	return VIDEO_CALL(disp->ops->get_buffer, -EOPNOTSUPP, disp, buffer,
+	return VIDEO_CALL(disp->ops->get_buffers, -EOPNOTSUPP, disp, buffer,
 			  formats);
 }
 

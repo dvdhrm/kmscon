@@ -430,12 +430,12 @@ static int display_set_dpms(struct uterm_display *disp, int state)
 	return 0;
 }
 
-static int display_get_buffer(struct uterm_display *disp,
-			      struct uterm_video_buffer *buffer,
-			      unsigned int formats)
+static int display_get_buffers(struct uterm_display *disp,
+			       struct uterm_video_buffer *buffer,
+			       unsigned int formats)
 {
 	struct fbdev_display *dfb = disp->data;
-	unsigned int f = 0;
+	unsigned int f = 0, i;
 
 	if (dfb->xrgb32)
 		f = UTERM_FORMAT_XRGB32;
@@ -445,11 +445,16 @@ static int display_get_buffer(struct uterm_display *disp,
 	if (!(formats & f))
 		return -EOPNOTSUPP;
 
-	buffer->width = dfb->xres;
-	buffer->height = dfb->yres;
-	buffer->stride = dfb->stride;
-	buffer->format = f;
-	buffer->data = dfb->map;
+	for (i = 0; i < 2; ++i) {
+		buffer[i].width = dfb->xres;
+		buffer[i].height = dfb->yres;
+		buffer[i].stride = dfb->stride;
+		buffer[i].format = f;
+		if (!(disp->flags & DISPLAY_DBUF) || !i)
+			buffer[i].data = dfb->map;
+		else
+			buffer[i].data = &dfb->map[dfb->yres * dfb->stride];
+	}
 
 	return 0;
 }
@@ -495,7 +500,7 @@ static const struct display_ops fbdev_display_ops = {
 	.deactivate = display_deactivate,
 	.set_dpms = display_set_dpms,
 	.use = NULL,
-	.get_buffer = display_get_buffer,
+	.get_buffers = display_get_buffers,
 	.swap = display_swap,
 	.blit = uterm_fbdev_display_blit,
 	.fake_blendv = uterm_fbdev_display_fake_blendv,
