@@ -113,5 +113,6 @@ int kmscon_text_render_cb(struct tsm_screen *con, void *data);
 extern struct kmscon_text_ops kmscon_text_bblit_ops;
 extern struct kmscon_text_ops kmscon_text_bbulk_ops;
 extern struct kmscon_text_ops kmscon_text_gltex_ops;
+extern struct kmscon_text_ops kmscon_text_cairo_ops;
 
 #endif /* KMSCON_TEXT_H */

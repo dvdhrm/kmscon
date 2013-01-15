@@ -75,6 +75,7 @@ console. See kmscon(1) man-page for usage information.
        - bblit: Simply 2D blitting engine
        - bbulk: Same as bblit but with bulk-requests
        - gltex: OpenGLESv2 accelerated renderer
+       - cairo: cairo based renderer
     --with-sessions: Built in sessions. Available sessions are:
        - dummy: Dummy fallback session
        - terminal: Terminal-emulator sessions

@@ -104,6 +104,11 @@ PKG_CHECK_MODULES([FUSE], [fuse],
 AC_SUBST(FUSE_CFLAGS)
 AC_SUBST(FUSE_LIBS)
 
+PKG_CHECK_MODULES([CAIRO], [cairo],
+                  [have_cairo=yes], [have_cairo=no])
+AC_SUBST(CAIRO_CFLAGS)
+AC_SUBST(CAIRO_LIBS)
+
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -250,9 +255,11 @@ AC_ARG_WITH([renderers],
               [specify list of optional render backends])])
 enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
+enable_renderer_cairo="no"
 if test "x$with_renderers" = "x" ; then
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
+        enable_renderer_cairo="no (default)"
         with_renderers="bbulk,gltex (default)"
 else
         SAVEIFS="$IFS"
@@ -262,6 +269,8 @@ else
                         enable_renderer_bbulk="yes"
                 elif test "x$i" = "xgltex" ; then
                         enable_renderer_gltex="yes"
+                elif test "x$i" = "xcairo" ; then
+                        enable_renderer_cairo="yes"
                 else
                         IFS="$SAVEIFS"
                         AC_ERROR([Unknown renderer $i])
@@ -541,6 +550,25 @@ else
         renderer_gltex_missing="enable-renderer-gltex"
 fi
 
+# renderer cairo
+renderer_cairo_avail=no
+renderer_cairo_missing=""
+if test ! "x$enable_renderer_cairo" = "xno" ; then
+        renderer_cairo_avail=yes
+        if test "x$have_cairo" = "xno" ; then
+                renderer_cairo_avail=no
+                renderer_cairo_missing="cairo"
+        fi
+
+        if test "x$renderer_cairo_avail" = "xno" ; then
+                if test "x$enable_renderer_cairo" = "xyes" ; then
+                        AC_ERROR([missing for renderer-cairo: $renderer_cairo_missing])
+                fi
+        fi
+else
+        renderer_cairo_missing="enable-renderer-cairo"
+fi
+
 # font unifont
 font_unifont_avail=no
 font_unifont_missing=""
@@ -783,6 +811,14 @@ if test "x$renderer_gltex_avail" = "xyes" ; then
         fi
 fi
 
+# renderer cairo
+renderer_cairo_enabled=no
+if test "x$renderer_cairo_avail" = "xyes" ; then
+        if test "x${enable_renderer_cairo% *}" = "xyes" ; then
+                renderer_cairo_enabled=yes
+        fi
+fi
+
 # renderer bbulk
 renderer_bbulk_enabled=no
 if test "x$renderer_bbulk_avail" = "xyes" ; then
@@ -980,6 +1016,15 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_RENDERER_GLTEX],
                [test "x$renderer_gltex_enabled" = "xyes"])
 
+# renderer cairo
+if test "x$renderer_cairo_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_RENDERER_CAIRO], [1],
+                  [Build cairo rendering backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_RENDERER_CAIRO],
+               [test "x$renderer_cairo_enabled" = "xyes"])
+
 # font unifont
 if test "x$font_unifont_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_FONT_UNIFONT], [1],
@@ -1149,6 +1194,7 @@ AC_MSG_NOTICE([Build configuration:
   Renderers:
                 bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail: $renderer_bbulk_missing)
                 gltex: $renderer_gltex_enabled ($renderer_gltex_avail: $renderer_gltex_missing)
+                cairo: $renderer_cairo_enabled ($renderer_cairo_avail: $renderer_cairo_missing)
 
   Session Types:
                 dummy: $session_dummy_enabled ($session_dummy_avail: $session_dummy_missing)
