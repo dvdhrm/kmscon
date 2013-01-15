@@ -298,7 +298,7 @@ static int display_activate_force(struct uterm_display *disp,
 	if (disp->flags & DISPLAY_DBUF)
 		len *= 2;
 
-	dfb->map = mmap(0, len, PROT_WRITE, MAP_SHARED, dfb->fd, 0);
+	dfb->map = mmap(0, len, PROT_READ | PROT_WRITE, MAP_SHARED, dfb->fd, 0);
 	if (dfb->map == MAP_FAILED) {
 		log_error("cannot mmap device %s (%d): %m", dfb->node,
 			  errno);
