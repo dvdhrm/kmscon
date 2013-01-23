@@ -617,6 +617,8 @@ void uterm_video_sleep(struct uterm_video *video)
 	if (!video || !video_is_awake(video))
 		return;
 
+	log_debug("go asleep");
+
 	VIDEO_CB(video, NULL, UTERM_SLEEP);
 	video->flags &= ~VIDEO_AWAKE;
 	VIDEO_CALL(video->ops->sleep, 0, video);
@@ -630,6 +632,8 @@ int uterm_video_wake_up(struct uterm_video *video)
 		return -EINVAL;
 	if (video_is_awake(video))
 		return 0;
+
+	log_debug("wake up");
 
 	ret = VIDEO_CALL(video->ops->wake_up, 0, video);
 	if (ret) {
