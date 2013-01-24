@@ -42,6 +42,7 @@
 struct tp_glyph {
 	const struct kmscon_glyph *glyph;
 	pixman_image_t *surf;
+	uint8_t *data;
 };
 
 struct tp_pixman {
@@ -53,6 +54,7 @@ struct tp_pixman {
 	pixman_image_t *surf[2];
 	unsigned int format[2];
 
+	bool new_stride;
 	bool use_indirect;
 	uint8_t *data[2];
 	struct uterm_video_buffer vbuf;
@@ -88,6 +90,7 @@ static void free_glyph(void *data)
 	struct tp_glyph *glyph = data;
 
 	pixman_image_unref(glyph->surf);
+	free(glyph->data);
 	free(glyph);
 }
 
@@ -266,8 +269,9 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 	struct shl_hashtable *gtable;
 	struct kmscon_font *font;
 	const struct uterm_video_buffer *buf;
-	unsigned int format;
-	int ret;
+	uint8_t *dst, *src;
+	unsigned int format, i;
+	int ret, stride;
 	bool res;
 
 	if (bold) {
@@ -302,6 +306,7 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 	}
 
 	buf = &glyph->glyph->buf;
+	stride = buf->stride;
 	format = format_u2p(buf->format);
 	glyph->surf = pixman_image_create_bits_no_clear(format,
 							buf->width,
@@ -309,9 +314,39 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 							(void*)buf->data,
 							buf->stride);
 	if (!glyph->surf) {
+		stride = (buf->stride + 3) & ~0x3;
+		if (!tp->new_stride) {
+			tp->new_stride = true;
+			log_debug("wrong stride, copy buffer (%d => %d)",
+			  buf->stride, stride);
+		}
+
+		glyph->data = malloc(stride * buf->height);
+		if (!glyph->data) {
+			log_error("cannot allocate memory for glyph storage");
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		src = buf->data;
+		dst = glyph->data;
+		for (i = 0; i < buf->height; ++i) {
+			memcpy(dst, src, buf->width);
+			dst += stride;
+			src += buf->stride;
+		}
+
+		glyph->surf = pixman_image_create_bits_no_clear(format,
+								buf->width,
+								buf->height,
+								(void*)
+								glyph->data,
+								stride);
+	}
+	if (!glyph->surf) {
 		log_error("cannot create pixman-glyph: %d %p %d %d %d %d",
-			  ret, buf->data, format, buf->width, buf->height,
-			  buf->stride);
+			  ret, glyph->data ? glyph->data : buf->data, format,
+			  buf->width, buf->height, stride);
 		ret = -EFAULT;
 		goto err_free;
 	}
