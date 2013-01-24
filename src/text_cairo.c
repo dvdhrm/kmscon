@@ -308,6 +308,7 @@ static int find_glyph(struct kmscon_text *txt, struct tc_glyph **out,
 	}
 
 	buf = &glyph->glyph->buf;
+	stride = buf->stride;
 	format = format_u2c(buf->format);
 	glyph->surf = cairo_image_surface_create_for_data(buf->data,
 							  format,
@@ -348,8 +349,8 @@ static int find_glyph(struct kmscon_text *txt, struct tc_glyph **out,
 	}
 	if (ret != CAIRO_STATUS_SUCCESS) {
 		log_error("cannot create cairo-glyph: %d %p %d %d %d %d",
-			  ret, buf->data, format, buf->width, buf->height,
-			  buf->stride);
+			  ret, glyph->data ? glyph->data : buf->data, format,
+			  buf->width, buf->height, stride);
 		ret = -EFAULT;
 		goto err_cairo;
 	}
