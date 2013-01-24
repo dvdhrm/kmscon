@@ -342,7 +342,7 @@ static int display_fake_blendv(struct uterm_display *disp,
 	uint8_t *dst, *src;
 	unsigned int width, height, i, j;
 	unsigned int sw, sh;
-	unsigned int r, g, b;
+	uint_fast32_t r, g, b, out;
 	struct uterm_drm2d_rb *rb;
 	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
 
@@ -382,30 +382,40 @@ static int display_fake_blendv(struct uterm_display *disp,
 
 		while (height--) {
 			for (i = 0; i < width; ++i) {
-				/* Division by 256 instead of 255 increases
-				 * speed by like 20% on slower machines.
-				 * Downside is, full white is 254/254/254
-				 * instead of 255/255/255. */
+				/* Division by 255 (t /= 255) is done with:
+				 *   t += 0x80
+				 *   t = (t + (t >> 8)) >> 8
+				 * This speeds up the computation by ~20% as the
+				 * division is not needed. */
 				if (src[i] == 0) {
 					r = req->br;
 					g = req->bg;
 					b = req->bb;
+					out = (r << 16) | (g << 8) | b;
 				} else if (src[i] == 255) {
 					r = req->fr;
 					g = req->fg;
 					b = req->fb;
+					out = (r << 16) | (g << 8) | b;
 				} else {
 					r = req->fr * src[i] +
 					    req->br * (255 - src[i]);
-					r /= 256;
+					r += 0x80;
+					r = (r + (r >> 8)) >> 8;
+
 					g = req->fg * src[i] +
 					    req->bg * (255 - src[i]);
-					g /= 256;
+					g += 0x80;
+					g = (g + (g >> 8)) >> 8;
+
 					b = req->fb * src[i] +
 					    req->bb * (255 - src[i]);
-					b /= 256;
+					b += 0x80;
+					b = (b + (b >> 8)) >> 8;
+					out = (r << 16) | (g << 8) | b;
 				}
-				((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
+
+				((uint32_t*)dst)[i] = out;
 			}
 			dst += rb->stride;
 			src += req->buf->stride;
