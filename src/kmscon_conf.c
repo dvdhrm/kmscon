@@ -448,7 +448,7 @@ static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
 	 * remove this check. */
 	if (conf->drm) {
 		if (!uterm_video_available(UTERM_VIDEO_DRM) &&
-		    !uterm_video_available(UTERM_VIDEO_DUMB)) {
+		    !uterm_video_available(UTERM_VIDEO_DRM2D)) {
 			log_info("no DRM runtime support available; disabling --drm");
 			conf->drm = false;
 		}

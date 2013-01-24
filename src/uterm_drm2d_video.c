@@ -1,5 +1,5 @@
 /*
- * uterm - Linux User-Space Terminal
+ * uterm - Linux User-Space Terminal drm2d module
  *
  * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
@@ -40,28 +40,11 @@
 #include "eloop.h"
 #include "log.h"
 #include "uterm_drm_shared_internal.h"
+#include "uterm_drm2d_internal.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
 
-#define LOG_SUBSYSTEM "video_dumb"
-
-struct uterm_drm2d_rb {
-	uint32_t fb;
-	uint32_t handle;
-	uint32_t stride;
-	uint64_t size;
-	void *map;
-};
-
-struct uterm_drm2d_display {
-	int current_rb;
-	struct uterm_drm2d_rb rb[2];
-};
-
-struct uterm_drm2d_video {
-	int fd;
-	struct ev_fd *efd;
-};
+#define LOG_SUBSYSTEM "video_drm2d"
 
 static int display_init(struct uterm_display *disp)
 {
@@ -287,183 +270,7 @@ static int display_swap(struct uterm_display *disp, bool immediate)
 	return 0;
 }
 
-static int display_blit(struct uterm_display *disp,
-			const struct uterm_video_buffer *buf,
-			unsigned int x, unsigned int y)
-{
-	unsigned int tmp;
-	uint8_t *dst, *src;
-	unsigned int width, height;
-	unsigned int sw, sh;
-	struct uterm_drm2d_rb *rb;
-	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
-
-	if (!buf || buf->format != UTERM_FORMAT_XRGB32)
-		return -EINVAL;
-
-	rb = &d2d->rb[d2d->current_rb ^ 1];
-	sw = uterm_drm_mode_get_width(disp->current_mode);
-	sh = uterm_drm_mode_get_height(disp->current_mode);
-
-	tmp = x + buf->width;
-	if (tmp < x || x >= sw)
-		return -EINVAL;
-	if (tmp > sw)
-		width = sw - x;
-	else
-		width = buf->width;
-
-	tmp = y + buf->height;
-	if (tmp < y || y >= sh)
-		return -EINVAL;
-	if (tmp > sh)
-		height = sh - y;
-	else
-		height = buf->height;
-
-	dst = rb->map;
-	dst = &dst[y * rb->stride + x * 4];
-	src = buf->data;
-
-	while (height--) {
-		memcpy(dst, src, 4 * width);
-		dst += rb->stride;
-		src += buf->stride;
-	}
-
-	return 0;
-}
-
-static int display_fake_blendv(struct uterm_display *disp,
-			       const struct uterm_video_blend_req *req,
-			       size_t num)
-{
-	unsigned int tmp;
-	uint8_t *dst, *src;
-	unsigned int width, height, i, j;
-	unsigned int sw, sh;
-	uint_fast32_t r, g, b, out;
-	struct uterm_drm2d_rb *rb;
-	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
-
-	if (!req)
-		return -EINVAL;
-
-	rb = &d2d->rb[d2d->current_rb ^ 1];
-	sw = uterm_drm_mode_get_width(disp->current_mode);
-	sh = uterm_drm_mode_get_height(disp->current_mode);
-
-	for (j = 0; j < num; ++j, ++req) {
-		if (!req->buf)
-			continue;
-
-		if (req->buf->format != UTERM_FORMAT_GREY)
-			return -EOPNOTSUPP;
-
-		tmp = req->x + req->buf->width;
-		if (tmp < req->x || req->x >= sw)
-			return -EINVAL;
-		if (tmp > sw)
-			width = sw - req->x;
-		else
-			width = req->buf->width;
-
-		tmp = req->y + req->buf->height;
-		if (tmp < req->y || req->y >= sh)
-			return -EINVAL;
-		if (tmp > sh)
-			height = sh - req->y;
-		else
-			height = req->buf->height;
-
-		dst = rb->map;
-		dst = &dst[req->y * rb->stride + req->x * 4];
-		src = req->buf->data;
-
-		while (height--) {
-			for (i = 0; i < width; ++i) {
-				/* Division by 255 (t /= 255) is done with:
-				 *   t += 0x80
-				 *   t = (t + (t >> 8)) >> 8
-				 * This speeds up the computation by ~20% as the
-				 * division is not needed. */
-				if (src[i] == 0) {
-					r = req->br;
-					g = req->bg;
-					b = req->bb;
-					out = (r << 16) | (g << 8) | b;
-				} else if (src[i] == 255) {
-					r = req->fr;
-					g = req->fg;
-					b = req->fb;
-					out = (r << 16) | (g << 8) | b;
-				} else {
-					r = req->fr * src[i] +
-					    req->br * (255 - src[i]);
-					r += 0x80;
-					r = (r + (r >> 8)) >> 8;
-
-					g = req->fg * src[i] +
-					    req->bg * (255 - src[i]);
-					g += 0x80;
-					g = (g + (g >> 8)) >> 8;
-
-					b = req->fb * src[i] +
-					    req->bb * (255 - src[i]);
-					b += 0x80;
-					b = (b + (b >> 8)) >> 8;
-					out = (r << 16) | (g << 8) | b;
-				}
-
-				((uint32_t*)dst)[i] = out;
-			}
-			dst += rb->stride;
-			src += req->buf->stride;
-		}
-	}
-
-	return 0;
-}
-
-static int display_fill(struct uterm_display *disp,
-			uint8_t r, uint8_t g, uint8_t b,
-			unsigned int x, unsigned int y,
-			unsigned int width, unsigned int height)
-{
-	unsigned int tmp, i;
-	uint8_t *dst;
-	unsigned int sw, sh;
-	struct uterm_drm2d_rb *rb;
-	struct uterm_drm2d_display *d2d = uterm_drm_display_get_data(disp);
-
-	rb = &d2d->rb[d2d->current_rb ^ 1];
-	sw = uterm_drm_mode_get_width(disp->current_mode);
-	sh = uterm_drm_mode_get_height(disp->current_mode);
-
-	tmp = x + width;
-	if (tmp < x || x >= sw)
-		return -EINVAL;
-	if (tmp > sw)
-		width = sw - x;
-	tmp = y + height;
-	if (tmp < y || y >= sh)
-		return -EINVAL;
-	if (tmp > sh)
-		height = sh - y;
-
-	dst = rb->map;
-	dst = &dst[y * rb->stride + x * 4];
-
-	while (height--) {
-		for (i = 0; i < width; ++i)
-			((uint32_t*)dst)[i] = (r << 16) | (g << 8) | b;
-		dst += rb->stride;
-	}
-
-	return 0;
-}
-
-static const struct display_ops dumb_display_ops = {
+static const struct display_ops drm2d_display_ops = {
 	.init = display_init,
 	.destroy = display_destroy,
 	.activate = display_activate,
@@ -472,9 +279,9 @@ static const struct display_ops dumb_display_ops = {
 	.use = display_use,
 	.get_buffers = display_get_buffers,
 	.swap = display_swap,
-	.blit = display_blit,
-	.fake_blendv = display_fake_blendv,
-	.fill = display_fill,
+	.blit = uterm_drm2d_display_blit,
+	.fake_blendv = uterm_drm2d_display_fake_blendv,
+	.fill = uterm_drm2d_display_fill,
 };
 
 static void show_displays(struct uterm_video *video)
@@ -539,7 +346,7 @@ static void video_destroy(struct uterm_video *video)
 
 static int video_poll(struct uterm_video *video)
 {
-	return uterm_drm_video_poll(video, &dumb_display_ops);
+	return uterm_drm_video_poll(video, &drm2d_display_ops);
 }
 
 static void video_sleep(struct uterm_video *video)
@@ -552,7 +359,7 @@ static int video_wake_up(struct uterm_video *video)
 {
 	int ret;
 
-	ret = uterm_drm_video_wake_up(video, &dumb_display_ops);
+	ret = uterm_drm_video_wake_up(video, &drm2d_display_ops);
 	if (ret)
 		return ret;
 
@@ -560,7 +367,7 @@ static int video_wake_up(struct uterm_video *video)
 	return 0;
 }
 
-static const struct video_ops dumb_video_ops = {
+static const struct video_ops drm2d_video_ops = {
 	.init = video_init,
 	.destroy = video_destroy,
 	.segfault = NULL, /* TODO: reset all saved CRTCs on segfault */
@@ -569,8 +376,8 @@ static const struct video_ops dumb_video_ops = {
 	.wake_up = video_wake_up,
 };
 
-static const struct uterm_video_module dumb_module = {
-	.ops = &dumb_video_ops,
+static const struct uterm_video_module drm2d_module = {
+	.ops = &drm2d_video_ops,
 };
 
-const struct uterm_video_module *UTERM_VIDEO_DUMB = &dumb_module;
+const struct uterm_video_module *UTERM_VIDEO_DRM2D = &drm2d_module;

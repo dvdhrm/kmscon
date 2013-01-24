@@ -64,7 +64,7 @@ bool uterm_video_available(const struct uterm_video_module *mod)
 	if (!mod)
 		return false;
 
-	if (mod == UTERM_VIDEO_DUMB || mod == UTERM_VIDEO_DRM)
+	if (mod == UTERM_VIDEO_DRM2D || mod == UTERM_VIDEO_DRM)
 		return video_drm_available();
 
 	return true;

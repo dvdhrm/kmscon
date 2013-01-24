@@ -214,10 +214,10 @@ extern const struct uterm_video_module *UTERM_VIDEO_FBDEV;
 #define UTERM_VIDEO_FBDEV NULL
 #endif
 
-#ifdef BUILD_ENABLE_VIDEO_DUMB
-extern const struct uterm_video_module *UTERM_VIDEO_DUMB;
+#ifdef BUILD_ENABLE_VIDEO_DRM2D
+extern const struct uterm_video_module *UTERM_VIDEO_DRM2D;
 #else
-#define UTERM_VIDEO_DUMB NULL
+#define UTERM_VIDEO_DRM2D NULL
 #endif
 
 #ifdef BUILD_ENABLE_VIDEO_DRM

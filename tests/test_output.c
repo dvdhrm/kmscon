@@ -218,9 +218,9 @@ int main(int argc, char **argv)
 	ret = uterm_video_new(&video, eloop, node, mode);
 	if (ret) {
 		if (mode == UTERM_VIDEO_DRM) {
-			log_notice("cannot create drm device; trying dumb drm mode");
+			log_notice("cannot create drm device; trying drm2d mode");
 			ret = uterm_video_new(&video, eloop, node,
-					      UTERM_VIDEO_DUMB);
+					      UTERM_VIDEO_DRM2D);
 			if (ret)
 				goto err_exit;
 		} else {

@@ -273,8 +273,11 @@ libuterm_la_SOURCES += \
 	src/uterm_fbdev_render.c
 endif
 
-if BUILD_ENABLE_VIDEO_DUMB
-libuterm_la_SOURCES += src/uterm_video_dumb.c
+if BUILD_ENABLE_VIDEO_DRM2D
+libuterm_la_SOURCES += \
+	src/uterm_drm2d_internal.h \
+	src/uterm_drm2d_video.c \
+	src/uterm_drm2d_render.c
 libuterm_la_CPPFLAGS += $(DRM_CFLAGS)
 libuterm_la_LIBADD += $(DRM_LIBS)
 endif
@@ -303,7 +306,7 @@ endif
 UTERM_DRM_SHARED_SRC = \
 	src/uterm_drm_shared_internal.h \
 	src/uterm_drm_shared.c
-if BUILD_ENABLE_VIDEO_DUMB
+if BUILD_ENABLE_VIDEO_DRM2D
 libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
 else
 if BUILD_ENABLE_VIDEO_DRM
