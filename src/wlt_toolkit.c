@@ -126,7 +126,6 @@ struct wlt_window {
 	bool buffer_attached;
 	bool skip_damage;
 	bool need_resize;
-	bool need_redraw;
 	bool need_frame;
 	bool idle_pending;
 	unsigned int new_width;
@@ -1305,7 +1304,7 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 }
 
 static int resize_window(struct wlt_window *wnd, unsigned int width,
-			 unsigned int height, bool force_redraw)
+			 unsigned int height)
 {
 	struct shl_dlist *iter;
 	struct wlt_widget *widget;
@@ -1351,8 +1350,7 @@ static int resize_window(struct wlt_window *wnd, unsigned int width,
 
 	if (width == wnd->buffer.width &&
 	    height == wnd->buffer.height) {
-		if (force_redraw)
-			wlt_window_do_redraw(wnd, width, height);
+		wlt_window_do_redraw(wnd, width, height);
 		return 0;
 	}
 
@@ -1420,26 +1418,18 @@ static const struct wl_callback_listener frame_callback_listener = {
 
 static void do_frame(struct wlt_window *wnd)
 {
-	bool force;
-
-	wnd->idle_pending = false;
 	ev_eloop_unregister_idle_cb(wnd->disp->eloop, idle_frame, wnd,
 				    EV_NORMAL);
 
 	if (wnd->need_resize) {
-		force = wnd->need_redraw;
 		wnd->need_frame = true;
 		wnd->need_resize = false;
-		wnd->need_redraw = false;
 		wnd->w_frame = wl_surface_frame(wnd->w_surface);
 		wl_callback_add_listener(wnd->w_frame,
 					 &frame_callback_listener, wnd);
-		resize_window(wnd, wnd->new_width, wnd->new_height, force);
-	}
-
-	if (wnd->need_redraw) {
+		resize_window(wnd, wnd->new_width, wnd->new_height);
+	} else {
 		wnd->need_frame = true;
-		wnd->need_redraw = false;
 		wnd->w_frame = wl_surface_frame(wnd->w_surface);
 		wl_callback_add_listener(wnd->w_frame,
 					 &frame_callback_listener, wnd);
@@ -1448,6 +1438,8 @@ static void do_frame(struct wlt_window *wnd)
 	}
 }
 
+static void schedule_frame(struct wlt_window *wnd);
+
 static void frame_callback(void *data, struct wl_callback *w_callback,
 			   uint32_t time)
 {
@@ -1455,9 +1447,10 @@ static void frame_callback(void *data, struct wl_callback *w_callback,
 
 	wl_callback_destroy(w_callback);
 	wnd->w_frame = NULL;
-	wnd->need_frame = false;
 
-	do_frame(wnd);
+	wnd->idle_pending = false;
+	if (wnd->need_frame)
+		schedule_frame(wnd);
 }
 
 static void idle_frame(struct ev_eloop *eloop, void *unused, void *data)
@@ -1496,10 +1489,12 @@ static void schedule_frame(struct wlt_window *wnd)
 {
 	int ret;
 
-	if (!wnd || wnd->w_frame)
+	if (!wnd)
 		return;
 
-	if (wnd->need_frame || wnd->idle_pending)
+	wnd->need_frame = true;
+
+	if (wnd->idle_pending)
 		return;
 
 	ret = ev_eloop_register_idle_cb(wnd->disp->eloop, idle_frame, wnd,
@@ -1592,7 +1587,7 @@ int wlt_display_create_window(struct wlt_display *disp,
 				      &shell_surface_listener, wnd);
 	wl_shell_surface_set_toplevel(wnd->w_shell_surface);
 
-	ret = resize_window(wnd, width, height, true);
+	ret = resize_window(wnd, width, height);
 	if (ret)
 		goto err_shell_surface;
 
@@ -1677,7 +1672,6 @@ void wlt_window_schedule_redraw(struct wlt_window *wnd)
 	if (!wnd)
 		return;
 
-	wnd->need_redraw = true;
 	schedule_frame(wnd);
 }
 
