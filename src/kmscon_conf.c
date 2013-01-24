@@ -447,7 +447,7 @@ static int aftercheck_drm(struct conf_option *opt, int argc, char **argv,
 	 * enabled but will still correctly use fbdev devices so we can then
 	 * remove this check. */
 	if (conf->drm) {
-		if (!uterm_video_available(UTERM_VIDEO_DRM) &&
+		if (!uterm_video_available(UTERM_VIDEO_DRM3D) &&
 		    !uterm_video_available(UTERM_VIDEO_DRM2D)) {
 			log_info("no DRM runtime support available; disabling --drm");
 			conf->drm = false;

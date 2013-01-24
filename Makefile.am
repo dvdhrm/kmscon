@@ -282,9 +282,11 @@ libuterm_la_CPPFLAGS += $(DRM_CFLAGS)
 libuterm_la_LIBADD += $(DRM_LIBS)
 endif
 
-if BUILD_ENABLE_VIDEO_DRM
+if BUILD_ENABLE_VIDEO_DRM3D
 libuterm_la_SOURCES += \
-	src/uterm_video_drm.c \
+	src/uterm_drm3d_internal.h \
+	src/uterm_drm3d_video.c \
+	src/uterm_drm3d_render.c \
 	src/static_gl.h \
 	src/static_gl_math.c \
 	src/static_gl_shader.c
@@ -309,7 +311,7 @@ UTERM_DRM_SHARED_SRC = \
 if BUILD_ENABLE_VIDEO_DRM2D
 libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
 else
-if BUILD_ENABLE_VIDEO_DRM
+if BUILD_ENABLE_VIDEO_DRM3D
 libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
 endif
 endif

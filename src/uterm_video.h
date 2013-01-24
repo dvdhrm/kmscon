@@ -220,10 +220,10 @@ extern const struct uterm_video_module *UTERM_VIDEO_DRM2D;
 #define UTERM_VIDEO_DRM2D NULL
 #endif
 
-#ifdef BUILD_ENABLE_VIDEO_DRM
-extern const struct uterm_video_module *UTERM_VIDEO_DRM;
+#ifdef BUILD_ENABLE_VIDEO_DRM3D
+extern const struct uterm_video_module *UTERM_VIDEO_DRM3D;
 #else
-#define UTERM_VIDEO_DRM NULL
+#define UTERM_VIDEO_DRM3D NULL
 #endif
 
 #endif /* UTERM_UTERM_VIDEO_H */

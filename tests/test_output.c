@@ -206,7 +206,7 @@ int main(int argc, char **argv)
 		mode = UTERM_VIDEO_FBDEV;
 		node = "/dev/fb0";
 	} else {
-		mode = UTERM_VIDEO_DRM;
+		mode = UTERM_VIDEO_DRM3D;
 		node = "/dev/dri/card0";
 	}
 
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 
 	ret = uterm_video_new(&video, eloop, node, mode);
 	if (ret) {
-		if (mode == UTERM_VIDEO_DRM) {
+		if (mode == UTERM_VIDEO_DRM3D) {
 			log_notice("cannot create drm device; trying drm2d mode");
 			ret = uterm_video_new(&video, eloop, node,
 					      UTERM_VIDEO_DRM2D);

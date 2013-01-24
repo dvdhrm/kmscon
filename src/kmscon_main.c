@@ -355,7 +355,7 @@ static int app_seat_add_video(struct app_seat *seat,
 
 	if (type == UTERM_MONITOR_DRM) {
 		if (seat->conf->hwaccel)
-			mode = UTERM_VIDEO_DRM;
+			mode = UTERM_VIDEO_DRM3D;
 		else
 			mode = UTERM_VIDEO_DRM2D;
 	} else {
@@ -364,8 +364,8 @@ static int app_seat_add_video(struct app_seat *seat,
 
 	ret = uterm_video_new(&vid->video, seat->app->eloop, node, mode);
 	if (ret) {
-		if (mode == UTERM_VIDEO_DRM) {
-			log_info("cannot create drm device %s on seat %s (%d); trying drm2d mode",
+		if (mode == UTERM_VIDEO_DRM3D) {
+			log_info("cannot create drm3d device %s on seat %s (%d); trying drm2d mode",
 				 vid->node, seat->name, ret);
 			ret = uterm_video_new(&vid->video, seat->app->eloop,
 					      node, UTERM_VIDEO_DRM2D);

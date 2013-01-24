@@ -180,7 +180,7 @@ static inline bool video_need_hotplug(const struct uterm_video *video)
 			.action = (act), \
 		})
 
-#if defined(BUILD_ENABLE_VIDEO_DRM) || defined(BUILD_ENABLE_VIDEO_DRM2D)
+#if defined(BUILD_ENABLE_VIDEO_DRM3D) || defined(BUILD_ENABLE_VIDEO_DRM2D)
 
 #include <xf86drm.h>
 

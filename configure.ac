@@ -228,12 +228,12 @@ AC_ARG_WITH([video],
               [specify list of optional video backends])])
 enable_video_fbdev="no"
 enable_video_drm2d="no"
-enable_video_drm="no"
+enable_video_drm3d="no"
 if test "x$with_video" = "x" ; then
         enable_video_fbdev="yes (default)"
         enable_video_drm2d="yes (default)"
-        enable_video_drm="yes (default)"
-        with_video="fbdev,drm2d,drm (default)"
+        enable_video_drm3d="yes (default)"
+        with_video="fbdev,drm2d,drm3d (default)"
 else
         SAVEIFS="$IFS"
         IFS=","
@@ -242,8 +242,8 @@ else
                         enable_video_fbdev="yes"
                 elif test "x$i" = "xdrm2d" ; then
                         enable_video_drm2d="yes"
-                elif test "x$i" = "xdrm" ; then
-                        enable_video_drm="yes"
+                elif test "x$i" = "xdrm3d" ; then
+                        enable_video_drm3d="yes"
                 else
                         IFS="$SAVEIFS"
                         AC_ERROR([Invalid video backend $i])
@@ -439,9 +439,9 @@ video_drm2d_avail=no
 video_drm2d_missing=""
 if test ! "x$enable_video_drm2d" = "xno" ; then
         video_drm2d_avail=yes
-        if test "x$have_drm" = "xno" ; then
+        if test "x$have_drm3d" = "xno" ; then
                 video_drm2d_avail=no
-                video_drm2d_missing="libdrm"
+                video_drm2d_missing="libdrm3d"
         fi
 
         if test "x$video_drm2d_avail" = "xno" ; then
@@ -453,35 +453,35 @@ else
         video_drm2d_missing="enable-video-drm2d"
 fi
 
-# video drm
-video_drm_avail=no
-video_drm_missing=""
-if test ! "x$enable_video_drm" = "xno" ; then
-        video_drm_avail=yes
-        if test "x$have_drm" = "xno" ; then
-                video_drm_avail=no
-                video_drm_missing="libdrm,$video_drm_missing"
+# video drm3d
+video_drm3d_avail=no
+video_drm3d_missing=""
+if test ! "x$enable_video_drm3d" = "xno" ; then
+        video_drm3d_avail=yes
+        if test "x$have_drm3d" = "xno" ; then
+                video_drm3d_avail=no
+                video_drm3d_missing="libdrm3d,$video_drm3d_missing"
         fi
         if test "x$have_gbm" = "xno" ; then
-                video_drm_avail=no
-                video_drm_missing="libgbm,$video_drm_missing"
+                video_drm3d_avail=no
+                video_drm3d_missing="libgbm,$video_drm3d_missing"
         fi
         if test "x$have_egl" = "xno" ; then
-                video_drm_avail=no
-                video_drm_missing="libegl,$video_drm_missing"
+                video_drm3d_avail=no
+                video_drm3d_missing="libegl,$video_drm3d_missing"
         fi
         if test "x$have_gles2" = "xno" ; then
-                video_drm_avail=no
-                video_drm_missing="libgles2,$video_drm_missing"
+                video_drm3d_avail=no
+                video_drm3d_missing="libgles2,$video_drm3d_missing"
         fi
 
-        if test "x$video_drm_avail" = "xno" ; then
-                if test "x$enable_video_drm" = "xyes" ; then
-                        AC_ERROR([missing for drm video backend: $video_drm_missing])
+        if test "x$video_drm3d_avail" = "xno" ; then
+                if test "x$enable_video_drm3d" = "xyes" ; then
+                        AC_ERROR([missing for drm3d video backend: $video_drm3d_missing])
                 fi
         fi
 else
-        video_drm_missing="enable-video-drm"
+        video_drm3d_missing="enable-video-drm3d"
 fi
 
 # uterm
@@ -887,11 +887,11 @@ if test "x$uterm_avail" = "xyes" ; then
         fi
 fi
 
-# video drm
-video_drm_enabled=no
-if test "x$video_drm_avail" = "xyes" ; then
-        if test "x${enable_video_drm% *}" = "xyes" ; then
-                video_drm_enabled=yes
+# video drm3d
+video_drm3d_enabled=no
+if test "x$video_drm3d_avail" = "xyes" ; then
+        if test "x${enable_video_drm3d% *}" = "xyes" ; then
+                video_drm3d_enabled=yes
         fi
 fi
 
@@ -997,20 +997,20 @@ AM_CONDITIONAL([BUILD_ENABLE_VIDEO_FBDEV],
 # video drm2d
 if test "x$video_drm2d_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_VIDEO_DRM2D], [1],
-                  [Build uterm drm2d drm video backend])
+                  [Build uterm drm2d drm3d video backend])
 fi
 
 AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DRM2D],
                [test "x$video_drm2d_enabled" = "xyes"])
 
-# video drm
-if test "x$video_drm_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_VIDEO_DRM], [1],
-                  [Build uterm drm video backend])
+# video drm3d
+if test "x$video_drm3d_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_VIDEO_DRM3D], [1],
+                  [Build uterm drm3d video backend])
 fi
 
-AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DRM],
-               [test "x$video_drm_enabled" = "xyes"])
+AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DRM3D],
+               [test "x$video_drm3d_enabled" = "xyes"])
 
 # uterm
 AM_CONDITIONAL([BUILD_ENABLE_UTERM],
@@ -1229,7 +1229,7 @@ AC_MSG_NOTICE([Build configuration:
   Video Backends:
                 fbdev: $video_fbdev_enabled ($video_fbdev_avail: $video_fbdev_missing)
                 drm2d: $video_drm2d_enabled ($video_drm2d_avail: $video_drm2d_missing)
-                  drm: $video_drm_enabled ($video_drm_avail: $video_drm_missing)
+                drm3d: $video_drm3d_enabled ($video_drm3d_avail: $video_drm3d_missing)
 
   Font Backends:
               unifont: $font_unifont_enabled ($font_unifont_avail: $font_unifont_missing)
