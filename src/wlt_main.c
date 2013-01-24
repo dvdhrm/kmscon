@@ -37,10 +37,10 @@
 #include <wayland-client.h>
 #include "conf.h"
 #include "eloop.h"
+#include "font.h"
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_misc.h"
-#include "text.h"
 #include "wlt_main.h"
 #include "wlt_terminal.h"
 #include "wlt_theme.h"
@@ -53,6 +53,18 @@ struct wlt_app {
 	struct wlt_display *disp;
 	struct wlt_window *wnd;
 };
+
+/* TODO: The font layer depends on kmscon modules. However, the WLT applications
+ * doesn't use them. Therefore, we provide dummy kmscon_module_* helpers here
+ * which satisfy the dependencies and allow us to link to font.so. */
+
+void kmscon_module_ref(struct kmscon_module *m)
+{
+}
+
+void kmscon_module_unref(struct kmscon_module *m)
+{
+}
 
 static void sig_generic(struct ev_eloop *eloop, struct signalfd_siginfo *info,
 			void *data)
@@ -434,6 +446,7 @@ int main(int argc, char **argv)
 	log_print_init("wlterm");
 
 	kmscon_font_register(&kmscon_font_8x16_ops);
+	kmscon_font_register(&kmscon_font_pango_ops);
 
 	memset(&app, 0, sizeof(app));
 	ret = setup_app(&app);
@@ -443,6 +456,7 @@ int main(int argc, char **argv)
 	ev_eloop_run(app.eloop, -1);
 
 	destroy_app(&app);
+	kmscon_font_unregister(kmscon_font_pango_ops.name);
 	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 	conf_ctx_free(conf);
 	log_info("exiting");
@@ -450,6 +464,7 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 
 err_unload:
+	kmscon_font_unregister(kmscon_font_pango_ops.name);
 	kmscon_font_unregister(kmscon_font_8x16_ops.name);
 err_conf:
 	conf_ctx_free(conf);

@@ -583,6 +583,8 @@ wlterm_SOURCES = \
 	$(SHL_ARRAY) \
 	$(SHL_DLIST) \
 	$(SHL_HOOK) \
+	$(SHL_REGISTER) \
+	$(SHL_HASHTABLE) \
 	src/wlt_main.h \
 	src/wlt_main.c \
 	src/wlt_toolkit.h \
@@ -596,13 +598,19 @@ wlterm_SOURCES = \
 	src/conf.h \
 	src/conf.c \
 	src/pty.h \
-	src/pty.c
+	src/pty.c \
+	src/font.h \
+	src/font.c \
+	src/font_8x16.c \
+	src/font_pango.c
 wlterm_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(WAYLAND_CFLAGS) \
+	$(PANGO_CFLAGS) \
 	$(XKBCOMMON_CFLAGS)
 wlterm_LDADD = \
 	$(WAYLAND_LIBS) \
+	$(PANGO_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libtsm.la \

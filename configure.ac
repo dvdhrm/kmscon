@@ -740,6 +740,11 @@ if test ! "x$enable_wlterm" = "xno" ; then
                 wlterm_missing="$eloop_missing,$wlterm_missing"
         fi
 
+        if test "x$font_pango_avail" = "xno" ; then
+                wlterm_avail=no
+                wlterm_missing="$font_pango_missing,$wlterm_missing"
+        fi
+
         if test "x$have_wayland" = "xno" ; then
                 wlterm_avail=no
                 wlterm_missing="libwayland,$wlterm_missing"
@@ -769,6 +774,7 @@ if test "x$wlterm_avail" = "xyes" ; then
                 wlterm_enabled=yes
                 enable_eloop=yes
                 enable_tsm=yes
+                enable_font_pango=yes
         fi
 fi
 
