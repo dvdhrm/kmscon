@@ -45,6 +45,7 @@ struct tp_glyph {
 };
 
 struct tp_pixman {
+	pixman_image_t *white;
 	struct shl_hashtable *glyphs;
 	struct shl_hashtable *bold_glyphs;
 
@@ -162,17 +163,29 @@ static int tp_set(struct kmscon_text *txt)
 	int ret;
 	unsigned int w, h;
 	struct uterm_mode *m;
+	pixman_color_t white;
 
 	memset(tp, 0, sizeof(*tp));
 	m = uterm_display_get_current(txt->disp);
 	w = uterm_mode_get_width(m);
 	h = uterm_mode_get_height(m);
 
+	white.red = 0xffff;
+	white.green = 0xffff;
+	white.blue = 0xffff;
+	white.red = 0xffff;
+
+	tp->white = pixman_image_create_solid_fill(&white);
+	if (!tp->white) {
+		log_error("cannot create pixman solid color buffer");
+		return -ENOMEM;
+	}
+
 	ret = shl_hashtable_new(&tp->glyphs, shl_direct_hash,
 				shl_direct_equal, NULL,
 				free_glyph);
 	if (ret)
-		return ret;
+		goto err_white;
 
 	ret = shl_hashtable_new(&tp->bold_glyphs, shl_direct_hash,
 				shl_direct_equal, NULL,
@@ -227,6 +240,8 @@ err_htable_bold:
 	shl_hashtable_free(tp->bold_glyphs);
 err_htable:
 	shl_hashtable_free(tp->glyphs);
+err_white:
+	pixman_image_unref(tp->white);
 	return ret;
 }
 
@@ -240,6 +255,7 @@ static void tp_unset(struct kmscon_text *txt)
 	free(tp->data[0]);
 	shl_hashtable_free(tp->bold_glyphs);
 	shl_hashtable_free(tp->glyphs);
+	pixman_image_unref(tp->white);
 }
 
 static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
@@ -369,28 +385,50 @@ static int tp_draw(struct kmscon_text *txt,
 		fc.alpha = 0xffff;
 	}
 
-	pixman_fill(tp->c_data, tp->c_stride / 4, tp->c_bpp,
-		    posx * txt->font->attr.width,
-		    posy * txt->font->attr.height,
-		    txt->font->attr.width,
-		    txt->font->attr.height,
-		    bc);
-
-	col = pixman_image_create_solid_fill(&fc);
-	if (!col) {
-		log_error("cannot create pixman color image");
-		return -ENOMEM;
+	/* TODO: We _really_ should fix pixman to allow something like
+	 * pixman_image_set_solid_fill(img, &fc) to avoid allocating a pixman
+	 * image for each glyph here.
+	 * libc malloc() is pretty fast, but this still costs us a lot of
+	 * rendering performance. */
+	if (!fc.red && !fc.green && !fc.blue) {
+		col = tp->white;
+		pixman_image_ref(col);
+	} else {
+		col = pixman_image_create_solid_fill(&fc);
+		if (!col) {
+			log_error("cannot create pixman color image");
+			return -ENOMEM;
+		}
 	}
 
-	pixman_image_composite(PIXMAN_OP_OVER,
-			       col, /* src */
-			       glyph->surf, /* mask */
-			       tp->surf[tp->cur], /* dst */
-			       0, 0, 0, 0,
-			       posx * txt->font->attr.width,
-			       posy * txt->font->attr.height,
-			       txt->font->attr.width,
-			       txt->font->attr.height);
+	if (!bc) {
+		pixman_image_composite(PIXMAN_OP_SRC,
+				       col,
+				       glyph->surf,
+				       tp->surf[tp->cur],
+				       0, 0, 0, 0,
+				       posx * txt->font->attr.width,
+				       posy * txt->font->attr.height,
+				       txt->font->attr.width,
+				       txt->font->attr.height);
+	} else {
+		pixman_fill(tp->c_data, tp->c_stride / 4, tp->c_bpp,
+			    posx * txt->font->attr.width,
+			    posy * txt->font->attr.height,
+			    txt->font->attr.width,
+			    txt->font->attr.height,
+			    bc);
+
+		pixman_image_composite(PIXMAN_OP_OVER,
+				       col,
+				       glyph->surf,
+				       tp->surf[tp->cur],
+				       0, 0, 0, 0,
+				       posx * txt->font->attr.width,
+				       posy * txt->font->attr.height,
+				       txt->font->attr.width,
+				       txt->font->attr.height);
+	}
 
 	pixman_image_unref(col);
 
