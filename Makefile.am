@@ -468,6 +468,24 @@ mod_cairo_la_LDFLAGS = \
 	-module \
 	-avoid-version
 
+if BUILD_ENABLE_RENDERER_PIXMAN
+module_LTLIBRARIES += mod-pixman.la
+endif
+
+mod_pixman_la_SOURCES = \
+	src/kmscon_module_interface.h \
+	src/githead.h \
+	src/text_pixman.c \
+	src/kmscon_mod_pixman.c
+mod_pixman_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(PIXMAN_CFLAGS)
+mod_pixman_la_LIBADD = \
+	$(PIXMAN_LIBS)
+mod_pixman_la_LDFLAGS = \
+	-module \
+	-avoid-version
+
 #
 # Binaries
 # These are the sources for the main binaries and test programs. They mostly

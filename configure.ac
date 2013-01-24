@@ -109,6 +109,11 @@ PKG_CHECK_MODULES([CAIRO], [cairo],
 AC_SUBST(CAIRO_CFLAGS)
 AC_SUBST(CAIRO_LIBS)
 
+PKG_CHECK_MODULES([PIXMAN], [pixman-1],
+                  [have_pixman=yes], [have_pixman=no])
+AC_SUBST(PIXMAN_CFLAGS)
+AC_SUBST(PIXMAN_LIBS)
+
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -256,10 +261,12 @@ AC_ARG_WITH([renderers],
 enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
 enable_renderer_cairo="no"
+enable_renderer_pixman="no"
 if test "x$with_renderers" = "x" ; then
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
         enable_renderer_cairo="no (default)"
+        enable_renderer_pixman="no (default)"
         with_renderers="bbulk,gltex (default)"
 else
         SAVEIFS="$IFS"
@@ -271,6 +278,8 @@ else
                         enable_renderer_gltex="yes"
                 elif test "x$i" = "xcairo" ; then
                         enable_renderer_cairo="yes"
+                elif test "x$i" = "xpixman" ; then
+                        enable_renderer_pixman="yes"
                 else
                         IFS="$SAVEIFS"
                         AC_ERROR([Unknown renderer $i])
@@ -569,6 +578,25 @@ else
         renderer_cairo_missing="enable-renderer-cairo"
 fi
 
+# renderer pixman
+renderer_pixman_avail=no
+renderer_pixman_missing=""
+if test ! "x$enable_renderer_pixman" = "xno" ; then
+        renderer_pixman_avail=yes
+        if test "x$have_pixman" = "xno" ; then
+                renderer_pixman_avail=no
+                renderer_pixman_missing="pixman"
+        fi
+
+        if test "x$renderer_pixman_avail" = "xno" ; then
+                if test "x$enable_renderer_pixman" = "xyes" ; then
+                        AC_ERROR([missing for renderer-pixman: $renderer_pixman_missing])
+                fi
+        fi
+else
+        renderer_pixman_missing="enable-renderer-pixman"
+fi
+
 # font unifont
 font_unifont_avail=no
 font_unifont_missing=""
@@ -819,6 +847,14 @@ if test "x$renderer_cairo_avail" = "xyes" ; then
         fi
 fi
 
+# renderer pixman
+renderer_pixman_enabled=no
+if test "x$renderer_pixman_avail" = "xyes" ; then
+        if test "x${enable_renderer_pixman% *}" = "xyes" ; then
+                renderer_pixman_enabled=yes
+        fi
+fi
+
 # renderer bbulk
 renderer_bbulk_enabled=no
 if test "x$renderer_bbulk_avail" = "xyes" ; then
@@ -1025,6 +1061,15 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_RENDERER_CAIRO],
                [test "x$renderer_cairo_enabled" = "xyes"])
 
+# renderer pixman
+if test "x$renderer_pixman_enabled" = "xyes" ; then
+        AC_DEFINE([BUILD_ENABLE_RENDERER_PIXMAN], [1],
+                  [Build pixman rendering backend])
+fi
+
+AM_CONDITIONAL([BUILD_ENABLE_RENDERER_PIXMAN],
+               [test "x$renderer_pixman_enabled" = "xyes"])
+
 # font unifont
 if test "x$font_unifont_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_FONT_UNIFONT], [1],
@@ -1195,6 +1240,7 @@ AC_MSG_NOTICE([Build configuration:
                 bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail: $renderer_bbulk_missing)
                 gltex: $renderer_gltex_enabled ($renderer_gltex_avail: $renderer_gltex_missing)
                 cairo: $renderer_cairo_enabled ($renderer_cairo_avail: $renderer_cairo_missing)
+               pixman: $renderer_pixman_enabled ($renderer_pixman_avail: $renderer_pixman_missing)
 
   Session Types:
                 dummy: $session_dummy_enabled ($session_dummy_avail: $session_dummy_missing)
