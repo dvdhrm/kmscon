@@ -201,7 +201,7 @@ static int tp_set(struct kmscon_text *txt)
 	 */
 	ret = uterm_display_get_buffers(txt->disp, tp->buf,
 					UTERM_FORMAT_XRGB32);
-	if (true || ret) {
+	if (ret) {
 		log_warning("cannot get buffers for display %p",
 			    txt->disp);
 		ret = alloc_indirect(txt, w, h);
