@@ -71,7 +71,6 @@ struct fbdev_display {
 struct fbdev_video {
 	char *node;
 	bool pending_intro;
-	struct uterm_display *disp;
 };
 
 int uterm_fbdev_display_blit(struct uterm_display *disp,

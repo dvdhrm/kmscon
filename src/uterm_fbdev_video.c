@@ -601,22 +601,38 @@ static void video_destroy(struct uterm_video *video)
 
 static void video_sleep(struct uterm_video *video)
 {
-	struct fbdev_video *vfb = video->data;
+	struct uterm_display *iter;
+	struct shl_dlist *i;
 
-	if (vfb->disp && display_is_online(vfb->disp))
-		display_deactivate_force(vfb->disp, true);
+	shl_dlist_for_each(i, &video->displays) {
+		iter = shl_dlist_entry(i, struct uterm_display, list);
+
+		if (!display_is_online(iter))
+			continue;
+
+		display_deactivate_force(iter, true);
+	}
 }
 
 static int video_wake_up(struct uterm_video *video)
 {
-	struct fbdev_video *vfb = video->data;
+	struct uterm_display *iter;
+	struct shl_dlist *i;
 	int ret;
 
-	if (vfb->disp && display_is_online(vfb->disp)) {
-		video->flags |= VIDEO_AWAKE;
-		ret = display_activate_force(vfb->disp, NULL, true);
+	video->flags |= VIDEO_AWAKE;
+	shl_dlist_for_each(i, &video->displays) {
+		iter = shl_dlist_entry(i, struct uterm_display, list);
+
+		if (!display_is_online(iter))
+			continue;
+
+		ret = display_activate_force(iter, NULL, true);
 		if (ret)
 			return ret;
+
+		if (iter->dpms != UTERM_DPMS_UNKNOWN)
+			display_set_dpms(iter, iter->dpms);
 	}
 
 	return 0;
