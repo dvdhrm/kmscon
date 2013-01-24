@@ -37,10 +37,10 @@
 #include <xkbcommon/xkbcommon.h>
 #include "conf.h"
 #include "eloop.h"
+#include "font.h"
 #include "log.h"
 #include "pty.h"
 #include "shl_misc.h"
-#include "text.h"
 #include "tsm_unicode.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"

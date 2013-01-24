@@ -1230,7 +1230,7 @@ int wlt_display_register_cb(struct wlt_display *disp,
 	if (!disp)
 		return -EINVAL;
 
-	return shl_hook_add_cast(disp->listeners, cb, data);
+	return shl_hook_add_cast(disp->listeners, cb, data, false);
 }
 
 void wlt_display_unregister_cb(struct wlt_display *disp,
