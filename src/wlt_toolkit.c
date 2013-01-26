@@ -681,8 +681,7 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
 		}
 	}
 
-	if (state == WL_KEYBOARD_KEY_STATE_RELEASED &&
-	    sym == disp->repeat_sym) {
+	if (state == WL_KEYBOARD_KEY_STATE_RELEASED) {
 		ev_timer_update(disp->repeat_timer, NULL);
 	} else if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		disp->repeat_sym = sym;
