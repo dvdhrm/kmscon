@@ -1,7 +1,7 @@
 /*
  * App Configuration
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -42,7 +42,7 @@
 #include "log.h"
 #include "shl_misc.h"
 
-#define LOG_SUBSYSTEM "config"
+#define LOG_SUBSYSTEM "conf"
 
 /*
  * Config Contexts

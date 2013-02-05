@@ -1,7 +1,7 @@
 /*
  * Configuration Parsers
  *
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -27,11 +27,12 @@
  * Configuration
  * This provides generic command-line argument and configuration file parsers
  * which can be used by different applications that are part of this
- * distribution.
+ * distribution. It provides most basic types but can be extended on the fly
+ * with more advanced types.
  */
 
-#ifndef CONFIG_CONFIG_H
-#define CONFIG_CONFIG_H
+#ifndef CONF_CONF_H
+#define CONF_CONF_H
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -199,4 +200,4 @@ struct conf_option {
 #define CONF_OPTION_GRAB(_short, _long, _mem, _def) \
 	CONF_OPTION_GRAB_FULL(_short, _long, NULL, NULL, NULL, _mem, _def)
 
-#endif /* CONFIG_CONFIG_H */
+#endif /* CONF_CONF_H */
