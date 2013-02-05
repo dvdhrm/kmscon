@@ -265,7 +265,6 @@ int conf_ctx_parse_argv(struct conf_ctx *ctx, int argc, char **argv)
 				}
 
 				o->flags |= CONF_LOCKED;
-				o->flags |= CONF_DONE;
 				break;
 			}
 		} else if (c < 200000) {
@@ -279,7 +278,6 @@ int conf_ctx_parse_argv(struct conf_ctx *ctx, int argc, char **argv)
 			}
 
 			o->flags |= CONF_LOCKED;
-			o->flags |= CONF_DONE;
 		} else {
 			i = c - 200000;
 			o = &ctx->opts[i];
@@ -291,7 +289,6 @@ int conf_ctx_parse_argv(struct conf_ctx *ctx, int argc, char **argv)
 			}
 
 			o->flags |= CONF_LOCKED;
-			o->flags |= CONF_DONE;
 		}
 	}
 
@@ -355,7 +352,6 @@ static int parse_kv_pair(struct conf_option *opts, size_t len,
 			ret = opt->file(opt, set, value);
 			if (ret)
 				return ret;
-			opt->flags |= CONF_DONE;
 			return 0;
 		}
 
@@ -375,7 +371,6 @@ static int parse_kv_pair(struct conf_option *opts, size_t len,
 				return ret;
 		}
 
-		opt->flags |= CONF_DONE;
 		return 0;
 	}
 

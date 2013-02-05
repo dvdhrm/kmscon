@@ -151,8 +151,7 @@ int conf_ctx_parse_file(struct conf_ctx *ctx, const char *format, ...);
  * this structure.
  */
 
-#define CONF_DONE		0x0001
-#define CONF_LOCKED		0x0002
+#define CONF_LOCKED		0x0001
 
 struct conf_option {
 	unsigned int flags;
