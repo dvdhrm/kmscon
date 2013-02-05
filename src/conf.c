@@ -123,7 +123,7 @@ void *conf_ctx_get_mem(struct conf_ctx *ctx)
 int conf_ctx_parse_ctx(struct conf_ctx *ctx, const struct conf_ctx *src)
 {
 	unsigned int i;
-	struct conf_option *d, *s;
+	struct conf_option *d, *s, *o;
 	int ret;
 
 	if (!ctx || !src)
@@ -150,6 +150,15 @@ int conf_ctx_parse_ctx(struct conf_ctx *ctx, const struct conf_ctx *src)
 		if (d->copy) {
 			ret = d->copy(d, s);
 			if (ret)
+				return ret;
+		}
+	}
+
+	for (i = 0; i < ctx->onum; ++i) {
+		o = &ctx->opts[i];
+		if (o->aftercheck) {
+			ret = o->aftercheck(o, 0, NULL, 0);
+			if (ret < 0)
 				return ret;
 		}
 	}
