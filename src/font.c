@@ -60,6 +60,7 @@
 #include "kmscon_module.h"
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "shl_register.h"
 
 #define LOG_SUBSYSTEM "font"
@@ -81,6 +82,7 @@ static struct shl_register font_reg = SHL_REGISTER_INIT(font_reg);
  * not set, then the height is calculated and after that the points are
  * recalculated so we will never have division-errors.
  */
+SHL_EXPORT
 void kmscon_font_attr_normalize(struct kmscon_font_attr *attr)
 {
 	if (!attr)
@@ -113,6 +115,7 @@ void kmscon_font_attr_normalize(struct kmscon_font_attr *attr)
  *
  * Returns: true if they match, otherwise false
  */
+SHL_EXPORT
 bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 			    const struct kmscon_font_attr *a2)
 {
@@ -154,6 +157,7 @@ static inline void kmscon_font_destroy(void *data)
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int kmscon_font_register(const struct kmscon_font_ops *ops)
 {
 	int ret;
@@ -182,6 +186,7 @@ int kmscon_font_register(const struct kmscon_font_ops *ops)
  * This unregisters the font-backend that is registered with name @name. If
  * @name is not found, a warning is printed but nothing else is done.
  */
+SHL_EXPORT
 void kmscon_font_unregister(const char *name)
 {
 	log_debug("unregister font backend %s", name);
@@ -389,6 +394,7 @@ void kmscon_font_unref(struct kmscon_font *font)
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int kmscon_font_render(struct kmscon_font *font,
 		       uint32_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out)
@@ -410,6 +416,7 @@ int kmscon_font_render(struct kmscon_font *font,
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int kmscon_font_render_empty(struct kmscon_font *font,
 			     const struct kmscon_glyph **out)
 {
@@ -431,6 +438,7 @@ int kmscon_font_render_empty(struct kmscon_font *font,
  *
  * Returns: 0 on success ,engative error code on failure
  */
+SHL_EXPORT
 int kmscon_font_render_inval(struct kmscon_font *font,
 			     const struct kmscon_glyph **out)
 {

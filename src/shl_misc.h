@@ -37,9 +37,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 
+#define SHL_EXPORT __attribute__((visibility("default")))
 #define SHL_HAS_BITS(_bitmask, _bits) (((_bitmask) & (_bits)) == (_bits))
 #define SHL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 

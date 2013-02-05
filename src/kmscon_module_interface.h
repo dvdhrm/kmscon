@@ -35,6 +35,7 @@
 #include "githead.h"
 #include "kmscon_module.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 
 struct kmscon_module_info {
 	const char *githead;
@@ -68,6 +69,7 @@ struct kmscon_module {
 		}, \
 	};
 
+SHL_EXPORT
 extern struct kmscon_module module;
 #define KMSCON_THIS_MODULE (&module)
 

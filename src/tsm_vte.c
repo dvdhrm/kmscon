@@ -54,6 +54,7 @@
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "shl_llog.h"
+#include "shl_misc.h"
 #include "tsm_screen.h"
 #include "tsm_unicode.h"
 #include "tsm_vte.h"
@@ -360,6 +361,7 @@ static void copy_bcolor(struct tsm_screen_attr *dest,
 	dest->bb = src->bb;
 }
 
+SHL_EXPORT
 int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 		tsm_vte_write_cb write_cb, void *data,
 		tsm_log_t log)
@@ -402,6 +404,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void tsm_vte_ref(struct tsm_vte *vte)
 {
 	if (!vte)
@@ -410,6 +413,7 @@ void tsm_vte_ref(struct tsm_vte *vte)
 	vte->ref++;
 }
 
+SHL_EXPORT
 void tsm_vte_unref(struct tsm_vte *vte)
 {
 	if (!vte || !vte->ref)
@@ -424,6 +428,7 @@ void tsm_vte_unref(struct tsm_vte *vte)
 	free(vte);
 }
 
+SHL_EXPORT
 int tsm_vte_set_palette(struct tsm_vte *vte, const char *palette)
 {
 	char *tmp = NULL;
@@ -590,6 +595,7 @@ static void restore_state(struct tsm_vte *vte)
  * same state as when the VTE was created. This does not affect the console,
  * though.
  */
+SHL_EXPORT
 void tsm_vte_reset(struct tsm_vte *vte)
 {
 	if (!vte)
@@ -622,6 +628,7 @@ void tsm_vte_reset(struct tsm_vte *vte)
 	reset_state(vte);
 }
 
+SHL_EXPORT
 void tsm_vte_hard_reset(struct tsm_vte *vte)
 {
 	tsm_vte_reset(vte);
@@ -2184,6 +2191,7 @@ static void parse_data(struct tsm_vte *vte, uint32_t raw)
 	llog_warn(vte, "unhandled input %u in state %d", raw, vte->state);
 }
 
+SHL_EXPORT
 void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
 {
 	int state;
@@ -2214,6 +2222,7 @@ void tsm_vte_input(struct tsm_vte *vte, const char *u8, size_t len)
 	--vte->parse_cnt;
 }
 
+SHL_EXPORT
 bool tsm_vte_handle_keyboard(struct tsm_vte *vte, uint32_t keysym,
 			     uint32_t ascii, unsigned int mods,
 			     uint32_t unicode)

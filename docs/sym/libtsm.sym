@@ -1,0 +1,137 @@
+/***
+ * libtsm - Terminal-Emulator State Machine
+ *
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ***/
+
+LIBTSM_1 {
+global:
+	tsm_symbol_default;
+local:
+	*;
+};
+
+LIBTSM_2 {
+global:
+	tsm_symbol_table_new;
+	tsm_symbol_table_ref;
+	tsm_symbol_table_unref;
+
+	tsm_symbol_make;
+	tsm_symbol_append;
+	tsm_symbol_get;
+	tsm_symbol_get_width;
+
+	tsm_ucs4_get_width;
+	tsm_ucs4_to_utf8;
+	tsm_ucs4_to_utf8_alloc;
+
+	tsm_utf8_mach_new;
+	tsm_utf8_mach_free;
+
+	tsm_utf8_mach_feed;
+	tsm_utf8_mach_get;
+	tsm_utf8_mach_reset;
+
+	tsm_screen_new;
+	tsm_screen_ref;
+	tsm_screen_unref;
+
+	tsm_screen_set_opts;
+	tsm_screen_reset_opts;
+	tsm_screen_get_opts;
+
+	tsm_screen_get_width;
+	tsm_screen_get_height;
+	tsm_screen_resize;
+	tsm_screen_set_margins;
+	tsm_screen_set_max_sb;
+	tsm_screen_clear_sb;
+
+	tsm_screen_sb_up;
+	tsm_screen_sb_down;
+	tsm_screen_sb_page_up;
+	tsm_screen_sb_page_down;
+	tsm_screen_sb_reset;
+
+	tsm_screen_set_def_attr;
+	tsm_screen_reset;
+	tsm_screen_set_flags;
+	tsm_screen_reset_flags;
+	tsm_screen_get_flags;
+
+	tsm_screen_get_cursor_x;
+	tsm_screen_get_cursor_y;
+
+	tsm_screen_set_tabstop;
+	tsm_screen_reset_tabstop;
+	tsm_screen_reset_all_tabstops;
+
+	tsm_screen_write;
+	tsm_screen_newline;
+	tsm_screen_scroll_up;
+	tsm_screen_scroll_down;
+	tsm_screen_move_to;
+	tsm_screen_move_up;
+	tsm_screen_move_down;
+	tsm_screen_move_left;
+	tsm_screen_move_right;
+	tsm_screen_move_line_end;
+	tsm_screen_move_line_home;
+	tsm_screen_tab_right;
+	tsm_screen_tab_left;
+	tsm_screen_insert_lines;
+	tsm_screen_delete_lines;
+	tsm_screen_insert_chars;
+	tsm_screen_delete_chars;
+	tsm_screen_erase_cursor;
+	tsm_screen_erase_chars;
+	tsm_screen_erase_cursor_to_end;
+	tsm_screen_erase_home_to_cursor;
+	tsm_screen_erase_current_line;
+	tsm_screen_erase_screen_to_cursor;
+	tsm_screen_erase_cursor_to_screen;
+	tsm_screen_erase_screen;
+
+	tsm_screen_selection_reset;
+	tsm_screen_selection_start;
+	tsm_screen_selection_target;
+	tsm_screen_selection_copy;
+
+	tsm_screen_draw;
+
+	tsm_vte_unicode_lower;
+
+	tsm_vte_new;
+	tsm_vte_ref;
+	tsm_vte_unref;
+
+	tsm_vte_set_palette;
+
+	tsm_vte_reset;
+	tsm_vte_hard_reset;
+	tsm_vte_input;
+	tsm_vte_handle_keyboard;
+	tsm_vte_unicode_upper;
+	tsm_vte_dec_supplemental_graphics;
+	tsm_vte_dec_special_graphics;
+} LIBTSM_1;

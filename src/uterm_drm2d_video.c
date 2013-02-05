@@ -39,6 +39,7 @@
 #include <xf86drmMode.h>
 #include "eloop.h"
 #include "log.h"
+#include "shl_misc.h"
 #include "uterm_drm_shared_internal.h"
 #include "uterm_drm2d_internal.h"
 #include "uterm_video.h"
@@ -380,4 +381,5 @@ static const struct uterm_video_module drm2d_module = {
 	.ops = &drm2d_video_ops,
 };
 
+SHL_EXPORT
 const struct uterm_video_module *UTERM_VIDEO_DRM2D = &drm2d_module;

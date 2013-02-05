@@ -813,6 +813,7 @@ static int seat_find_vt(const char *seat, char **out)
 	return 0;
 }
 
+SHL_EXPORT
 int uterm_vt_allocate(struct uterm_vt_master *vtm,
 		      struct uterm_vt **out,
 		      unsigned int allowed_types,
@@ -903,6 +904,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void uterm_vt_deallocate(struct uterm_vt *vt)
 {
 	if (!vt || !vt->vtm)
@@ -921,6 +923,7 @@ void uterm_vt_deallocate(struct uterm_vt *vt)
 	uterm_vt_unref(vt);
 }
 
+SHL_EXPORT
 void uterm_vt_ref(struct uterm_vt *vt)
 {
 	if (!vt || !vt->ref)
@@ -929,6 +932,7 @@ void uterm_vt_ref(struct uterm_vt *vt)
 	++vt->ref;
 }
 
+SHL_EXPORT
 void uterm_vt_unref(struct uterm_vt *vt)
 {
 	if (!vt || !vt->ref || --vt->ref)
@@ -938,6 +942,7 @@ void uterm_vt_unref(struct uterm_vt *vt)
 	free(vt);
 }
 
+SHL_EXPORT
 int uterm_vt_activate(struct uterm_vt *vt)
 {
 	if (!vt || !vt->vtm)
@@ -949,6 +954,7 @@ int uterm_vt_activate(struct uterm_vt *vt)
 		return fake_activate(vt);
 }
 
+SHL_EXPORT
 int uterm_vt_deactivate(struct uterm_vt *vt)
 {
 	if (!vt || !vt->vtm)
@@ -960,6 +966,7 @@ int uterm_vt_deactivate(struct uterm_vt *vt)
 		return fake_deactivate(vt);
 }
 
+SHL_EXPORT
 void uterm_vt_retry(struct uterm_vt *vt)
 {
 	if (!vt || !vt->vtm)
@@ -969,6 +976,7 @@ void uterm_vt_retry(struct uterm_vt *vt)
 		real_retry(vt);
 }
 
+SHL_EXPORT
 unsigned int uterm_vt_get_type(struct uterm_vt *vt)
 {
 	if (!vt)
@@ -977,6 +985,7 @@ unsigned int uterm_vt_get_type(struct uterm_vt *vt)
 	return vt->mode;
 }
 
+SHL_EXPORT
 int uterm_vt_master_new(struct uterm_vt_master **out,
 			struct ev_eloop *eloop)
 {
@@ -998,6 +1007,7 @@ int uterm_vt_master_new(struct uterm_vt_master **out,
 	return 0;
 }
 
+SHL_EXPORT
 void uterm_vt_master_ref(struct uterm_vt_master *vtm)
 {
 	if (!vtm || !vtm->ref)
@@ -1008,6 +1018,7 @@ void uterm_vt_master_ref(struct uterm_vt_master *vtm)
 
 /* Drops a reference to the VT-master. If the reference drops to 0, all
  * allocated VTs are deallocated and the VT-master is destroyed. */
+SHL_EXPORT
 void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;
@@ -1029,6 +1040,7 @@ void uterm_vt_master_unref(struct uterm_vt_master *vtm)
 /* Calls uterm_vt_activate() on all allocated VTs on this master. Returns
  * number of VTs that returned -EINPROGRESS or a negative error code on failure.
  * See uterm_vt_activate() for information. */
+SHL_EXPORT
 int uterm_vt_master_activate_all(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;
@@ -1057,6 +1069,7 @@ int uterm_vt_master_activate_all(struct uterm_vt_master *vtm)
 /* Calls uterm_vt_deactivate() on all allocated VTs on this master. Returns
  * number of VTs that returned -EINPROGRESS or a negative error code on failure.
  * See uterm_vt_deactivate() for information. */
+SHL_EXPORT
 int uterm_vt_master_deactivate_all(struct uterm_vt_master *vtm)
 {
 	struct uterm_vt *vt;

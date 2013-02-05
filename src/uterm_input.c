@@ -40,6 +40,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
+#include "shl_misc.h"
 #include "uterm_input.h"
 #include "uterm_input_internal.h"
 
@@ -215,6 +216,7 @@ static void input_free_dev(struct uterm_input_dev *dev)
 	free(dev);
 }
 
+SHL_EXPORT
 int uterm_input_new(struct uterm_input **out,
 		    struct ev_eloop *eloop,
 		    const char *model,
@@ -269,6 +271,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void uterm_input_ref(struct uterm_input *input)
 {
 	if (!input || !input->ref)
@@ -277,6 +280,7 @@ void uterm_input_ref(struct uterm_input *input)
 	++input->ref;
 }
 
+SHL_EXPORT
 void uterm_input_unref(struct uterm_input *input)
 {
 	struct uterm_input_dev *dev;
@@ -352,6 +356,7 @@ err_ioctl:
 	return 0;
 }
 
+SHL_EXPORT
 void uterm_input_add_dev(struct uterm_input *input, const char *node)
 {
 	unsigned int capabilities;
@@ -368,6 +373,7 @@ void uterm_input_add_dev(struct uterm_input *input, const char *node)
 	input_new_dev(input, node, capabilities);
 }
 
+SHL_EXPORT
 void uterm_input_remove_dev(struct uterm_input *input, const char *node)
 {
 	struct shl_dlist *iter;
@@ -387,6 +393,7 @@ void uterm_input_remove_dev(struct uterm_input *input, const char *node)
 	}
 }
 
+SHL_EXPORT
 int uterm_input_register_cb(struct uterm_input *input,
 				uterm_input_cb cb,
 				void *data)
@@ -397,6 +404,7 @@ int uterm_input_register_cb(struct uterm_input *input,
 	return shl_hook_add_cast(input->hook, cb, data, false);
 }
 
+SHL_EXPORT
 void uterm_input_unregister_cb(struct uterm_input *input,
 				uterm_input_cb cb,
 				void *data)
@@ -407,6 +415,7 @@ void uterm_input_unregister_cb(struct uterm_input *input,
 	shl_hook_rm_cast(input->hook, cb, data);
 }
 
+SHL_EXPORT
 void uterm_input_sleep(struct uterm_input *input)
 {
 	struct shl_dlist *iter;
@@ -429,6 +438,7 @@ void uterm_input_sleep(struct uterm_input *input)
 	}
 }
 
+SHL_EXPORT
 void uterm_input_wake_up(struct uterm_input *input)
 {
 	struct shl_dlist *iter, *tmp;
@@ -454,6 +464,7 @@ void uterm_input_wake_up(struct uterm_input *input)
 	}
 }
 
+SHL_EXPORT
 bool uterm_input_is_awake(struct uterm_input *input)
 {
 	if (!input)

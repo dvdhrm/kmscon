@@ -176,6 +176,7 @@
 #include "shl_dlist.h"
 #include "shl_hook.h"
 #include "shl_llog.h"
+#include "shl_misc.h"
 
 #define LLOG_SUBSYSTEM "eloop"
 
@@ -577,6 +578,7 @@ err_out:
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 {
 	struct ev_eloop *loop;
@@ -681,6 +683,7 @@ err_free:
  *
  * This increases the ref-count of @loop by 1.
  */
+SHL_EXPORT
 void ev_eloop_ref(struct ev_eloop *loop)
 {
 	if (!loop)
@@ -698,6 +701,7 @@ void ev_eloop_ref(struct ev_eloop *loop)
  * of the event loop so this ref-count will never drop to zero while there is an
  * registered event source.
  */
+SHL_EXPORT
 void ev_eloop_unref(struct ev_eloop *loop)
 {
 	struct ev_signal_shared *sig;
@@ -746,6 +750,7 @@ void ev_eloop_unref(struct ev_eloop *loop)
  * If @loop is currently dispatching events, this will remove all pending events
  * of @fd from the current event-list.
  */
+SHL_EXPORT
 void ev_eloop_flush_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
 	int i;
@@ -797,6 +802,7 @@ static unsigned int convert_mask(uint32_t mask)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_dispatch(struct ev_eloop *loop, int timeout)
 {
 	struct epoll_event *ep;
@@ -886,6 +892,7 @@ out_dispatch:
  *
  * Returns: 0 on success, otherwise a negative error code
  */
+SHL_EXPORT
 int ev_eloop_run(struct ev_eloop *loop, int timeout)
 {
 	int ret;
@@ -930,6 +937,7 @@ int ev_eloop_run(struct ev_eloop *loop, int timeout)
  *
  * This makes a call to ev_eloop_run() stop.
  */
+SHL_EXPORT
 void ev_eloop_exit(struct ev_eloop *loop)
 {
 	if (!loop)
@@ -954,6 +962,7 @@ void ev_eloop_exit(struct ev_eloop *loop)
  *
  * Returns: A file descriptor for the event loop or negative error code
  */
+SHL_EXPORT
 int ev_eloop_get_fd(struct ev_eloop *loop)
 {
 	if (!loop)
@@ -972,6 +981,7 @@ int ev_eloop_get_fd(struct ev_eloop *loop)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 {
 	struct ev_eloop *el;
@@ -1007,6 +1017,7 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
 {
 	int ret;
@@ -1045,6 +1056,7 @@ int ev_eloop_add_eloop(struct ev_eloop *loop, struct ev_eloop *add)
  * event loop was not registered on any other event loop, then this call does
  * nothing.
  */
+SHL_EXPORT
 void ev_eloop_rm_eloop(struct ev_eloop *rm)
 {
 	if (!rm || !rm->fd->loop)
@@ -1081,6 +1093,7 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data,
 	      ev_log_t log)
 {
@@ -1112,6 +1125,7 @@ int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data,
  *
  * Increases the ref-count of @fd by 1.
  */
+SHL_EXPORT
 void ev_fd_ref(struct ev_fd *fd)
 {
 	if (!fd)
@@ -1129,6 +1143,7 @@ void ev_fd_ref(struct ev_fd *fd)
  * Decreases the ref-count of @fd by 1. Destroys the object if the ref-count
  * drops to zero.
  */
+SHL_EXPORT
 void ev_fd_unref(struct ev_fd *fd)
 {
 	if (!fd)
@@ -1217,6 +1232,7 @@ static int fd_epoll_update(struct ev_fd *fd)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_fd_enable(struct ev_fd *fd)
 {
 	int ret;
@@ -1241,6 +1257,7 @@ int ev_fd_enable(struct ev_fd *fd)
  * Disables @fd. That means, no more events are handled for @fd until you
  * re-enable it with ev_fd_enable().
  */
+SHL_EXPORT
 void ev_fd_disable(struct ev_fd *fd)
 {
 	if (!fd || !fd->enabled)
@@ -1258,6 +1275,7 @@ void ev_fd_disable(struct ev_fd *fd)
  *
  * Returns: true if @fd is enabled, otherwise false.
  */
+SHL_EXPORT
 bool ev_fd_is_enabled(struct ev_fd *fd)
 {
 	return fd && fd->enabled;
@@ -1271,6 +1289,7 @@ bool ev_fd_is_enabled(struct ev_fd *fd)
  *
  * Returns: true if @fd is bound, otherwise false
  */
+SHL_EXPORT
 bool ev_fd_is_bound(struct ev_fd *fd)
 {
 	return fd && fd->loop;
@@ -1286,6 +1305,7 @@ bool ev_fd_is_bound(struct ev_fd *fd)
  * Both can be set to NULL. If @cb is NULL, then the callback will not be called
  * anymore.
  */
+SHL_EXPORT
 void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
 {
 	if (!fd)
@@ -1304,6 +1324,7 @@ void ev_fd_set_cb_data(struct ev_fd *fd, ev_fd_cb cb, void *data)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_fd_update(struct ev_fd *fd, int mask)
 {
 	int ret;
@@ -1346,6 +1367,7 @@ int ev_fd_update(struct ev_fd *fd, int mask)
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 			int mask, ev_fd_cb cb, void *data)
 {
@@ -1383,6 +1405,7 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
  *
  * Returns: 0 on success, otherwise negative error code
  */
+SHL_EXPORT
 int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
 {
 	int ret;
@@ -1417,6 +1440,7 @@ int ev_eloop_add_fd(struct ev_eloop *loop, struct ev_fd *fd)
  * It is safe to call this in any callback. This makes sure that the current
  * dispatcher will not get confused or read invalid memory.
  */
+SHL_EXPORT
 void ev_eloop_rm_fd(struct ev_fd *fd)
 {
 	struct ev_eloop *loop;
@@ -1532,6 +1556,7 @@ static const struct itimerspec ev_timer_zero;
  *
  * Returns: 0 on success, negative error on failure
  */
+SHL_EXPORT
 int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 		 ev_timer_cb cb, void *data, ev_log_t log)
 {
@@ -1589,6 +1614,7 @@ err_free:
  *
  * Increase reference count by 1.
  */
+SHL_EXPORT
 void ev_timer_ref(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1605,6 +1631,7 @@ void ev_timer_ref(struct ev_timer *timer)
  *
  * Decrease reference-count by 1 and destroy timer if it drops to 0.
  */
+SHL_EXPORT
 void ev_timer_unref(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1628,6 +1655,7 @@ void ev_timer_unref(struct ev_timer *timer)
  *
  * Returns: 0 on success negative error code on failure
  */
+SHL_EXPORT
 int ev_timer_enable(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1645,6 +1673,7 @@ int ev_timer_enable(struct ev_timer *timer)
  *
  * Returns: 0 on success and negative error code on failure
  */
+SHL_EXPORT
 void ev_timer_disable(struct ev_timer *timer)
 {
 	if (!timer)
@@ -1661,6 +1690,7 @@ void ev_timer_disable(struct ev_timer *timer)
  *
  * Returns: true if timer is enabled, false otherwise
  */
+SHL_EXPORT
 bool ev_timer_is_enabled(struct ev_timer *timer)
 {
 	return timer && ev_fd_is_enabled(timer->efd);
@@ -1674,6 +1704,7 @@ bool ev_timer_is_enabled(struct ev_timer *timer)
  *
  * Returns: true if the timer is bound, false otherwise.
  */
+SHL_EXPORT
 bool ev_timer_is_bound(struct ev_timer *timer)
 {
 	return timer && ev_fd_is_bound(timer->efd);
@@ -1688,6 +1719,7 @@ bool ev_timer_is_bound(struct ev_timer *timer)
  * This changes the user-supplied callback and data that is used for this timer
  * object.
  */
+SHL_EXPORT
 void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
 {
 	if (!timer)
@@ -1707,6 +1739,7 @@ void ev_timer_set_cb_data(struct ev_timer *timer, ev_timer_cb cb, void *data)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
 {
 	int ret;
@@ -1739,6 +1772,7 @@ int ev_timer_update(struct ev_timer *timer, const struct itimerspec *spec)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_timer_drain(struct ev_timer *timer, uint64_t *expirations)
 {
 	if (!timer)
@@ -1760,6 +1794,7 @@ int ev_timer_drain(struct ev_timer *timer, uint64_t *expirations)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 			const struct itimerspec *spec, ev_timer_cb cb,
 			void *data)
@@ -1797,6 +1832,7 @@ int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer)
 {
 	int ret;
@@ -1824,6 +1860,7 @@ int ev_eloop_add_timer(struct ev_eloop *loop, struct ev_timer *timer)
  * If @timer is currently bound to an event loop, this will remove this bondage
  * again.
  */
+SHL_EXPORT
 void ev_eloop_rm_timer(struct ev_timer *timer)
 {
 	if (!timer || !ev_fd_is_bound(timer->efd))
@@ -1898,6 +1935,7 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data,
 		   ev_log_t log)
 {
@@ -1944,6 +1982,7 @@ err_free:
  *
  * This increases the reference-count of @cnt by 1.
  */
+SHL_EXPORT
 void ev_counter_ref(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1961,6 +2000,7 @@ void ev_counter_ref(struct ev_counter *cnt)
  * This decreases the reference-count of @cnt by 1 and destroys the object if
  * it drops to 0.
  */
+SHL_EXPORT
 void ev_counter_unref(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1984,6 +2024,7 @@ void ev_counter_unref(struct ev_counter *cnt)
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int ev_counter_enable(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -1999,6 +2040,7 @@ int ev_counter_enable(struct ev_counter *cnt)
  * This disables the counter. It calls ev_fd_disable() on the underlying
  * file-descriptor.
  */
+SHL_EXPORT
 void ev_counter_disable(struct ev_counter *cnt)
 {
 	if (!cnt)
@@ -2015,6 +2057,7 @@ void ev_counter_disable(struct ev_counter *cnt)
  *
  * Returns: true if the counter is enabled, otherwise returns false.
  */
+SHL_EXPORT
 bool ev_counter_is_enabled(struct ev_counter *cnt)
 {
 	return cnt && ev_fd_is_enabled(cnt->efd);
@@ -2028,6 +2071,7 @@ bool ev_counter_is_enabled(struct ev_counter *cnt)
  *
  * Returns: true if the counter is bound, otherwise false is returned.
  */
+SHL_EXPORT
 bool ev_counter_is_bound(struct ev_counter *cnt)
 {
 	return cnt && ev_fd_is_bound(cnt->efd);
@@ -2042,6 +2086,7 @@ bool ev_counter_is_bound(struct ev_counter *cnt)
  * This changes the user-supplied callback and data for the given counter
  * object.
  */
+SHL_EXPORT
 void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
 			    void *data)
 {
@@ -2061,6 +2106,7 @@ void ev_counter_set_cb_data(struct ev_counter *cnt, ev_counter_cb cb,
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 {
 	if (!cnt)
@@ -2080,6 +2126,7 @@ int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 			 ev_counter_cb cb, void *data)
 {
@@ -2116,6 +2163,7 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
 {
 	int ret;
@@ -2142,6 +2190,7 @@ int ev_eloop_add_counter(struct ev_eloop *eloop, struct ev_counter *cnt)
  *
  * If @cnt is bound to an event-loop, then this will remove this bondage again.
  */
+SHL_EXPORT
 void ev_eloop_rm_counter(struct ev_counter *cnt)
 {
 	if (!cnt || !ev_fd_is_bound(cnt->efd))
@@ -2171,6 +2220,7 @@ void ev_eloop_rm_counter(struct ev_counter *cnt)
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
 				ev_signal_shared_cb cb, void *data)
 {
@@ -2217,6 +2267,7 @@ int ev_eloop_register_signal_cb(struct ev_eloop *loop, int signum,
  * callbacks with the same arguments are registered, then only one callback is
  * removed. It doesn't matter which callback is removed as both are identical.
  */
+SHL_EXPORT
 void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
 					ev_signal_shared_cb cb, void *data)
 {
@@ -2247,6 +2298,7 @@ void ev_eloop_unregister_signal_cb(struct ev_eloop *loop, int signum,
  * the events while others will call waitpid() and get EAGAIN.
  */
 
+SHL_EXPORT
 int ev_eloop_register_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 			       void *data)
 {
@@ -2273,6 +2325,7 @@ int ev_eloop_register_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 	return 0;
 }
 
+SHL_EXPORT
 void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 				  void *data)
 {
@@ -2304,6 +2357,7 @@ void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data, unsigned int flags)
 {
@@ -2343,6 +2397,7 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * then only one is removed. It doesn't matter which one is removed, because
  * they are identical.
  */
+SHL_EXPORT
 void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 				 void *data, unsigned int flags)
 {
@@ -2375,6 +2430,7 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			     void *data)
 {
@@ -2395,6 +2451,7 @@ int ev_eloop_register_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * then only one is removed. It doesn't matter which one is removed, because
  * they are identical.
  */
+SHL_EXPORT
 void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 				void *data)
 {
@@ -2424,6 +2481,7 @@ void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  *
  * Returns: 0 on success, negative error code on failure.
  */
+SHL_EXPORT
 int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 			      void *data)
 {
@@ -2444,6 +2502,7 @@ int ev_eloop_register_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * then only one is removed. It doesn't matter which one is removed, because
  * they are identical.
  */
+SHL_EXPORT
 void ev_eloop_unregister_post_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 				 void *data)
 {

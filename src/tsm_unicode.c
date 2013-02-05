@@ -61,6 +61,7 @@
 #include "external/wcwidth.h"
 #include "shl_array.h"
 #include "shl_hashtable.h"
+#include "shl_misc.h"
 #include "tsm_unicode.h"
 
 /*
@@ -97,6 +98,7 @@
  * push the new symbol into the symbol table.
  */
 
+SHL_EXPORT
 const tsm_symbol_t tsm_symbol_default = 0;
 
 struct tsm_symbol_table {
@@ -147,6 +149,7 @@ static bool cmp_ucs4(const void *a, const void *b)
 	}
 }
 
+SHL_EXPORT
 int tsm_symbol_table_new(struct tsm_symbol_table **out)
 {
 	struct tsm_symbol_table *tbl;
@@ -185,6 +188,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void tsm_symbol_table_ref(struct tsm_symbol_table *tbl)
 {
 	if (!tbl || !tbl->ref)
@@ -193,6 +197,7 @@ void tsm_symbol_table_ref(struct tsm_symbol_table *tbl)
 	++tbl->ref;
 }
 
+SHL_EXPORT
 void tsm_symbol_table_unref(struct tsm_symbol_table *tbl)
 {
 	if (!tbl || !tbl->ref || --tbl->ref)
@@ -203,6 +208,7 @@ void tsm_symbol_table_unref(struct tsm_symbol_table *tbl)
 	free(tbl);
 }
 
+SHL_EXPORT
 tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
 {
 	if (ucs4 > TSM_UCS4_MAX)
@@ -222,6 +228,7 @@ tsm_symbol_t tsm_symbol_make(uint32_t ucs4)
  * This always returns a valid value. If an error happens, the default character
  * is returned. If \size is NULL, then the size value is omitted.
  */
+SHL_EXPORT
 const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t *sym, size_t *size)
 {
@@ -268,6 +275,7 @@ const uint32_t *tsm_symbol_get(struct tsm_symbol_table *tbl,
 	return ucs4;
 }
 
+SHL_EXPORT
 tsm_symbol_t tsm_symbol_append(struct tsm_symbol_table *tbl,
 			       tsm_symbol_t sym, uint32_t ucs4)
 {
@@ -332,6 +340,7 @@ err_id:
 	return sym;
 }
 
+SHL_EXPORT
 unsigned int tsm_symbol_get_width(struct tsm_symbol_table *tbl,
 				  tsm_symbol_t sym)
 {
@@ -376,6 +385,7 @@ unsigned int tsm_symbol_get_width(struct tsm_symbol_table *tbl,
  * 0xFFFF or 0xFFFE.
  */
 
+SHL_EXPORT
 unsigned int tsm_ucs4_get_width(uint32_t ucs4)
 {
 	int ret;
@@ -387,6 +397,7 @@ unsigned int tsm_ucs4_get_width(uint32_t ucs4)
 	return ret;
 }
 
+SHL_EXPORT
 size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 {
 	if (g >= 0xd800 && g <= 0xdfff)
@@ -419,6 +430,7 @@ size_t tsm_ucs4_to_utf8(uint32_t g, char *txt)
 	}
 }
 
+SHL_EXPORT
 char *tsm_ucs4_to_utf8_alloc(const uint32_t *ucs4, size_t len, size_t *len_out)
 {
 	char *val;
@@ -495,6 +507,7 @@ struct tsm_utf8_mach {
 	uint32_t ch;
 };
 
+SHL_EXPORT
 int tsm_utf8_mach_new(struct tsm_utf8_mach **out)
 {
 	struct tsm_utf8_mach *mach;
@@ -513,6 +526,7 @@ int tsm_utf8_mach_new(struct tsm_utf8_mach **out)
 	return 0;
 }
 
+SHL_EXPORT
 void tsm_utf8_mach_free(struct tsm_utf8_mach *mach)
 {
 	if (!mach)
@@ -521,6 +535,7 @@ void tsm_utf8_mach_free(struct tsm_utf8_mach *mach)
 	free(mach);
 }
 
+SHL_EXPORT
 int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char ci)
 {
 	uint32_t c;
@@ -590,6 +605,7 @@ int tsm_utf8_mach_feed(struct tsm_utf8_mach *mach, char ci)
 	return mach->state;
 }
 
+SHL_EXPORT
 uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach)
 {
 	if (!mach || mach->state != TSM_UTF8_ACCEPT)
@@ -598,6 +614,7 @@ uint32_t tsm_utf8_mach_get(struct tsm_utf8_mach *mach)
 	return mach->ch;
 }
 
+SHL_EXPORT
 void tsm_utf8_mach_reset(struct tsm_utf8_mach *mach)
 {
 	if (!mach)

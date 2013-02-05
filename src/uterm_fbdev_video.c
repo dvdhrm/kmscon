@@ -37,6 +37,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "log.h"
+#include "shl_misc.h"
 #include "uterm_fbdev_internal.h"
 #include "uterm_video.h"
 #include "uterm_video_internal.h"
@@ -651,4 +652,5 @@ static const struct uterm_video_module fbdev_module = {
 	.ops = &fbdev_video_ops,
 };
 
+SHL_EXPORT
 const struct uterm_video_module *UTERM_VIDEO_FBDEV = &fbdev_module;

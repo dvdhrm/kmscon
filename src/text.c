@@ -37,6 +37,7 @@
 #include <string.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "shl_register.h"
 #include "text.h"
 #include "uterm_video.h"
@@ -66,6 +67,7 @@ static inline void kmscon_text_destroy(void *data)
  *
  * Returns: 0 on success, negative error code on failure
  */
+SHL_EXPORT
 int kmscon_text_register(const struct kmscon_text_ops *ops)
 {
 	int ret;
@@ -94,6 +96,7 @@ int kmscon_text_register(const struct kmscon_text_ops *ops)
  * This unregisters the text-backend that is registered with name @name. If
  * @name is not found, nothing is done.
  */
+SHL_EXPORT
 void kmscon_text_unregister(const char *name)
 {
 	log_debug("unregister backend %s", name);

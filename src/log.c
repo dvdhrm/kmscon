@@ -19,6 +19,7 @@
 #include <string.h>
 #include "githead.h"
 #include "log.h"
+#include "shl_misc.h"
 
 /*
  * Locking
@@ -76,6 +77,7 @@ static void log__time(long long *sec, long long *usec)
  * LOG_SUBSYSTEM: By default no subsystem is specified
  */
 
+SHL_EXPORT
 const struct log_config LOG_CONFIG = {
 	.sev = {
 		[LOG_DEBUG] = 2,
@@ -445,6 +447,7 @@ static void log__format(const char *file,
 	va_end(list);
 }
 
+SHL_EXPORT
 void log_submit(const char *file,
 		int line,
 		const char *func,
@@ -463,6 +466,7 @@ void log_submit(const char *file,
 	errno = saved_errno;
 }
 
+SHL_EXPORT
 void log_format(const char *file,
 		int line,
 		const char *func,
@@ -484,6 +488,7 @@ void log_format(const char *file,
 	errno = saved_errno;
 }
 
+SHL_EXPORT
 void log_llog(const char *file,
 	      int line,
 	      const char *func,

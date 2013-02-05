@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include "log.h"
 #include "shl_dlist.h"
+#include "shl_misc.h"
 #include "uterm_monitor.h"
 #include "uterm_systemd_internal.h"
 
@@ -758,6 +759,7 @@ static void monitor_udev_event(struct ev_fd *fd,
 	}
 }
 
+SHL_EXPORT
 int uterm_monitor_new(struct uterm_monitor **out,
 			struct ev_eloop *eloop,
 			uterm_monitor_cb cb,
@@ -874,6 +876,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void uterm_monitor_ref(struct uterm_monitor *mon)
 {
 	if (!mon || !mon->ref)
@@ -882,6 +885,7 @@ void uterm_monitor_ref(struct uterm_monitor *mon)
 	++mon->ref;
 }
 
+SHL_EXPORT
 void uterm_monitor_unref(struct uterm_monitor *mon)
 {
 	struct uterm_monitor_seat *seat;
@@ -904,6 +908,7 @@ void uterm_monitor_unref(struct uterm_monitor *mon)
 	free(mon);
 }
 
+SHL_EXPORT
 void uterm_monitor_scan(struct uterm_monitor *mon)
 {
 	struct udev_enumerate *e;
@@ -970,6 +975,7 @@ out_enum:
 	udev_enumerate_unref(e);
 }
 
+SHL_EXPORT
 void uterm_monitor_set_seat_data(struct uterm_monitor_seat *seat, void *data)
 {
 	if (!seat)
@@ -978,6 +984,7 @@ void uterm_monitor_set_seat_data(struct uterm_monitor_seat *seat, void *data)
 	seat->data = data;
 }
 
+SHL_EXPORT
 void uterm_monitor_set_dev_data(struct uterm_monitor_dev *dev, void *data)
 {
 	if (!dev)

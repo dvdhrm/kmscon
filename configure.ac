@@ -11,6 +11,10 @@ AC_CONFIG_SRCDIR([src/kmscon_main.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER(config.h)
+AC_USE_SYSTEM_EXTENSIONS
+AC_SYS_LARGEFILE
+AC_PREFIX_DEFAULT([/usr])
+AC_CANONICAL_HOST
 
 AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-bzip2 no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
 AM_SILENT_RULES([yes])
@@ -23,15 +27,18 @@ AM_SILENT_RULES([yes])
 
 : ${CFLAGS=""}
 
-AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
-AC_PROG_SED
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+AC_PROG_SED
+AC_PROG_MKDIR_P
+AC_PROG_LN_S
+AC_PROG_GREP
+AC_PROG_AWK
 
 LT_PREREQ(2.2)
-LT_INIT
+LT_INIT([disable-static])
 
 #
 # pkg-config dependencies

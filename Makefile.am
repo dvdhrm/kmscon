@@ -3,16 +3,47 @@
 # Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
 #
 
-ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = \
-	.
+#
+# Library Version Numbers
+#
+
+LIBELOOP_CURRENT = 1
+LIBELOOP_REVISION = 0
+LIBELOOP_AGE = 0
+
+LIBTSM_CURRENT = 1
+LIBTSM_REVISION = 0
+LIBTSM_AGE = 0
+
+LIBUTERM_CURRENT = 1
+LIBUTERM_REVISION = 0
+LIBUTERM_AGE = 0
+
+#
+# Global Configurations and Initializations
+#
+
+ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
+AM_MAKEFLAGS = --no-print-directory
+AUTOMAKE_OPTIONS = color-tests
+
+SUBDIRS = .
+
+.DELETE_ON_ERROR:
+
 include_HEADERS =
 EXTRA_DIST = \
 	README \
 	COPYING \
 	NEWS \
 	docs/kmscon.service \
-	docs/kmsconvt@.service
+	docs/kmsconvt@.service \
+	docs/pc/libeloop.pc.in \
+	docs/pc/libtsm.pc.in \
+	docs/pc/libuterm.pc.in \
+	docs/sym/libeloop.sym \
+	docs/sym/libtsm.sym \
+	docs/sym/libuterm.sym
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
@@ -22,13 +53,11 @@ TPHONY =
 
 bin_PROGRAMS =
 check_PROGRAMS =
-noinst_PROGRAMS = \
-	genshader \
-	genunifont
-noinst_LTLIBRARIES =
+noinst_PROGRAMS =
 lib_LTLIBRARIES =
+noinst_LTLIBRARIES =
 
-moduledir = @libdir@/kmscon
+moduledir = $(libdir)/kmscon
 module_LTLIBRARIES =
 
 #
@@ -44,13 +73,25 @@ module_LTLIBRARIES =
 #
 
 AM_CFLAGS = \
-	-Wall
+	-Wall \
+	-pipe \
+	-fno-common \
+	-ffast-math \
+	-fdiagnostics-show-option \
+	-fno-strict-aliasing \
+	-fvisibility=hidden \
+	-ffunction-sections \
+	-fdata-sections \
+	-fstack-protector
 AM_CPPFLAGS = \
 	-DBUILD_MODULE_DIR='"$(moduledir)"' \
 	-include $(top_builddir)/config.h \
 	-I $(srcdir)/src
 AM_LDFLAGS = \
-	-Wl,--as-needed
+	-Wl,--as-needed \
+	-Wl,--gc-sections \
+	-Wl,-z,relro \
+	-Wl,-z,now
 
 if BUILD_ENABLE_DEBUG
 AM_CFLAGS += -g
@@ -61,39 +102,6 @@ AM_CFLAGS += -O2
 else
 AM_CFLAGS += -O0
 endif
-
-#
-# SHL - Static Helper Library
-# The SHL subsystem contains several small code pieces used all over kmscon and
-# other applications.
-#
-# Simply include $(SHL_*) in your source-file list.
-# SHL_MISC needs xkbcommon
-# SHL_REGISTER needs pthread
-#
-
-SHL_DLIST = \
-	src/shl_dlist.h
-SHL_ARRAY = \
-	src/shl_array.h
-SHL_HASHTABLE = \
-	src/shl_hashtable.h \
-	external/htable.h \
-	external/htable.c
-SHL_RING = \
-	src/shl_ring.h
-SHL_TIMER = \
-	src/shl_timer.h
-SHL_LLOG = \
-	src/shl_llog.h
-SHL_HOOK = \
-	src/shl_hook.h \
-	$(SHL_DLIST)
-SHL_MISC = \
-	src/shl_misc.h
-SHL_REGISTER = \
-	src/shl_register.h \
-	$(SHL_DLIST)
 
 #
 # GIT-HEAD helper
@@ -132,6 +140,37 @@ EXTRA_DIST += src/genversion.sh
 GITHEAD:=$(shell $(emptyvariable)"$(srcdir)/src/genversion.sh" "$(srcdir)/src/githead.h")
 
 #
+# SHL - Static Helper Library
+# The SHL subsystem contains several small code pieces used all over kmscon and
+# other applications.
+#
+
+noinst_LTLIBRARIES += libshl.la
+
+libshl_la_SOURCES = \
+	src/shl_dlist.h \
+	src/shl_array.h \
+	src/shl_hashtable.h \
+	external/htable.h \
+	external/htable.c \
+	src/shl_ring.h \
+	src/shl_timer.h \
+	src/shl_llog.h \
+	src/shl_hook.h \
+	src/shl_misc.h \
+	src/shl_register.h
+libshl_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(XKBCOMMON_CFLAGS) \
+	-pthread
+libshl_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
+	-pthread
+libshl_la_LIBADD = \
+	$(AM_LIBADD) \
+	$(XKBCOMMON_LIBS)
+
+#
 # libeloop
 # This library contains the whole event-loop implementation of kmscon. It is
 # compiled into a separate object to allow using it in several other programs.
@@ -144,17 +183,16 @@ pkgconfig_DATA += docs/pc/libeloop.pc
 endif
 
 libeloop_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_LLOG) \
-	$(SHL_HOOK) \
 	src/eloop.h \
 	src/eloop.c
 
-libeloop_la_CPPFLAGS = \
-	$(AM_CPPFLAGS)
-libeloop_la_LIBADD =
+libeloop_la_LIBADD = libshl.la
+libeloop_la_CPPFLAGS = $(AM_CPPFLAGS)
+EXTRA_libeloop_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libeloop.sym
 libeloop_la_LDFLAGS = \
-	-version-info 1:0:0
+	$(AM_LDFLAGS) \
+	-version-info $(LIBELOOP_CURRENT):$(LIBELOOP_REVISION):$(LIBELOOP_AGE) \
+	-Wl,--version-script=$(top_srcdir)/docs/sym/libeloop.sym
 
 
 if BUILD_ENABLE_ELOOP_DBUS
@@ -162,10 +200,8 @@ libeloop_la_SOURCES += \
 	external/dbus-common.h \
 	external/dbus-loop.h \
 	external/dbus-loop.c
-libeloop_la_CPPFLAGS += \
-	$(DBUS_CFLAGS)
-libeloop_la_LIBADD += \
-	$(DBUS_LIBS)
+libeloop_la_CPPFLAGS += $(DBUS_CFLAGS)
+libeloop_la_LIBADD += $(DBUS_LIBS)
 endif
 
 #
@@ -176,21 +212,15 @@ endif
 #
 
 if BUILD_ENABLE_TSM
-lib_LTLIBRARIES += \
-	libtsm.la
+lib_LTLIBRARIES += libtsm.la
 include_HEADERS += \
 	src/tsm_screen.h \
 	src/tsm_unicode.h \
 	src/tsm_vte.h
-pkgconfig_DATA += \
-	docs/pc/libtsm.pc
+pkgconfig_DATA += docs/pc/libtsm.pc
 endif
 
 libtsm_la_SOURCES = \
-	$(SHL_LLOG) \
-	$(SHL_TIMER) \
-	$(SHL_ARRAY) \
-	$(SHL_HASHTABLE) \
 	src/tsm_screen.h \
 	src/tsm_screen.c \
 	src/tsm_unicode.h \
@@ -204,9 +234,14 @@ libtsm_la_SOURCES = \
 libtsm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS)
-libtsm_la_LDFLAGS = \
+libtsm_la_LIBADD = \
 	$(XKBCOMMON_LIBS) \
-	-version-info 1:0:0
+	libshl.la
+EXTRA_libtsm_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libtsm.sym
+libtsm_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
+	-version-info $(LIBTSM_CURRENT):$(LIBTSM_REVISION):$(LIBTSM_AGE) \
+	-Wl,--version-script="$(top_srcdir)/docs/sym/libtsm.sym"
 
 #
 # libuterm
@@ -227,10 +262,6 @@ pkgconfig_DATA += docs/pc/libuterm.pc
 endif
 
 libuterm_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HOOK) \
-	$(SHL_MISC) \
-	$(SHL_TIMER) \
 	src/uterm_input.h \
 	src/uterm_monitor.h \
 	src/uterm_video.h \
@@ -251,9 +282,13 @@ libuterm_la_CPPFLAGS = \
 	$(XKBCOMMON_CFLAGS)
 libuterm_la_LIBADD = \
 	$(XKBCOMMON_LIBS) \
-	libeloop.la
+	libeloop.la \
+	libshl.la
+EXTRA_libuterm_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libuterm.sym
 libuterm_la_LDFLAGS = \
-	-version-info 1:0:0
+	$(AM_LDFLAGS) \
+	-version-info $(LIBUTERM_CURRENT):$(LIBUTERM_REVISION):$(LIBUTERM_AGE) \
+	-Wl,--version-script="$(top_srcdir)/docs/sym/libuterm.sym"
 
 if BUILD_ENABLE_MULTI_SEAT
 libuterm_la_SOURCES += src/uterm_systemd.c
@@ -283,6 +318,7 @@ libuterm_la_LIBADD += $(DRM_LIBS)
 endif
 
 if BUILD_ENABLE_VIDEO_DRM3D
+noinst_PROGRAMS += genshader
 libuterm_la_SOURCES += \
 	src/uterm_drm3d_internal.h \
 	src/uterm_drm3d_video.c \
@@ -290,8 +326,7 @@ libuterm_la_SOURCES += \
 	src/static_gl.h \
 	src/static_gl_math.c \
 	src/static_gl_shader.c
-nodist_libuterm_la_SOURCES += \
-	src/static_shaders.c
+nodist_libuterm_la_SOURCES += src/static_shaders.c
 libuterm_la_CPPFLAGS += \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
@@ -362,6 +397,7 @@ src/font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
 
 if BUILD_ENABLE_FONT_UNIFONT
 module_LTLIBRARIES += mod-unifont.la
+noinst_PROGRAMS += genunifont
 endif
 
 mod_unifont_la_SOURCES = \
@@ -371,7 +407,9 @@ mod_unifont_la_SOURCES = \
 	src/kmscon_mod_unifont.c
 nodist_mod_unifont_la_SOURCES = \
 	src/font_unifont_data.c
+mod_unifont_la_LIBADD = libshl.la
 mod_unifont_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -380,8 +418,6 @@ module_LTLIBRARIES += mod-freetype2.la
 endif
 
 mod_freetype2_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HASHTABLE) \
 	src/kmscon_module_interface.h \
 	src/githead.h \
 	src/font_freetype2.c \
@@ -392,8 +428,10 @@ mod_freetype2_la_CPPFLAGS = \
 mod_freetype2_la_LIBADD = \
 	$(FREETYPE2_LIBS) \
 	-lpthread \
-	libtsm.la
+	libtsm.la \
+	libshl.la
 mod_freetype2_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -402,8 +440,6 @@ module_LTLIBRARIES += mod-pango.la
 endif
 
 mod_pango_la_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_HASHTABLE) \
 	src/kmscon_module_interface.h \
 	src/githead.h \
 	src/font_pango.c \
@@ -414,8 +450,10 @@ mod_pango_la_CPPFLAGS = \
 mod_pango_la_LIBADD = \
 	$(PANGO_LIBS) \
 	-lpthread \
-	libtsm.la
+	libtsm.la \
+	libshl.la
 mod_pango_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -428,12 +466,15 @@ mod_bbulk_la_SOURCES = \
 	src/githead.h \
 	src/text_bbulk.c \
 	src/kmscon_mod_bbulk.c
+mod_bbulk_la_LIBADD = libshl.la
 mod_bbulk_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
 if BUILD_ENABLE_RENDERER_GLTEX
 module_LTLIBRARIES += mod-gltex.la
+noinst_PROGRAMS += genshader
 endif
 
 mod_gltex_la_SOURCES = \
@@ -450,8 +491,10 @@ mod_gltex_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(GLES2_CFLAGS)
 mod_gltex_la_LIBADD = \
-	$(GLES2_LIBS)
+	$(GLES2_LIBS) \
+	libshl.la
 mod_gltex_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -468,8 +511,10 @@ mod_cairo_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(CAIRO_CFLAGS)
 mod_cairo_la_LIBADD = \
-	$(CAIRO_LIBS)
+	$(CAIRO_LIBS) \
+	libshl.la
 mod_cairo_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -486,8 +531,10 @@ mod_pixman_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(PIXMAN_CFLAGS)
 mod_pixman_la_LIBADD = \
-	$(PIXMAN_LIBS)
+	$(PIXMAN_LIBS) \
+	libshl.la
 mod_pixman_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version
 
@@ -509,14 +556,6 @@ MANPAGES += docs/man/kmscon.1
 endif
 
 kmscon_SOURCES = \
-	$(SHL_DLIST) \
-	$(SHL_MISC) \
-	$(SHL_ARRAY) \
-	$(SHL_HASHTABLE) \
-	$(SHL_RING) \
-	$(SHL_TIMER) \
-	$(SHL_HOOK) \
-	$(SHL_REGISTER) \
 	src/githead.h \
 	src/conf.h \
 	src/conf.c \
@@ -550,9 +589,11 @@ kmscon_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libuterm.la \
+	libshl.la \
 	-lpthread \
 	-ldl
 kmscon_LDFLAGS = \
+	$(AM_LDFLAGS) \
 	-rdynamic
 
 if BUILD_ENABLE_SESSION_DUMMY
@@ -579,12 +620,6 @@ bin_PROGRAMS += wlterm
 endif
 
 wlterm_SOURCES = \
-	$(SHL_MISC) \
-	$(SHL_ARRAY) \
-	$(SHL_DLIST) \
-	$(SHL_HOOK) \
-	$(SHL_REGISTER) \
-	$(SHL_HASHTABLE) \
 	src/wlt_main.h \
 	src/wlt_main.c \
 	src/wlt_toolkit.h \
@@ -614,6 +649,7 @@ wlterm_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libtsm.la \
+	libshl.la \
 	-lpthread
 
 #
@@ -627,6 +663,7 @@ test_sources = \
 	src/conf.c \
 	tests/test_include.h
 test_cflags = \
+	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS)
 test_libs = \
 	$(XKBCOMMON_LIBS) \
@@ -635,9 +672,7 @@ test_libs = \
 test_output_SOURCES = \
 	$(test_sources) \
 	tests/test_output.c
-test_output_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(test_cflags)
+test_output_CPPFLAGS = $(test_cflags)
 test_output_LDADD = \
 	$(test_libs) \
 	libuterm.la
@@ -645,9 +680,7 @@ test_output_LDADD = \
 test_vt_SOURCES = \
 	$(test_sources) \
 	tests/test_vt.c
-test_vt_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(test_cflags)
+test_vt_CPPFLAGS = $(test_cflags)
 test_vt_LDADD = \
 	$(test_libs) \
 	libuterm.la
@@ -655,9 +688,7 @@ test_vt_LDADD = \
 test_input_SOURCES = \
 	$(test_sources) \
 	tests/test_input.c
-test_input_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(test_cflags)
+test_input_CPPFLAGS = $(test_cflags)
 test_input_LDADD = \
 	$(test_libs) \
 	libuterm.la
@@ -665,11 +696,8 @@ test_input_LDADD = \
 test_key_SOURCES = \
 	$(test_sources) \
 	tests/test_key.c
-test_key_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(test_cflags)
-test_key_LDADD = \
-	$(test_libs)
+test_key_CPPFLAGS = $(test_cflags)
+test_key_LDADD = $(test_libs)
 
 #
 # Manpages
