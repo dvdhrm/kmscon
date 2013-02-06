@@ -26,6 +26,7 @@ LIBUTERM_AGE = 0
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AM_MAKEFLAGS = --no-print-directory
 AUTOMAKE_OPTIONS = color-tests
+AM_DISTCHECK_CONFIGURE_FLAGS = --enable-wlterm
 
 SUBDIRS = .
 
