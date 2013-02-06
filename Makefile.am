@@ -382,14 +382,15 @@ src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
 # This generates the unifont sources from raw hex-encoded font data.
 #
 
-UNIFONT = src/font_unifont_data.hex
+UNIFONT = $(top_srcdir)/src/font_unifont_data.hex
+UNIFONT_BIN = src/font_unifont_data.bin
 
 EXTRA_DIST += $(UNIFONT)
-CLEANFILES += src/font_unifont_data.c
+CLEANFILES += $(UNIFONT_BIN)
 genunifont_SOURCES = src/genunifont.c
 
-src/font_unifont_data.c: $(UNIFONT) genunifont$(EXEEXT)
-	$(AM_V_GEN)./genunifont$(EXEEXT) src/font_unifont_data.c $(UNIFONT)
+$(UNIFONT_BIN): $(UNIFONT) genunifont$(EXEEXT)
+	$(AM_V_GEN)./genunifont$(EXEEXT) $(UNIFONT_BIN) $(UNIFONT)
 
 #
 # Kmscon Modules
@@ -405,13 +406,13 @@ mod_unifont_la_SOURCES = \
 	src/githead.h \
 	src/font_unifont.c \
 	src/kmscon_mod_unifont.c
-nodist_mod_unifont_la_SOURCES = \
-	src/font_unifont_data.c
+EXTRA_mod_unifont_la_DEPENDENCIES = $(UNIFONT_BIN)
 mod_unifont_la_LIBADD = libshl.la
 mod_unifont_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
 	-module \
-	-avoid-version
+	-avoid-version \
+	-Wl,--format=binary -Wl,$(UNIFONT_BIN) -Wl,--format=default
 
 if BUILD_ENABLE_FONT_FREETYPE2
 module_LTLIBRARIES += mod-freetype2.la
