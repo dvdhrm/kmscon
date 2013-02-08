@@ -196,8 +196,9 @@ void log_format(const char *file,
 		const char *format,
 		...);
 
-__attribute__((format(printf, 6, 0)))
-void log_llog(const char *file,
+__attribute__((format(printf, 7, 0)))
+void log_llog(void *data,
+	      const char *file,
 	      int line,
 	      const char *func,
 	      const char *subs,

@@ -488,7 +488,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	 * the implementation between both instead of doing everything ourself
 	 * here. */
 
-	ret = tsm_screen_new(&client->screen, log_llog);
+	ret = tsm_screen_new(&client->screen, log_llog, NULL);
 	if (ret) {
 		log_error("cannot create TSM screen for new cdev client: %d",
 			  ret);
@@ -496,7 +496,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	}
 
 	ret = tsm_vte_new(&client->vte, client->screen, client_vte_event,
-			  client, log_llog);
+			  client, log_llog, NULL);
 	if (ret) {
 		log_error("cannot create TSM VTE for new cdev client: %d",
 			  ret);

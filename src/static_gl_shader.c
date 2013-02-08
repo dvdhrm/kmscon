@@ -46,6 +46,7 @@
 struct gl_shader {
 	unsigned long ref;
 	llog_submit_t llog;
+	void *llog_data;
 
 	GLuint program;
 	GLuint vshader;
@@ -133,7 +134,8 @@ static int compile_shader(struct gl_shader *shader, GLenum type,
 }
 
 int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
-		  char **attr, size_t attr_count, llog_submit_t llog)
+		  char **attr, size_t attr_count, llog_submit_t llog,
+		  void *llog_data)
 {
 	struct gl_shader *shader;
 	int ret, i;
@@ -149,6 +151,7 @@ int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
 	memset(shader, 0, sizeof(*shader));
 	shader->ref = 1;
 	shader->llog = llog;
+	shader->llog_data = llog_data;
 
 	llog_debug(shader, "new shader");
 

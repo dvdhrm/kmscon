@@ -77,7 +77,7 @@ static int init_shaders(struct uterm_video *video)
 	v3d->sinit = 1;
 
 	ret = gl_shader_new(&v3d->fill_shader, gl_static_fill_vert,
-			    gl_static_fill_frag, fill_attr, 2, log_llog);
+			    gl_static_fill_frag, fill_attr, 2, log_llog, NULL);
 	if (ret)
 		return ret;
 
@@ -85,7 +85,8 @@ static int init_shaders(struct uterm_video *video)
 						   "projection");
 
 	ret = gl_shader_new(&v3d->blend_shader, gl_static_blend_vert,
-			    gl_static_blend_frag, blend_attr, 2, log_llog);
+			    gl_static_blend_frag, blend_attr, 2, log_llog,
+			    NULL);
 	if (ret)
 		return ret;
 
@@ -99,7 +100,7 @@ static int init_shaders(struct uterm_video *video)
 						     "bgcolor");
 
 	ret = gl_shader_new(&v3d->blit_shader, gl_static_blit_vert,
-			    gl_static_blit_frag, blit_attr, 2, log_llog);
+			    gl_static_blit_frag, blit_attr, 2, log_llog, NULL);
 	if (ret)
 		return ret;
 

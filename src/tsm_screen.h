@@ -46,6 +46,7 @@ struct tsm_screen;
 
 /**
  * tsm_log_t:
+ * @data: user-provided data
  * @file: Source code file where the log message originated or NULL
  * @line: Line number in source code or 0
  * @func: C function name or NULL
@@ -57,7 +58,8 @@ struct tsm_screen;
  * This is the type of a logging callback function. You can always pass NULL
  * instead of such a function to disable logging.
  */
-typedef void (*tsm_log_t) (const char *file,
+typedef void (*tsm_log_t) (void *data,
+			   const char *file,
 			   int line,
 			   const char *func,
 			   const char *subs,
@@ -104,7 +106,7 @@ typedef int (*tsm_screen_draw_cb) (struct tsm_screen *con,
 typedef int (*tsm_screen_render_cb) (struct tsm_screen *con,
 				     void *data);
 
-int tsm_screen_new(struct tsm_screen **out, tsm_log_t log);
+int tsm_screen_new(struct tsm_screen **out, tsm_log_t log, void *log_data);
 void tsm_screen_ref(struct tsm_screen *con);
 void tsm_screen_unref(struct tsm_screen *con);
 

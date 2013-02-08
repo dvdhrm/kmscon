@@ -150,6 +150,7 @@ struct vte_saved_state {
 struct tsm_vte {
 	unsigned long ref;
 	tsm_log_t llog;
+	void *llog_data;
 	struct tsm_screen *con;
 	tsm_vte_write_cb write_cb;
 	void *data;
@@ -364,7 +365,7 @@ static void copy_bcolor(struct tsm_screen_attr *dest,
 SHL_EXPORT
 int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 		tsm_vte_write_cb write_cb, void *data,
-		tsm_log_t log)
+		tsm_log_t log, void *log_data)
 {
 	struct tsm_vte *vte;
 	int ret;
@@ -379,6 +380,7 @@ int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 	memset(vte, 0, sizeof(*vte));
 	vte->ref = 1;
 	vte->llog = log;
+	vte->llog_data = log_data;
 	vte->con = con;
 	vte->write_cb = write_cb;
 	vte->data = data;

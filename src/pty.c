@@ -85,7 +85,7 @@ int kmscon_pty_new(struct kmscon_pty **out, kmscon_pty_input_cb input_cb,
 	pty->input_cb = input_cb;
 	pty->data = data;
 
-	ret = ev_eloop_new(&pty->eloop, log_llog);
+	ret = ev_eloop_new(&pty->eloop, log_llog, NULL);
 	if (ret)
 		goto err_free;
 

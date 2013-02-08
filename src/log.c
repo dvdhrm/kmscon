@@ -489,7 +489,8 @@ void log_format(const char *file,
 }
 
 SHL_EXPORT
-void log_llog(const char *file,
+void log_llog(void *data,
+	      const char *file,
 	      int line,
 	      const char *func,
 	      const char *subs,

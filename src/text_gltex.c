@@ -174,7 +174,7 @@ static int gltex_set(struct kmscon_text *txt)
 	gl_clear_error();
 
 	ret = gl_shader_new(&gt->shader, gl_static_gltex_vert,
-			    gl_static_gltex_frag, attr, 4, log_llog);
+			    gl_static_gltex_frag, attr, 4, log_llog, NULL);
 	if (ret)
 		goto err_bold_htable;
 

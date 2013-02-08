@@ -163,7 +163,7 @@ static int setup_app(struct wlt_app *app)
 {
 	int ret;
 
-	ret = ev_eloop_new(&app->eloop, log_llog);
+	ret = ev_eloop_new(&app->eloop, log_llog, NULL);
 	if (ret)
 		goto err_app;
 

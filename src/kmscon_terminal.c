@@ -523,7 +523,7 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	term->conf_ctx = kmscon_seat_get_conf(seat);
 	term->conf = conf_ctx_get_mem(term->conf_ctx);
 
-	ret = tsm_screen_new(&term->console, log_llog);
+	ret = tsm_screen_new(&term->console, log_llog, NULL);
 	if (ret)
 		goto err_free;
 	tsm_screen_set_max_sb(term->console, term->conf->sb_size);
@@ -532,7 +532,7 @@ int kmscon_terminal_register(struct kmscon_session **out,
 				    TSM_SCREEN_OPT_RENDER_TIMING);
 
 	ret = tsm_vte_new(&term->vte, term->console, write_event, term,
-			  log_llog);
+			  log_llog, NULL);
 	if (ret)
 		goto err_con;
 	tsm_vte_set_palette(term->vte, term->conf->palette);

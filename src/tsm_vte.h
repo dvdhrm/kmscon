@@ -69,7 +69,7 @@ typedef void (*tsm_vte_write_cb) (struct tsm_vte *vte,
 
 int tsm_vte_new(struct tsm_vte **out, struct tsm_screen *con,
 		tsm_vte_write_cb write_cb, void *data,
-		tsm_log_t log);
+		tsm_log_t log, void *log_data);
 void tsm_vte_ref(struct tsm_vte *vte);
 void tsm_vte_unref(struct tsm_vte *vte);
 

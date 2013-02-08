@@ -1,7 +1,7 @@
 /*
  * Event Loop
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -49,6 +49,7 @@ struct ev_counter;
 
 /**
  * ev_log_t:
+ * @data: User provided data field
  * @file: Source code file where the log message originated or NULL
  * @line: Line number in source code or 0
  * @func: C function name or NULL
@@ -60,7 +61,8 @@ struct ev_counter;
  * This is the type of a logging callback function. You can always pass NULL
  * instead of such a function to disable logging.
  */
-typedef void (*ev_log_t) (const char *file,
+typedef void (*ev_log_t) (void *data,
+			  const char *file,
 			  int line,
 			  const char *func,
 			  const char *subs,
@@ -170,7 +172,7 @@ enum ev_eloop_flags {
 	EV_ET = 0x10,
 };
 
-int ev_eloop_new(struct ev_eloop **out, ev_log_t log);
+int ev_eloop_new(struct ev_eloop **out, ev_log_t log, void *log_data);
 void ev_eloop_ref(struct ev_eloop *loop);
 void ev_eloop_unref(struct ev_eloop *loop);
 
@@ -189,7 +191,7 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm);
 /* fd sources */
 
 int ev_fd_new(struct ev_fd **out, int fd, int mask, ev_fd_cb cb, void *data,
-	      ev_log_t log);
+	      ev_log_t log, void *log_data);
 void ev_fd_ref(struct ev_fd *fd);
 void ev_fd_unref(struct ev_fd *fd);
 
@@ -208,7 +210,7 @@ void ev_eloop_rm_fd(struct ev_fd *fd);
 /* timer sources */
 
 int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
-		 ev_timer_cb cb, void *data, ev_log_t log);
+		 ev_timer_cb cb, void *data, ev_log_t log, void *log_data);
 void ev_timer_ref(struct ev_timer *timer);
 void ev_timer_unref(struct ev_timer *timer);
 
@@ -229,7 +231,7 @@ void ev_eloop_rm_timer(struct ev_timer *timer);
 /* counter sources */
 
 int ev_counter_new(struct ev_counter **out, ev_counter_cb, void *data,
-		   ev_log_t log);
+		   ev_log_t log, void *log_data);
 void ev_counter_ref(struct ev_counter *cnt);
 void ev_counter_unref(struct ev_counter *cnt);
 

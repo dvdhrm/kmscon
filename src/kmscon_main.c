@@ -534,7 +534,7 @@ static int setup_app(struct kmscon_app *app)
 
 	shl_dlist_init(&app->seats);
 
-	ret = ev_eloop_new(&app->eloop, log_llog);
+	ret = ev_eloop_new(&app->eloop, log_llog, NULL);
 	if (ret) {
 		log_error("cannot create eloop object: %d", ret);
 		goto err_app;

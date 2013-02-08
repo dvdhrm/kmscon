@@ -69,6 +69,7 @@ struct selection_pos {
 struct tsm_screen {
 	size_t ref;
 	llog_submit_t llog;
+	void *llog_data;
 	unsigned int opts;
 	unsigned int flags;
 	struct shl_timer *timer;
@@ -438,7 +439,7 @@ static inline unsigned int to_abs_y(struct tsm_screen *con, unsigned int y)
 }
 
 SHL_EXPORT
-int tsm_screen_new(struct tsm_screen **out, tsm_log_t log)
+int tsm_screen_new(struct tsm_screen **out, tsm_log_t log, void *log_data)
 {
 	struct tsm_screen *con;
 	int ret;
@@ -454,6 +455,7 @@ int tsm_screen_new(struct tsm_screen **out, tsm_log_t log)
 	memset(con, 0, sizeof(*con));
 	con->ref = 1;
 	con->llog = log;
+	con->llog_data = log_data;
 	con->def_attr.fr = 255;
 	con->def_attr.fg = 255;
 	con->def_attr.fb = 255;

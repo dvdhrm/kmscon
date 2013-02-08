@@ -241,7 +241,7 @@ int display_new(struct uterm_display **out, const struct display_ops *ops)
 	disp->vblank_spec.it_value.tv_nsec = 15 * 1000 * 1000;
 
 	ret = ev_timer_new(&disp->vblank_timer, NULL,
-			   display_vblank_timer_event, disp, NULL);
+			   display_vblank_timer_event, disp, NULL, NULL);
 	if (ret)
 		goto err_hook;
 

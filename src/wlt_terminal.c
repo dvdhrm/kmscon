@@ -709,14 +709,15 @@ int wlt_terminal_new(struct wlt_terminal **out, struct wlt_window *wnd)
 		goto err_free;
 	}
 
-	ret = tsm_screen_new(&term->scr, log_llog);
+	ret = tsm_screen_new(&term->scr, log_llog, NULL);
 	if (ret) {
 		log_error("cannot create tsm-screen object");
 		goto err_font;
 	}
 	tsm_screen_set_max_sb(term->scr, wlt_conf.sb_size);
 
-	ret = tsm_vte_new(&term->vte, term->scr, vte_event, term, log_llog);
+	ret = tsm_vte_new(&term->vte, term->scr, vte_event, term, log_llog,
+			  NULL);
 	if (ret) {
 		log_error("cannot create tsm-vte object");
 		goto err_scr;

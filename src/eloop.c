@@ -1,7 +1,7 @@
 /*
  * Event Loop
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  * Copyright (c) 2011 University of Tuebingen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -184,6 +184,7 @@
  * ev_eloop:
  * @ref: refcnt of this object
  * @llog: llog log function
+ * @llog_data: llog log function user-data
  * @efd: The epoll file descriptor.
  * @fd: Event source around \efd so you can nest event loops
  * @cnt: Counter source used for idle events
@@ -201,6 +202,7 @@
 struct ev_eloop {
 	unsigned long ref;
 	llog_submit_t llog;
+	void *llog_data;
 	int efd;
 	struct ev_fd *fd;
 	int idle_fd;
@@ -222,6 +224,7 @@ struct ev_eloop {
  * ev_fd:
  * @ref: refcnt for object
  * @llog: llog log function
+ * @llog_data: llog log function user-data
  * @fd: the actual file desciptor
  * @mask: the event mask for this fd (EV_READABLE, EV_WRITABLE, ...)
  * @cb: the user callback
@@ -235,6 +238,7 @@ struct ev_eloop {
 struct ev_fd {
 	unsigned long ref;
 	llog_submit_t llog;
+	void *llog_data;
 	int fd;
 	int mask;
 	ev_fd_cb cb;
@@ -248,6 +252,7 @@ struct ev_fd {
  * ev_timer:
  * @ref: refcnt of this object
  * @llog: llog log function
+ * @llog_data: llog log function user-data
  * @cb: user callback
  * @data: user data
  * @fd: the timerfd file desciptor
@@ -258,6 +263,7 @@ struct ev_fd {
 struct ev_timer {
 	unsigned long ref;
 	llog_submit_t llog;
+	void *llog_data;
 	ev_timer_cb cb;
 	void *data;
 
@@ -269,6 +275,7 @@ struct ev_timer {
  * ev_counter:
  * @ref: refcnt of counter object
  * @llog: llog log function
+ * @llog_data: llog log function user-data
  * @cb: user callback
  * @data: user data
  * @fd: eventfd file desciptor
@@ -280,6 +287,7 @@ struct ev_timer {
 struct ev_counter {
 	unsigned long ref;
 	llog_submit_t llog;
+	void *llog_data;
 	ev_counter_cb cb;
 	void *data;
 
@@ -499,27 +507,34 @@ static void eloop_event(struct ev_fd *fd, int mask, void *data)
 		llog_warn(eloop, "HUP/ERR on eloop source");
 }
 
-static int write_eventfd(llog_submit_t llog, int fd, uint64_t val)
+static int write_eventfd(llog_submit_t llog, void *llog_data, int fd,
+			 uint64_t val)
 {
 	int ret;
 
 	if (!val)
-		return llog_dEINVAL(llog);
+		return llog_dEINVAL(llog, llog_data);
 
 	if (val == 0xffffffffffffffffULL) {
-		llog_dwarning(llog, "increasing counter with invalid value %" PRIu64, val);
+		llog_dwarning(llog, llog_data,
+			      "increasing counter with invalid value %" PRIu64,
+			      val);
 		return -EINVAL;;
 	}
 
 	ret = write(fd, &val, sizeof(val));
 	if (ret < 0) {
 		if (errno == EAGAIN)
-			llog_dwarning(llog, "eventfd overflow while writing %" PRIu64, val);
+			llog_dwarning(llog, llog_data,
+				      "eventfd overflow while writing %" PRIu64,
+				      val);
 		else
-			llog_dwarning(llog, "eventfd write error (%d): %m", errno);
+			llog_dwarning(llog, llog_data,
+				      "eventfd write error (%d): %m", errno);
 		return -EFAULT;
 	} else if (ret != sizeof(val)) {
-		llog_dwarning(llog, "wrote %d bytes instead of 8 to eventdfd", ret);
+		llog_dwarning(llog, llog_data,
+			      "wrote %d bytes instead of 8 to eventdfd", ret);
 		return -EFAULT;
 	}
 
@@ -556,7 +571,8 @@ static void eloop_idle_event(struct ev_eloop *loop, unsigned int mask)
 	} else if (val > 0) {
 		shl_hook_call(loop->idlers, loop, NULL);
 		if (shl_hook_num(loop->idlers) > 0)
-			write_eventfd(loop->llog, loop->idle_fd, 1);
+			write_eventfd(loop->llog, loop->llog_data,
+				      loop->idle_fd, 1);
 	}
 
 	return;
@@ -572,6 +588,7 @@ err_out:
  * ev_eloop_new:
  * @out: Storage for the result
  * @log: logging function or NULL
+ * @log_data: logging function user-data
  *
  * This creates a new event-loop with ref-count 1. The new event loop is stored
  * in @out and has no registered events.
@@ -579,22 +596,23 @@ err_out:
  * Returns: 0 on success, otherwise negative error code
  */
 SHL_EXPORT
-int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
+int ev_eloop_new(struct ev_eloop **out, ev_log_t log, void *log_data)
 {
 	struct ev_eloop *loop;
 	int ret;
 	struct epoll_event ep;
 
 	if (!out)
-		return llog_dEINVAL(log);
+		return llog_dEINVAL(log, log_data);
 
 	loop = malloc(sizeof(*loop));
 	if (!loop)
-		return llog_dENOMEM(log);
+		return llog_dENOMEM(log, log_data);
 
 	memset(loop, 0, sizeof(*loop));
 	loop->ref = 1;
 	loop->llog = log;
+	loop->llog_data = log_data;
 	shl_dlist_init(&loop->sig_list);
 
 	loop->cur_fds_size = 32;
@@ -629,7 +647,7 @@ int ev_eloop_new(struct ev_eloop **out, ev_log_t log)
 	}
 
 	ret = ev_fd_new(&loop->fd, loop->efd, EV_READABLE, eloop_event, loop,
-			loop->llog);
+			loop->llog, loop->llog_data);
 	if (ret)
 		goto err_close;
 
@@ -992,7 +1010,7 @@ int ev_eloop_new_eloop(struct ev_eloop *loop, struct ev_eloop **out)
 	if (!out)
 		return llog_EINVAL(loop);
 
-	ret = ev_eloop_new(&el, loop->llog);
+	ret = ev_eloop_new(&el, loop->llog, loop->llog_data);
 	if (ret)
 		return ret;
 
@@ -1084,6 +1102,7 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
  * @cb: User callback
  * @data: User data
  * @log: llog function or NULL
+ * @log_data: logging function user-data
  *
  * This creates a new file desciptor source that is watched for the events set
  * in @mask. @rfd is the system filedescriptor. The resulting object is stored
@@ -1095,20 +1114,21 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
  */
 SHL_EXPORT
 int ev_fd_new(struct ev_fd **out, int rfd, int mask, ev_fd_cb cb, void *data,
-	      ev_log_t log)
+	      ev_log_t log, void *log_data)
 {
 	struct ev_fd *fd;
 
 	if (!out || rfd < 0)
-		return llog_dEINVAL(log);
+		return llog_dEINVAL(log, log_data);
 
 	fd = malloc(sizeof(*fd));
 	if (!fd)
-		return llog_dEINVAL(log);
+		return llog_dEINVAL(log, log_data);
 
 	memset(fd, 0, sizeof(*fd));
 	fd->ref = 1;
 	fd->llog = log;
+	fd->llog_data = log_data;
 	fd->fd = rfd;
 	fd->mask = mask;
 	fd->cb = cb;
@@ -1379,7 +1399,7 @@ int ev_eloop_new_fd(struct ev_eloop *loop, struct ev_fd **out, int rfd,
 	if (!out || rfd < 0)
 		return llog_EINVAL(loop);
 
-	ret = ev_fd_new(&fd, rfd, mask, cb, data, loop->llog);
+	ret = ev_fd_new(&fd, rfd, mask, cb, data, loop->llog, loop->llog_data);
 	if (ret)
 		return ret;
 
@@ -1549,6 +1569,7 @@ static const struct itimerspec ev_timer_zero;
  * @cb: callback to use for this event-source
  * @data: user-specified data
  * @log: logging function or NULL
+ * @log_data: logging function user-data
  *
  * This creates a new timer-source. See "man timerfd_create" for information on
  * the @spec argument. The timer is always relative and uses the
@@ -1558,24 +1579,25 @@ static const struct itimerspec ev_timer_zero;
  */
 SHL_EXPORT
 int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
-		 ev_timer_cb cb, void *data, ev_log_t log)
+		 ev_timer_cb cb, void *data, ev_log_t log, void *log_data)
 {
 	struct ev_timer *timer;
 	int ret;
 
 	if (!out)
-		return llog_dEINVAL(log);
+		return llog_dEINVAL(log, log_data);
 
 	if (!spec)
 		spec = &ev_timer_zero;
 
 	timer = malloc(sizeof(*timer));
 	if (!timer)
-		return llog_dENOMEM(log);
+		return llog_dENOMEM(log, log_data);
 
 	memset(timer, 0, sizeof(*timer));
 	timer->ref = 1;
 	timer->llog = log;
+	timer->llog_data = log_data;
 	timer->cb = cb;
 	timer->data = data;
 
@@ -1594,7 +1616,7 @@ int ev_timer_new(struct ev_timer **out, const struct itimerspec *spec,
 	}
 
 	ret = ev_fd_new(&timer->efd, timer->fd, EV_READABLE, timer_cb, timer,
-			timer->llog);
+			timer->llog, timer->llog_data);
 	if (ret)
 		goto err_close;
 
@@ -1807,7 +1829,7 @@ int ev_eloop_new_timer(struct ev_eloop *loop, struct ev_timer **out,
 	if (!out)
 		return llog_EINVAL(loop);
 
-	ret = ev_timer_new(&timer, spec, cb, data, loop->llog);
+	ret = ev_timer_new(&timer, spec, cb, data, loop->llog, loop->llog_data);
 	if (ret)
 		return ret;
 
@@ -1930,6 +1952,7 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
  * @cb: user-supplied callback
  * @data: user-supplied data
  * @log: logging function or NULL
+ * @log_data: logging function user-data
  *
  * This creates a new counter object and stores it in @out.
  *
@@ -1937,20 +1960,21 @@ static void counter_event(struct ev_fd *fd, int mask, void *data)
  */
 SHL_EXPORT
 int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data,
-		   ev_log_t log)
+		   ev_log_t log, void *log_data)
 {
 	struct ev_counter *cnt;
 	int ret;
 
 	if (!out)
-		return llog_dEINVAL(log);
+		return llog_dEINVAL(log, log_data);
 
 	cnt = malloc(sizeof(*cnt));
 	if (!cnt)
-		return llog_dENOMEM(log);
+		return llog_dENOMEM(log, log_data);
 	memset(cnt, 0, sizeof(*cnt));
 	cnt->ref = 1;
 	cnt->llog = log;
+	cnt->llog_data = log_data;
 	cnt->cb = cb;
 	cnt->data = data;
 
@@ -1962,7 +1986,7 @@ int ev_counter_new(struct ev_counter **out, ev_counter_cb cb, void *data,
 	}
 
 	ret = ev_fd_new(&cnt->efd, cnt->fd, EV_READABLE, counter_event, cnt,
-			cnt->llog);
+			cnt->llog, cnt->llog_data);
 	if (ret)
 		goto err_close;
 
@@ -2112,7 +2136,7 @@ int ev_counter_inc(struct ev_counter *cnt, uint64_t val)
 	if (!cnt)
 		return -EINVAL;
 
-	return write_eventfd(cnt->llog, cnt->fd, val);
+	return write_eventfd(cnt->llog, cnt->llog_data, cnt->fd, val);
 }
 
 /**
@@ -2138,7 +2162,7 @@ int ev_eloop_new_counter(struct ev_eloop *eloop, struct ev_counter **out,
 	if (!out)
 		return llog_EINVAL(eloop);
 
-	ret = ev_counter_new(&cnt, cb, data, eloop->llog);
+	ret = ev_counter_new(&cnt, cb, data, eloop->llog, eloop->llog_data);
 	if (ret)
 		return ret;
 
@@ -2375,7 +2399,7 @@ int ev_eloop_register_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
 	if (ret)
 		return ret;
 
-	ret = write_eventfd(eloop->llog, eloop->idle_fd, 1);
+	ret = write_eventfd(eloop->llog, eloop->llog_data, eloop->idle_fd, 1);
 	if (ret) {
 		llog_warning(eloop, "cannot increase eloop idle-counter");
 		shl_hook_rm_cast(eloop->idlers, cb, data);
