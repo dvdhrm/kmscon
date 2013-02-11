@@ -159,7 +159,7 @@ static void display_event(struct uterm_display *disp,
 /*
  * Resize terminal
  * We support multiple monitors per terminal. As some software-rendering
- * backends to not support scaling, we always use the smalles cols/rows that are
+ * backends to not support scaling, we always use the smallest cols/rows that are
  * provided so wider displays will have black margins.
  * This can be extended to support scaling but that would mean we need to check
  * whether the text-renderer backend supports that, first (TODO).

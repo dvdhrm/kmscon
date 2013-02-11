@@ -453,7 +453,7 @@ static int manager_get_face(struct face **out, struct kmscon_font_attr *attr)
 	 * with each font. This guarantees that special characters like
 	 * line-segments are properly aligned without spacing. If the font does
 	 * not provide proper asc/desc values, then freetype2 will return proper
-	 * subsitutions. */
+	 * substitutions. */
 
 	em = face->face->units_per_EM;
 	xsc = face->face->size->metrics.x_ppem / em;

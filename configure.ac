@@ -22,7 +22,7 @@ AM_SILENT_RULES([yes])
 #
 # Don't add a default "-g -O2" if CFLAGS wasn't specified. For debugging it is
 # often more convenient to have "-g -O0". You can still override it by
-# explicitely setting it on the command line.
+# explicitly setting it on the command line.
 #
 
 : ${CFLAGS=""}
@@ -1148,7 +1148,7 @@ AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
 #
 # Miscellaneous Checks
 # All checks below are independent of module checking or depend on the results
-# of it. They do not have any dependencies themself so they are not part of the
+# of it. They do not have any dependencies themselves so they are not part of the
 # module infrastructure.
 #
 

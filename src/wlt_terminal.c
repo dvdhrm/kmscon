@@ -273,7 +273,7 @@ static void widget_prepare_resize(struct wlt_widget *widget,
 	/* We are a catch-all handler. That is, we use all space that is
 	 * available. We must be called _last_, which is guaranteed by
 	 * registering the widget as last widget.
-	 * All previous handlers put their size constraints into the arguemnts
+	 * All previous handlers put their size constraints into the arguments
 	 * and we need to make sure to not break them.
 	 * Every redraw-handler is guaranteed to work for every size, but still,
 	 * we should try to avoid invalid-sizes to not generate artifacts. */

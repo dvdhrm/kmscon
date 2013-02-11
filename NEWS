@@ -76,7 +76,7 @@ CHANGES WITH 5:
 	* Idle sources are now faster registered and unregistered so they can
 	  be used for any scheduling tasks
 
-	* eloop got pre- and post-dispatch hooks to inetgrate external
+	* eloop got pre- and post-dispatch hooks to integrate external
 	  event-loops better
 
 	* Added pkg-config files for eloop, tsm and uterm
@@ -218,4 +218,4 @@ CHANGES WITH 2: (development release)
 
 CHANGES WITH 1: (development release)
 	* First kmscon release. For testing purposes only. Includes a rendering
-	  pipeline and a very rundimentary terminal emulator.
+	  pipeline and a very rudimentary terminal emulator.

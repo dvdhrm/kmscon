@@ -394,7 +394,7 @@ tsm_vte_charset tsm_vte_dec_supplemental_graphics = {
  * DEC special graphics character set. See here for its definition:
  *  http://vt100.net/docs/vt220-rm/table2-4.html
  * This contains several characters to create ASCII drawings and similar. Its
- * commonaly mapped into GR to extend the basic ASCII characters.
+ * commonly mapped into GR to extend the basic ASCII characters.
  *
  * Lower 62 characters map to ASCII 33-64, everything beyond is special and
  * commonly used for ASCII drawings. It depends on the Unicode Standard 3.2 for

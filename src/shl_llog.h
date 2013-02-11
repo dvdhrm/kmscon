@@ -42,7 +42,7 @@
  *   sev: Severity of log-message. An integer between 0 and 7 as defined below.
  *        These are identical to the linux-kernel severities so there is no need
  *        to include these in your public API. Every app can define them
- *        themself, if they need it.
+ *        themselves, if they need it.
  *   format: Format string. Must not be NULL.
  *   args: Argument array
  *

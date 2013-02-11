@@ -33,7 +33,7 @@
  * When an event occurs, the user-supplied callback is called.
  *
  * The event-loop allows the callbacks to modify _any_ data they want. They can
- * remove themself or other sources from the event loop even in a callback.
+ * remove themselves or other sources from the event loop even in a callback.
  * This, however, means that recursive dispatch calls are not supported to
  * increase performance and avoid internal dispatch-stacks.
  *
@@ -48,7 +48,7 @@
  * A source can be registered for a single event-loop only! You cannot add it
  * to multiple event loops simultaneously. Also all provided sources are based
  * on the file-descriptor source so it is guaranteed that you can get a
- * file-desciptor for every source-type. This is not exported via the public
+ * file-descriptor for every source-type. This is not exported via the public
  * API, but you can get the epoll-fd which is basically a selectable FD summary
  * of all event sources.
  *
@@ -84,7 +84,7 @@
  * However, the library does not enforce this design-choice. On the contrary,
  * it supports all other types of application-designs, too. But as it is
  * optimized for performance, other application-designs may need to add further
- * functionality (like thread-affinity) by themself as it would slow down the
+ * functionality (like thread-affinity) by themselves as it would slow down the
  * event loop if it was natively implemented.
  *
  *
@@ -133,7 +133,7 @@
  *   signal). This is done internally by sharing the signalfd.
  *   However, there is one restriction: You cannot share a signalfd between
  *   multiple eloop-instances. That is, if you register a callback for the same
- *   signal on two different eloop-instances (which are connected themself),
+ *   signal on two different eloop-instances (which are connected themselves),
  *   then only one eloop-instance will fire the signal source. This is a
  *   restriction of signalfd that cannot be overcome. However, it is very
  *   uncommon to register multiple callbacks for a signal so this shouldn't
@@ -225,8 +225,8 @@ struct ev_eloop {
  * @ref: refcnt for object
  * @llog: llog log function
  * @llog_data: llog log function user-data
- * @fd: the actual file desciptor
- * @mask: the event mask for this fd (EV_READABLE, EV_WRITABLE, ...)
+ * @fd: the actual file descriptor
+ * @mask: the event mask for this fd (EV_READABLE, EV_WRITEABLE, ...)
  * @cb: the user callback
  * @data: the user data
  * @enabled: true if the object is currently enabled
@@ -255,7 +255,7 @@ struct ev_fd {
  * @llog_data: llog log function user-data
  * @cb: user callback
  * @data: user data
- * @fd: the timerfd file desciptor
+ * @fd: the timerfd file descriptor
  * @efd: fd-source for @fd
  *
  * Based on timerfd this allows firing events based on relative timeouts.
@@ -278,7 +278,7 @@ struct ev_timer {
  * @llog_data: llog log function user-data
  * @cb: user callback
  * @data: user data
- * @fd: eventfd file desciptor
+ * @fd: eventfd file descriptor
  * @efd: fd-source for @fd
  *
  * Counter sources fire if they are non-zero. They are based on the eventfd
@@ -298,12 +298,12 @@ struct ev_counter {
 /**
  * ev_signal_shared:
  * @list: list integration into ev_eloop object
- * @fd: the signalfd file desciptor for this signal
+ * @fd: the signalfd file descriptor for this signal
  * @signum: the actual signal number
  * @hook: list of registered user callbacks for this signal
  *
  * A shared signal allows multiple listeners for the same signal. All listeners
- * are called if the signal is catched.
+ * are called if the signal is caught.
  */
 struct ev_signal_shared {
 	struct shl_dlist list;
@@ -321,7 +321,7 @@ struct ev_signal_shared {
  * That means, the user can register for a signal and if no other user is
  * registered for this signal, yet, we create a new shared signal. Otherwise,
  * we add the user to the existing shared signals.
- * If the signal is catched, we simply call all users that are registered for
+ * If the signal is caught, we simply call all users that are registered for
  * this signal.
  * To avoid side-effects, we automatically block all signals for the current
  * thread when a signalfd is created. We never unblock the signal. However,
@@ -808,7 +808,7 @@ static unsigned int convert_mask(uint32_t mask)
  * @timeout: Timeout in milliseconds
  *
  * This listens on @loop for incoming events and handles all events that
- * occured. This waits at most @timeout milliseconds until returning. If
+ * occurred. This waits at most @timeout milliseconds until returning. If
  * @timeout is -1, this waits until the first event arrives. If @timeout is 0,
  * then this returns directly if no event is currently pending.
  *
@@ -994,7 +994,7 @@ int ev_eloop_get_fd(struct ev_eloop *loop)
  * @loop: The parent event-loop where the new event loop is registered
  * @out: Storage for new event loop
  *
- * This creates a new event loop and directly registeres it as event source on
+ * This creates a new event loop and directly registers it as event source on
  * the parent event loop \loop.
  *
  * Returns: 0 on success, otherwise negative error code
@@ -1097,14 +1097,14 @@ void ev_eloop_rm_eloop(struct ev_eloop *rm)
 /**
  * ev_fd_new:
  * @out: Storage for result
- * @rfd: The actual file desciptor
- * @mask: Bitmask of %EV_READABLE and %EV_WRITeABLE flags
+ * @rfd: The actual file descriptor
+ * @mask: Bitmask of %EV_READABLE and %EV_WRITEABLE flags
  * @cb: User callback
  * @data: User data
  * @log: llog function or NULL
  * @log_data: logging function user-data
  *
- * This creates a new file desciptor source that is watched for the events set
+ * This creates a new file descriptor source that is watched for the events set
  * in @mask. @rfd is the system filedescriptor. The resulting object is stored
  * in @out. @cb and @data are the user callback and the user-supplied data that
  * is passed to the callback on events.
@@ -2363,7 +2363,7 @@ void ev_eloop_unregister_child_cb(struct ev_eloop *loop, ev_child_cb cb,
 
 /*
  * Idle sources
- * Idle sources are called everytime when a next dispatch round is started.
+ * Idle sources are called every time when a next dispatch round is started.
  * That means, unless there is no idle source registered, the thread will
  * _never_ go to sleep. So please unregister your idle source if no longer
  * needed.
@@ -2438,7 +2438,7 @@ void ev_eloop_unregister_idle_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * Pre-Dispatch Callbacks
  * A pre-dispatch cb is called before a single dispatch round is started.
  * You should avoid using them and instead not rely on any specific
- * dispatch-behavior but expect every event to be recieved asynchronously.
+ * dispatch-behavior but expect every event to be received asynchronously.
  * However, this hook is useful to integrate other limited APIs into this event
  * loop if they do not provide proper FD-abstractions.
  */
@@ -2489,7 +2489,7 @@ void ev_eloop_unregister_pre_cb(struct ev_eloop *eloop, ev_idle_cb cb,
  * Post-Dispatch Callbacks
  * A post-dispatch cb is called whenever a single dispatch round is complete.
  * You should avoid using them and instead not rely on any specific
- * dispatch-behavior but expect every event to be recieved asynchronously.
+ * dispatch-behavior but expect every event to be received asynchronously.
  * However, this hook is useful to integrate other limited APIs into this event
  * loop if they do not provide proper FD-abstractions.
  */

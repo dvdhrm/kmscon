@@ -25,7 +25,7 @@
  */
 
 /*
- * Default Fragement Shader
+ * Default Fragment Shader
  * A basic fragment shader which applies a color directly.
  */
 

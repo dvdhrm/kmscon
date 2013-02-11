@@ -110,7 +110,7 @@ index 5297eca..79bfbcc 100644
 +		 * is, blanking the screen when the fb driver failed to perform
 +		 * an fb_blank(). It simply writes empty lines to the screen.
 +		 * We are not interested in this signal. We should also never
-+		 * run together with fbcon so this should never be catched. */
++		 * run together with fbcon so this should never be caught. */
 +		/* ignore */
 +		break;
 +	case FB_EVENT_GET_CONSOLE_MAP:

@@ -25,7 +25,7 @@
  */
 
 /*
- * Fragement Shader
+ * Fragment Shader
  * A basic fragment shader which applies a 2D texture and blends foreground and
  * background colors.
  */

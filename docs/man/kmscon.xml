@@ -324,7 +324,7 @@
           disable a shortcut, pass an empty argument (empty list). A keyboard
           shortcut exists of a list of modifiers followed by a single key. All
           modifiers must be down when the key is pressed for the shortcut to be
-          detected. A modifier is sorrounded by '&lt;' and '&gt;' (like
+          detected. A modifier is surrounded by '&lt;' and '&gt;' (like
           '&lt;shift&gt;'). A key is the name of a keysym (like 'a' or
           'Return'). Keysyms are case-sensitive and kmscon will suggest a keysym
           name if you entered a wrong case. However, kmscon can not always guess
@@ -617,7 +617,7 @@
     <para>Switching VTs is done by signaling the active process to go asleep and
           signaling the new VT to wake up. If kmscon emulates VTs, it needs to
           be able to send these signals to the processes running on fake VTs. In
-          most situations this means kmscon must have root priviledges.</para>
+          most situations this means kmscon must have root privileges.</para>
   </refsect1>
 
   <refsect1>

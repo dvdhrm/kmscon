@@ -45,7 +45,7 @@
  * kmscon_font_ref()/kmscon_font_unref() are used for reference counting.
  * kmscon_font_render() renders a single unicode glyph and returns the glyph
  * buffer. kmscon_font_drop() frees this buffer again. A kmscon_glyph object
- * contains a memory-buffer with the renderered glyph plus some metrics like
+ * contains a memory-buffer with the rendered glyph plus some metrics like
  * height/width but also ascent/descent.
  *
  * Font-backends must take into account that this API must be thread-safe as it
@@ -237,7 +237,7 @@ static int new_font(struct kmscon_font *font,
  * @backend: Backend to use or NULL for default backend
  *
  * Lookup a font by the given attributes. It uses the font backend @backend. If
- * it is NULL, the default backend is used. If the given backend cannot find the
+ * it is NULL, the default backend is used. If the given backend cannot find
  * a suitable font, the fallback backend is tried. This backend should always
  * find a suitable font.
  *

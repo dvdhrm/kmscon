@@ -481,7 +481,7 @@ static int client_new(struct cdev_client **out, struct kmscon_cdev *cdev)
 	}
 
 	/* TODO: Share the terminal-handling with the terminal-session. We
-	 * currently just create the screen/vte obejcts here to get meaningful
+	 * currently just create the screen/vte objects here to get meaningful
 	 * parsers. However, we should also correctly handled the terminal as is
 	 * and draw it to the screen if in text-mode.
 	 * This is nearly identical to the terminal-session so we should share

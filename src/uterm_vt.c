@@ -151,7 +151,7 @@ static int vt_call_deactivate(struct uterm_vt *vt, bool force)
  * notification to the application via callbacks.
  *
  * Real VTs are only available on seat0 and should be avoided whenever possible
- * as they have a horrible API, have synchronization issues and are unflexible.
+ * as they have a horrible API, have synchronization issues and are inflexible.
  *
  * Also note that the VT API is asynchronous and requires acknowledgment of
  * applications when switching VTs. That means, when a VT-switch is started, the
@@ -162,7 +162,7 @@ static int vt_call_deactivate(struct uterm_vt *vt, bool force)
  * by the currently active VT.
  * Furthermore, there are some race-conditions during a switch. If resources
  * that are passed from one VT to another are acquired during this switch from a
- * 3rd party application, then they can highjack the VT-switch and make the new
+ * 3rd party application, then they can hijack the VT-switch and make the new
  * VT fail acquiring the resources.
  *
  * There are a lot more issues. For instance VTs are not cleaned up when closed
@@ -627,11 +627,11 @@ static void real_retry(struct uterm_vt *vt)
 /*
  * Fake VT:
  * For systems without CONFIG_VT or for all seats that have no real VTs (which
- * is all seats except seat0), we support a fake-VT mechanism. This machanism is
+ * is all seats except seat0), we support a fake-VT mechanism. This mechanism is
  * only used for debugging and should not be used in production.
  *
  * Fake-VTs react on a key-press and activate themselves if not active. If they
- * are already active, they deactivate themself. To switch from one fake-VT to
+ * are already active, they deactivate themselves. To switch from one fake-VT to
  * another, you first need to deactivate the current fake-VT and then activate
  * the new fake-VT. This also means that you must use different hotkeys for each
  * fake-VT.

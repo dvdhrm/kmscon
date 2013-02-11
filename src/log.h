@@ -165,7 +165,7 @@ void log_clean_filter();
  * file. If \file is NULL, then the default is used which is stderr.
  * Messages are appended to the file and no file-locks are used so you cannot
  * use a single file for multiple processes.
- * No log-file-roations or other backup/rotation functions are supported. Use a
+ * No log-file-rotations or other backup/rotation functions are supported. Use a
  * proper init system like systemd to do this.
  *
  * log_print_init(appname):

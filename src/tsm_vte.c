@@ -123,7 +123,7 @@ enum parser_action {
 #define FLAG_LINE_FEED_NEW_LINE_MODE		0x00000004 /* DEC line-feed/new-line mode */
 #define FLAG_8BIT_MODE				0x00000008 /* Disable UTF-8 mode and enable 8bit compatible mode */
 #define FLAG_7BIT_MODE				0x00000010 /* Disable 8bit mode and use 7bit compatible mode */
-#define FLAG_USE_C1				0x00000020 /* Explicitely use 8bit C1 codes; TODO: implement */
+#define FLAG_USE_C1				0x00000020 /* Explicitly use 8bit C1 codes; TODO: implement */
 #define FLAG_KEYBOARD_ACTION_MODE		0x00000040 /* Disable keyboard; TODO: implement? */
 #define FLAG_INSERT_REPLACE_MODE		0x00000080 /* Enable insert mode */
 #define FLAG_SEND_RECEIVE_MODE			0x00000100 /* Disable local echo */
@@ -1236,7 +1236,7 @@ static void csi_compat_mode(struct tsm_vte *vte)
 		/* Switching to VT100 compatibility mode. We do
 		 * not support this mode, so ignore it. In fact,
 		 * we are almost compatible to it, anyway, so
-		 * there is no need to explicitely select it.
+		 * there is no need to explicitly select it.
 		 * However, we enable 7bit mode to avoid
 		 * character-table problems */
 		vte->flags |= FLAG_7BIT_MODE;
@@ -1254,7 +1254,7 @@ static void csi_compat_mode(struct tsm_vte *vte)
 		 * VT3xx up to VT5xx use it as 8bit mode. We
 		 * choose to conform with the latter here.
 		 * We also enable 8bit mode when VT220
-		 * compatibility is requested explicitely. */
+		 * compatibility is requested explicitly. */
 		if (vte->csi_argv[1] == 1 ||
 		    vte->csi_argv[1] == 2)
 			vte->flags |= FLAG_USE_C1;
@@ -1330,13 +1330,13 @@ static void csi_mode(struct tsm_vte *vte, bool set)
 			continue;
 		case 3: /* DECCOLM */
 			/* If set, select 132 column mode, otherwise use 80
-			 * column mode. If neither is selected explicitely, we
+			 * column mode. If neither is selected explicitly, we
 			 * use dynamic mode, that is, we send SIGWCH when the
 			 * size changes and we allow arbitrary buffer
 			 * dimensions. On soft-reset, we automatically fall back
 			 * to the default, that is, dynamic mode.
 			 * Dynamic-mode can be forced to a static mode in the
-			 * config. That is, everytime dynamic-mode becomes
+			 * config. That is, every time dynamic-mode becomes
 			 * active, the terminal will be set to the dimensions
 			 * that were selected in the config. This allows setting
 			 * a fixed size for the terminal regardless of the
@@ -1828,7 +1828,7 @@ static const int exit_action[] = {
 	[STATE_NUM] = ACTION_NONE,
 };
 
-/* perform state transision and dispatch related actions */
+/* perform state transition and dispatch related actions */
 static void do_trans(struct tsm_vte *vte, uint32_t data, int state, int act)
 {
 	if (state != STATE_NONE) {
