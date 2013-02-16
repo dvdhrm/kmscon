@@ -113,7 +113,7 @@ static int test_prepare(struct conf_option *opts, size_t len,
 
 	log_print_init(argv[0]);
 
-	ret = ev_eloop_new(&eloop, log_llog);
+	ret = ev_eloop_new(&eloop, log_llog, NULL);
 	if (ret)
 		goto err_out;
 
