@@ -106,7 +106,7 @@ PKG_CHECK_MODULES([PANGO], [pango pangoft2],
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
-PKG_CHECK_MODULES([FUSE], [fuse],
+PKG_CHECK_MODULES([FUSE], [fuse >= 2.9.0],
                   [have_fuse=yes], [have_fuse=no])
 AC_SUBST(FUSE_CFLAGS)
 AC_SUBST(FUSE_LIBS)
