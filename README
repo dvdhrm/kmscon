@@ -23,8 +23,7 @@ console. See kmscon(1) man-page for usage information.
     For font handling the following is required:
       - 8x16: The 8x16 font is a static built-in font which does not require
               external dependencies.
-      - freetype2: The freetype2 font uses libfreetype2 and libfontconfig to
-                   provide a very basic font backend.
+      - unifont: Static font without external dependencies.
       - pango: drawing text with pango
                Pango requires: glib, pango, fontconfig, freetype2 and more
 
@@ -35,7 +34,7 @@ console. See kmscon(1) man-page for usage information.
 
   To compile the kmscon binary, run the standard autotools commands:
     $ ./autogen.sh (you need this only when building from git directly)
-    $ ./configure --prefix=/usr
+    $ ./configure
     $ make
     $ make install
   To compile the test applications, run:
@@ -43,7 +42,7 @@ console. See kmscon(1) man-page for usage information.
 
   If you want only a very basic kmscon program without any major dependencies,
   use:
-    $ ./configure --disable-debug --with-video=fbdev --disable-multi-seat --with-fonts=8x16 --with-sessions=dummy,terminal
+    $ ./configure --with-video=fbdev,drm2d --with-renderers= --with-fonts=unifont --disable-multi-seat --with-sessions=dummy,terminal
   However, you will loose a lot of functionality by dropping all dependencies.
 
   The following configure options are available. If build-time dependencies
@@ -61,33 +60,35 @@ console. See kmscon(1) man-page for usage information.
   options (all of them take a comma-separated list of backend names):
     --with-video: Video backens. Available backends are:
        - fbdev: Linux fbdev video backend
-       - dumb: Linux DRM dumb-buffer backend
-       - drm: Linux DRM backend
-       Default is: fbdev,dumb,drm
+       - drm2d: Linux DRM software-rendering backend
+       - drm3d: Linux DRM hardware-rendering backend
+       Default is: fbdev,drm2d,drm3d
     --with-fonts: Font renderers. Available backends are:
-       - 8x16: Static built-in non-scalable 8x16 font (ASCII only)
        - unifont: Static built-in non-scalable font (Unicode Unifont)
-                  Takes very long to compile
        - freetype2: Freetype2+fontconfig based scalable font renderer
        - pango: Pango based scalable font renderer
-       Default is: 8x16,freetype2,pango
+       Default is: unifont,pango
+       The 8x16 backend is always built-in.
     --with-renderers: Console rendering backends. Available are:
-       - bblit: Simply 2D blitting engine
-       - bbulk: Same as bblit but with bulk-requests
+       - bbulk: Simple 2D software-renderer (bulk-mode)
        - gltex: OpenGLESv2 accelerated renderer
        - cairo: cairo based renderer
+       - pixman: pixman based renderer
+       Default is: bbulk,gltex
+       The bblit backend is always built-in.
     --with-sessions: Built in sessions. Available sessions are:
        - dummy: Dummy fallback session
        - terminal: Terminal-emulator sessions
+       - cdev: Fake VTs via CUSE (DEPRECATED! Don't use it!)
 
   The following options select which applications are built. If
   dependency-checks fail, they are disabled by default unless explicitly enabled
   on the command line:
     --enable-kmscon: Build kmscon application [default: on]
-    --enable-wlterm: Build wlterm Wayland terminal [default: on]
-    --enable-eloop: Build eloop event loop library [default: on]
-    --enable-tsm: Build TSM terminal state-machine library [default: on]
-    --enable-uterm: Build uterm library [default: on]
+    --enable-wlterm: Build wlterm Wayland terminal [default: off]
+    --enable-eloop: Build eloop event loop library [default: off]
+    --enable-tsm: Build TSM terminal state-machine library [default: off]
+    --enable-uterm: Build uterm library [default: off]
 
 == Running ==
 
