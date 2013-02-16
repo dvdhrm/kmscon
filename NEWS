@@ -1,5 +1,64 @@
 = KMSCON Release News =
 
+CHANGES WITH 7:
+	* TSM, font and text subsystems have been extended to support
+	  multi-width fonts (via wcwidth(3)). This allows using CJK characters
+	  if your font provides the requested glyphs.
+
+	* COLORTERM is now set to "kmscon" to allow applications to detect
+	  whether they run in kmscon.
+
+	* /bin/login is now called with -p by default to reset the environment.
+	  This prevents kmscon from passing weird environment variables to the
+	  clients but still allows to start KMSCON with a customized
+	  environment.
+	  The new --reset-env variable controls this behavior (default: on).
+
+	* Add kmsconvt@.service systemd template. This replaces the
+	  kmscon@.service template and can now fully replace autovt@.service
+	  which is provided by systemd-logind.
+
+	* The DRM3D backend now uses gbm-surfaces and now longer depends on the
+	  custom EGL extensions. Everything is now handled inside of mesa so we
+	  are safe if the extensions are changed in the future.
+
+	* Modularize kmscon. Most of the dependencies can now be loaded during
+	  runtime and are no longer mandatory. This allows package-managers to
+	  provide the kmscon binary as default package and all the backends in a
+	  separate package to avoid huge dependencies.
+	  Please note that this modularization still needs to be applied to
+	  uterm so you shouldn't split the package yet, but instead wait for the
+	  next release.
+
+	* Freetype2 backend is now deprecated. Use the built-in 8x16 backend,
+	  the unifont backend or the fully-featured pango backend.
+
+	* bblit renderer is now built-in. You cannot deselect it, anymore.
+
+	* libuterm reads boot_vga values now via udev. libpciaccess is no longer
+	  needed and was removed entirely.
+
+	* uterm video backends are now split into different modules. They still
+	  need to be selected during compile-time, though. The next kmscon
+	  release will finish this uterm split.
+	  The dumb-video backend was renamed to drm2d. The drm-video backend was
+	  renamed to drm3d.
+
+	* libeloop now supports ONESHOT idle sources
+
+	* Experimental cairo+pixman renderers. These should not be used in any
+	  production systems! They are only provided for performance-testing and
+	  to show how cairo/pixman modules can be included.
+
+	* unifont font backend is now enabled by default. The build was heavily
+	  improved to avoid long compilation times.
+
+	* Symbol-versioning was added to all libraries. Library interfaces are
+	  still not considered stable so don't package them separately! Feel
+	  free to link them statically.
+
+	* Lots of bug-fixes!
+
 CHANGES WITH 6:
 	* Allow arbitrary paths with --vt (kmscon)
 
