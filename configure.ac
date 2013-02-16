@@ -305,10 +305,10 @@ enable_font_unifont="no"
 enable_font_freetype2="no"
 enable_font_pango="no"
 if test "x$with_fonts" = "x" ; then
-        enable_font_unifont="no (default)"
+        enable_font_unifont="yes (default)"
         enable_font_freetype2="no (default)"
         enable_font_pango="yes (default)"
-        with_fonts="freetype2,pango (default)"
+        with_fonts="unifont,pango (default)"
 else
         SAVEIFS="$IFS"
         IFS=","
