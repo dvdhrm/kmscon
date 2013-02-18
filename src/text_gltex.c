@@ -48,6 +48,7 @@
 #include "log.h"
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
+#include "shl_misc.h"
 #include "static_gl.h"
 #include "text.h"
 #include "uterm_video.h"
@@ -263,20 +264,6 @@ static void gltex_unset(struct kmscon_text *txt)
 	}
 }
 
-static unsigned int next_pow2(unsigned int num)
-{
-	int i;
-
-	if (!num)
-		return num;
-
-	--num;
-	for (i = 1; i < sizeof(unsigned int) * CHAR_BIT; i <<= 1)
-		num = num | num >> i;
-
-	return num + 1;
-}
-
 /* returns an atlas with at least 1 free glyph position; NULL on error */
 static struct atlas *get_atlas(struct kmscon_text *txt, unsigned int num)
 {
@@ -318,8 +305,8 @@ static struct atlas *get_atlas(struct kmscon_text *txt, unsigned int num)
 	 * valid texture size that is big enough to hold as many glyphs as
 	 * possible but at least 1 */
 try_next:
-	width = next_pow2(FONT_WIDTH(txt) * newsize);
-	height = next_pow2(FONT_HEIGHT(txt));
+	width = shl_next_pow2(FONT_WIDTH(txt) * newsize);
+	height = shl_next_pow2(FONT_HEIGHT(txt));
 
 	gl_clear_error();
 

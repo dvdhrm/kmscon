@@ -33,6 +33,7 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -108,6 +109,20 @@ static inline bool shl_ends_with(const char *str, const char *suffix)
 		return false;
 
 	return !memcmp(str + len - slen, suffix, slen);
+}
+
+static inline unsigned long shl_next_pow2(unsigned long num)
+{
+	unsigned int i;
+
+	if (!num)
+		return 0;
+
+	--num;
+	for (i = 1; i < sizeof(unsigned long) * CHAR_BIT; i <<= 1)
+		num = num | num >> i;
+
+	return num + 1;
 }
 
 /* This parses \arg and splits the string into a new allocated array. The array
