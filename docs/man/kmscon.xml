@@ -59,16 +59,6 @@
 
     <para>When run in listener mode, kmscon watches the system for new seats and
           automatically provides a system console on it.</para>
-
-    <para>Default configuration directory is <filename>/etc/kmscon/</filename>
-          and the main configuration file is called
-          <filename>/etc/kmscon/kmscon.conf</filename>. You can provide an
-          additional configuration file for each seat via
-          <filename>/etc/kmscon/{seatname}.kmscon.conf</filename>.
-          Any command-line option that can be passed to kmscon can also be put
-          into those configuration files. Command-line options overwrite
-          configuration file options. And per-seat configuration files overwrite
-          the global configuration file.</para>
   </refsect1>
 
   <refsect1>
@@ -522,6 +512,27 @@
         </listitem>
       </varlistentry>
     </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Configuration</title>
+    <para>Default configuration directory is <filename>/etc/kmscon/</filename>
+          and the main configuration file is called
+          <filename>/etc/kmscon/kmscon.conf</filename>. You can provide an
+          additional configuration file for each seat via
+          <filename>/etc/kmscon/{seatname}.kmscon.conf</filename>.
+          Any command-line option that can be passed to kmscon can also be put
+          into those configuration files.  For example:</para>
+
+    <programlisting>
+      font-name=Meslo LG M
+      font-size=14
+      login=/bin/bash -i
+    </programlisting>
+
+    <para>Command-line options overwrite
+          configuration file options. And per-seat configuration files overwrite
+          the global configuration file.</para>
   </refsect1>
 
   <refsect1>
