@@ -148,6 +148,16 @@ if test "x$enable_tsm" = "x" ; then
 fi
 AC_MSG_RESULT([$enable_tsm])
 
+# UVT
+AC_MSG_CHECKING([whether user wants UVT])
+AC_ARG_ENABLE([uvt],
+              [AS_HELP_STRING([--enable-uvt],
+                              [build uvt library])])
+if test "x$enable_uvt" = "x" ; then
+        enable_uvt="no (default)"
+fi
+AC_MSG_RESULT([$enable_uvt])
+
 # uterm
 AC_MSG_CHECKING([whether user wants uterm])
 AC_ARG_ENABLE([uterm],
@@ -429,6 +439,25 @@ if test ! "x$enable_tsm" = "xno" ; then
         fi
 else
         tsm_missing="enable-tsm"
+fi
+
+# UVT
+uvt_avail=no
+uvt_missing=""
+if test ! "x$enable_uvt" = "xno" ; then
+        uvt_avail=yes
+        if test "x$have_fuse" = "xno" ; then
+                uvt_avail=no
+                uvt_missing="fuse"
+        fi
+
+        if test "x$uvt_avail" = "xno" ; then
+                if test "x$enable_uvt" = "xyes" ; then
+                        AC_ERROR([missing for UVT: $uvt_missing])
+                fi
+        fi
+else
+        uvt_missing="enable-uvt"
 fi
 
 # video fbdev
@@ -924,6 +953,14 @@ if test "x$video_fbdev_avail" = "xyes" ; then
         fi
 fi
 
+# UVT
+uvt_enabled=no
+if test "x$uvt_avail" = "xyes" ; then
+        if test "x${enable_uvt% *}" = "xyes" ; then
+                uvt_enabled=yes
+        fi
+fi
+
 # tsm
 tsm_enabled=no
 if test "x$tsm_avail" = "xyes" ; then
@@ -997,6 +1034,10 @@ AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
 # TSM
 AM_CONDITIONAL([BUILD_ENABLE_TSM],
                [test "x$tsm_enabled" = "xyes"])
+
+# UVT
+AM_CONDITIONAL([BUILD_ENABLE_UVT],
+               [test "x$uvt_enabled" = "xyes"])
 
 # video fbdev
 if test "x$video_fbdev_enabled" = "xyes" ; then
@@ -1209,6 +1250,7 @@ fi
 AC_CONFIG_FILES([Makefile
                  docs/pc/libeloop.pc
                  docs/pc/libtsm.pc
+                 docs/pc/libuvt.pc
                  docs/pc/libuterm.pc])
 AC_OUTPUT
 
@@ -1230,6 +1272,7 @@ AC_MSG_NOTICE([Build configuration:
                wlterm: $wlterm_enabled ($wlterm_avail: $wlterm_missing)
                 uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
                   tsm: $tsm_enabled ($tsm_avail: $tsm_missing)
+                  uvt: $uvt_enabled ($uvt_avail: $uvt_missing)
                 eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
   Miscellaneous Options:
