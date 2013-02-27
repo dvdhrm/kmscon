@@ -38,7 +38,7 @@ AC_PROG_GREP
 AC_PROG_AWK
 
 LT_PREREQ(2.2)
-LT_INIT([disable-static])
+LT_INIT
 
 #
 # pkg-config dependencies
