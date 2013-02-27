@@ -242,16 +242,18 @@ AC_MSG_RESULT([$enable_eloop_dbus])
 AC_MSG_CHECKING([which video backends the user wants])
 AC_ARG_WITH([video],
             [AS_HELP_STRING([--with-video],
-              [specify list of optional video backends])])
+              [specify list of optional video backends])],
+            [],
+            [with_video="default"])
 enable_video_fbdev="no"
 enable_video_drm2d="no"
 enable_video_drm3d="no"
-if test "x$with_video" = "x" ; then
+if test "x$with_video" = "xdefault" ; then
         enable_video_fbdev="yes (default)"
         enable_video_drm2d="yes (default)"
         enable_video_drm3d="yes (default)"
         with_video="fbdev,drm2d,drm3d (default)"
-else
+elif test ! "x$with_video" = "x" ; then
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_video ; do
@@ -274,18 +276,20 @@ AC_MSG_RESULT([$with_video])
 AC_MSG_CHECKING([which render backends the user wants])
 AC_ARG_WITH([renderers],
             [AS_HELP_STRING([--with-renderers],
-              [specify list of optional render backends])])
+              [specify list of optional render backends])],
+            [],
+            [with_renderers="default"])
 enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
 enable_renderer_cairo="no"
 enable_renderer_pixman="no"
-if test "x$with_renderers" = "x" ; then
+if test "x$with_renderers" = "xdefault" ; then
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
         enable_renderer_cairo="no (default)"
         enable_renderer_pixman="no (default)"
         with_renderers="bbulk,gltex (default)"
-else
+elif test ! "x$with_renderers" = "x" ; then
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_renderers ; do
@@ -310,16 +314,18 @@ AC_MSG_RESULT([$with_renderers])
 AC_MSG_CHECKING([which font backends the user wants])
 AC_ARG_WITH([fonts],
             [AS_HELP_STRING([--with-fonts],
-              [specify list of optional font backends])])
+              [specify list of optional font backends])],
+            [],
+            [with_fonts="default"])
 enable_font_unifont="no"
 enable_font_freetype2="no"
 enable_font_pango="no"
-if test "x$with_fonts" = "x" ; then
+if test "x$with_fonts" = "xdefault" ; then
         enable_font_unifont="yes (default)"
         enable_font_freetype2="no (default)"
         enable_font_pango="yes (default)"
         with_fonts="unifont,pango (default)"
-else
+elif test ! "x$with_fonts" = "x" ; then
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_fonts ; do
@@ -342,16 +348,18 @@ AC_MSG_RESULT([$with_fonts])
 AC_MSG_CHECKING([which sessions the user wants])
 AC_ARG_WITH([sessions],
             [AS_HELP_STRING([--with-sessions],
-              [specify list of optional sessions])])
+              [specify list of optional sessions])],
+            [],
+            [with_sessions="default"])
 enable_session_dummy="no"
 enable_session_terminal="no"
 enable_session_cdev="no"
-if test "x$with_sessions" = "x" ; then
+if test "x$with_sessions" = "xdefault" ; then
         enable_session_dummy="yes (default)"
         enable_session_terminal="yes (default)"
         enable_session_cdev="yes (default)"
         with_sessions="dummy,terminal,cdev (default)"
-else
+elif test ! "x$with_sessions" = "x" ; then
         SAVEIFS="$IFS"
         IFS=","
         for i in $with_sessions ; do
