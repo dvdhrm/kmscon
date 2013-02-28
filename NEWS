@@ -57,6 +57,12 @@ CHANGES WITH 7:
 	  still not considered stable so don't package them separately! Feel
 	  free to link them statically.
 
+	* An experimental unfinished version of the UVT library has been added.
+	  Use it only for testing purposes. The next kmscon release will include
+	  documentation and more.
+	  UVT implements virtual terminals in user-space. It will soon replace
+	  the cdev-sessions in kmscon.
+
 	* Lots of bug-fixes!
 
 CHANGES WITH 6:

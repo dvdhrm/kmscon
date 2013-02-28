@@ -33,7 +33,7 @@ console. See kmscon(1) man-page for usage information.
 == Install ==
 
   To compile the kmscon binary, run the standard autotools commands:
-    $ ./autogen.sh (you need this only when building from git directly)
+    $ test -f ./configure || NOCONFIGURE=1 ./autogen.sh
     $ ./configure
     $ make
     $ make install
@@ -89,6 +89,7 @@ console. See kmscon(1) man-page for usage information.
     --enable-eloop: Build eloop event loop library [default: off]
     --enable-tsm: Build TSM terminal state-machine library [default: off]
     --enable-uterm: Build uterm library [default: off]
+    --enable-uvt: Build UVT library [default: off]
 
 == Running ==
 
