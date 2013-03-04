@@ -721,7 +721,8 @@ test_cflags = \
 	$(XKBCOMMON_CFLAGS)
 test_libs = \
 	$(XKBCOMMON_LIBS) \
-	libeloop.la
+	libeloop.la \
+	libshl.la
 
 test_output_SOURCES = \
 	$(test_sources) \

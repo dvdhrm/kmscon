@@ -39,7 +39,7 @@ static void print_help();
 #include <X11/keysym.h>
 #include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
-#include "log.h"
+#include "shl_log.h"
 #include "uterm_input.h"
 #include "uterm_monitor.h"
 #include "test_include.h"

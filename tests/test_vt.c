@@ -43,7 +43,7 @@ static void print_help();
 #include <string.h>
 #include <unistd.h>
 #include "eloop.h"
-#include "log.h"
+#include "shl_log.h"
 #include "uterm_input.h"
 #include "uterm_vt.h"
 #include "test_include.h"

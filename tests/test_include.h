@@ -31,7 +31,7 @@
 #include <sys/signalfd.h>
 #include "conf.h"
 #include "eloop.h"
-#include "log.h"
+#include "shl_log.h"
 
 #define TEST_HELP \
 	"\t-h, --help                  [off]   Print this help and exit\n" \
