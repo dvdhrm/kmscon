@@ -1,6 +1,6 @@
 #
 # Kmscon - Global Makefile
-# Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+# Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
 #
 
 #
@@ -30,7 +30,7 @@ LIBUTERM_AGE = 0
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AM_MAKEFLAGS = --no-print-directory
 AUTOMAKE_OPTIONS = color-tests
-AM_DISTCHECK_CONFIGURE_FLAGS = --enable-wlterm
+AM_DISTCHECK_CONFIGURE_FLAGS = --enable-wlterm --enable-uvtd
 
 SUBDIRS = .
 
@@ -686,6 +686,27 @@ wlterm_LDADD = \
 	libtsm.la \
 	libshl.la \
 	-lpthread
+
+#
+# uvtd
+#
+
+if BUILD_ENABLE_UVTD
+bin_PROGRAMS += uvtd
+endif
+
+uvtd_SOURCES = \
+	src/uvtd_main.c \
+	src/uvtd_seat.h \
+	src/uvtd_seat.c
+uvtd_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(XKBCOMMON_CFLAGS)
+uvtd_LDADD = \
+	$(XKBCOMMON_LIBS) \
+	libeloop.la \
+	libshl.la \
+	libuterm.la
 
 #
 # Tests

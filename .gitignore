@@ -40,6 +40,7 @@ docs/reference/kmscon.????*
 docs/reference/*.stamp
 docs/reference/version.xml
 docs/reference/*/
+uvtd
 wlterm
 docs/man/*.1
 docs/man/*.3
