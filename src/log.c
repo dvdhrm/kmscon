@@ -12,11 +12,13 @@
  */
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include "githead.h"
 #include "log.h"
 #include "shl_misc.h"
@@ -25,8 +27,6 @@
  * Locking
  * We need a global locking mechanism. Use pthread here.
  */
-
-#include <pthread.h>
 
 static pthread_mutex_t log__mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -45,8 +45,6 @@ static inline void log_unlock()
  * We print seconds and microseconds since application start for each
  * log-message.
  */
-
-#include <sys/time.h>
 
 static struct timeval log__ftime;
 
