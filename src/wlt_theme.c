@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-client.h>
-#include "log.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "wlt_main.h"
 #include "wlt_theme.h"

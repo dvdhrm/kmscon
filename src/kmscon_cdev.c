@@ -44,9 +44,9 @@
 #include <unistd.h>
 #include "kmscon_cdev.h"
 #include "kmscon_seat.h"
-#include "log.h"
 #include "shl_array.h"
 #include "shl_dlist.h"
+#include "shl_log.h"
 #include "shl_ring.h"
 #include "tsm_screen.h"
 #include "tsm_vte.h"

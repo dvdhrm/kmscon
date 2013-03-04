@@ -32,8 +32,8 @@
 #include <string.h>
 #include "kmscon_dummy.h"
 #include "kmscon_seat.h"
-#include "log.h"
 #include "shl_dlist.h"
+#include "shl_log.h"
 
 #define LOG_SUBSYSTEM "dummy"
 

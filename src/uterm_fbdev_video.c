@@ -36,7 +36,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include "log.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "uterm_fbdev_internal.h"
 #include "uterm_video.h"

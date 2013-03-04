@@ -37,10 +37,10 @@
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 #include "eloop.h"
-#include "log.h"
 #include "shl_array.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "tsm_vte.h"
 #include "wlt_main.h"

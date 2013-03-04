@@ -36,7 +36,7 @@
 #include <string.h>
 #include <systemd/sd-daemon.h>
 #include <systemd/sd-login.h>
-#include "log.h"
+#include "shl_log.h"
 #include "uterm_monitor.h"
 #include "uterm_systemd_internal.h"
 

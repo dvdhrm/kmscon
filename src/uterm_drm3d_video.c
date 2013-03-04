@@ -45,7 +45,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "eloop.h"
-#include "log.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "static_gl.h"
 #include "uterm_drm_shared_internal.h"

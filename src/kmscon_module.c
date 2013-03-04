@@ -33,8 +33,8 @@
 #include "githead.h"
 #include "kmscon_module.h"
 #include "kmscon_module_interface.h"
-#include "log.h"
 #include "shl_dlist.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 
 #define LOG_SUBSYSTEM "module"

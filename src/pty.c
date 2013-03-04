@@ -37,8 +37,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include "eloop.h"
-#include "log.h"
 #include "pty.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "shl_ring.h"
 

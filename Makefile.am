@@ -163,6 +163,8 @@ libshl_la_SOURCES = \
 	src/shl_ring.h \
 	src/shl_timer.h \
 	src/shl_llog.h \
+	src/shl_log.h \
+	src/shl_log.c \
 	src/shl_hook.h \
 	src/shl_misc.h \
 	src/shl_register.h
@@ -601,8 +603,6 @@ kmscon_SOURCES = \
 	src/githead.h \
 	src/conf.h \
 	src/conf.c \
-	src/log.h \
-	src/log.c \
 	src/pty.h \
 	src/pty.c \
 	src/font.h \
@@ -670,8 +670,6 @@ wlterm_SOURCES = \
 	src/wlt_theme.c \
 	src/wlt_terminal.h \
 	src/wlt_terminal.c \
-	src/log.h \
-	src/log.c \
 	src/conf.h \
 	src/conf.c \
 	src/pty.h \
@@ -699,8 +697,6 @@ wlterm_LDADD = \
 #
 
 test_sources = \
-	src/log.h \
-	src/log.c \
 	src/conf.h \
 	src/conf.c \
 	tests/test_include.h

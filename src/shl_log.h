@@ -22,8 +22,8 @@
  * debug-messages for this file.
  */
 
-#ifndef LOG_H_INCLUDED
-#define LOG_H_INCLUDED
+#ifndef SHL_LOG_H_INCLUDED
+#define SHL_LOG_H_INCLUDED
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -295,4 +295,4 @@ extern const char *LOG_SUBSYSTEM;
 #define log_err log_error
 #define log_crit log_critical
 
-#endif /* LOG_H_INCLUDED */
+#endif /* SHL_LOG_H_INCLUDED */

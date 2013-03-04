@@ -32,8 +32,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
-#include "log.h"
 #include "shl_hook.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "uterm_input.h"
 #include "uterm_input_internal.h"

@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
-#include "log.h"
+#include "shl_log.h"
 #include "shl_timer.h"
 #include "uterm_drm_shared_internal.h"
 #include "uterm_video.h"

@@ -34,7 +34,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "conf.h"
 #include "kmscon_conf.h"
-#include "log.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "uterm_video.h"
 

@@ -36,7 +36,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "log.h"
+#include "shl_log.h"
 #include "text.h"
 #include "uterm_video.h"
 

@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include "font.h"
 #include "kmscon_module_interface.h"
-#include "log.h"
+#include "shl_log.h"
 
 #define LOG_SUBSYSTEM "mod_unifont"
 

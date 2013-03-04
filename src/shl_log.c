@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "githead.h"
-#include "log.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 
 /*

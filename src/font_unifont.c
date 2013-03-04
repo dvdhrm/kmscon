@@ -43,8 +43,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "font.h"
-#include "log.h"
 #include "shl_hashtable.h"
+#include "shl_log.h"
 #include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "font_unifont"

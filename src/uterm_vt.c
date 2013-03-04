@@ -45,8 +45,8 @@
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 #include "eloop.h"
-#include "log.h"
 #include "shl_dlist.h"
+#include "shl_log.h"
 #include "shl_misc.h"
 #include "uterm_input.h"
 #include "uterm_vt.h"
