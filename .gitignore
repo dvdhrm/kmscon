@@ -16,7 +16,7 @@ config.h.in~
 config.log
 config.status
 configure
-*.tar.bz2
+*.tar.xz
 libtool
 libeloop.pc
 libtsm.pc
