@@ -452,6 +452,7 @@ mod_unifont_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
 	-module \
 	-avoid-version \
+	-Wl,-z,noexecstack \
 	-Wl,--format=binary -Wl,$(UNIFONT_BIN) -Wl,--format=default
 
 if BUILD_ENABLE_FONT_FREETYPE2
