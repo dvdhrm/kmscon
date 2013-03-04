@@ -16,7 +16,7 @@ AC_SYS_LARGEFILE
 AC_PREFIX_DEFAULT([/usr])
 AC_CANONICAL_HOST
 
-AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-bzip2 no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
+AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-xz no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
 AM_SILENT_RULES([yes])
 
 #
