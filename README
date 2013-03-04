@@ -4,6 +4,9 @@ Kmscon is a simple terminal emulator based on linux kernel mode setting (KMS).
 It is an attempt to replace the in-kernel VT implementation with a userspace
 console. See kmscon(1) man-page for usage information.
 
+Website:
+  http://www.freedesktop.org/wiki/Software/kmscon
+
 == Requirements ==
 
   Kmscon requires the following software:
@@ -29,6 +32,11 @@ console. See kmscon(1) man-page for usage information.
 
     For multi-seat support you need the following packages:
       - systemd: Actually only the systemd-logind daemon and library is required.
+
+== Download ==
+
+Released tarballs can be found at:
+  http://people.freedesktop.org/~dvdhrm/kmscon/releases
 
 == Install ==
 
@@ -109,10 +117,10 @@ console. See kmscon(1) man-page for usage information.
 
 == FAQ ==
 
-  Please see http://github.com/dvdhrm/kmscon/wiki
+  Please see: http://www.freedesktop.org/wiki/Software/kmscon
 
 == Contact ==
 
   This software is maintained by:
-    David Herrmann <dh.herrmann@googlemail.com>
+    David Herrmann <dh.herrmann@gmail.com>
   If you have any questions, do not hesitate to contact one of the maintainers.
