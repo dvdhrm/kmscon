@@ -128,12 +128,24 @@ AC_SUBST(PIXMAN_LIBS)
 # similar but does only parse the arguments.
 #
 
+# all
+AC_MSG_CHECKING([whether user wants all])
+AC_ARG_ENABLE([all],
+              [AS_HELP_STRING([--enable-all],
+                              [enable all options (used for debugging)])])
+if test "x$enable_all" = "x" ; then
+        enable_all="no"
+fi
+AC_MSG_RESULT([$enable_all])
+
 # eloop
 AC_MSG_CHECKING([whether user wants eloop])
 AC_ARG_ENABLE([eloop],
               [AS_HELP_STRING([--enable-eloop],
                               [build eloop library])])
-if test "x$enable_eloop" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_eloop="yes"
+elif test "x$enable_eloop" = "x" ; then
         enable_eloop="no (default)"
 fi
 AC_MSG_RESULT([$enable_eloop])
@@ -143,7 +155,9 @@ AC_MSG_CHECKING([whether user wants TSM])
 AC_ARG_ENABLE([tsm],
               [AS_HELP_STRING([--enable-tsm],
                               [build tsm library])])
-if test "x$enable_tsm" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_tsm="yes"
+elif test "x$enable_tsm" = "x" ; then
         enable_tsm="no (default)"
 fi
 AC_MSG_RESULT([$enable_tsm])
@@ -153,7 +167,9 @@ AC_MSG_CHECKING([whether user wants UVT])
 AC_ARG_ENABLE([uvt],
               [AS_HELP_STRING([--enable-uvt],
                               [build uvt library])])
-if test "x$enable_uvt" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_uvt="yes"
+elif test "x$enable_uvt" = "x" ; then
         enable_uvt="no (default)"
 fi
 AC_MSG_RESULT([$enable_uvt])
@@ -163,7 +179,9 @@ AC_MSG_CHECKING([whether user wants uterm])
 AC_ARG_ENABLE([uterm],
               [AS_HELP_STRING([--enable-uterm],
                               [build uterm library])])
-if test "x$enable_uterm" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_uterm="yes"
+elif test "x$enable_uterm" = "x" ; then
         enable_uterm="no (default)"
 fi
 AC_MSG_RESULT([$enable_uterm])
@@ -173,7 +191,9 @@ AC_MSG_CHECKING([whether user wants kmscon])
 AC_ARG_ENABLE([kmscon],
               [AS_HELP_STRING([--disable-kmscon],
                               [do not build kmscon])])
-if test "x$enable_kmscon" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_kmscon="yes"
+elif test "x$enable_kmscon" = "x" ; then
         enable_kmscon="yes (default)"
 fi
 AC_MSG_RESULT([$enable_kmscon])
@@ -183,7 +203,9 @@ AC_MSG_CHECKING([whether user wants wlterm])
 AC_ARG_ENABLE([wlterm],
               [AS_HELP_STRING([--enable-wlterm],
                               [build wlterm])])
-if test "x$enable_wlterm" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_wlterm="yes"
+elif test "x$enable_wlterm" = "x" ; then
         enable_wlterm="no (default)"
 fi
 AC_MSG_RESULT([$enable_wlterm])
@@ -193,7 +215,9 @@ AC_MSG_CHECKING([whether user wants uvtd])
 AC_ARG_ENABLE([uvtd],
               [AS_HELP_STRING([--enable-uvtd],
                               [build uvtd])])
-if test "x$enable_uvtd" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_uvtd="yes"
+elif test "x$enable_uvtd" = "x" ; then
         enable_uvtd="no (default)"
 fi
 AC_MSG_RESULT([$enable_uvtd])
@@ -203,7 +227,9 @@ AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug],
                               [whether to build with debugging on])])
-if test "x$enable_debug" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_debug="yes"
+elif test "x$enable_debug" = "x" ; then
         enable_debug="yes (default)"
 fi
 AC_MSG_RESULT([$enable_debug])
@@ -213,7 +239,9 @@ AC_MSG_CHECKING([whether to disable code optimizations])
 AC_ARG_ENABLE([optimizations],
               [AS_HELP_STRING([--disable-optimizations],
                               [whether to disable code optimizations])])
-if test "x$enable_optimizations" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_optimizations="yes"
+elif test "x$enable_optimizations" = "x" ; then
         enable_optimizations="yes (default)"
 fi
 AC_MSG_RESULT([$enable_optimizations])
@@ -223,7 +251,9 @@ AC_MSG_CHECKING([whether user wants systemd for multi-seat support])
 AC_ARG_ENABLE([multi-seat],
               [AS_HELP_STRING([--enable-multi-seat],
                               [enable multi-seat support with systemd])])
-if test "x$enable_multi_seat" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_multi_seat="yes"
+elif test "x$enable_multi_seat" = "x" ; then
         enable_multi_seat="yes (default)"
 fi
 AC_MSG_RESULT([$enable_multi_seat])
@@ -233,7 +263,9 @@ AC_MSG_CHECKING([whether user wants udev for device hotplug support])
 AC_ARG_ENABLE([hotplug],
               [AS_HELP_STRING([--enable-hotplug],
                               [enable device hotplug support with udev])])
-if test "x$enable_hotplug" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_hotplug="yes"
+elif test "x$enable_hotplug" = "x" ; then
         enable_hotplug="yes (default)"
 fi
 AC_MSG_RESULT([$enable_hotplug])
@@ -243,7 +275,9 @@ AC_MSG_CHECKING([whether user wants eloop dbus support])
 AC_ARG_ENABLE([eloop-dbus],
               [AS_HELP_STRING([--enable-eloop-dbus],
                               [enable eloop dbus support])])
-if test "x$enable_eloop_dbus" = "x" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_eloop_dbus="yes"
+elif test "x$enable_eloop_dbus" = "x" ; then
         enable_eloop_dbus="no (default)"
 fi
 AC_MSG_RESULT([$enable_eloop_dbus])
@@ -258,7 +292,12 @@ AC_ARG_WITH([video],
 enable_video_fbdev="no"
 enable_video_drm2d="no"
 enable_video_drm3d="no"
-if test "x$with_video" = "xdefault" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_video_fbdev="yes"
+        enable_video_drm2d="yes"
+        enable_video_drm3d="yes"
+        with_video="fbdev,drm2d,drm3d (all)"
+elif test "x$with_video" = "xdefault" ; then
         enable_video_fbdev="yes (default)"
         enable_video_drm2d="yes (default)"
         enable_video_drm3d="yes (default)"
@@ -293,7 +332,13 @@ enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
 enable_renderer_cairo="no"
 enable_renderer_pixman="no"
-if test "x$with_renderers" = "xdefault" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_renderer_bbulk="yes"
+        enable_renderer_gltex="yes"
+        enable_renderer_cairo="yes"
+        enable_renderer_pixman="yes"
+        with_renderers="bbulk,gltex,cairo,pixman (all)"
+elif test "x$with_renderers" = "xdefault" ; then
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
         enable_renderer_cairo="no (default)"
@@ -330,7 +375,12 @@ AC_ARG_WITH([fonts],
 enable_font_unifont="no"
 enable_font_freetype2="no"
 enable_font_pango="no"
-if test "x$with_fonts" = "xdefault" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_font_unifont="yes"
+        enable_font_freetype2="yes"
+        enable_font_pango="yes"
+        with_fonts="unifont,freetype2,pango (all)"
+elif test "x$with_fonts" = "xdefault" ; then
         enable_font_unifont="yes (default)"
         enable_font_freetype2="no (default)"
         enable_font_pango="yes (default)"
@@ -364,7 +414,12 @@ AC_ARG_WITH([sessions],
 enable_session_dummy="no"
 enable_session_terminal="no"
 enable_session_cdev="no"
-if test "x$with_sessions" = "xdefault" ; then
+if test "x$enable_all" = "xyes" ; then
+        enable_session_dummy="yes"
+        enable_session_terminal="yes"
+        enable_session_cdev="yes"
+        with_sessions="dummy,terminal,cdev (all)"
+elif test "x$with_sessions" = "xdefault" ; then
         enable_session_dummy="yes (default)"
         enable_session_terminal="yes (default)"
         enable_session_cdev="yes (default)"
