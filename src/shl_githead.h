@@ -1,7 +1,7 @@
 /*
- * kmscon - Module Interface
+ * shl - GIT-HEAD
  *
- * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@googlemail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -23,54 +23,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * Public Module Interface
- */
+#ifndef SHL_GITHEAD_H
+#define SHL_GITHEAD_H
 
-#ifndef KMSCON_MODULE_INTERFACE_H
-#define KMSCON_MODULE_INTERFACE_H
+extern const char shl_git_head[];
 
-#include <stdbool.h>
-#include <stdlib.h>
-#include "kmscon_module.h"
-#include "shl_dlist.h"
-#include "shl_githead.h"
-#include "shl_misc.h"
-
-struct kmscon_module_info {
-	const char *githead;
-	const char *date;
-	const char *time;
-	int (*init) (void);
-	int (*load) (void);
-	void (*unload) (void);
-	void (*exit) (void);
-};
-
-struct kmscon_module {
-	struct kmscon_module_info info;
-	struct shl_dlist list;
-	unsigned long ref;
-	bool loaded;
-	void *handle;
-	char *file;
-};
-
-#define KMSCON_MODULE(_init, _load, _unload, _exit) \
-	struct kmscon_module module = { \
-		.info = { \
-			.githead = shl_git_head, \
-			.date = __DATE__, \
-			.time = __TIME__, \
-			.init = _init, \
-			.load = _load, \
-			.unload = _unload, \
-			.exit = _exit, \
-		}, \
-	};
-
-SHL_EXPORT
-extern struct kmscon_module module;
-#define KMSCON_THIS_MODULE (&module)
-
-#endif /* KMSCON_MODULE_INTERFACE_H */
+#endif /* SHL_GITHEAD_H */

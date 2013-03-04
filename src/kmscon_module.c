@@ -30,10 +30,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include "githead.h"
 #include "kmscon_module.h"
 #include "kmscon_module_interface.h"
 #include "shl_dlist.h"
+#include "shl_githead.h"
 #include "shl_log.h"
 #include "shl_misc.h"
 
@@ -66,9 +66,9 @@ int kmscon_module_open(struct kmscon_module **out, const char *file)
 		goto err_unload;
 	}
 
-	if (strcmp(module->info.githead, BUILD_GIT_HEAD)) {
+	if (strcmp(module->info.githead, shl_git_head)) {
 		log_error("incompatible module %s (%s != %s)",
-			  file, module->info.githead, BUILD_GIT_HEAD);
+			  file, module->info.githead, shl_git_head);
 		ret = -EFAULT;
 		goto err_unload;
 	}

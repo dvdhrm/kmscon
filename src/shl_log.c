@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include "githead.h"
+#include "shl_githead.h"
 #include "shl_log.h"
 #include "shl_misc.h"
 
@@ -505,5 +505,5 @@ void log_print_init(const char *appname)
 		appname = "<unknown>";
 	log_format(LOG_DEFAULT_CONF, NULL, LOG_NOTICE,
 		   "%s Revision %s %s %s", appname,
-		   BUILD_GIT_HEAD, __DATE__, __TIME__);
+		   shl_git_head, __DATE__, __TIME__);
 }

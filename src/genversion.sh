@@ -2,7 +2,7 @@
 
 #
 # Generate $1 with:
-#   #define BUILD_GIT_HEAD "<git-head-revision>"
+#   const char shl_git_head[] = "<git-head-revision>";
 # But do not touch $1 if the git-revision is already up-to-date.
 #
 
@@ -31,7 +31,7 @@ if test -f "$1" ; then
 else
 	if test $ISGIT = 0 ; then
 		echo "WARNING: version file $1 is missing"
-		echo "#define BUILD_GIT_HEAD \"unknown-revision\""
+		echo "const char shl_git_head[] = \"UnknownRevision\";" >"$1"
 		exit 0
 	fi
 
@@ -48,7 +48,7 @@ if test $ISGIT = 0 ; then
 fi
 
 NEWREV=`git describe`
-NEWREV="#define BUILD_GIT_HEAD \"$NEWREV\""
+NEWREV="const char shl_git_head[] = \"$NEWREV\";"
 
 #
 # Exit if the file is already up to date.

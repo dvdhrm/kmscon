@@ -112,12 +112,13 @@ endif
 
 #
 # GIT-HEAD helper
-# The file ./src/githead.h contains a constant BUILD_GIT_HEAD which is defined
-# to the string returned by "git describe". We need to adjust this string for
-# every build and correctly rebuild any sources that depend on it. Therefore,
-# you should use this file rarely as it causes rebuilds on every git-commit.
+# The file ./src/shl_githead.c contains a constant "shl_git_head" which is
+# defined to the string returned by "git describe". We need to adjust this
+# string for every build and correctly rebuild any sources that depend on it.
+# Therefore, you should use this file rarely as it causes rebuilds on every
+# git-commit.
 #
-# We have a helper-script ./src/genversion.sh that takes as argument the header
+# We have a helper-script ./src/genversion.sh that takes as argument the source
 # file and creates it if necessary. It updates it only if the new git-describe
 # string is different to the old one. So the file is only modified on changes.
 # Hence, we can use it as normal dependency in this Makefile.
@@ -126,17 +127,17 @@ endif
 # "simply expanded" variable (:=) so the shell command is executed on
 # variable-declaration and not during expansion.
 #
-# Note that we must not clean ./src/githead.h ever! If we would, a distribution
-# tarball might delete that file and have no way to recreate it.
+# Note that we must not clean ./src/shl_githead.c ever! If we would, a
+# distribution tarball might delete that file and have no way to recreate it.
 # We could delete it on something like "make maintainerclean", but then again,
 # it seems unnecessary so lets simply not clean it at all.
 #
 # If the helper-script is executed in a directory that is not a git-repository
-# (like a distribution tarball) and githead.h exists, then it does nothing as it
-# expects githead.h to be correctly written by "make dist".
-# However, if githead.h does not exist, it will print a warning and write
-# "<unknown>" as git-revision.
-# This guarantees, that githead.h is always present and has the most correct
+# (like a distribution tarball) and shl_githead.c exists, then it does nothing
+# as it expects shl_githead.c to be correctly written by "make dist".
+# However, if shl_githead.c does not exist, it will print a warning and write
+# an unknown random git-revision.
+# This guarantees, that shl_githead.c is always present and has the most correct
 # value that we can get under any conditions.
 #
 # The $(emptyvariable) expansion below is used for broken $(shell ...)
@@ -144,7 +145,7 @@ endif
 #
 
 EXTRA_DIST += src/genversion.sh
-GITHEAD:=$(shell $(emptyvariable)"$(srcdir)/src/genversion.sh" "$(srcdir)/src/githead.h")
+GITHEAD:=$(shell $(emptyvariable)"$(srcdir)/src/genversion.sh" "$(srcdir)/src/shl_githead.c")
 
 #
 # SHL - Static Helper Library
@@ -155,6 +156,8 @@ GITHEAD:=$(shell $(emptyvariable)"$(srcdir)/src/genversion.sh" "$(srcdir)/src/gi
 noinst_LTLIBRARIES += libshl.la
 
 libshl_la_SOURCES = \
+	src/shl_githead.h \
+	src/shl_githead.c \
 	src/shl_dlist.h \
 	src/shl_array.h \
 	src/shl_hashtable.h \
@@ -445,7 +448,6 @@ endif
 
 mod_unifont_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/font_unifont.c \
 	src/kmscon_mod_unifont.c
 EXTRA_mod_unifont_la_DEPENDENCIES = $(UNIFONT_BIN)
@@ -463,7 +465,6 @@ endif
 
 mod_freetype2_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/font_freetype2.c \
 	src/kmscon_mod_freetype2.c
 mod_freetype2_la_CPPFLAGS = \
@@ -485,7 +486,6 @@ endif
 
 mod_pango_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/font_pango.c \
 	src/kmscon_mod_pango.c
 mod_pango_la_CPPFLAGS = \
@@ -507,7 +507,6 @@ endif
 
 mod_bbulk_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/text_bbulk.c \
 	src/kmscon_mod_bbulk.c
 mod_bbulk_la_LIBADD = libshl.la
@@ -523,7 +522,6 @@ endif
 
 mod_gltex_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/text_gltex.c \
 	src/static_gl.h \
 	src/static_gl_math.c \
@@ -548,7 +546,6 @@ endif
 
 mod_cairo_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/text_cairo.c \
 	src/kmscon_mod_cairo.c
 mod_cairo_la_CPPFLAGS = \
@@ -568,7 +565,6 @@ endif
 
 mod_pixman_la_SOURCES = \
 	src/kmscon_module_interface.h \
-	src/githead.h \
 	src/text_pixman.c \
 	src/kmscon_mod_pixman.c
 mod_pixman_la_CPPFLAGS = \
@@ -600,7 +596,6 @@ MANPAGES += docs/man/kmscon.1
 endif
 
 kmscon_SOURCES = \
-	src/githead.h \
 	src/conf.h \
 	src/conf.c \
 	src/pty.h \
