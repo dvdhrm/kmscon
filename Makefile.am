@@ -700,6 +700,8 @@ uvtd_SOURCES = \
 	src/uvtd_main.c \
 	src/uvtd_ctx.h \
 	src/uvtd_ctx.c \
+	src/uvtd_vt.h \
+	src/uvtd_vt.c \
 	src/uvtd_seat.h \
 	src/uvtd_seat.c
 uvtd_CPPFLAGS = \
