@@ -405,10 +405,10 @@ void uvt_client_kill(struct uvt_client *client)
 		client->ph = NULL;
 	}
 
-	uvt_client_set_vt(client, NULL, NULL);
-	uvt_client_waiters_release(client, -EPIPE);
 	shl_dlist_unlink(&client->list);
 	client->cdev = NULL;
+	uvt_client_set_vt(client, NULL, NULL);
+	uvt_client_waiters_release(client, -EPIPE);
 }
 
 /*
