@@ -313,8 +313,8 @@ static int uvt_cdev_init(struct uvt_cdev *cdev, const char *name,
 		return -EINVAL;
 	}
 
-	llog_info(cdev, "creating device /dev/%s on cdev %p",
-		  name, cdev);
+	llog_info(cdev, "creating device /dev/%s %u:%u on cdev %p",
+		  name, major, minor, cdev);
 
 	ret = asprintf(&nparam, "DEVNAME=%s", name);
 	if (ret <= 0)
