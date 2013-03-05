@@ -320,7 +320,7 @@ static int uvt_cdev_init(struct uvt_cdev *cdev, const char *name,
 	if (ret <= 0)
 		return llog_ENOMEM(cdev);
 
-	dev_info_argv[0] = name;
+	dev_info_argv[0] = nparam;
 	memset(&ci, 0, sizeof(ci));
 	ci.dev_major = major;
 	ci.dev_minor = minor;
