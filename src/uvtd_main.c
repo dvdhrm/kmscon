@@ -35,24 +35,23 @@
 #include "shl_log.h"
 #include "uterm_input.h"
 #include "uterm_monitor.h"
-#include "uvtd_seat.h"
+#include "uvt.h"
+#include "uvtd_ctx.h"
 
 struct app_seat {
 	struct shl_dlist list;
 	struct uvtd_app *app;
 	struct uterm_monitor_seat *useat;
-	struct uvtd_seat *seat;
+	struct uvtd_ctx *ctx;
 };
 
 struct uvtd_app {
 	struct ev_eloop *eloop;
 	struct uterm_monitor *mon;
+	struct uvt_ctx *ctx;
+	struct ev_fd *ctx_fd;
 	struct shl_dlist seats;
 };
-
-static void app_seat_event(struct uvtd_seat *seat, unsigned int ev, void *data)
-{
-}
 
 static int app_seat_new(struct uvtd_app *app, const char *sname,
 			struct uterm_monitor_seat *useat)
@@ -70,10 +69,13 @@ static int app_seat_new(struct uvtd_app *app, const char *sname,
 	seat->app = app;
 	seat->useat = useat;
 
-	ret = uvtd_seat_new(&seat->seat, sname, app->eloop, app_seat_event,
-			    seat);
-	if (ret)
+	ret = uvtd_ctx_new(&seat->ctx, sname, app->eloop, app->ctx);
+	if (ret == -EEXIST) {
+		log_debug("ignoring seat %s as it has real VTs", sname);
 		goto err_free;
+	} else if (ret) {
+		goto err_free;
+	}
 
 	uterm_monitor_set_seat_data(seat->useat, seat);
 	shl_dlist_link(&app->seats, &seat->list);
@@ -90,7 +92,7 @@ static void app_seat_free(struct app_seat *seat)
 
 	shl_dlist_unlink(&seat->list);
 	uterm_monitor_set_seat_data(seat->useat, NULL);
-	uvtd_seat_free(seat->seat);
+	uvtd_ctx_free(seat->ctx);
 	free(seat);
 }
 
@@ -155,8 +157,23 @@ static void app_sig_ignore(struct ev_eloop *eloop,
 {
 }
 
+static void app_ctx_event(struct ev_fd *fd, int mask, void *data)
+{
+	struct uvtd_app *app = data;
+
+	uvt_ctx_dispatch(app->ctx);
+
+	if (!(mask & EV_READABLE) && mask & (EV_HUP | EV_ERR)) {
+		log_error("HUP on UVT ctx fd");
+		ev_eloop_rm_fd(fd);
+		app->ctx_fd = NULL;
+	}
+}
+
 static void destroy_app(struct uvtd_app *app)
 {
+	ev_eloop_rm_fd(app->ctx_fd);
+	uvt_ctx_unref(app->ctx);
 	uterm_monitor_unref(app->mon);
 	ev_eloop_unregister_signal_cb(app->eloop, SIGPIPE, app_sig_ignore,
 				      app);
@@ -169,7 +186,7 @@ static void destroy_app(struct uvtd_app *app)
 
 static int setup_app(struct uvtd_app *app)
 {
-	int ret;
+	int ret, fd;
 
 	shl_dlist_init(&app->seats);
 
@@ -204,6 +221,22 @@ static int setup_app(struct uvtd_app *app)
 	if (ret) {
 		log_error("cannot create device monitor: %d", ret);
 		goto err_app;
+	}
+
+	ret = uvt_ctx_new(&app->ctx, log_llog, NULL);
+	if (ret) {
+		log_error("cannot create UVT context: %d", ret);
+		goto err_app;
+	}
+
+	fd = uvt_ctx_get_fd(app->ctx);
+	if (fd >= 0) {
+		ret = ev_eloop_new_fd(app->eloop, &app->ctx_fd, fd,
+				      EV_READABLE, app_ctx_event, app);
+		if (ret) {
+			log_error("cannot create UVT ctx efd: %d", ret);
+			goto err_app;
+		}
 	}
 
 	log_debug("scanning for devices...");

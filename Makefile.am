@@ -698,6 +698,8 @@ endif
 
 uvtd_SOURCES = \
 	src/uvtd_main.c \
+	src/uvtd_ctx.h \
+	src/uvtd_ctx.c \
 	src/uvtd_seat.h \
 	src/uvtd_seat.c
 uvtd_CPPFLAGS = \
@@ -707,7 +709,8 @@ uvtd_LDADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libshl.la \
-	libuterm.la
+	libuterm.la \
+	libuvt.la
 
 #
 # Tests
