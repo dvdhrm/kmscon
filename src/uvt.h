@@ -33,6 +33,7 @@
 #ifndef UVT_H
 #define UVT_H
 
+#include <inttypes.h>
 #include <linux/kd.h>
 #include <linux/vt.h>
 #include <stdbool.h>
