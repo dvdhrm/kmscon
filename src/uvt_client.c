@@ -49,6 +49,7 @@
 #include <unistd.h>
 #include "shl_dlist.h"
 #include "shl_llog.h"
+#include "shl_misc.h"
 #include "uvt.h"
 #include "uvt_internal.h"
 
@@ -326,6 +327,7 @@ static int uvt_client_new(struct uvt_client **out, struct uvt_cdev *cdev)
 	return 0;
 }
 
+SHL_EXPORT
 void uvt_client_ref(struct uvt_client *client)
 {
 	if (!client || !client->ref)
@@ -334,6 +336,7 @@ void uvt_client_ref(struct uvt_client *client)
 	++client->ref;
 }
 
+SHL_EXPORT
 void uvt_client_unref(struct uvt_client *client)
 {
 	if (!client || !client->ref || --client->ref)
@@ -387,11 +390,13 @@ static void uvt_client_waiters_release(struct uvt_client *client, int error)
 	}
 }
 
+SHL_EXPORT
 bool uvt_client_is_dead(struct uvt_client *client)
 {
 	return !client || !client->cdev;
 }
 
+SHL_EXPORT
 void uvt_client_kill(struct uvt_client *client)
 {
 	if (!client || !client->cdev)
@@ -545,6 +550,7 @@ static void uvt_client_vt_event(void *vt, struct uvt_vt_event *ev, void *data)
 	uvt_client_waiters_retry(client, client->vt_retry);
 }
 
+SHL_EXPORT
 int uvt_client_set_vt(struct uvt_client *client, const struct uvt_vt_ops *vt,
 		      void *vt_data)
 {

@@ -39,6 +39,12 @@ global:
 	uvt_cdev_unref;
 	uvt_cdev_register_cb;
 	uvt_cdev_unregister_cb;
+
+	uvt_client_ref;
+	uvt_client_unref;
+	uvt_client_set_vt;
+	uvt_client_kill;
+	uvt_client_is_dead;
 local:
 	*;
 };
