@@ -45,6 +45,7 @@
 #define SHL_EXPORT __attribute__((visibility("default")))
 #define SHL_HAS_BITS(_bitmask, _bits) (((_bitmask) & (_bits)) == (_bits))
 #define SHL_DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+#define SHL_ULONG_BITS (sizeof(unsigned long) * 8)
 
 static inline int shl_dirent(const char *path, struct dirent **ent)
 {
