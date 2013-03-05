@@ -261,6 +261,10 @@ void uvt_ctx_unref(struct uvt_ctx *ctx);
 int uvt_ctx_get_fd(struct uvt_ctx *ctx);
 void uvt_ctx_dispatch(struct uvt_ctx *ctx);
 
+unsigned int uvt_ctx_get_major(struct uvt_ctx *ctx);
+int uvt_ctx_new_minor(struct uvt_ctx *ctx, unsigned int *out);
+void uvt_ctx_free_minor(struct uvt_ctx *ctx, unsigned int minor);
+
 /* pty tty implementation */
 
 struct uvt_tty_null;

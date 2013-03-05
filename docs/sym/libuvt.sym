@@ -30,6 +30,9 @@ global:
 	uvt_ctx_unref;
 	uvt_ctx_get_fd;
 	uvt_ctx_dispatch;
+	uvt_ctx_get_major;
+	uvt_ctx_new_minor;
+	uvt_ctx_free_minor;
 
 	uvt_cdev_new;
 	uvt_cdev_ref;

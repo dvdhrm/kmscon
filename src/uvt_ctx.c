@@ -33,9 +33,12 @@
 #include <eloop.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/major.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "shl_array.h"
+#include "shl_flagset.h"
 #include "shl_llog.h"
 #include "shl_misc.h"
 #include "uvt.h"
@@ -60,6 +63,13 @@ int uvt_ctx_new(struct uvt_ctx **out, uvt_log_t log, void *log_data)
 	ctx->llog = log;
 	ctx->llog_data = log_data;
 
+	/* Default major/minor uses the TTY_MAJOR number with an offset of 2^15
+	 * to avoid ID-clashes with any in-kernel TTY driver. As kernel drivers
+	 * use static IDs only, a lower number would be fine, too, but lets be
+	 * safe and just use high numbers. */
+	ctx->major = TTY_MAJOR;
+	ctx->minor_offset = 16384;
+
 	llog_debug(ctx, "new ctx %p", ctx);
 
 	ret = ev_eloop_new(&ctx->eloop, ctx->llog, ctx->llog_data);
@@ -72,9 +82,15 @@ int uvt_ctx_new(struct uvt_ctx **out, uvt_log_t log, void *log_data)
 		goto err_eloop;
 	}
 
+	ret = shl_flagset_new(&ctx->minors);
+	if (ret)
+		goto err_file;
+
 	*out = ctx;
 	return 0;
 
+err_file:
+	free(ctx->cuse_file);
 err_eloop:
 	ev_eloop_unref(ctx->eloop);
 err_free:
@@ -99,6 +115,7 @@ void uvt_ctx_unref(struct uvt_ctx *ctx)
 
 	llog_debug(ctx, "free ctx %p", ctx);
 
+	shl_flagset_free(ctx->minors);
 	free(ctx->cuse_file);
 	ev_eloop_unref(ctx->eloop);
 	free(ctx);
@@ -120,4 +137,32 @@ void uvt_ctx_dispatch(struct uvt_ctx *ctx)
 		return;
 
 	ev_eloop_dispatch(ctx->eloop, 0);
+}
+
+SHL_EXPORT
+unsigned int uvt_ctx_get_major(struct uvt_ctx *ctx)
+{
+	return ctx->major;
+}
+
+SHL_EXPORT
+int uvt_ctx_new_minor(struct uvt_ctx *ctx, unsigned int *out)
+{
+	int ret;
+
+	ret = shl_flagset_alloc(ctx->minors, out);
+	if (ret)
+		return ret;
+
+	*out += ctx->minor_offset;
+	return 0;
+}
+
+SHL_EXPORT
+void uvt_ctx_free_minor(struct uvt_ctx *ctx, unsigned int minor)
+{
+	if (!ctx || minor < ctx->minor_offset)
+		return;
+
+	shl_flagset_unset(ctx->minors, minor - ctx->minor_offset);
 }

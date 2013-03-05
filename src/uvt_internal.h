@@ -34,6 +34,7 @@
 #include <eloop.h>
 #include <stdlib.h>
 #include <uvt.h>
+#include "shl_array.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
 #include "shl_llog.h"
@@ -53,6 +54,9 @@ struct uvt_ctx {
 	struct ev_eloop *eloop;
 
 	char *cuse_file;
+	unsigned int major;
+	unsigned int minor_offset;
+	struct shl_array *minors;
 };
 
 /* character devices */
