@@ -814,7 +814,12 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 			 const void *in_buf, size_t in_bufsz, size_t out_bufsz)
 {
 	struct uvt_client *client = (void*)(uintptr_t)fi->fh;
+	uintptr_t uarg = (uintptr_t)arg;
 	bool compat;
+	int ret;
+	struct vt_stat vtstat;
+	struct vt_mode vtmode;
+	unsigned int uval;
 
 	if (!client) {
 		fuse_reply_err(req, EINVAL);
@@ -835,6 +840,225 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 	}
 
 	switch (cmd) {
+
+	/* TTY ioctls */
+
+	case TCFLSH:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_TCFLSH) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_TCFLSH(client->vt_data,
+						       (unsigned long)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case TIOCPKT:
+	case TCXONC:
+	case TCGETS:
+	case TCSETS:
+	case TCSETSF:
+	case TCSETSW:
+	case TCGETA:
+	case TCSETA:
+	case TCSETAF:
+	case TCSETAW:
+	case TIOCGLCKTRMIOS:
+	case TIOCSLCKTRMIOS:
+	case TCGETX:
+	case TCSETX:
+	case TCSETXW:
+	case TCSETXF:
+	case TIOCGSOFTCAR:
+	case TIOCSSOFTCAR:
+		fuse_reply_err(req, EOPNOTSUPP);
+		break;
+
+	/* VT ioctls */
+
+	case VT_ACTIVATE:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_ACTIVATE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_VT_ACTIVATE(client->vt_data,
+							(unsigned long)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case VT_WAITACTIVE:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_WAITACTIVE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_VT_WAITACTIVE(client->vt_data,
+							(unsigned long)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case VT_GETSTATE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(struct vt_stat), out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_GETSTATE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			memset(&vtstat, 0, sizeof(vtstat));
+			ret = client->vt->ioctl_VT_GETSTATE(client->vt_data,
+							    &vtstat);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, &vtstat,
+						 sizeof(vtstat));
+		}
+		break;
+
+	case VT_OPENQRY:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(unsigned int), out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_OPENQRY) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			uval = 0;
+			ret = client->vt->ioctl_VT_OPENQRY(client->vt_data,
+							   &uval);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, &uval, sizeof(uval));
+		}
+		break;
+
+	case VT_GETMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(struct vt_mode), out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_GETMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			memset(&vtmode, 0, sizeof(vtmode));
+			ret = client->vt->ioctl_VT_GETMODE(client->vt_data,
+							   &vtmode);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, &vtmode,
+						 sizeof(vtmode));
+		}
+		break;
+
+	case VT_SETMODE:
+		if (ioctl_param(req, arg, sizeof(struct vt_mode), in_bufsz,
+				0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_SETMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_VT_SETMODE(client->vt_data,
+						(const struct vt_mode*)in_buf);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case VT_RELDISP:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_VT_RELDISP) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_VT_RELDISP(client->vt_data,
+							(unsigned long)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case KDGETMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(unsigned int), out_bufsz))
+			return;
+		if (!client->vt->ioctl_KDGETMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			uval = 0;
+			ret = client->vt->ioctl_KDGETMODE(client->vt_data,
+							  &uval);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, &uval, sizeof(uval));
+		}
+		break;
+
+	case KDSETMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_KDSETMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_KDSETMODE(client->vt_data,
+							(unsigned int)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
+	case KDGKBMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz,
+				sizeof(unsigned int), out_bufsz))
+			return;
+		if (!client->vt->ioctl_KDGKBMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			uval = 0;
+			ret = client->vt->ioctl_KDGKBMODE(client->vt_data,
+							  &uval);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, &uval, sizeof(uval));
+		}
+		break;
+
+	case KDSKBMODE:
+		if (ioctl_param(req, arg, 0, in_bufsz, 0, out_bufsz))
+			return;
+		if (!client->vt->ioctl_KDSKBMODE) {
+			fuse_reply_err(req, EOPNOTSUPP);
+		} else {
+			ret = client->vt->ioctl_KDSKBMODE(client->vt_data,
+							(unsigned int)uarg);
+			if (ret)
+				fuse_reply_err(req, abs(ret));
+			else
+				fuse_reply_ioctl(req, 0, NULL, 0);
+		}
+		break;
+
 	case TIOCLINUX:
 	case KIOCSOUND:
 	case KDMKTONE:
@@ -844,12 +1068,8 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 	case KDENABIO:
 	case KDDISABIO:
 	case KDKBDREP:
-	case KDGETMODE:
-	case KDSETMODE:
 	case KDMAPDISP:
 	case KDUNMAPDISP:
-	case KDGKBMODE:
-	case KDSKBMODE:
 	case KDGKBMETA:
 	case KDSKBMETA:
 	case KDGETKEYCODE:
@@ -867,14 +1087,7 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 	case KDGKBLED:
 	case KDSKBLED:
 	case KDSIGACCEPT:
-	case VT_GETMODE:
-	case VT_SETMODE:
-	case VT_GETSTATE:
-	case VT_OPENQRY:
-	case VT_ACTIVATE:
 	case VT_SETACTIVATE:
-	case VT_WAITACTIVE:
-	case VT_RELDISP:
 	case VT_DISALLOCATE:
 	case VT_RESIZE:
 	case VT_RESIZEX:
@@ -897,28 +1110,6 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 	case VT_UNLOCKSWITCH:
 	case VT_GETHIFONTMASK:
 	case VT_WAITEVENT:
-		fuse_reply_err(req, EOPNOTSUPP);
-		break;
-
-	case TIOCPKT:
-	case TCFLSH:
-	case TCXONC:
-	case TCGETS:
-	case TCSETS:
-	case TCSETSF:
-	case TCSETSW:
-	case TCGETA:
-	case TCSETA:
-	case TCSETAF:
-	case TCSETAW:
-	case TIOCGLCKTRMIOS:
-	case TIOCSLCKTRMIOS:
-	case TCGETX:
-	case TCSETX:
-	case TCSETXW:
-	case TCSETXF:
-	case TIOCGSOFTCAR:
-	case TIOCSSOFTCAR:
 		fuse_reply_err(req, EOPNOTSUPP);
 		break;
 	default:

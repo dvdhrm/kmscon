@@ -70,28 +70,6 @@ struct uvt_tty_ops {
 	int (*read) (void *data, uint8_t *mem, size_t len);
 	int (*write) (void *data, const uint8_t *mem, size_t len);
 	unsigned int (*poll) (void *data);
-
-/*
-	int (*ioctl_TIOCPKT) (void *data, ...);
-	int (*ioctl_TCFLSH) (void *data, long arg);
-	int (*ioctl_TCXONC) (void *data, ...);
-	int (*ioctl_TCGETS) (void *data, struct termios *arg);
-	int (*ioctl_TCSETS) (void *data, const struct termios *arg);
-	int (*ioctl_TCSETSF) (void *data, const struct termios *arg);
-	int (*ioctl_TCSETSW) (void *data, const struct termios *arg);
-	int (*ioctl_TCGETA) (void *data, ...);
-	int (*ioctl_TCSETA) (void *data, ...);
-	int (*ioctl_TCSETAF) (void *data, ...);
-	int (*ioctl_TCSETAW) (void *data, ...);
-	int (*ioctl_TIOCGLCKTRMIOS) (void *data, ...);
-	int (*ioctl_TIOCSLCKTRMIOS) (void *data, ...);
-	int (*ioctl_TCGETX) (void *data, ...);
-	int (*ioctl_TCSETX) (void *data, ...);
-	int (*ioctl_TCSETXW) (void *data, ...);
-	int (*ioctl_TCSETXF) (void *data, ...);
-	int (*ioctl_TIOCGSOFTCAR) (void *data, ...);
-	int (*ioctl_TIOCSSOFTCAR) (void *data, ...);
-*/
 };
 
 /* virtual terminals */
@@ -121,7 +99,55 @@ struct uvt_vt_ops {
 	int (*write) (void *data, const uint8_t *mem, size_t len);
 	unsigned int (*poll) (void *data);
 
+	/* TTY ioctls */
+	int (*ioctl_TCFLSH) (void *data, unsigned long arg);
+
+	/* VT ioctls */
+	int (*ioctl_VT_ACTIVATE) (void *data, unsigned long arg);
+	int (*ioctl_VT_WAITACTIVE) (void *data, unsigned long arg);
+	int (*ioctl_VT_GETSTATE) (void *data, struct vt_stat *arg);
+	int (*ioctl_VT_OPENQRY) (void *data, unsigned int *arg);
+	int (*ioctl_VT_GETMODE) (void *data, struct vt_mode *arg);
+	int (*ioctl_VT_SETMODE) (void *data, const struct vt_mode *arg);
+	int (*ioctl_VT_RELDISP) (void *data, unsigned long arg);
+	int (*ioctl_KDGETMODE) (void *data, unsigned int *arg);
+	int (*ioctl_KDSETMODE) (void *data, unsigned int arg);
+	int (*ioctl_KDGKBMODE) (void *data, unsigned int *arg);
+	int (*ioctl_KDSKBMODE) (void *data, unsigned int arg);
+
 /*
+   Complete list of all ioctls that the kernel supports. The internal handler
+   returns -EOPNOTSUPP for all of them as they haven't been implemented, yet.
+   We need to check if they are actually required or whether it's not worth the
+   effort.
+   Please implement them only if you know a client that requires them. Also
+   consider implementing them as a no-op if the client doesn't depend on the
+   call to actually do something. We want to keep the actual callbacks at a
+   minimum.
+
+   TTY ioctls
+
+	int (*ioctl_TIOCPKT) (void *data, ...);
+	int (*ioctl_TCXONC) (void *data, ...);
+	int (*ioctl_TCGETS) (void *data, struct termios *arg);
+	int (*ioctl_TCSETS) (void *data, const struct termios *arg);
+	int (*ioctl_TCSETSF) (void *data, const struct termios *arg);
+	int (*ioctl_TCSETSW) (void *data, const struct termios *arg);
+	int (*ioctl_TCGETA) (void *data, ...);
+	int (*ioctl_TCSETA) (void *data, ...);
+	int (*ioctl_TCSETAF) (void *data, ...);
+	int (*ioctl_TCSETAW) (void *data, ...);
+	int (*ioctl_TIOCGLCKTRMIOS) (void *data, ...);
+	int (*ioctl_TIOCSLCKTRMIOS) (void *data, ...);
+	int (*ioctl_TCGETX) (void *data, ...);
+	int (*ioctl_TCSETX) (void *data, ...);
+	int (*ioctl_TCSETXW) (void *data, ...);
+	int (*ioctl_TCSETXF) (void *data, ...);
+	int (*ioctl_TIOCGSOFTCAR) (void *data, ...);
+	int (*ioctl_TIOCSSOFTCAR) (void *data, ...);
+
+   VT ioctls
+
 	int (*ioctl_TIOCLINUX) (void *data, ...);
 	int (*ioctl_KIOCSOUND) (void *data, ...);
 	int (*ioctl_KDMKTONE) (void *data, ...);
@@ -131,12 +157,8 @@ struct uvt_vt_ops {
 	int (*ioctl_KDENABIO) (void *data);
 	int (*ioctl_KDDISABIO) (void *data);
 	int (*ioctl_KDKBDREP) (void *data, struct kbd_repeat *arg);
-	int (*ioctl_KDGETMODE) (void *data, long *arg);
-	int (*ioctl_KDSETMODE) (void *data, long arg);
 	int (*ioctl_KDMAPDISP) (void *data);
 	int (*ioctl_KDUNMAPDISP) (void *data);
-	int (*ioctl_KDGKBMODE) (void *data, long *arg);
-	int (*ioctl_KDSKBMODE) (void *data, long arg);
 	int (*ioctl_KDGKBMETA) (void *data, long *arg);
 	int (*ioctl_KDSKBMETA) (void *data, long arg);
 	int (*ioctl_KDGETKEYCODE) (void *data, ...);
@@ -154,14 +176,7 @@ struct uvt_vt_ops {
 	int (*ioctl_KDGKBLED) (void *data, char *arg);
 	int (*ioctl_KDSKBLED) (void *data, long arg);
 	int (*ioctl_KDSIGACCEPT) (void *data, ...);
-	int (*ioctl_VT_GETMODE) (void *data, struct vt_mode *arg);
-	int (*ioctl_VT_SETMODE) (void *data, const struct vt_mode *arg);
-	int (*ioctl_VT_GETSTATE) (void *data, struct vt_stat *arg);
-	int (*ioctl_VT_OPENQRY) (void *data, int *arg);
-	int (*ioctl_VT_ACTIVATE) (void *data, long arg);
 	int (*ioctl_VT_SETACTIVATE) (void *data, ...);
-	int (*ioctl_VT_WAITACTIVE) (void *data, long arg);
-	int (*ioctl_VT_RELDISP) (void *data, long arg);
 	int (*ioctl_VT_DISALLOCATE) (void *data, ...);
 	int (*ioctl_VT_RESIZE) (void *data, ...);
 	int (*ioctl_VT_RESIZEX) (void *data, ...);
@@ -184,26 +199,6 @@ struct uvt_vt_ops {
 	int (*ioctl_VT_UNLOCKSWITCH) (void *data);
 	int (*ioctl_VT_GETHIFONTMASK) (void *data, ...);
 	int (*ioctl_VT_WAITEVENT) (void *data, ...);
-
-	int (*ioctl_TIOCPKT) (void *data, ...);
-	int (*ioctl_TCFLSH) (void *data, long arg);
-	int (*ioctl_TCXONC) (void *data, ...);
-	int (*ioctl_TCGETS) (void *data, struct termios *arg);
-	int (*ioctl_TCSETS) (void *data, const struct termios *arg);
-	int (*ioctl_TCSETSF) (void *data, const struct termios *arg);
-	int (*ioctl_TCSETSW) (void *data, const struct termios *arg);
-	int (*ioctl_TCGETA) (void *data, ...);
-	int (*ioctl_TCSETA) (void *data, ...);
-	int (*ioctl_TCSETAF) (void *data, ...);
-	int (*ioctl_TCSETAW) (void *data, ...);
-	int (*ioctl_TIOCGLCKTRMIOS) (void *data, ...);
-	int (*ioctl_TIOCSLCKTRMIOS) (void *data, ...);
-	int (*ioctl_TCGETX) (void *data, ...);
-	int (*ioctl_TCSETX) (void *data, ...);
-	int (*ioctl_TCSETXW) (void *data, ...);
-	int (*ioctl_TCSETXF) (void *data, ...);
-	int (*ioctl_TIOCGSOFTCAR) (void *data, ...);
-	int (*ioctl_TIOCSSOFTCAR) (void *data, ...);
 */
 };
 
