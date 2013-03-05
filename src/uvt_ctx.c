@@ -37,11 +37,13 @@
 #include <string.h>
 #include <unistd.h>
 #include "shl_llog.h"
+#include "shl_misc.h"
 #include "uvt.h"
 #include "uvt_internal.h"
 
 #define LLOG_SUBSYSTEM "uvt_ctx"
 
+SHL_EXPORT
 int uvt_ctx_new(struct uvt_ctx **out, uvt_log_t log, void *log_data)
 {
 	struct uvt_ctx *ctx;
@@ -80,6 +82,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void uvt_ctx_ref(struct uvt_ctx *ctx)
 {
 	if (!ctx || !ctx->ref)
@@ -88,6 +91,7 @@ void uvt_ctx_ref(struct uvt_ctx *ctx)
 	++ctx->ref;
 }
 
+SHL_EXPORT
 void uvt_ctx_unref(struct uvt_ctx *ctx)
 {
 	if (!ctx || !ctx->ref || --ctx->ref)
@@ -100,6 +104,7 @@ void uvt_ctx_unref(struct uvt_ctx *ctx)
 	free(ctx);
 }
 
+SHL_EXPORT
 int uvt_ctx_get_fd(struct uvt_ctx *ctx)
 {
 	if (!ctx)
@@ -108,6 +113,7 @@ int uvt_ctx_get_fd(struct uvt_ctx *ctx)
 	return ev_eloop_get_fd(ctx->eloop);
 }
 
+SHL_EXPORT
 void uvt_ctx_dispatch(struct uvt_ctx *ctx)
 {
 	if (!ctx)

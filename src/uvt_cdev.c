@@ -400,6 +400,7 @@ static void uvt_cdev_destroy(struct uvt_cdev *cdev)
 	close(cdev->fd);
 }
 
+SHL_EXPORT
 int uvt_cdev_new(struct uvt_cdev **out, struct uvt_ctx *ctx,
 		 const char *name, unsigned int major, unsigned int minor)
 {
@@ -442,6 +443,7 @@ err_free:
 	return ret;
 }
 
+SHL_EXPORT
 void uvt_cdev_ref(struct uvt_cdev *cdev)
 {
 	if (!cdev || !cdev->ref)
@@ -450,6 +452,7 @@ void uvt_cdev_ref(struct uvt_cdev *cdev)
 	++cdev->ref;
 }
 
+SHL_EXPORT
 void uvt_cdev_unref(struct uvt_cdev *cdev)
 {
 	if (!cdev || !cdev->ref || --cdev->ref)
@@ -463,6 +466,7 @@ void uvt_cdev_unref(struct uvt_cdev *cdev)
 	free(cdev);
 }
 
+SHL_EXPORT
 int uvt_cdev_register_cb(struct uvt_cdev *cdev, uvt_cdev_cb cb, void *data)
 {
 	if (!cdev)
@@ -471,6 +475,7 @@ int uvt_cdev_register_cb(struct uvt_cdev *cdev, uvt_cdev_cb cb, void *data)
 	return shl_hook_add_cast(cdev->hook, cb, data, false);
 }
 
+SHL_EXPORT
 void uvt_cdev_unregister_cb(struct uvt_cdev *cdev, uvt_cdev_cb cb, void *data)
 {
 	if (!cdev)

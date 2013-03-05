@@ -30,6 +30,12 @@ global:
 	uvt_ctx_unref;
 	uvt_ctx_get_fd;
 	uvt_ctx_dispatch;
+
+	uvt_cdev_new;
+	uvt_cdev_ref;
+	uvt_cdev_unref;
+	uvt_cdev_register_cb;
+	uvt_cdev_unregister_cb;
 local:
 	*;
 };
