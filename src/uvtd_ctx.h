@@ -43,4 +43,6 @@ int uvtd_ctx_new(struct uvtd_ctx **out, const char *seatname,
 		 struct ev_eloop *eloop, struct uvt_ctx *uctx);
 void uvtd_ctx_free(struct uvtd_ctx *ctx);
 
+void uvtd_ctx_reconf(struct uvtd_ctx *ctx, unsigned int legacy_num);
+
 #endif /* UVTD_CTX_H */
