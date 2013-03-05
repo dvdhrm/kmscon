@@ -35,6 +35,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "shl_misc.h"
 
 struct shl_array {
 	size_t element_size;
@@ -82,6 +83,32 @@ static inline void shl_array_free(struct shl_array *arr)
 
 	free(arr->data);
 	free(arr);
+}
+
+/* resize to length=size and zero out new array entries */
+static inline int shl_array_zresize(struct shl_array *arr, size_t size)
+{
+	void *tmp;
+	size_t newsize;
+
+	if (!arr)
+		return -EINVAL;
+
+	if (size > arr->size) {
+		newsize = shl_next_pow2(size);
+		tmp = realloc(arr->data, arr->element_size * newsize);
+		if (!tmp)
+			return -ENOMEM;
+
+		arr->data = tmp;
+		arr->size = newsize;
+
+		memset(((uint8_t*)arr->data) + arr->element_size * arr->length,
+		       0, arr->element_size * (size - arr->length));
+	}
+
+	arr->length = size;
+	return 0;
 }
 
 static inline int shl_array_push(struct shl_array *arr, const void *data)
