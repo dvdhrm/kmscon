@@ -170,7 +170,8 @@ libshl_la_SOURCES = \
 	src/shl_log.c \
 	src/shl_hook.h \
 	src/shl_misc.h \
-	src/shl_register.h
+	src/shl_register.h \
+	src/shl_flagset.h
 libshl_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS) \
