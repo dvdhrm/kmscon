@@ -141,8 +141,8 @@ struct vte_saved_state {
 	unsigned int cursor_x;
 	unsigned int cursor_y;
 	struct tsm_screen_attr cattr;
-	tsm_vte_charset *gl;
-	tsm_vte_charset *gr;
+	tsm_vte_charset **gl;
+	tsm_vte_charset **gr;
 	bool wrap_mode;
 	bool origin_mode;
 };
@@ -169,10 +169,10 @@ struct tsm_vte {
 	struct tsm_screen_attr cattr;
 	unsigned int flags;
 
-	tsm_vte_charset *gl;
-	tsm_vte_charset *gr;
-	tsm_vte_charset *glt;
-	tsm_vte_charset *grt;
+	tsm_vte_charset **gl;
+	tsm_vte_charset **gr;
+	tsm_vte_charset **glt;
+	tsm_vte_charset **grt;
 	tsm_vte_charset *g0;
 	tsm_vte_charset *g1;
 	tsm_vte_charset *g2;
@@ -541,8 +541,8 @@ static void reset_state(struct tsm_vte *vte)
 	vte->saved_state.cursor_y = 0;
 	vte->saved_state.origin_mode = false;
 	vte->saved_state.wrap_mode = true;
-	vte->saved_state.gl = &tsm_vte_unicode_lower;
-	vte->saved_state.gr = &tsm_vte_unicode_upper;
+	vte->saved_state.gl = &vte->g0;
+	vte->saved_state.gr = &vte->g1;
 
 	copy_fcolor(&vte->saved_state.cattr, &vte->def_attr);
 	copy_bcolor(&vte->saved_state.cattr, &vte->def_attr);
@@ -614,8 +614,8 @@ void tsm_vte_reset(struct tsm_vte *vte)
 
 	tsm_utf8_mach_reset(vte->mach);
 	vte->state = STATE_GROUND;
-	vte->gl = &tsm_vte_unicode_lower;
-	vte->gr = &tsm_vte_unicode_upper;
+	vte->gl = &vte->g0;
+	vte->gr = &vte->g1;
 	vte->glt = NULL;
 	vte->grt = NULL;
 	vte->g0 = &tsm_vte_unicode_lower;
@@ -686,11 +686,11 @@ static void do_execute(struct tsm_vte *vte, uint32_t ctrl)
 		break;
 	case 0x0e: /* SO */
 		/* Map G1 character set into GL */
-		vte->gl = vte->g1;
+		vte->gl = &vte->g1;
 		break;
 	case 0x0f: /* SI */
 		/* Map G0 character set into GL */
-		vte->gl = vte->g0;
+		vte->gl = &vte->g0;
 		break;
 	case 0x11: /* XON */
 		/* Resume transmission */
@@ -733,11 +733,11 @@ static void do_execute(struct tsm_vte *vte, uint32_t ctrl)
 		break;
 	case 0x8e: /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
-		vte->glt = vte->g2;
+		vte->glt = &vte->g2;
 		break;
 	case 0x8f: /* SS3 */
 		/* Temporarily map G3 into GL for next char only */
-		vte->glt = vte->g3;
+		vte->glt = &vte->g3;
 		break;
 	case 0x9a: /* DECID */
 		/* Send device attributes response like ANSI DA */
@@ -960,11 +960,11 @@ static void do_esc(struct tsm_vte *vte, uint32_t data)
 		break;
 	case 'N': /* SS2 */
 		/* Temporarily map G2 into GL for next char only */
-		vte->glt = vte->g2;
+		vte->glt = &vte->g2;
 		break;
 	case 'O': /* SS3 */
 		/* Temporarily map G3 into GL for next char only */
-		vte->glt = vte->g3;
+		vte->glt = &vte->g3;
 		break;
 	case 'Z': /* DECID */
 		/* Send device attributes response like ANSI DA */
@@ -976,23 +976,23 @@ static void do_esc(struct tsm_vte *vte, uint32_t data)
 		break;
 	case '~': /* LS1R */
 		/* Invoke G1 into GR */
-		vte->gr = vte->g1;
+		vte->gr = &vte->g1;
 		break;
 	case 'n': /* LS2 */
 		/* Invoke G2 into GL */
-		vte->gl = vte->g2;
+		vte->gl = &vte->g2;
 		break;
 	case '}': /* LS2R */
 		/* Invoke G2 into GR */
-		vte->gr = vte->g2;
+		vte->gr = &vte->g2;
 		break;
 	case 'o': /* LS3 */
 		/* Invoke G3 into GL */
-		vte->gl = vte->g3;
+		vte->gl = &vte->g3;
 		break;
 	case '|': /* LS3R */
 		/* Invoke G3 into GR */
-		vte->gr = vte->g3;
+		vte->gr = &vte->g3;
 		break;
 	case '=': /* DECKPAM */
 		/* Set application keypad mode */
@@ -1240,8 +1240,8 @@ static void csi_compat_mode(struct tsm_vte *vte)
 		 * However, we enable 7bit mode to avoid
 		 * character-table problems */
 		vte->flags |= FLAG_7BIT_MODE;
-		vte->gl = &tsm_vte_unicode_lower;
-		vte->gr = &tsm_vte_dec_supplemental_graphics;
+		vte->g0 = &tsm_vte_unicode_lower;
+		vte->g1 = &tsm_vte_dec_supplemental_graphics;
 	} else if (vte->csi_argv[0] == 62 ||
 		   vte->csi_argv[0] == 63 ||
 		   vte->csi_argv[0] == 64) {
@@ -1260,8 +1260,8 @@ static void csi_compat_mode(struct tsm_vte *vte)
 			vte->flags |= FLAG_USE_C1;
 
 		vte->flags |= FLAG_8BIT_MODE;
-		vte->gl = &tsm_vte_unicode_lower;
-		vte->gr = &tsm_vte_dec_supplemental_graphics;
+		vte->g0 = &tsm_vte_unicode_lower;
+		vte->g1 = &tsm_vte_dec_supplemental_graphics;
 	} else {
 		llog_debug(vte, "unhandled DECSCL 'p' CSI %i, switching to utf-8 mode again",
 			   vte->csi_argv[0]);
@@ -1741,18 +1741,18 @@ static uint32_t vte_map(struct tsm_vte *vte, uint32_t val)
 	switch (val) {
 	case 33 ... 126:
 		if (vte->glt) {
-			val = (*vte->glt)[val - 32];
+			val = (**vte->glt)[val - 32];
 			vte->glt = NULL;
 		} else {
-			val = (*vte->gl)[val - 32];
+			val = (**vte->gl)[val - 32];
 		}
 		break;
 	case 161 ... 254:
 		if (vte->grt) {
-			val = (*vte->grt)[val - 160];
+			val = (**vte->grt)[val - 160];
 			vte->grt = NULL;
 		} else {
-			val = (*vte->gr)[val - 160];
+			val = (**vte->gr)[val - 160];
 		}
 		break;
 	}
