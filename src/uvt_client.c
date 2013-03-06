@@ -972,7 +972,8 @@ void uvt_client_ll_ioctl(fuse_req_t req, int cmd, void *arg,
 			fuse_reply_err(req, EOPNOTSUPP);
 		} else {
 			ret = client->vt->ioctl_VT_SETMODE(client->vt_data,
-						(const struct vt_mode*)in_buf);
+						(const struct vt_mode*)in_buf,
+						fuse_req_ctx(req)->pid);
 			if (ret)
 				fuse_reply_err(req, abs(ret));
 			else

@@ -108,7 +108,8 @@ struct uvt_vt_ops {
 	int (*ioctl_VT_GETSTATE) (void *data, struct vt_stat *arg);
 	int (*ioctl_VT_OPENQRY) (void *data, unsigned int *arg);
 	int (*ioctl_VT_GETMODE) (void *data, struct vt_mode *arg);
-	int (*ioctl_VT_SETMODE) (void *data, const struct vt_mode *arg);
+	int (*ioctl_VT_SETMODE) (void *data, const struct vt_mode *arg,
+				 pid_t pid);
 	int (*ioctl_VT_RELDISP) (void *data, unsigned long arg);
 	int (*ioctl_KDGETMODE) (void *data, unsigned int *arg);
 	int (*ioctl_KDSETMODE) (void *data, unsigned int arg);

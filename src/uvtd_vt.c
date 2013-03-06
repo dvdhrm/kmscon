@@ -33,6 +33,7 @@
 #include <inttypes.h>
 #include <linux/kd.h>
 #include <linux/vt.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termio.h>
@@ -55,6 +56,8 @@ struct uvtd_vt {
 
 	unsigned int mode;
 	unsigned int kbmode;
+	struct vt_mode vtmode;
+	pid_t vtpid;
 };
 
 static void vt_hup(struct uvtd_vt *vt)
@@ -107,6 +110,7 @@ int uvtd_vt_new(struct uvtd_vt **out, struct uvt_ctx *uctx, unsigned int id,
 	vt->is_legacy = is_legacy;
 	vt->mode = KD_TEXT;
 	vt->kbmode = K_UNICODE;
+	vt->vtmode.mode = VT_AUTO;
 
 	ret = shl_hook_new(&vt->hook);
 	if (ret)
@@ -214,12 +218,43 @@ static int vt_ioctl_VT_OPENQRY(void *data, unsigned int *arg)
 
 static int vt_ioctl_VT_GETMODE(void *data, struct vt_mode *arg)
 {
-	return -EINVAL;
+	struct uvtd_vt *vt = data;
+
+	memcpy(arg, &vt->vtmode, sizeof(*arg));
+	return 0;
 }
 
-static int vt_ioctl_VT_SETMODE(void *data, const struct vt_mode *arg)
+static int vt_ioctl_VT_SETMODE(void *data, const struct vt_mode *arg,
+			       pid_t pid)
 {
-	return -EINVAL;
+	struct uvtd_vt *vt = data;
+
+	/* TODO: implement waitv logic (hang on write if not active) */
+	if (arg->waitv)
+		return -EOPNOTSUPP;
+
+	if (arg->frsig)
+		return -EINVAL;
+	if (arg->relsig > SIGRTMAX || arg->relsig < 0)
+		return -EINVAL;
+	if (arg->acqsig > SIGRTMAX || arg->acqsig < 0)
+		return -EINVAL;
+
+	switch (arg->mode) {
+	case VT_AUTO:
+		if (arg->acqsig || arg->relsig)
+			return -EINVAL;
+		vt->vtpid = 0;
+		break;
+	case VT_PROCESS:
+		vt->vtpid = pid;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	memcpy(&vt->vtmode, arg, sizeof(*arg));
+	return 0;
 }
 
 static int vt_ioctl_VT_RELDISP(void *data, unsigned long arg)
