@@ -31,8 +31,13 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <linux/kd.h>
+#include <linux/vt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termio.h>
+#include <termios.h>
+#include <unistd.h>
 #include "shl_hook.h"
 #include "shl_log.h"
 #include "uvt.h"
@@ -47,6 +52,9 @@ struct uvtd_vt {
 	struct shl_hook *hook;
 	struct uvtd_session *session;
 	bool is_legacy;
+
+	unsigned int mode;
+	unsigned int kbmode;
 };
 
 static void vt_hup(struct uvtd_vt *vt)
@@ -97,6 +105,8 @@ int uvtd_vt_new(struct uvtd_vt **out, struct uvt_ctx *uctx, unsigned int id,
 	vt->ref = 1;
 	vt->uctx = uctx;
 	vt->is_legacy = is_legacy;
+	vt->mode = KD_TEXT;
+	vt->kbmode = K_UNICODE;
 
 	ret = shl_hook_new(&vt->hook);
 	if (ret)
@@ -168,6 +178,113 @@ unsigned int uvtd_vt_poll(struct uvtd_vt *vt)
 	return UVT_TTY_WRITE;
 }
 
+static int vt_ioctl_TCFLSH(void *data, unsigned long arg)
+{
+	switch (arg) {
+	case TCIFLUSH:
+	case TCOFLUSH:
+	case TCIOFLUSH:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vt_ioctl_VT_ACTIVATE(void *data, unsigned long arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_WAITACTIVE(void *data, unsigned long arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_GETSTATE(void *data, struct vt_stat *arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_OPENQRY(void *data, unsigned int *arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_GETMODE(void *data, struct vt_mode *arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_SETMODE(void *data, const struct vt_mode *arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_VT_RELDISP(void *data, unsigned long arg)
+{
+	return -EINVAL;
+}
+
+static int vt_ioctl_KDGETMODE(void *data, unsigned int *arg)
+{
+	struct uvtd_vt *vt = data;
+
+	*arg = vt->mode;
+	return 0;
+}
+
+static int vt_ioctl_KDSETMODE(void *data, unsigned int arg)
+{
+	struct uvtd_vt *vt = data;
+
+	switch (arg) {
+	case KD_TEXT0:
+	case KD_TEXT1:
+		arg = KD_TEXT;
+		/* fallthrough */
+	case KD_TEXT:
+	case KD_GRAPHICS:
+		vt->mode = arg;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vt_ioctl_KDGKBMODE(void *data, unsigned int *arg)
+{
+	struct uvtd_vt *vt = data;
+
+	*arg = vt->kbmode;
+	return 0;
+}
+
+static int vt_ioctl_KDSKBMODE(void *data, unsigned int arg)
+{
+	struct uvtd_vt *vt = data;
+
+	switch (arg) {
+	case K_RAW:
+		/* TODO: what does K_RAW do? */
+	case K_UNICODE:
+	case K_OFF:
+		vt->kbmode = arg;
+		break;
+	case K_XLATE:
+	case K_MEDIUMRAW:
+		/* TODO: do we need these? */
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* compatibility to UVT-VT ops */
 
 static void vt_ref(void *vt)
@@ -213,4 +330,18 @@ struct uvt_vt_ops uvtd_vt_ops = {
 	.read = vt_read,
 	.write = vt_write,
 	.poll = vt_poll,
+
+	.ioctl_TCFLSH = vt_ioctl_TCFLSH,
+
+	.ioctl_VT_ACTIVATE = vt_ioctl_VT_ACTIVATE,
+	.ioctl_VT_WAITACTIVE = vt_ioctl_VT_WAITACTIVE,
+	.ioctl_VT_GETSTATE = vt_ioctl_VT_GETSTATE,
+	.ioctl_VT_OPENQRY = vt_ioctl_VT_OPENQRY,
+	.ioctl_VT_GETMODE = vt_ioctl_VT_GETMODE,
+	.ioctl_VT_SETMODE = vt_ioctl_VT_SETMODE,
+	.ioctl_VT_RELDISP = vt_ioctl_VT_RELDISP,
+	.ioctl_KDGETMODE = vt_ioctl_KDGETMODE,
+	.ioctl_KDSETMODE = vt_ioctl_KDSETMODE,
+	.ioctl_KDGKBMODE = vt_ioctl_KDGKBMODE,
+	.ioctl_KDSKBMODE = vt_ioctl_KDSKBMODE,
 };
