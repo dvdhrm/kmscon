@@ -64,6 +64,7 @@ struct uvtd_session {
 	struct shl_dlist list;
 	unsigned long ref;
 	struct uvtd_seat *seat;
+	unsigned int id;
 
 	bool enabled;
 	bool deactivating;
@@ -426,12 +427,36 @@ void uvtd_seat_wake_up(struct uvtd_seat *seat)
 	seat_run(seat);
 }
 
+void uvtd_seat_schedule(struct uvtd_seat *seat, unsigned int id)
+{
+	struct shl_dlist *iter;
+	struct uvtd_session *session;
+	unsigned int i;
+
+	if (!seat || !id)
+		return;
+
+	session = NULL;
+	i = id;
+	shl_dlist_for_each(iter, &seat->sessions) {
+		session = shl_dlist_entry(iter, struct uvtd_session, list);
+		if (!--i)
+			break;
+		if (session->id >= id)
+			break;
+	}
+
+	if (session)
+		seat_schedule(seat, session);
+}
+
 int uvtd_seat_register_session(struct uvtd_seat *seat,
 			       struct uvtd_session **out,
 			       unsigned int id, uvtd_session_cb_t cb,
 			       void *data)
 {
-	struct uvtd_session *sess;
+	struct uvtd_session *sess, *s;
+	struct shl_dlist *iter;
 
 	if (!seat || !out)
 		return -EINVAL;
@@ -440,23 +465,34 @@ int uvtd_seat_register_session(struct uvtd_seat *seat,
 	if (!sess)
 		return -ENOMEM;
 
-	log_debug("register session %p", sess);
+	log_debug("register session %p with id %u on seat %p",
+		  sess, id, seat);
 
 	memset(sess, 0, sizeof(*sess));
 	sess->ref = 1;
 	sess->seat = seat;
 	sess->cb = cb;
 	sess->data = data;
-
-	/* TODO: add support for \ids */
-	/* register new sessions next to the current one */
-	if (seat->current_sess)
-		shl_dlist_link(&seat->current_sess->list, &sess->list);
-	else
-		shl_dlist_link_tail(&seat->sessions, &sess->list);
+	sess->id = id;
 
 	++seat->session_count;
 	*out = sess;
+
+	if (sess->id) {
+		shl_dlist_for_each(iter, &seat->sessions) {
+			s = shl_dlist_entry(iter, struct uvtd_session, list);
+			if (!s->id || s->id > sess->id) {
+				shl_dlist_link_tail(iter, &sess->list);
+				return 0;
+			}
+
+			if (s->id == sess->id)
+				log_warning("session %p shadowed by %p",
+					    sess, s);
+		}
+	}
+
+	shl_dlist_link_tail(&seat->sessions, &sess->list);
 	return 0;
 }
 
