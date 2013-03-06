@@ -493,6 +493,11 @@ static void widget_pointer_button(struct wlt_widget *widget,
 		wlt_window_schedule_redraw(theme->wnd);
 	}
 
+	/* prevent resize/move during fullscreen/maximized */
+	if (wlt_window_is_maximized(theme->wnd) ||
+	    wlt_window_is_fullscreen(theme->wnd))
+		return;
+
 	switch (theme->pointer_loc) {
 	case LOC_RESIZE_LEFT:
 		wlt_window_resize(theme->wnd, WL_SHELL_SURFACE_RESIZE_LEFT);
