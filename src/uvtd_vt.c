@@ -52,6 +52,7 @@ struct uvtd_vt {
 	struct uvt_ctx *uctx;
 	struct shl_hook *hook;
 	struct uvtd_session *session;
+	struct uvtd_seat *seat;
 	bool is_legacy;
 
 	unsigned int mode;
@@ -78,6 +79,7 @@ static int vt_session_event(struct uvtd_session *session, unsigned int event,
 	switch (event) {
 	case UVTD_SESSION_UNREGISTER:
 		vt->session = NULL;
+		vt->seat = NULL;
 		vt_hup(vt);
 		break;
 	case UVTD_SESSION_ACTIVATE:
@@ -107,6 +109,7 @@ int uvtd_vt_new(struct uvtd_vt **out, struct uvt_ctx *uctx, unsigned int id,
 	memset(vt, 0, sizeof(*vt));
 	vt->ref = 1;
 	vt->uctx = uctx;
+	vt->seat = seat;
 	vt->is_legacy = is_legacy;
 	vt->mode = KD_TEXT;
 	vt->kbmode = K_UNICODE;
@@ -169,16 +172,25 @@ void uvtd_vt_unregister_cb(struct uvtd_vt *vt, uvt_vt_cb cb, void *data)
 
 int uvtd_vt_read(struct uvtd_vt *vt, uint8_t *mem, size_t len)
 {
+	if (!vt || !vt->seat)
+		return -ENODEV;
+
 	return -EAGAIN;
 }
 
 int uvtd_vt_write(struct uvtd_vt *vt, const uint8_t *mem, size_t len)
 {
+	if (!vt || !vt->seat)
+		return -ENODEV;
+
 	return len;
 }
 
 unsigned int uvtd_vt_poll(struct uvtd_vt *vt)
 {
+	if (!vt || !vt->seat)
+		return UVT_TTY_HUP | UVT_TTY_READ | UVT_TTY_WRITE;
+
 	return UVT_TTY_WRITE;
 }
 
@@ -198,21 +210,41 @@ static int vt_ioctl_TCFLSH(void *data, unsigned long arg)
 
 static int vt_ioctl_VT_ACTIVATE(void *data, unsigned long arg)
 {
+	struct uvtd_vt *vt = data;
+
+	if (!vt->seat)
+		return -ENODEV;
+
 	return -EINVAL;
 }
 
 static int vt_ioctl_VT_WAITACTIVE(void *data, unsigned long arg)
 {
+	struct uvtd_vt *vt = data;
+
+	if (!vt->seat)
+		return -ENODEV;
+
 	return -EINVAL;
 }
 
 static int vt_ioctl_VT_GETSTATE(void *data, struct vt_stat *arg)
 {
+	struct uvtd_vt *vt = data;
+
+	if (!vt->seat)
+		return -ENODEV;
+
 	return -EINVAL;
 }
 
 static int vt_ioctl_VT_OPENQRY(void *data, unsigned int *arg)
 {
+	struct uvtd_vt *vt = data;
+
+	if (!vt->seat)
+		return -ENODEV;
+
 	return -EINVAL;
 }
 
@@ -259,6 +291,11 @@ static int vt_ioctl_VT_SETMODE(void *data, const struct vt_mode *arg,
 
 static int vt_ioctl_VT_RELDISP(void *data, unsigned long arg)
 {
+	struct uvtd_vt *vt = data;
+
+	if (!vt->seat)
+		return -ENODEV;
+
 	return -EINVAL;
 }
 
