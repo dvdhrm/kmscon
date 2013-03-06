@@ -1813,6 +1813,11 @@ void wlt_window_toggle_maximize(struct wlt_window *wnd)
 	wnd->maximized = !wnd->maximized;
 }
 
+bool wlt_window_is_maximized(struct wlt_window *wnd)
+{
+	return wnd && wnd->maximized;
+}
+
 void wlt_window_toggle_fullscreen(struct wlt_window *wnd)
 {
 	if (!wnd)
@@ -1838,6 +1843,11 @@ void wlt_window_toggle_fullscreen(struct wlt_window *wnd)
 	}
 
 	wnd->fullscreen = !wnd->fullscreen;
+}
+
+bool wlt_window_is_fullscreen(struct wlt_window *wnd)
+{
+	return wnd && wnd->fullscreen;
 }
 
 struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd)

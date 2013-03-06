@@ -164,7 +164,9 @@ void wlt_window_set_close_cb(struct wlt_window *wnd,
 			     wlt_window_close_cb cb);
 void wlt_window_close(struct wlt_window *wnd);
 void wlt_window_toggle_maximize(struct wlt_window *wnd);
+bool wlt_window_is_maximized(struct wlt_window *wnd);
 void wlt_window_toggle_fullscreen(struct wlt_window *wnd);
+bool wlt_window_is_fullscreen(struct wlt_window *wnd);
 struct ev_eloop *wlt_window_get_eloop(struct wlt_window *wnd);
 struct wlt_display *wlt_window_get_display(struct wlt_window *wnd);
 
