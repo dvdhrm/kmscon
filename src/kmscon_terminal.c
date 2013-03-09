@@ -54,8 +54,6 @@ struct screen {
 	struct shl_dlist list;
 	struct kmscon_terminal *term;
 	struct uterm_display *disp;
-	struct kmscon_font *font;
-	struct kmscon_font *bold_font;
 	struct kmscon_text *txt;
 
 	bool swapping;
@@ -81,6 +79,10 @@ struct kmscon_terminal {
 	struct tsm_vte *vte;
 	struct kmscon_pty *pty;
 	struct ev_fd *ptyfd;
+
+	struct kmscon_font_attr font_attr;
+	struct kmscon_font *font;
+	struct kmscon_font *bold_font;
 };
 
 static void do_redraw_screen(struct screen *scr)
@@ -186,11 +188,59 @@ static void terminal_resize(struct kmscon_terminal *term,
 
 	if (!notify || (!resize && !force))
 		return;
+	if (!term->min_cols || !term->min_rows)
+		return;
 
-	/* shrinking always succeeds */
 	tsm_screen_resize(term->console, term->min_cols, term->min_rows);
 	kmscon_pty_resize(term->pty, term->min_cols, term->min_rows);
 	redraw_all(term);
+}
+
+static int font_set(struct kmscon_terminal *term)
+{
+	int ret;
+	struct kmscon_font *font, *bold_font;
+	struct shl_dlist *iter;
+	struct screen *ent;
+
+	term->font_attr.bold = false;
+	ret = kmscon_font_find(&font, &term->font_attr,
+			       term->conf->font_engine);
+	if (ret)
+		return ret;
+
+	term->font_attr.bold = true;
+	ret = kmscon_font_find(&bold_font, &term->font_attr,
+			       term->conf->font_engine);
+	if (ret) {
+		log_warning("cannot create bold font: %d", ret);
+		bold_font = font;
+		kmscon_font_ref(bold_font);
+	}
+
+	kmscon_font_unref(term->bold_font);
+	kmscon_font_unref(term->font);
+	term->font = font;
+	term->bold_font = bold_font;
+
+	term->min_cols = 0;
+	term->min_rows = 0;
+	shl_dlist_for_each(iter, &term->screens) {
+		ent = shl_dlist_entry(iter, struct screen, list);
+
+		ret = kmscon_text_set(ent->txt, font, bold_font, ent->disp);
+		if (ret)
+			log_warning("cannot change text-renderer font: %d",
+				    ret);
+
+		terminal_resize(term,
+				kmscon_text_get_cols(ent->txt),
+				kmscon_text_get_rows(ent->txt),
+				false, false);
+	}
+
+	terminal_resize(term, 0, 0, true, true);
+	return 0;
 }
 
 static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
@@ -198,15 +248,8 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	struct shl_dlist *iter;
 	struct screen *scr;
 	int ret;
-	unsigned int cols, rows;
-	struct kmscon_font_attr attr = { "", 0, 20, false, false, 0, 0 };
 	const char *be;
 	bool opengl;
-
-	attr.ppi = term->conf->font_ppi;
-	attr.points = term->conf->font_size;
-	strncpy(attr.name, term->conf->font_name, KMSCON_FONT_MAX_NAME - 1);
-	attr.name[KMSCON_FONT_MAX_NAME - 1] = 0;
 
 	shl_dlist_for_each(iter, &term->screens) {
 		scr = shl_dlist_entry(iter, struct screen, list);
@@ -229,20 +272,6 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 		goto err_free;
 	}
 
-	ret = kmscon_font_find(&scr->font, &attr, term->conf->font_engine);
-	if (ret) {
-		log_error("cannot create font");
-		goto err_cb;
-	}
-
-	attr.bold = true;
-	ret = kmscon_font_find(&scr->bold_font, &attr, term->conf->font_engine);
-	if (ret) {
-		log_error("cannot create bold font");
-		scr->bold_font = scr->font;
-		kmscon_font_ref(scr->bold_font);
-	}
-
 	ret = uterm_display_use(scr->disp, &opengl);
 	if (term->conf->render_engine)
 		be = term->conf->render_engine;
@@ -254,18 +283,20 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 	ret = kmscon_text_new(&scr->txt, be);
 	if (ret) {
 		log_error("cannot create text-renderer");
-		goto err_font;
+		goto err_cb;
 	}
 
-	ret = kmscon_text_set(scr->txt, scr->font, scr->bold_font, scr->disp);
+	ret = kmscon_text_set(scr->txt, term->font, term->bold_font,
+			      scr->disp);
 	if (ret) {
 		log_error("cannot set text-renderer parameters");
 		goto err_text;
 	}
 
-	cols = kmscon_text_get_cols(scr->txt);
-	rows = kmscon_text_get_rows(scr->txt);
-	terminal_resize(term, cols, rows, false, true);
+	terminal_resize(term,
+			kmscon_text_get_cols(scr->txt),
+			kmscon_text_get_rows(scr->txt),
+			false, true);
 
 	shl_dlist_link(&term->screens, &scr->list);
 
@@ -276,9 +307,6 @@ static int add_display(struct kmscon_terminal *term, struct uterm_display *disp)
 
 err_text:
 	kmscon_text_unref(scr->txt);
-err_font:
-	kmscon_font_unref(scr->bold_font);
-	kmscon_font_unref(scr->font);
 err_cb:
 	uterm_display_unregister_cb(scr->disp, display_event, scr);
 err_free:
@@ -295,8 +323,6 @@ static void free_screen(struct screen *scr, bool update)
 	log_debug("destroying terminal screen %p", scr);
 	shl_dlist_unlink(&scr->list);
 	kmscon_text_unref(scr->txt);
-	kmscon_font_unref(scr->bold_font);
-	kmscon_font_unref(scr->font);
 	uterm_display_unregister_cb(scr->disp, display_event, scr);
 	uterm_display_unref(scr->disp);
 	free(scr);
@@ -436,6 +462,8 @@ static void terminal_destroy(struct kmscon_terminal *term)
 	uterm_input_unregister_cb(term->input, input_event, term);
 	ev_eloop_rm_fd(term->ptyfd);
 	kmscon_pty_unref(term->pty);
+	kmscon_font_unref(term->bold_font);
+	kmscon_font_unref(term->font);
 	tsm_vte_unref(term->vte);
 	tsm_screen_unref(term->console);
 	uterm_input_unref(term->input);
@@ -523,6 +551,11 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	term->conf_ctx = kmscon_seat_get_conf(seat);
 	term->conf = conf_ctx_get_mem(term->conf_ctx);
 
+	strncpy(term->font_attr.name, term->conf->font_name,
+		KMSCON_FONT_MAX_NAME - 1);
+	term->font_attr.ppi = term->conf->font_ppi;
+	term->font_attr.points = term->conf->font_size;
+
 	ret = tsm_screen_new(&term->console, log_llog, NULL);
 	if (ret)
 		goto err_free;
@@ -537,9 +570,13 @@ int kmscon_terminal_register(struct kmscon_session **out,
 		goto err_con;
 	tsm_vte_set_palette(term->vte, term->conf->palette);
 
-	ret = kmscon_pty_new(&term->pty, pty_input, term);
+	ret = font_set(term);
 	if (ret)
 		goto err_vte;
+
+	ret = kmscon_pty_new(&term->pty, pty_input, term);
+	if (ret)
+		goto err_font;
 
 	kmscon_pty_set_env_reset(term->pty, term->conf->reset_env);
 
@@ -588,6 +625,9 @@ err_ptyfd:
 	ev_eloop_rm_fd(term->ptyfd);
 err_pty:
 	kmscon_pty_unref(term->pty);
+err_font:
+	kmscon_font_unref(term->bold_font);
+	kmscon_font_unref(term->font);
 err_vte:
 	tsm_vte_unref(term->vte);
 err_con:
