@@ -199,7 +199,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	bitmap.pixel_mode = FT_PIXEL_MODE_GRAY;
 	bitmap.buffer = glyph->buf.data;
 
-	pango_ft2_render_layout_line(&bitmap, line, -rec.x, -rec.y);
+	pango_ft2_render_layout_line(&bitmap, line, -rec.x, face->baseline);
 
 	pthread_mutex_lock(&face->glyph_lock);
 	ret = shl_hashtable_insert(face->glyphs, (void*)(long)id, glyph);
