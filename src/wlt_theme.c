@@ -168,16 +168,22 @@ static void draw_control(struct wlt_theme *theme)
 static void draw_frame(struct wlt_theme *theme)
 {
 	uint8_t *dst;
-	uint32_t *line;
+	uint32_t *line, col;
 	unsigned int i, j, height;
+
+	col = (0x60 << 24) | (0xaa << 16) | (0xaa << 8) | 0xaa;
 
 	/* top frame */
 	dst = theme->buffer.data + theme->buffer.stride *
 	      theme->control_height;
 	for (i = 0; i < theme->frame_width; ++i) {
 		line = (uint32_t*)dst;
-		for (j = 0; j < theme->buffer.width; ++j)
-			line[j] = 0xa0 << 24;
+		for (j = 0; j < theme->buffer.width; ++j) {
+			if (!j || j + 1 == theme->buffer.width)
+				line[j] = 0xff << 24;
+			else
+				line[j] = col;
+		}
 		dst += theme->buffer.stride;
 	}
 
@@ -186,8 +192,13 @@ static void draw_frame(struct wlt_theme *theme)
 	      (theme->buffer.height - theme->frame_width);
 	for (i = 0; i < theme->frame_width; ++i) {
 		line = (uint32_t*)dst;
-		for (j = 0; j < theme->buffer.width; ++j)
-			line[j] = 0xa0 << 24;
+		for (j = 0; j < theme->buffer.width; ++j) {
+			if (!j || j + 1 == theme->buffer.width
+			       || i + 1 == theme->frame_width)
+				line[j] = 0xff << 24;
+			else
+				line[j] = col;
+		}
 		dst += theme->buffer.stride;
 	}
 
@@ -199,7 +210,7 @@ static void draw_frame(struct wlt_theme *theme)
 	for (i = 0; i < height; ++i) {
 		line = (uint32_t*)dst;
 		for (j = 0; j < theme->frame_width; ++j)
-			line[j] = 0xa0 << 24;
+			line[j] = j ? col : (0xff << 24);
 		dst += theme->buffer.stride;
 	}
 
@@ -211,8 +222,12 @@ static void draw_frame(struct wlt_theme *theme)
 	for (i = 0; i < height; ++i) {
 		line = (uint32_t*)dst;
 		line += theme->buffer.width - theme->frame_width;
-		for (j = 0; j < theme->frame_width; ++j)
-			line[j] = 0xa0 << 24;
+		for (j = 0; j < theme->frame_width; ++j) {
+			if (j + 1 == theme->frame_width)
+				line[j] = 0xff << 24;
+			else
+				line[j] = col;
+		}
 		dst += theme->buffer.stride;
 	}
 }
