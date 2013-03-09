@@ -118,6 +118,10 @@ struct kmscon_conf_t {
 	struct conf_grab *grab_page_up;
 	/* page-down grab */
 	struct conf_grab *grab_page_down;
+	/* zoom-in grab */
+	struct conf_grab *grab_zoom_in;
+	/* zoom-out grab */
+	struct conf_grab *grab_zoom_out;
 	/* session-next grab */
 	struct conf_grab *grab_session_next;
 	/* session-prev grab */

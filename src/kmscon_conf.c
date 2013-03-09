@@ -119,6 +119,10 @@ static void print_help()
 		"\t                                  Shortcut to scroll page up\n"
 		"\t    --grab-page-down <grab>     [<Shift>Next]\n"
 		"\t                                  Shortcut to scroll page down\n"
+		"\t    --grab-zoom-in <grab>       [<Ctrl>Plus]\n"
+		"\t                                  Shortcut to increase font size\n"
+		"\t    --grab-zoom-out <grab>      [<Ctrl>Minus]\n"
+		"\t                                  Shortcut to decrease font size\n"
 		"\t    --grab-session-next <grab>  [<Ctrl><Logo>Right]\n"
 		"\t                                  Switch to next session\n"
 		"\t    --grab-session-prev <grab>  [<Ctrl><Logo>Left]\n"
@@ -510,6 +514,12 @@ static struct conf_grab def_grab_page_up =
 static struct conf_grab def_grab_page_down =
 		CONF_SINGLE_GRAB(SHL_SHIFT_MASK, XKB_KEY_Next);
 
+static struct conf_grab def_grab_zoom_in =
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK, XKB_KEY_plus);
+
+static struct conf_grab def_grab_zoom_out =
+		CONF_SINGLE_GRAB(SHL_CONTROL_MASK, XKB_KEY_minus);
+
 static struct conf_grab def_grab_session_next =
 		CONF_SINGLE_GRAB(SHL_CONTROL_MASK | SHL_LOGO_MASK, XKB_KEY_Right);
 
@@ -579,6 +589,8 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_GRAB(0, "grab-scroll-down", &conf->grab_scroll_down, &def_grab_scroll_down),
 		CONF_OPTION_GRAB(0, "grab-page-up", &conf->grab_page_up, &def_grab_page_up),
 		CONF_OPTION_GRAB(0, "grab-page-down", &conf->grab_page_down, &def_grab_page_down),
+		CONF_OPTION_GRAB(0, "grab-zoom-in", &conf->grab_zoom_in, &def_grab_zoom_in),
+		CONF_OPTION_GRAB(0, "grab-zoom-out", &conf->grab_zoom_out, &def_grab_zoom_out),
 		CONF_OPTION_GRAB(0, "grab-session-next", &conf->grab_session_next, &def_grab_session_next),
 		CONF_OPTION_GRAB(0, "grab-session-prev", &conf->grab_session_prev, &def_grab_session_prev),
 		CONF_OPTION_GRAB(0, "grab-session-dummy", &conf->grab_session_dummy, &def_grab_session_dummy),

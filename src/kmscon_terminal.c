@@ -426,6 +426,28 @@ static void input_event(struct uterm_input *input,
 		ev->handled = true;
 		return;
 	}
+	if (conf_grab_matches(term->conf->grab_zoom_in,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		if (term->font_attr.points + 1 < term->font_attr.points)
+			return;
+
+		++term->font_attr.points;
+		if (font_set(term))
+			--term->font_attr.points;
+		return;
+	}
+	if (conf_grab_matches(term->conf->grab_zoom_out,
+			      ev->mods, ev->num_syms, ev->keysyms)) {
+		ev->handled = true;
+		if (term->font_attr.points <= 1)
+			return;
+
+		--term->font_attr.points;
+		if (font_set(term))
+			++term->font_attr.points;
+		return;
+	}
 
 	/* TODO: xkbcommon supports multiple keysyms, but it is currently
 	 * unclear how this feature will be used. There is no keymap, which

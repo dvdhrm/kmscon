@@ -372,6 +372,22 @@
       </varlistentry>
 
       <varlistentry>
+        <term><option>--grab-zoom-in {grab}</option></term>
+        <listitem>
+          <para>Increase font size of the current terminal.
+                (default: &lt;Ctrl&gt;Plus)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><option>--grab-zoom-out {grab}</option></term>
+        <listitem>
+          <para>Decrease font size of the current terminal.
+                (default: &lt;Ctrl&gt;Minus)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>--grab-session-next {grab}</option></term>
         <listitem>
           <para>Switch to next session.
