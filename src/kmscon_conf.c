@@ -105,6 +105,8 @@ static void print_help()
 		"\t    --xkb-layout <layout>      [-]  Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant>    [-]  Set XkbVariant for input devices\n"
 		"\t    --xkb-options <options>    [-]  Set XkbOptions for input devices\n"
+		"\t    --xkb-keymap <FILE>        [-]  Use a predefined keymap for\n"
+		"\t                                    input devices\n"
 		"\t    --xkb-repeat-delay <msecs> [250]\n"
 		"\t                                 Initial delay for key-repeat in ms\n"
 		"\t    --xkb-repeat-rate <msecs>  [50]\n"
@@ -581,6 +583,7 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_STRING(0, "xkb-layout", &conf->xkb_layout, ""),
 		CONF_OPTION_STRING(0, "xkb-variant", &conf->xkb_variant, ""),
 		CONF_OPTION_STRING(0, "xkb-options", &conf->xkb_options, ""),
+		CONF_OPTION_STRING(0, "xkb-keymap", &conf->xkb_keymap, ""),
 		CONF_OPTION_UINT(0, "xkb-repeat-delay", &conf->xkb_repeat_delay, 250),
 		CONF_OPTION_UINT(0, "xkb-repeat-rate", &conf->xkb_repeat_rate, 50),
 

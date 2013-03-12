@@ -86,7 +86,8 @@ int uxkb_desc_init(struct uterm_input *input,
 		   const char *model,
 		   const char *layout,
 		   const char *variant,
-		   const char *options);
+		   const char *options,
+		   const char *keymap);
 void uxkb_desc_destroy(struct uterm_input *input);
 
 int uxkb_dev_init(struct uterm_input_dev *dev);

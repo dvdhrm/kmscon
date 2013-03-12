@@ -300,6 +300,15 @@
       </varlistentry>
 
       <varlistentry>
+        <term><option>--xkb-keymap {file}</option></term>
+        <listitem>
+          <para>Path to a single predefined keymap file. This takes precedence
+                over the above options. An empty path "" is interpreted as not
+                using a keymap. (default: not used)</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term><option>--xkb-repeat-delay {delay}</option></term>
         <listitem>
           <para>Delay after key was pressed until key-repeat starts (in

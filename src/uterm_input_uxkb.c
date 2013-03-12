@@ -44,7 +44,8 @@ int uxkb_desc_init(struct uterm_input *input,
 		   const char *model,
 		   const char *layout,
 		   const char *variant,
-		   const char *options)
+		   const char *options,
+		   const char *keymap)
 {
 	int ret;
 	struct xkb_rule_names rmlvo = {
@@ -59,6 +60,18 @@ int uxkb_desc_init(struct uterm_input *input,
 	if (!input->ctx) {
 		log_error("cannot create XKB context");
 		return -ENOMEM;
+	}
+
+	/* If a complete keymap file was given, first try that. */
+	if (keymap && *keymap) {
+		input->keymap = xkb_keymap_new_from_string(input->ctx,
+					keymap, XKB_KEYMAP_FORMAT_TEXT_V1, 0);
+		if (input->keymap) {
+			log_debug("new keyboard description from memory");
+			return 0;
+		}
+
+		log_warn("cannot parse keymap, reverting to rmlvo");
 	}
 
 	input->keymap = xkb_keymap_new_from_names(input->ctx, &rmlvo, 0);

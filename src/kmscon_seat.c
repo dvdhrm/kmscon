@@ -639,6 +639,7 @@ int kmscon_seat_new(struct kmscon_seat **out,
 {
 	struct kmscon_seat *seat;
 	int ret;
+	char *keymap;
 
 	if (!out || !eloop || !vtm || !seatname)
 		return -EINVAL;
@@ -675,13 +676,27 @@ int kmscon_seat_new(struct kmscon_seat **out,
 		goto err_conf;
 	}
 
+	/* TODO: The XKB-API currently requires zero-terminated strings as
+	 * keymap input. Hence, we have to read it in instead of using mmap().
+	 * We should fix this upstream! */
+	keymap = NULL;
+	if (seat->conf->xkb_keymap && *seat->conf->xkb_keymap) {
+		ret = shl_read_file(seat->conf->xkb_keymap, &keymap, NULL);
+		if (ret)
+			log_error("cannot read keymap file %s: %d",
+				  seat->conf->xkb_keymap, ret);
+	}
+
 	ret = uterm_input_new(&seat->input, seat->eloop,
 			      seat->conf->xkb_model,
 			      seat->conf->xkb_layout,
 			      seat->conf->xkb_variant,
 			      seat->conf->xkb_options,
+			      keymap,
 			      seat->conf->xkb_repeat_delay,
 			      seat->conf->xkb_repeat_rate);
+	free(keymap);
+
 	if (ret)
 		goto err_conf;
 

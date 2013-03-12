@@ -104,6 +104,8 @@ struct kmscon_conf_t {
 	char *xkb_variant;
 	/* input KBD options */
 	char *xkb_options;
+	/* input predefined KBD keymap */
+	char *xkb_keymap;
 	/* keyboard key-repeat delay */
 	unsigned int xkb_repeat_delay;
 	/* keyboard key-repeat rate */

@@ -52,6 +52,7 @@ struct {
 	char *xkb_layout;
 	char *xkb_variant;
 	char *xkb_options;
+	char *xkb_keymap;
 } input_conf;
 
 /* Pressing Ctrl-\ should toggle the capturing. */
@@ -109,16 +110,27 @@ static void monitor_event(struct uterm_monitor *mon,
 				void *data)
 {
 	int ret;
+	char *keymap;
 
 	if (ev->type == UTERM_MONITOR_NEW_SEAT) {
 		if (strcmp(ev->seat_name, "seat0"))
 			return;
+
+		keymap = NULL;
+		if (input_conf.xkb_keymap && *input_conf.xkb_keymap) {
+			ret = shl_read_file(input_conf.xkb_keymap, &keymap,
+					    NULL);
+			if (ret)
+				log_error("cannot read keymap file %s: %d",
+					  input_conf.xkb_keymap, ret);
+		}
 
 		ret = uterm_input_new(&input, eloop,
 				      input_conf.xkb_model,
 				      input_conf.xkb_layout,
 				      input_conf.xkb_variant,
 				      input_conf.xkb_options,
+				      keymap,
 				      0, 0);
 		if (ret)
 			return;
@@ -166,7 +178,9 @@ static void print_help()
 		"\t    --xkb-model <model>     [-]     Set XkbModel for input devices\n"
 		"\t    --xkb-layout <layout>   [-]     Set XkbLayout for input devices\n"
 		"\t    --xkb-variant <variant> [-]     Set XkbVariant for input devices\n"
-		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n",
+		"\t    --xkb-options <options> [-]     Set XkbOptions for input devices\n"
+		"\t    --xkb-keymap <FILE>     [-]     Use a predefined keymap for\n"
+		"\t                                    input devices\n",
 		"test_input");
 	/*
 	 * 80 char line:
@@ -184,6 +198,7 @@ struct conf_option options[] = {
 	CONF_OPTION_STRING(0, "xkb-layout", &input_conf.xkb_layout, ""),
 	CONF_OPTION_STRING(0, "xkb-variant", &input_conf.xkb_variant, ""),
 	CONF_OPTION_STRING(0, "xkb-options", &input_conf.xkb_options, ""),
+	CONF_OPTION_STRING(0, "xkb-keymap", &input_conf.xkb_keymap, ""),
 };
 
 int main(int argc, char **argv)
