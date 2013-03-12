@@ -37,6 +37,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -260,6 +261,62 @@ static inline unsigned int shl_string_list_count(char **list, bool ignore_empty)
 			++num;
 
 	return num;
+}
+
+/* reads a whole file into a buffer with 0-termination */
+static inline int shl_read_file(const char *path, char **out, size_t *size)
+{
+	FILE *ffile;
+	ssize_t len;
+	char *buf;
+	int ret;
+
+	if (!path || !out)
+		return -EINVAL;
+
+	errno = 0;
+
+	ffile = fopen(path, "rb");
+	if (!ffile)
+		return -errno;
+
+	if (fseek(ffile, 0, SEEK_END) != 0) {
+		ret = -errno;
+		goto err_close;
+	}
+
+	len = ftell(ffile);
+	if (len < 0) {
+		ret = -errno;
+		goto err_close;
+	}
+
+	rewind(ffile);
+
+	buf = malloc(len + 1);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err_close;
+	}
+
+	errno = 0;
+	if (len && len != fread(buf, 1, len, ffile)) {
+		ret = errno ? -errno : -EFAULT;
+		goto err_free;
+	}
+
+	buf[len] = 0;
+	*out = buf;
+	if (size)
+		*size = len;
+	ret = 0;
+	goto err_close;
+
+err_free:
+	free(buf);
+err_close:
+	fclose(ffile);
+	return ret;
 }
 
 /* TODO: xkbcommon should provide these flags!
