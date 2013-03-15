@@ -237,7 +237,6 @@ int main(int argc, char **argv)
 		goto err_out;
 	}
 
-	fprintf(stderr, "genunifont: parsing input %s\n", argv[2]);
 	in = fopen(argv[2], "rb");
 	if (!in) {
 		fprintf(stderr, "genunifont: cannot open %s: %m\n",
