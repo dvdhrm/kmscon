@@ -755,6 +755,7 @@ if test x$have_gbm = xyes ; then
 fi
 
 # check for xsltproc
+AC_ARG_VAR([XSLTPROC], [xsltproc program])
 AC_PATH_PROG(XSLTPROC, xsltproc)
 AM_CONDITIONAL([BUILD_HAVE_XSLTPROC], [test "x$XSLTPROC" != "x"])
 
