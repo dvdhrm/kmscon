@@ -777,6 +777,14 @@ fi
 # gles2 helpers
 AM_CONDITIONAL([BUILD_HAVE_GLES2], [test "x$have_gles2" = "xyes"])
 
+# check for mandatory objcopy program
+AC_ARG_VAR([OBJCOPY], [objcopy program])
+AC_CHECK_TOOL([OBJCOPY], [objcopy], "")
+
+if test "x$OBJCOPY" = "x" ; then
+        AC_ERROR([Cannot find "objcopy" program])
+fi
+
 #
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the
