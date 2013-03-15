@@ -26,10 +26,7 @@ stamp-*
 .dirstamp
 .libs
 .man_fixup
-genshader
 genunifont
-src/static_shaders.c
-src/genshader.c
 src/shl_githead.c
 src/font_unifont_data.bin
 docs/reference/*.txt
@@ -42,3 +39,5 @@ docs/man/*.1
 docs/man/*.3
 docs/man/*.5
 docs/man/*.7
+src/*.vert.bin
+src/*.frag.bin

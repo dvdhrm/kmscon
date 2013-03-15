@@ -141,13 +141,16 @@ static void free_glyph(void *data)
 	free(glyph);
 }
 
-extern const char *gl_static_gltex_vert;
-extern const char *gl_static_gltex_frag;
+extern const char _binary_src_text_gltex_atlas_vert_bin_start[];
+extern const char _binary_src_text_gltex_atlas_vert_bin_end[];
+extern const char _binary_src_text_gltex_atlas_frag_bin_start[];
+extern const char _binary_src_text_gltex_atlas_frag_bin_end[];
 
 static int gltex_set(struct kmscon_text *txt)
 {
 	struct gltex *gt = txt->data;
-	int ret;
+	int ret, vlen, flen;
+	const char *vert, *frag;
 	static char *attr[] = { "position", "texture_position",
 				"fgcolor", "bgcolor" };
 	GLint s;
@@ -177,10 +180,14 @@ static int gltex_set(struct kmscon_text *txt)
 		goto err_bold_htable;
 	}
 
+	vert = _binary_src_text_gltex_atlas_vert_bin_start;
+	vlen = _binary_src_text_gltex_atlas_vert_bin_end - vert;
+	frag = _binary_src_text_gltex_atlas_frag_bin_start;
+	flen = _binary_src_text_gltex_atlas_frag_bin_end - frag;
 	gl_clear_error();
 
-	ret = gl_shader_new(&gt->shader, gl_static_gltex_vert, -1,
-			    gl_static_gltex_frag, -1, attr, 4, log_llog, NULL);
+	ret = gl_shader_new(&gt->shader, vert, vlen, frag, flen, attr, 4,
+			    log_llog, NULL);
 	if (ret)
 		goto err_bold_htable;
 

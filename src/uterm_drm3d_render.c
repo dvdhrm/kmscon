@@ -54,12 +54,18 @@
 
 #define LOG_SUBSYSTEM "uterm_drm3d_render"
 
-extern const char *gl_static_fill_vert;
-extern const char *gl_static_fill_frag;
-extern const char *gl_static_blend_vert;
-extern const char *gl_static_blend_frag;
-extern const char *gl_static_blit_vert;
-extern const char *gl_static_blit_frag;
+extern const char _binary_src_uterm_drm3d_blend_vert_bin_start[];
+extern const char _binary_src_uterm_drm3d_blend_vert_bin_end[];
+extern const char _binary_src_uterm_drm3d_blend_frag_bin_start[];
+extern const char _binary_src_uterm_drm3d_blend_frag_bin_end[];
+extern const char _binary_src_uterm_drm3d_blit_vert_bin_start[];
+extern const char _binary_src_uterm_drm3d_blit_vert_bin_end[];
+extern const char _binary_src_uterm_drm3d_blit_frag_bin_start[];
+extern const char _binary_src_uterm_drm3d_blit_frag_bin_end[];
+extern const char _binary_src_uterm_drm3d_fill_vert_bin_start[];
+extern const char _binary_src_uterm_drm3d_fill_vert_bin_end[];
+extern const char _binary_src_uterm_drm3d_fill_frag_bin_start[];
+extern const char _binary_src_uterm_drm3d_fill_frag_bin_end[];
 
 static int init_shaders(struct uterm_video *video)
 {
@@ -68,6 +74,10 @@ static int init_shaders(struct uterm_video *video)
 	char *fill_attr[] = { "position", "color" };
 	char *blend_attr[] = { "position", "texture_position" };
 	char *blit_attr[] = { "position", "texture_position" };
+	int blend_vlen, blend_flen, blit_vlen, blit_flen, fill_vlen, fill_flen;
+	const char *blend_vert, *blend_frag;
+	const char *blit_vert, *blit_frag;
+	const char *fill_vert, *fill_frag;
 
 	if (v3d->sinit == 1)
 		return -EFAULT;
@@ -76,8 +86,21 @@ static int init_shaders(struct uterm_video *video)
 
 	v3d->sinit = 1;
 
-	ret = gl_shader_new(&v3d->fill_shader, gl_static_fill_vert, -1,
-			    gl_static_fill_frag, -1, fill_attr, 2, log_llog,
+	blend_vert = _binary_src_uterm_drm3d_blend_vert_bin_start;
+	blend_vlen = _binary_src_uterm_drm3d_blend_vert_bin_end - blend_vert;
+	blend_frag = _binary_src_uterm_drm3d_blend_frag_bin_start;
+	blend_flen = _binary_src_uterm_drm3d_blend_frag_bin_end - blend_frag;
+	blit_vert = _binary_src_uterm_drm3d_blit_vert_bin_start;
+	blit_vlen = _binary_src_uterm_drm3d_blit_vert_bin_end - blit_vert;
+	blit_frag = _binary_src_uterm_drm3d_blit_frag_bin_start;
+	blit_flen = _binary_src_uterm_drm3d_blit_frag_bin_end - blit_frag;
+	fill_vert = _binary_src_uterm_drm3d_fill_vert_bin_start;
+	fill_vlen = _binary_src_uterm_drm3d_fill_vert_bin_end - fill_vert;
+	fill_frag = _binary_src_uterm_drm3d_fill_frag_bin_start;
+	fill_flen = _binary_src_uterm_drm3d_fill_frag_bin_end - fill_frag;
+
+	ret = gl_shader_new(&v3d->fill_shader, fill_vert, fill_vlen,
+			    fill_frag, fill_flen, fill_attr, 2, log_llog,
 			    NULL);
 	if (ret)
 		return ret;
@@ -85,8 +108,8 @@ static int init_shaders(struct uterm_video *video)
 	v3d->uni_fill_proj = gl_shader_get_uniform(v3d->fill_shader,
 						   "projection");
 
-	ret = gl_shader_new(&v3d->blend_shader, gl_static_blend_vert, -1,
-			    gl_static_blend_frag, -1, blend_attr, 2, log_llog,
+	ret = gl_shader_new(&v3d->blend_shader, blend_vert, blend_vlen,
+			    blend_frag, blend_flen, blend_attr, 2, log_llog,
 			    NULL);
 	if (ret)
 		return ret;
@@ -100,8 +123,8 @@ static int init_shaders(struct uterm_video *video)
 	v3d->uni_blend_bgcol = gl_shader_get_uniform(v3d->blend_shader,
 						     "bgcolor");
 
-	ret = gl_shader_new(&v3d->blit_shader, gl_static_blit_vert, -1,
-			    gl_static_blit_frag, -1, blit_attr, 2, log_llog,
+	ret = gl_shader_new(&v3d->blit_shader, blit_vert, blit_vlen,
+			    blit_frag, blit_flen, blit_attr, 2, log_llog,
 			    NULL);
 	if (ret)
 		return ret;

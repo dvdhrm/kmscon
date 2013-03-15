@@ -145,6 +145,29 @@ src/%.bin.lo: src/%.bin
 	$(AM_V_at)echo >>"$@"
 
 #
+# Shader Converter
+# We use a few built-in shader files. To reduce memory-consumption, this helper
+# removes useless lines from the shaders before they are compiled into an object
+# file.
+#
+# Following regexp are used to remove characters/lines:
+#  ^/*.*$     Start of multi-line comment
+#  ^ *.*$     Multi-line comment body
+#  ^[ \t]*    Indentation whitespace
+#  \n         Newlines
+#
+
+CLEANFILES += src/*.vert.bin src/*.frag.bin
+SHADER_SED = -e 's/^\/\*.*$$//' -e 's/^ \*.*$$//' -e 's/^[ \t]*//'
+SHADER_TR = -d "\n"
+
+src/%.vert.bin: $(top_srcdir)/src/%.vert
+	$(AM_V_at)$(SED) $(SHADER_SED) "$<" | tr $(SHADER_TR) >"$@"
+
+src/%.frag.bin: $(top_srcdir)/src/%.frag
+	$(AM_V_at)$(SED) $(SHADER_SED) "$<" | tr $(SHADER_TR) >"$@"
+
+#
 # SHL - Static Helper Library
 # The SHL subsystem contains several small code pieces used all over kmscon and
 # other applications.
@@ -265,12 +288,10 @@ libuterm_la_LIBADD += $(DRM_LIBS)
 endif
 
 if BUILD_ENABLE_VIDEO_DRM3D
-noinst_PROGRAMS += genshader
 libuterm_la_SOURCES += \
 	src/uterm_drm3d_internal.h \
 	src/uterm_drm3d_video.c \
 	src/uterm_drm3d_render.c
-nodist_libuterm_la_SOURCES += src/static_shaders.c
 libuterm_la_CPPFLAGS += \
 	$(DRM_CFLAGS) \
 	$(EGL_CFLAGS) \
@@ -280,7 +301,13 @@ libuterm_la_LIBADD += \
 	$(DRM_LIBS) \
 	$(EGL_LIBS) \
 	$(GBM_LIBS) \
-	$(GLES2_LIBS)
+	$(GLES2_LIBS) \
+	src/uterm_drm3d_blend.vert.bin.lo \
+	src/uterm_drm3d_blend.frag.bin.lo \
+	src/uterm_drm3d_blit.vert.bin.lo \
+	src/uterm_drm3d_blit.frag.bin.lo \
+	src/uterm_drm3d_fill.vert.bin.lo \
+	src/uterm_drm3d_fill.frag.bin.lo
 endif
 
 # add shared sources only once
@@ -294,39 +321,6 @@ if BUILD_ENABLE_VIDEO_DRM3D
 libuterm_la_SOURCES += $(UTERM_DRM_SHARED_SRC)
 endif
 endif
-
-#
-# Shaders
-# As there is no need to modify shaders at run-time, we statically compile them
-# into object files. As autotools would ignore them, we need to add them to
-# EXTRA_DIST.
-# The program that converts the shaders into C-source files is "genshader". It's
-# pretty simple and just creates a string with the shader source as content.
-#
-
-SHADERS = \
-	$(srcdir)/src/static_fill.vert \
-	$(srcdir)/src/static_fill.frag \
-	$(srcdir)/src/static_blend.vert \
-	$(srcdir)/src/static_blend.frag \
-	$(srcdir)/src/static_blit.vert \
-	$(srcdir)/src/static_blit.frag \
-	$(srcdir)/src/static_gltex.vert \
-	$(srcdir)/src/static_gltex.frag
-
-EXTRA_DIST += $(SHADERS)
-CLEANFILES += src/static_shaders.c
-genshader_SOURCES = src/genshader.c
-
-# TODO: Using $(BUILD_EXEEXT) breaks if it doesn't equal $(EXEEXT). But stupid
-# automake doesn't allow $(EXEEXT) so lets just rely on both being the same.
-
-src/static_shaders.c: $(SHADERS) genshader$(BUILD_EXEEXT)
-	$(AM_V_GEN)./genshader$(BUILD_EXEEXT) src/static_shaders.c $(SHADERS)
-
-genshader$(BUILD_EXEEXT) $(genshader_OBJECTS): CC = $(CC_FOR_BUILD)
-genshader$(BUILD_EXEEXT) $(genshader_OBJECTS): CFLAGS = $(CFLAGS_FOR_BUILD)
-genshader$(BUILD_EXEEXT): LDFLAGS = $(LDFLAGS_FOR_BUILD)
 
 #
 # Unifont Generator
@@ -407,21 +401,20 @@ mod_bbulk_la_LDFLAGS = \
 
 if BUILD_ENABLE_RENDERER_GLTEX
 module_LTLIBRARIES += mod-gltex.la
-noinst_PROGRAMS += genshader
 endif
 
 mod_gltex_la_SOURCES = \
 	src/kmscon_module_interface.h \
 	src/text_gltex.c \
 	src/kmscon_mod_gltex.c
-nodist_mod_gltex_la_SOURCES = \
-	src/static_shaders.c
 mod_gltex_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(GLES2_CFLAGS)
 mod_gltex_la_LIBADD = \
 	$(GLES2_LIBS) \
-	libshl.la
+	libshl.la \
+	src/text_gltex_atlas.vert.bin.lo \
+	src/text_gltex_atlas.frag.bin.lo
 mod_gltex_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
 	-module \
@@ -606,3 +599,10 @@ endif # BUILD_HAVE_XSLTPROC
 #
 
 .PHONY: $(TPHONY)
+
+#
+# Empty .SECONDARY target causes alle intermediate files to be treated as
+# secondary files. That is, they don't get deleted after make finished.
+#
+
+.SECONDARY:
