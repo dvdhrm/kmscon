@@ -71,7 +71,8 @@ float *gl_m4_stack_tip(struct gl_m4_stack *stack);
 
 struct gl_shader;
 
-int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
+int gl_shader_new(struct gl_shader **out, const char *vert, int vert_len,
+		  const char *frag, int frag_len,
 		  char **attr, size_t attr_count, llog_submit_t llog,
 		  void *llog_data);
 void gl_shader_ref(struct gl_shader *shader);

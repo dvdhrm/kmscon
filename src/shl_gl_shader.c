@@ -106,10 +106,10 @@ bool gl_has_error(struct gl_shader *shader)
 }
 
 static int compile_shader(struct gl_shader *shader, GLenum type,
-			  const char *source)
+			  const char *source, int len)
 {
 	char msg[512];
-	GLint status = 1;
+	GLint status = 1, size;
 	GLuint s;
 
 	s = glCreateShader(type);
@@ -118,7 +118,8 @@ static int compile_shader(struct gl_shader *shader, GLenum type,
 		return GL_NONE;
 	}
 
-	glShaderSource(s, 1, &source, NULL);
+	size = len;
+	glShaderSource(s, 1, &source, &size);
 	glCompileShader(s);
 
 	glGetShaderiv(s, GL_COMPILE_STATUS, &status);
@@ -132,7 +133,8 @@ static int compile_shader(struct gl_shader *shader, GLenum type,
 	return s;
 }
 
-int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
+int gl_shader_new(struct gl_shader **out, const char *vert, int vert_len,
+		  const char *frag, int frag_len,
 		  char **attr, size_t attr_count, llog_submit_t llog,
 		  void *llog_data)
 {
@@ -154,13 +156,15 @@ int gl_shader_new(struct gl_shader **out, const char *vert, const char *frag,
 
 	llog_debug(shader, "new shader");
 
-	shader->vshader = compile_shader(shader, GL_VERTEX_SHADER, vert);
+	shader->vshader = compile_shader(shader, GL_VERTEX_SHADER, vert,
+					 vert_len);
 	if (shader->vshader == GL_NONE) {
 		ret = -EFAULT;
 		goto err_free;
 	}
 
-	shader->fshader = compile_shader(shader, GL_FRAGMENT_SHADER, frag);
+	shader->fshader = compile_shader(shader, GL_FRAGMENT_SHADER, frag,
+					 frag_len);
 	if (shader->fshader == GL_NONE) {
 		ret = -EFAULT;
 		goto err_vshader;
