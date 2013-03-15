@@ -1,8 +1,7 @@
 /*
- * kmscon - OpenGL Helpers
+ * shl - OpenGL Helpers
  *
- * Copyright (c) 2011-2012 David Herrmann <dh.herrmann@googlemail.com>
- * Copyright (c) 2011 University of Tuebingen
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -28,10 +27,11 @@
  * OpenGL Helpers
  * This file provides several helper functions that are commonly used when
  * working with OpenGL.
+ * TODO: Rename to shl_gl_* prefix.
  */
 
-#ifndef GL_H_INCLUDED
-#define GL_H_INCLUDED
+#ifndef SHL_GL_H
+#define SHL_GL_H
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -88,4 +88,4 @@ void gl_clear_error();
 bool gl_has_error(struct gl_shader *shader);
 const char *gl_err_to_str(GLenum err);
 
-#endif /* GL_H_INCLUDED */
+#endif /* SHL_GL_H */

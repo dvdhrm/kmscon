@@ -168,7 +168,9 @@ libshl_la_SOURCES = \
 	src/shl_hook.h \
 	src/shl_misc.h \
 	src/shl_register.h \
-	src/shl_flagset.h
+	src/shl_flagset.h \
+	src/shl_gl.h \
+	src/shl_gl_math.c
 libshl_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS) \
@@ -179,6 +181,12 @@ libshl_la_LDFLAGS = \
 libshl_la_LIBADD = \
 	$(AM_LIBADD) \
 	$(XKBCOMMON_LIBS)
+
+if BUILD_HAVE_GLES2
+libshl_la_SOURCES += src/shl_gl_shader.c
+libshl_la_CPPFLAGS += $(GLES2_CFLAGS)
+libshl_la_LIBADD += $(GLES2_LIBS)
+endif
 
 #
 # libeloop
@@ -261,10 +269,7 @@ noinst_PROGRAMS += genshader
 libuterm_la_SOURCES += \
 	src/uterm_drm3d_internal.h \
 	src/uterm_drm3d_video.c \
-	src/uterm_drm3d_render.c \
-	src/static_gl.h \
-	src/static_gl_math.c \
-	src/static_gl_shader.c
+	src/uterm_drm3d_render.c
 nodist_libuterm_la_SOURCES += src/static_shaders.c
 libuterm_la_CPPFLAGS += \
 	$(DRM_CFLAGS) \
@@ -408,9 +413,6 @@ endif
 mod_gltex_la_SOURCES = \
 	src/kmscon_module_interface.h \
 	src/text_gltex.c \
-	src/static_gl.h \
-	src/static_gl_math.c \
-	src/static_gl_shader.c \
 	src/kmscon_mod_gltex.c
 nodist_mod_gltex_la_SOURCES = \
 	src/static_shaders.c

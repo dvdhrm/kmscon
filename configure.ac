@@ -773,6 +773,9 @@ else
         AC_MSG_RESULT([no])
 fi
 
+# gles2 helpers
+AM_CONDITIONAL([BUILD_HAVE_GLES2], [test "x$have_gles2" = "xyes"])
+
 #
 # Makefile vars
 # After everything is configured, we correctly substitute the values for the

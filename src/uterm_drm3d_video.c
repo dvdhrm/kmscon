@@ -47,7 +47,6 @@
 #include "eloop.h"
 #include "shl_log.h"
 #include "shl_misc.h"
-#include "static_gl.h"
 #include "uterm_drm_shared_internal.h"
 #include "uterm_drm3d_internal.h"
 #include "uterm_video.h"

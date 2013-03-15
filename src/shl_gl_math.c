@@ -1,8 +1,7 @@
 /*
- * kmscon - GL Math Helpers
+ * shl - OpenGL Helpers
  *
- * Copyright (c) 2011 David Herrmann <dh.herrmann@googlemail.com>
- * Copyright (c) 2011 University of Tuebingen
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -32,7 +31,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "static_gl.h"
+#include "shl_gl.h"
 
 struct gl_m4_entry {
 	struct gl_m4_entry *next;
