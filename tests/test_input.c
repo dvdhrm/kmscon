@@ -131,7 +131,7 @@ static void monitor_event(struct uterm_monitor *mon,
 				      input_conf.xkb_variant,
 				      input_conf.xkb_options,
 				      keymap,
-				      0, 0);
+				      0, 0, log_llog, NULL);
 		if (ret)
 			return;
 		ret = uterm_input_register_cb(input, input_arrived, NULL);

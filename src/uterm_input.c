@@ -39,12 +39,12 @@
 #include "eloop.h"
 #include "shl_dlist.h"
 #include "shl_hook.h"
-#include "shl_log.h"
+#include "shl_llog.h"
 #include "shl_misc.h"
 #include "uterm_input.h"
 #include "uterm_input_internal.h"
 
-#define LOG_SUBSYSTEM "input"
+#define LLOG_SUBSYSTEM "uterm_input"
 
 /* How many longs are needed to hold \n bits. */
 #define NLONGS(n) (((n) + LONG_BIT - 1) / LONG_BIT)
@@ -70,7 +70,7 @@ static void input_data_dev(struct ev_fd *fd, int mask, void *data)
 	int i;
 
 	if (mask & (EV_HUP | EV_ERR)) {
-		log_debug("EOF on %s", dev->node);
+		llog_debug(dev->input, "EOF on %s", dev->node);
 		input_free_dev(dev);
 		return;
 	}
@@ -81,14 +81,15 @@ static void input_data_dev(struct ev_fd *fd, int mask, void *data)
 		if (len < 0) {
 			if (errno == EWOULDBLOCK)
 				break;
-			log_warn("reading from %s failed (%d): %m",
-						dev->node, errno);
+			llog_warn(dev->input, "reading from %s failed (%d): %m",
+				  dev->node, errno);
 			input_free_dev(dev);
 		} else if (len == 0) {
-			log_debug("EOF on %s", dev->node);
+			llog_debug(dev->input, "EOF on %s", dev->node);
 			input_free_dev(dev);
 		} else if (len % sizeof(*ev)) {
-			log_warn("invalid input_event on %s", dev->node);
+			llog_warn(dev->input, "invalid input_event on %s",
+				  dev->node);
 		} else {
 			n = len / sizeof(*ev);
 			for (i = 0; i < n; i++)
@@ -107,7 +108,8 @@ static int input_wake_up_dev(struct uterm_input_dev *dev)
 
 	dev->rfd = open(dev->node, O_CLOEXEC | O_NONBLOCK | O_RDWR);
 	if (dev->rfd < 0) {
-		log_warn("cannot open device %s (%d): %m", dev->node, errno);
+		llog_warn(dev->input, "cannot open device %s (%d): %m",
+			  dev->node, errno);
 		return -EFAULT;
 	}
 
@@ -182,7 +184,7 @@ static void input_new_dev(struct uterm_input *input,
 			goto err_kbd;
 	}
 
-	log_debug("new device %s", node);
+	llog_debug(input, "new device %s", node);
 	shl_dlist_link(&input->devices, &dev->list);
 	return;
 
@@ -204,7 +206,7 @@ err_free:
 
 static void input_free_dev(struct uterm_input_dev *dev)
 {
-	log_debug("free device %s", dev->node);
+	llog_debug(dev->input, "free device %s", dev->node);
 	input_sleep_dev(dev);
 	shl_dlist_unlink(&dev->list);
 	uxkb_dev_destroy(dev);
@@ -225,7 +227,9 @@ int uterm_input_new(struct uterm_input **out,
 		    const char *options,
 		    const char *keymap,
 		    unsigned int repeat_delay,
-		    unsigned int repeat_rate)
+		    unsigned int repeat_rate,
+		    uterm_input_log_t log,
+		    void *log_data)
 {
 	struct uterm_input *input;
 	int ret;
@@ -247,6 +251,8 @@ int uterm_input_new(struct uterm_input **out,
 		return -ENOMEM;
 	memset(input, 0, sizeof(*input));
 	input->ref = 1;
+	input->llog = log;
+	input->llog_data = log_data;
 	input->eloop = eloop;
 	input->repeat_delay = repeat_delay;
 	input->repeat_rate = repeat_rate;
@@ -260,7 +266,7 @@ int uterm_input_new(struct uterm_input **out,
 	if (ret)
 		goto err_hook;
 
-	log_debug("new object %p", input);
+	llog_debug(input, "new object %p", input);
 	ev_eloop_ref(input->eloop);
 	*out = input;
 	return 0;
@@ -289,7 +295,7 @@ void uterm_input_unref(struct uterm_input *input)
 	if (!input || !input->ref || --input->ref)
 		return;
 
-	log_debug("free object %p", input);
+	llog_debug(input, "free object %p", input);
 
 	while (input->devices.next != &input->devices) {
 		dev = shl_dlist_entry(input->devices.next,
@@ -309,7 +315,8 @@ void uterm_input_unref(struct uterm_input *input)
  * We go over the possible capabilities and return a mask of enum
  * uterm_input_device_capability's.
  */
-static unsigned int probe_device_capabilities(const char *node)
+static unsigned int probe_device_capabilities(struct uterm_input *input,
+					      const char *node)
 {
 	int i, fd, ret;
 	unsigned int capabilities = 0;
@@ -351,8 +358,8 @@ static unsigned int probe_device_capabilities(const char *node)
 	return capabilities;
 
 err_ioctl:
-	log_warn("cannot probe capabilities of device %s (%d): %m",
-							node, errno);
+	llog_warn(input, "cannot probe capabilities of device %s (%d): %m",
+		  node, errno);
 	close(fd);
 	return 0;
 }
@@ -365,9 +372,9 @@ void uterm_input_add_dev(struct uterm_input *input, const char *node)
 	if (!input || !node)
 		return;
 
-	capabilities = probe_device_capabilities(node);
+	capabilities = probe_device_capabilities(input, node);
 	if (!(capabilities & UTERM_DEVICE_HAS_KEYS)) {
-		log_debug("ignoring non-useful device %s", node);
+		llog_debug(input, "ignoring non-useful device %s", node);
 		return;
 	}
 
@@ -429,7 +436,7 @@ void uterm_input_sleep(struct uterm_input *input)
 	if (input->awake != 0)
 		return;
 
-	log_debug("going to sleep");
+	llog_debug(input, "going to sleep");
 
 	shl_dlist_for_each(iter, &input->devices) {
 		dev = shl_dlist_entry(iter,
@@ -453,7 +460,7 @@ void uterm_input_wake_up(struct uterm_input *input)
 	if (input->awake != 1)
 		return;
 
-	log_debug("wakeing up");
+	llog_debug(input, "wakeing up");
 
 	shl_dlist_for_each_safe(iter, tmp, &input->devices) {
 		dev = shl_dlist_entry(iter,
