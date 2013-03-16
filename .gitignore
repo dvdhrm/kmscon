@@ -41,3 +41,4 @@ docs/man/*.5
 docs/man/*.7
 src/*.vert.bin
 src/*.frag.bin
+src/*.xkb.bin

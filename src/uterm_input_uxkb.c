@@ -2,7 +2,7 @@
  * uterm - Linux User-Space Terminal
  *
  * Copyright (c) 2011 Ran Benita <ran234@gmail.com>
- * Copyright (c) 2012 David Herrmann <dh.herrmann@googlemail.com>
+ * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files
@@ -40,6 +40,9 @@
 
 #define LOG_SUBSYSTEM "input_uxkb"
 
+extern const char _binary_src_uterm_input_fallback_xkb_bin_start[];
+extern const char _binary_src_uterm_input_fallback_xkb_bin_end[];
+
 int uxkb_desc_init(struct uterm_input *input,
 		   const char *model,
 		   const char *layout,
@@ -55,6 +58,9 @@ int uxkb_desc_init(struct uterm_input *input,
 		.variant = variant,
 		.options = options,
 	};
+	const char *fallback;
+
+	fallback = _binary_src_uterm_input_fallback_xkb_bin_start;
 
 	input->ctx = xkb_context_new(0);
 	if (!input->ctx) {
@@ -88,14 +94,24 @@ int uxkb_desc_init(struct uterm_input *input,
 		input->keymap = xkb_keymap_new_from_names(input->ctx,
 							  &rmlvo, 0);
 		if (!input->keymap) {
-			log_warn("failed to create XKB keymap");
-			ret = -EFAULT;
-			goto err_ctx;
+			log_warn("failed to create XKB default keymap, "
+				 "reverting to built-in fallback");
+
+			input->keymap = xkb_keymap_new_from_string(input->ctx,
+					fallback, XKB_KEYMAP_FORMAT_TEXT_V1, 0);
+			if (!input->keymap) {
+				log_error("cannot create fallback keymap");
+				ret = -EFAULT;
+				goto err_ctx;
+			}
 		}
+
+		log_debug("new fallback keyboard description");
+	} else {
+		log_debug("new keyboard description (%s, %s, %s, %s)",
+			  model, layout, variant, options);
 	}
 
-	log_debug("new keyboard description (%s, %s, %s, %s)",
-		  model, layout, variant, options);
 	return 0;
 
 err_ctx:

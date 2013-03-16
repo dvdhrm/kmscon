@@ -169,6 +169,28 @@ src/%.frag.bin: $(top_srcdir)/src/%.frag
 	$(AM_V_at)$(SED) $(SHADER_SED) "$<" | tr $(SHADER_TR) >"$@"
 
 #
+# XKB Fallback Converter
+# We use a static built-in XKB fallback keymap. To avoid huge memory consumption
+# we remove useless lines/characters first.
+# We also append an ASCII 0 character so it can be used as regular C-string.
+#
+# Following regexp are used to remove characters/lines:
+#   *= *           Whitespace around assignments
+#   *, *           Whitespace around commatas
+#   *[][{}()] *    Whitespace around braces
+#  ^[ \t]*         Indentation whitespace
+#  [\r\n]          Newlines
+#
+
+CLEANFILES += src/*.xkb.bin
+XKB_SED = -e 's/^[ \t]*//' -e 's/ *\([,=]\) */\1/g' -e 's/ *\([][{}()]\) */\1/g'
+XKB_TR = -d "\r\n"
+
+src/%.xkb.bin: $(top_srcdir)/src/%.xkb
+	$(AM_V_at)$(SED) $(XKB_SED) "$<" | tr $(XKB_TR) >"$@"
+	$(AM_V_at)echo -ne "\x00" >>"$@"
+
+#
 # SHL - Static Helper Library
 # The SHL subsystem contains several small code pieces used all over kmscon and
 # other applications.
@@ -262,7 +284,8 @@ libuterm_la_LIBADD = \
 	$(UDEV_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
-	libshl.la
+	libshl.la \
+	src/uterm_input_fallback.xkb.bin.lo
 libuterm_la_LDFLAGS = \
 	$(AM_LDFLAGS)
 
