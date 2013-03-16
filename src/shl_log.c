@@ -386,6 +386,8 @@ static void log__submit(const char *file,
 	const char *prefix = NULL;
 	FILE *out;
 	long long sec, usec;
+	bool nl;
+	size_t len;
 
 	if (log__omit(file, line, func, config, subs, sev))
 		return;
@@ -414,19 +416,20 @@ static void log__submit(const char *file,
 			fprintf(out, "[%.4lld.%.6lld] ", sec, usec);
 	}
 
+	len = strlen(format);
+	nl = format[len - 1] == '\n';
+
+	if (!func)
+		func = "<unknown>";
+	if (!file)
+		file = "<unknown>";
+	if (line < 0)
+		line = 0;
+
 	vfprintf(out, format, args);
 
-	if (sev == LOG_DEBUG) {
-		if (!func)
-			func = "<unknown>";
-		if (!file)
-			file = "<unknown>";
-		if (line < 0)
-			line = 0;
+	if (!nl)
 		fprintf(out, " (%s() in %s:%d)\n", func, file, line);
-	} else {
-		fprintf(out, "\n");
-	}
 }
 
 static void log__format(const char *file,
