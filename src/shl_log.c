@@ -320,8 +320,8 @@ int log_set_file(const char *file)
 	if (file) {
 		f = fopen(file, "a");
 		if (!f) {
-			log_err("cannot change log-file to %s (%d): %s",
-				file, errno, strerror(errno));
+			log_err("cannot change log-file to %s (%d): %m",
+				file, errno);
 			return -EFAULT;
 		}
 	} else {
