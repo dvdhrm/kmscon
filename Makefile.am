@@ -155,12 +155,12 @@ src/%.bin.lo: src/%.bin
 #  ^/*.*$     Start of multi-line comment
 #  ^ *.*$     Multi-line comment body
 #  ^[ \t]*    Indentation whitespace
-#  \n         Newlines
+#  [\r\n]     Newlines
 #
 
 CLEANFILES += src/*.vert.bin src/*.frag.bin
 SHADER_SED = -e 's/^\/\*.*$$//' -e 's/^ \*.*$$//' -e 's/^[ \t]*//'
-SHADER_TR = -d "\n"
+SHADER_TR = -d "\r\n"
 
 src/%.vert.bin: $(top_srcdir)/src/%.vert
 	$(AM_V_at)$(SED) $(SHADER_SED) "$<" | tr $(SHADER_TR) >"$@"
