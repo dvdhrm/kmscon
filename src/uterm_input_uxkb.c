@@ -38,10 +38,47 @@
 #include "uterm_input.h"
 #include "uterm_input_internal.h"
 
-#define LLOG_SUBSYSTEM "uterm_input_uxkb"
+#define LLOG_SUBSYSTEM "uterm_uxkb"
 
 extern const char _binary_src_uterm_input_fallback_xkb_bin_start[];
 extern const char _binary_src_uterm_input_fallback_xkb_bin_end[];
+
+static void uxkb_log(struct xkb_context *context, enum xkb_log_level level,
+		     const char *format, va_list args)
+{
+	struct uterm_input *input;
+	unsigned int sev;
+
+	input = xkb_context_get_user_data(context);
+	if (!input->llog)
+		return;
+
+	switch (level) {
+	case XKB_LOG_LEVEL_CRITICAL:
+		sev = LLOG_CRITICAL;
+		break;
+	case XKB_LOG_LEVEL_ERROR:
+		sev = LLOG_ERROR;
+		break;
+	case XKB_LOG_LEVEL_WARNING:
+		sev = LLOG_WARNING;
+		break;
+	case XKB_LOG_LEVEL_INFO:
+		sev = LLOG_INFO;
+		break;
+	case XKB_LOG_LEVEL_DEBUG:
+		/* fallthrough */
+	default:
+		sev = LLOG_DEBUG;
+		break;
+	}
+
+	input->llog(input->llog_data,
+		    LLOG_DEFAULT,
+		    sev,
+		    format,
+		    args);
+}
 
 int uxkb_desc_init(struct uterm_input *input,
 		   const char *model,
@@ -67,6 +104,12 @@ int uxkb_desc_init(struct uterm_input *input,
 		llog_error(input, "cannot create XKB context");
 		return -ENOMEM;
 	}
+
+	/* Set logging function. You can use XKB_LOG_VERBOSITY and XKB_LOG_LEVEL
+	 * to change the xkbcommon logger. That's why we don't touch the
+	 * verbosity and level here. */
+	xkb_context_set_user_data(input->ctx, input);
+	xkb_context_set_log_fn(input->ctx, uxkb_log);
 
 	/* If a complete keymap file was given, first try that. */
 	if (keymap && *keymap) {
