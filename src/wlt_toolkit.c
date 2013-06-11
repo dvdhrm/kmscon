@@ -1283,20 +1283,18 @@ static void wlt_window_do_redraw(struct wlt_window *wnd,
 	}
 	wnd->skip_damage = false;
 
+	x = 0;
+	y = 0;
 	if (!wnd->buffer_attached) {
 		wnd->buffer_attached = true;
 		if (wnd->resize_edges & WL_SHELL_SURFACE_RESIZE_LEFT)
 			x = (int)oldw - wnd->buffer.width;
-		else
-			x = 0;
 		if (wnd->resize_edges & WL_SHELL_SURFACE_RESIZE_TOP)
 			y = (int)oldh - wnd->buffer.height;
-		else
-			y = 0;
-		wl_surface_attach(wnd->w_surface, wnd->w_buffer, x, y);
 		wnd->resize_edges = 0;
 	}
 
+	wl_surface_attach(wnd->w_surface, wnd->w_buffer, x, y);
 	wl_surface_damage(wnd->w_surface, 0, 0, wnd->buffer.width,
 			  wnd->buffer.height);
 	wl_surface_commit(wnd->w_surface);
