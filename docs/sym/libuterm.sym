@@ -55,6 +55,7 @@ global:
 	uterm_vt_deactivate;
 	uterm_vt_retry;
 	uterm_vt_get_type;
+	uterm_vt_get_num;
 
 	uterm_dpms_to_name;
 	uterm_video_available;

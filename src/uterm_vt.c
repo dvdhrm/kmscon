@@ -986,6 +986,18 @@ unsigned int uterm_vt_get_type(struct uterm_vt *vt)
 }
 
 SHL_EXPORT
+unsigned int uterm_vt_get_num(struct uterm_vt *vt)
+{
+	if (!vt)
+		return 0;
+
+	if (vt->mode == UTERM_VT_REAL)
+		return vt->real_num;
+
+	return 0;
+}
+
+SHL_EXPORT
 int uterm_vt_master_new(struct uterm_vt_master **out,
 			struct ev_eloop *eloop)
 {
