@@ -614,7 +614,8 @@ static void seat_input_event(struct uterm_input *input,
 		ev->handled = true;
 		if (!seat->conf->session_control)
 			return;
-		ret = kmscon_terminal_register(&s, seat);
+		ret = kmscon_terminal_register(&s, seat,
+					       uterm_vt_get_num(seat->vt));
 		if (ret == -EOPNOTSUPP) {
 			log_notice("terminal support not compiled in");
 		} else if (ret) {
@@ -791,7 +792,8 @@ void kmscon_seat_startup(struct kmscon_seat *seat)
 	}
 
 	if (seat->conf->terminal_session) {
-		ret = kmscon_terminal_register(&s, seat);
+		ret = kmscon_terminal_register(&s, seat,
+					       uterm_vt_get_num(seat->vt));
 		if (ret == -EOPNOTSUPP)
 			log_notice("terminal support not compiled in");
 		else if (ret)

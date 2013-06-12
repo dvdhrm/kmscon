@@ -580,7 +580,7 @@ static void write_event(struct tsm_vte *vte, const char *u8, size_t len,
 }
 
 int kmscon_terminal_register(struct kmscon_session **out,
-			     struct kmscon_seat *seat)
+			     struct kmscon_seat *seat, unsigned int vtnr)
 {
 	struct kmscon_terminal *term;
 	int ret;
@@ -645,6 +645,12 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	ret = kmscon_pty_set_seat(term->pty, kmscon_seat_get_name(seat));
 	if (ret)
 		goto err_pty;
+
+	if (vtnr > 0) {
+		ret = kmscon_pty_set_vtnr(term->pty, vtnr);
+		if (ret)
+			goto err_pty;
+	}
 
 	ret = ev_eloop_new_fd(term->eloop, &term->ptyfd,
 			      kmscon_pty_get_fd(term->pty),
