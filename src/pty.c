@@ -63,6 +63,7 @@ struct kmscon_pty {
 	char *colorterm;
 	char **argv;
 	char *seat;
+	char *vtnr;
 	bool env_reset;
 };
 
@@ -119,6 +120,7 @@ void kmscon_pty_unref(struct kmscon_pty *pty)
 
 	log_debug("free pty object");
 	kmscon_pty_close(pty);
+	free(pty->vtnr);
 	free(pty->seat);
 	free(pty->argv);
 	free(pty->colorterm);
@@ -193,6 +195,23 @@ int kmscon_pty_set_seat(struct kmscon_pty *pty, const char *seat)
 	return 0;
 }
 
+int kmscon_pty_set_vtnr(struct kmscon_pty *pty, unsigned int vtnr)
+{
+	char *t;
+	int ret;
+
+	if (!pty)
+		return -EINVAL;
+
+	ret = asprintf(&t, "%u", vtnr);
+	if (ret < 0)
+		return -ENOMEM;
+	free(pty->vtnr);
+	pty->vtnr = t;
+
+	return 0;
+}
+
 void kmscon_pty_set_env_reset(struct kmscon_pty *pty, bool do_reset)
 {
 	if (!pty)
@@ -224,7 +243,7 @@ static bool pty_is_open(struct kmscon_pty *pty)
 
 static void __attribute__((noreturn))
 exec_child(const char *term, const char *colorterm, char **argv,
-	   const char *seat, bool env_reset)
+	   const char *seat, const char *vtnr, bool env_reset)
 {
 	char **env;
 	char **def_argv;
@@ -255,6 +274,8 @@ exec_child(const char *term, const char *colorterm, char **argv,
 		setenv("COLORTERM", colorterm, 1);
 	if (seat)
 		setenv("XDG_SEAT", seat, 1);
+	if (vtnr)
+		setenv("XDG_VTNR", vtnr, 1);
 
 	execve(argv[0], argv, environ);
 
@@ -376,7 +397,7 @@ static int pty_spawn(struct kmscon_pty *pty, int master,
 	case 0:
 		setup_child(master, &ws);
 		exec_child(pty->term, pty->colorterm, pty->argv, pty->seat,
-			   pty->env_reset);
+			   pty->vtnr, pty->env_reset);
 		exit(EXIT_FAILURE);
 	default:
 		log_debug("forking child %d", pid);

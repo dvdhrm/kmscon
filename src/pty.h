@@ -58,6 +58,7 @@ int kmscon_pty_set_term(struct kmscon_pty *pty, const char *term);
 int kmscon_pty_set_colorterm(struct kmscon_pty *pty, const char *colorterm);
 int kmscon_pty_set_argv(struct kmscon_pty *pty, char **argv);
 int kmscon_pty_set_seat(struct kmscon_pty *pty, const char *seat);
+int kmscon_pty_set_vtnr(struct kmscon_pty *pty, unsigned int vtnr);
 void kmscon_pty_set_env_reset(struct kmscon_pty *pty, bool do_reset);
 
 int kmscon_pty_get_fd(struct kmscon_pty *pty);
