@@ -45,4 +45,4 @@ TTYVHangup=yes
 TTYVTDisallocate=yes
 
 [Install]
-Alias=getty.target.wants/kmsconvt@tty1.service
+WantedBy=getty.target
