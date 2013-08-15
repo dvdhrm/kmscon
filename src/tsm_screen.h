@@ -90,6 +90,7 @@ struct tsm_screen_attr {
 	unsigned int underline : 1;	/* underlined character */
 	unsigned int inverse : 1;	/* inverse colors */
 	unsigned int protect : 1;	/* cannot be erased */
+  unsigned int blink : 1;		/* blinking character */
 };
 
 typedef int (*tsm_screen_prepare_cb) (struct tsm_screen *con,
