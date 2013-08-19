@@ -47,6 +47,11 @@
 #include <xf86drmMode.h>
 #include "uterm_video.h"
 
+/* thanks khronos for breaking backwards compatibility.. */
+#if !defined(GL_UNPACK_ROW_LENGTH) && defined(GL_UNPACK_ROW_LENGTH_EXT)
+#  define GL_UNPACK_ROW_LENGTH GL_UNPACK_ROW_LENGTH_EXT
+#endif
+
 struct uterm_drm3d_rb {
 	struct uterm_display *disp;
 	struct gbm_bo *bo;
