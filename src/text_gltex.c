@@ -55,6 +55,11 @@
 
 #define LOG_SUBSYSTEM "text_gltex"
 
+/* thanks khronos for breaking backwards compatibility.. */
+#if !defined(GL_UNPACK_ROW_LENGTH) && defined(GL_UNPACK_ROW_LENGTH_EXT)
+#  define GL_UNPACK_ROW_LENGTH GL_UNPACK_ROW_LENGTH_EXT
+#endif
+
 struct atlas {
 	struct shl_dlist list;
 
