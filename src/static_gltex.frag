@@ -30,6 +30,8 @@
  * background colors.
  */
 
+precision mediump float;
+
 uniform sampler2D atlas;
 uniform float advance_htex;
 uniform float advance_vtex;

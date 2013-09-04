@@ -29,6 +29,8 @@
  * A basic fragment shader which applies a color directly.
  */
 
+precision mediump float;
+
 varying vec4 col;
 
 void main()

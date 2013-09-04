@@ -29,6 +29,8 @@
  * A basic fragment shader which applies a 2D texture.
  */
 
+precision mediump float;
+
 uniform sampler2D texture;
 varying vec2 texpos;
 
