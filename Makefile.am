@@ -445,8 +445,15 @@ EXTRA_DIST += $(SHADERS)
 CLEANFILES += src/static_shaders.c
 genshader_SOURCES = src/genshader.c
 
-src/static_shaders.c: $(SHADERS) genshader$(EXEEXT)
-	$(AM_V_GEN)./genshader$(EXEEXT) src/static_shaders.c $(SHADERS)
+# TODO: Using $(BUILD_EXEEXT) breaks if it doesn't equal $(EXEEXT). But stupid
+# automake doesn't allow $(EXEEXT) so lets just rely on both being the same.
+
+src/static_shaders.c: $(SHADERS) genshader$(BUILD_EXEEXT)
+	$(AM_V_GEN)./genshader$(BUILD_EXEEXT) src/static_shaders.c $(SHADERS)
+
+genshader$(BUILD_EXEEXT) $(genshader_OBJECTS): CC = $(CC_FOR_BUILD)
+genshader$(BUILD_EXEEXT) $(genshader_OBJECTS): CFLAGS = $(CFLAGS_FOR_BUILD)
+genshader$(BUILD_EXEEXT): LDFLAGS = $(LDFLAGS_FOR_BUILD)
 
 #
 # Unifont Generator
@@ -461,8 +468,12 @@ EXTRA_DIST += $(UNIFONT)
 CLEANFILES += $(UNIFONT_BIN)
 genunifont_SOURCES = src/genunifont.c
 
-$(UNIFONT_BIN): $(UNIFONT) genunifont$(EXEEXT)
-	$(AM_V_GEN)./genunifont$(EXEEXT) $(UNIFONT_BIN) $(UNIFONT)
+genunifont$(BUILD_EXEEXT) $(genunifont_OBJECTS): CC = $(CC_FOR_BUILD)
+genunifont$(BUILD_EXEEXT) $(genunifont_OBJECTS): CFLAGS = $(CFLAGS_FOR_BUILD)
+genunifont$(BUILD_EXEEXT): LDFLAGS = $(LDFLAGS_FOR_BUILD)
+
+$(UNIFONT_BIN): $(UNIFONT) genunifont$(BUILD_EXEEXT)
+	$(AM_V_GEN)./genunifont$(BUILD_EXEEXT) $(UNIFONT_BIN) $(UNIFONT)
 
 #
 # Kmscon Modules

@@ -17,7 +17,7 @@ AC_CONFIG_HEADER(config.h)
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
 AC_PREFIX_DEFAULT([/usr])
-AC_CANONICAL_HOST
+AC_CANONICAL_SYSTEM
 
 AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-xz no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
 AM_SILENT_RULES([yes])
@@ -31,6 +31,7 @@ AM_SILENT_RULES([yes])
 : ${CFLAGS=""}
 
 AC_PROG_CC
+AX_PROG_CC_FOR_BUILD
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
