@@ -405,10 +405,13 @@ static void dp_dispatch(struct wlt_display *disp, bool nonblock)
 	int ret;
 
 	errno = 0;
-	if (nonblock)
+	if (nonblock) {
 		ret = wl_display_dispatch_pending(disp->dp);
-	else
+		if (ret != -1)
+			ret = wl_display_flush(disp->dp);
+	} else {
 		ret = wl_display_dispatch(disp->dp);
+	}
 
 	if (ret == -1) {
 		log_error("error during wayland dispatch (%d): %m", errno);
