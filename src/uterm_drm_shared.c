@@ -462,6 +462,7 @@ static void io_event(struct ev_fd *fd, int mask, void *data)
 }
 
 int uterm_drm_video_init(struct uterm_video *video, const char *node,
+			 const struct display_ops *display_ops,
 			 uterm_drm_page_flip_t pflip, void *data)
 {
 	struct uterm_drm_video *vdrm;
@@ -476,6 +477,7 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 	video->data = vdrm;
 	vdrm->data = data;
 	vdrm->page_flip = pflip;
+	vdrm->display_ops = display_ops;
 
 	vdrm->fd = open(node, O_RDWR | O_CLOEXEC | O_NONBLOCK);
 	if (vdrm->fd < 0) {
@@ -546,8 +548,7 @@ int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 }
 
 static void bind_display(struct uterm_video *video, drmModeRes *res,
-			 drmModeConnector *conn,
-			 const struct display_ops *ops)
+			 drmModeConnector *conn)
 {
 	struct uterm_drm_video *vdrm = video->data;
 	struct uterm_display *disp;
@@ -555,7 +556,7 @@ static void bind_display(struct uterm_video *video, drmModeRes *res,
 	struct uterm_mode *mode;
 	int ret, i;
 
-	ret = display_new(&disp, ops);
+	ret = display_new(&disp, vdrm->display_ops);
 	if (ret)
 		return;
 	ddrm = disp->data;
@@ -606,7 +607,6 @@ err_unref:
 }
 
 int uterm_drm_video_hotplug(struct uterm_video *video,
-			    const struct display_ops *ops,
 			    bool read_dpms)
 {
 	struct uterm_drm_video *vdrm = video->data;
@@ -662,7 +662,7 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 		}
 
 		if (iter == &video->displays)
-			bind_display(video, res, conn, ops);
+			bind_display(video, res, conn);
 
 		drmModeFreeConnector(conn);
 	}
@@ -679,8 +679,7 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 	return 0;
 }
 
-int uterm_drm_video_wake_up(struct uterm_video *video,
-			    const struct display_ops *ops)
+int uterm_drm_video_wake_up(struct uterm_video *video)
 {
 	int ret;
 	struct uterm_drm_video *vdrm = video->data;
@@ -692,7 +691,7 @@ int uterm_drm_video_wake_up(struct uterm_video *video,
 	}
 
 	video->flags |= VIDEO_AWAKE;
-	ret = uterm_drm_video_hotplug(video, ops, true);
+	ret = uterm_drm_video_hotplug(video, true);
 	if (ret) {
 		drmDropMaster(vdrm->fd);
 		return ret;
@@ -708,11 +707,10 @@ void uterm_drm_video_sleep(struct uterm_video *video)
 	drmDropMaster(vdrm->fd);
 }
 
-int uterm_drm_video_poll(struct uterm_video *video,
-			 const struct display_ops *ops)
+int uterm_drm_video_poll(struct uterm_video *video)
 {
 	video->flags |= VIDEO_HOTPLUG;
-	return uterm_drm_video_hotplug(video, ops, false);
+	return uterm_drm_video_hotplug(video, false);
 }
 
 /* Waits for events on DRM fd for \mtimeout milliseconds and returns 0 if the

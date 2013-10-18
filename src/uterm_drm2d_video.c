@@ -322,7 +322,8 @@ static int video_init(struct uterm_video *video, const char *node)
 	uint64_t has_dumb;
 	struct uterm_drm_video *vdrm;
 
-	ret = uterm_drm_video_init(video, node, NULL, NULL);
+	ret = uterm_drm_video_init(video, node, &drm2d_display_ops,
+				   NULL, NULL);
 	if (ret)
 		return ret;
 	vdrm = video->data;
@@ -347,7 +348,7 @@ static void video_destroy(struct uterm_video *video)
 
 static int video_poll(struct uterm_video *video)
 {
-	return uterm_drm_video_poll(video, &drm2d_display_ops);
+	return uterm_drm_video_poll(video);
 }
 
 static void video_sleep(struct uterm_video *video)
@@ -360,7 +361,7 @@ static int video_wake_up(struct uterm_video *video)
 {
 	int ret;
 
-	ret = uterm_drm_video_wake_up(video, &drm2d_display_ops);
+	ret = uterm_drm_video_wake_up(video);
 	if (ret)
 		return ret;
 

@@ -98,20 +98,19 @@ struct uterm_drm_video {
 	uterm_drm_page_flip_t page_flip;
 	void *data;
 	struct shl_timer *timer;
+	const struct display_ops *display_ops;
 };
 
 int uterm_drm_video_init(struct uterm_video *video, const char *node,
+			 const struct display_ops *display_ops,
 			 uterm_drm_page_flip_t pflip, void *data);
 void uterm_drm_video_destroy(struct uterm_video *video);
 int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 			      drmModeEncoder *enc);
-int uterm_drm_video_hotplug(struct uterm_video *video,
-			    const struct display_ops *ops, bool read_dpms);
-int uterm_drm_video_wake_up(struct uterm_video *video,
-			    const struct display_ops *ops);
+int uterm_drm_video_hotplug(struct uterm_video *video, bool read_dpms);
+int uterm_drm_video_wake_up(struct uterm_video *video);
 void uterm_drm_video_sleep(struct uterm_video *video);
-int uterm_drm_video_poll(struct uterm_video *video,
-			 const struct display_ops *ops);
+int uterm_drm_video_poll(struct uterm_video *video);
 int uterm_drm_video_wait_pflip(struct uterm_video *video,
 			       unsigned int *mtimeout);
 

@@ -423,7 +423,8 @@ static int video_init(struct uterm_video *video, const char *node)
 		return -ENOMEM;
 	memset(v3d, 0, sizeof(*v3d));
 
-	ret = uterm_drm_video_init(video, node, page_flip_handler, v3d);
+	ret = uterm_drm_video_init(video, node, &drm_display_ops,
+				   page_flip_handler, v3d);
 	if (ret)
 		goto err_free;
 	vdrm = video->data;
@@ -536,7 +537,7 @@ static void video_destroy(struct uterm_video *video)
 
 static int video_poll(struct uterm_video *video)
 {
-	return uterm_drm_video_poll(video, &drm_display_ops);
+	return uterm_drm_video_poll(video);
 }
 
 static void video_sleep(struct uterm_video *video)
@@ -549,7 +550,7 @@ static int video_wake_up(struct uterm_video *video)
 {
 	int ret;
 
-	ret = uterm_drm_video_wake_up(video, &drm_display_ops);
+	ret = uterm_drm_video_wake_up(video);
 	if (ret)
 		return ret;
 
