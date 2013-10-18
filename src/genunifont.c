@@ -119,7 +119,7 @@ static int parse_single_file(FILE *out, FILE *in)
 	char buf[MAX_DATA_SIZE];
 	struct unifont_glyph *g, **iter, *list, *last;
 	int ret, num;
-	unsigned long status_max, status_cur;
+	long status_max, status_cur;
 	unsigned long perc_prev, perc_now;
 
 	if (fseek(in, 0, SEEK_END) != 0) {
