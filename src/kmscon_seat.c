@@ -139,6 +139,12 @@ static void session_call_display_gone(struct kmscon_session *sess,
 	session_call(sess, KMSCON_SESSION_DISPLAY_GONE, disp);
 }
 
+static void session_call_display_refresh(struct kmscon_session *sess,
+					 struct uterm_display *disp)
+{
+	session_call(sess, KMSCON_SESSION_DISPLAY_REFRESH, disp);
+}
+
 static void activate_display(struct kmscon_display *d)
 {
 	int ret;
@@ -513,6 +519,22 @@ static void seat_remove_display(struct kmscon_seat *seat,
 	free(d);
 }
 
+static void seat_refresh_display(struct kmscon_seat *seat,
+				 struct kmscon_display *d)
+{
+	struct shl_dlist *iter;
+	struct kmscon_session *s;
+
+	log_debug("refresh display %p from seat %s", d->disp, seat->name);
+
+	if (d->activated) {
+		shl_dlist_for_each(iter, &seat->sessions) {
+			s = shl_dlist_entry(iter, struct kmscon_session, list);
+			session_call_display_refresh(s, d->disp);
+		}
+	}
+}
+
 static int seat_vt_event(struct uterm_vt *vt, struct uterm_vt_event *ev,
 			 void *data)
 {
@@ -839,6 +861,25 @@ void kmscon_seat_remove_display(struct kmscon_seat *seat,
 			continue;
 
 		seat_remove_display(seat, d);
+		break;
+	}
+}
+
+void kmscon_seat_refresh_display(struct kmscon_seat *seat,
+				 struct uterm_display *disp)
+{
+	struct shl_dlist *iter;
+	struct kmscon_display *d;
+
+	if (!seat || !disp)
+		return;
+
+	shl_dlist_for_each(iter, &seat->displays) {
+		d = shl_dlist_entry(iter, struct kmscon_display, list);
+		if (d->disp != disp)
+			continue;
+
+		seat_refresh_display(seat, d);
 		break;
 	}
 }

@@ -265,6 +265,11 @@ static void app_seat_video_event(struct uterm_video *video,
 	case UTERM_GONE:
 		kmscon_seat_remove_display(vid->seat->seat, ev->display);
 		break;
+	case UTERM_REFRESH:
+		if (!vid->seat->app->exiting)
+			kmscon_seat_refresh_display(vid->seat->seat,
+						    ev->display);
+		break;
 	}
 }
 

@@ -58,6 +58,7 @@ typedef int (*kmscon_seat_cb_t) (struct kmscon_seat *seat,
 enum kmscon_session_event_type {
 	KMSCON_SESSION_DISPLAY_NEW,
 	KMSCON_SESSION_DISPLAY_GONE,
+	KMSCON_SESSION_DISPLAY_REFRESH,
 	KMSCON_SESSION_ACTIVATE,
 	KMSCON_SESSION_DEACTIVATE,
 	KMSCON_SESSION_UNREGISTER,
@@ -87,6 +88,8 @@ int kmscon_seat_add_display(struct kmscon_seat *seat,
 			    struct uterm_display *disp);
 void kmscon_seat_remove_display(struct kmscon_seat *seat,
 				struct uterm_display *disp);
+void kmscon_seat_refresh_display(struct kmscon_seat *seat,
+				 struct uterm_display *disp);
 int kmscon_seat_add_input(struct kmscon_seat *seat, const char *node);
 void kmscon_seat_remove_input(struct kmscon_seat *seat, const char *node);
 
