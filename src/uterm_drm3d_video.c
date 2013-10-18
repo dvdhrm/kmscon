@@ -551,8 +551,10 @@ static int video_wake_up(struct uterm_video *video)
 	int ret;
 
 	ret = uterm_drm_video_wake_up(video);
-	if (ret)
+	if (ret) {
+		uterm_drm_video_arm_vt_timer(video);
 		return ret;
+	}
 
 	show_displays(video);
 	return 0;

@@ -80,6 +80,7 @@ enum uterm_video_action {
 	UTERM_SLEEP,
 	UTERM_NEW,
 	UTERM_GONE,
+	UTERM_REFRESH,
 };
 
 struct uterm_video_hotplug {

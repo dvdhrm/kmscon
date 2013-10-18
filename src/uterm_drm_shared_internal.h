@@ -98,6 +98,7 @@ struct uterm_drm_video {
 	uterm_drm_page_flip_t page_flip;
 	void *data;
 	struct shl_timer *timer;
+	struct ev_timer *vt_timer;
 	const struct display_ops *display_ops;
 };
 
@@ -113,6 +114,7 @@ void uterm_drm_video_sleep(struct uterm_video *video);
 int uterm_drm_video_poll(struct uterm_video *video);
 int uterm_drm_video_wait_pflip(struct uterm_video *video,
 			       unsigned int *mtimeout);
+void uterm_drm_video_arm_vt_timer(struct uterm_video *video);
 
 static inline void *uterm_drm_video_get_data(struct uterm_video *video)
 {

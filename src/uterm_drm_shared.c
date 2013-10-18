@@ -461,6 +461,36 @@ static void io_event(struct ev_fd *fd, int mask, void *data)
 	}
 }
 
+static void vt_timeout(struct ev_timer *timer, uint64_t exp, void *data)
+{
+	struct uterm_video *video = data;
+	struct uterm_drm_video *vdrm = video->data;
+	struct uterm_display *disp;
+	struct shl_dlist *iter;
+	int r;
+
+	r = uterm_drm_video_wake_up(video);
+	if (!r) {
+		ev_timer_update(vdrm->vt_timer, NULL);
+		shl_dlist_for_each(iter, &video->displays) {
+			disp = shl_dlist_entry(iter, struct uterm_display, list);
+			VIDEO_CB(video, disp, UTERM_REFRESH);
+		}
+	}
+}
+
+void uterm_drm_video_arm_vt_timer(struct uterm_video *video)
+{
+	struct uterm_drm_video *vdrm = video->data;
+	struct itimerspec spec;
+
+	spec.it_value.tv_sec = 0;
+	spec.it_value.tv_nsec = 20L * 1000L * 1000L; /* 20ms */
+	spec.it_interval = spec.it_value;
+
+	ev_timer_update(vdrm->vt_timer, &spec);
+}
+
 int uterm_drm_video_init(struct uterm_video *video, const char *node,
 			 const struct display_ops *display_ops,
 			 uterm_drm_page_flip_t pflip, void *data)
@@ -497,9 +527,16 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 	if (ret)
 		goto err_fd;
 
+	ret = ev_eloop_new_timer(video->eloop, &vdrm->vt_timer, NULL,
+				 vt_timeout, video);
+	if (ret)
+		goto err_timer;
+
 	video->flags |= VIDEO_HOTPLUG;
 	return 0;
 
+err_timer:
+	shl_timer_free(vdrm->timer);
 err_fd:
 	ev_eloop_rm_fd(vdrm->efd);
 err_close:
@@ -513,6 +550,7 @@ void uterm_drm_video_destroy(struct uterm_video *video)
 {
 	struct uterm_drm_video *vdrm = video->data;
 
+	ev_eloop_rm_timer(vdrm->vt_timer);
 	ev_eloop_unregister_idle_cb(video->eloop, do_pflips, video, EV_SINGLE);
 	shl_timer_free(vdrm->timer);
 	ev_eloop_rm_fd(vdrm->efd);
@@ -705,6 +743,8 @@ void uterm_drm_video_sleep(struct uterm_video *video)
 	struct uterm_drm_video *vdrm = video->data;
 
 	drmDropMaster(vdrm->fd);
+	ev_timer_drain(vdrm->vt_timer, NULL);
+	ev_timer_update(vdrm->vt_timer, NULL);
 }
 
 int uterm_drm_video_poll(struct uterm_video *video)
