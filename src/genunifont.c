@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_DATA_SIZE 512
+#define MAX_DATA_SIZE 255
 
 struct unifont_glyph {
 	struct unifont_glyph *next;
