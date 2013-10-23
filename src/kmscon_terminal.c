@@ -533,6 +533,9 @@ static int session_event(struct kmscon_session *session,
 	case KMSCON_SESSION_DISPLAY_GONE:
 		rm_display(term, ev->disp);
 		break;
+	case KMSCON_SESSION_DISPLAY_REFRESH:
+		redraw_all_test(term);
+		break;
 	case KMSCON_SESSION_ACTIVATE:
 		term->awake = true;
 		if (!term->opened)
