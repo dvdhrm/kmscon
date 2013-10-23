@@ -87,7 +87,6 @@ Released tarballs can be found at:
     --with-sessions: Built in sessions. Available sessions are:
        - dummy: Dummy fallback session
        - terminal: Terminal-emulator sessions
-       - cdev: Fake VTs via CUSE (DEPRECATED! Don't use it!)
 
   The following options select which applications are built. If
   dependency-checks fail, they are disabled by default unless explicitly enabled

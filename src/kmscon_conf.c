@@ -79,7 +79,6 @@ static void print_help()
 		"\t    --session-max <max>         [50]  Maximum number of sessions\n"
 		"\t    --session-control           [off] Allow keyboard session-control\n"
 		"\t    --terminal-session          [on]  Enable terminal session\n"
-		"\t    --cdev-session              [off] Enable kernel VT emulation session\n"
 		"\n"
 		"Terminal Options:\n"
 		"\t-l, --login                 [/bin/login -p]\n"
@@ -483,17 +482,11 @@ static int aftercheck_listen(struct conf_option *opt, int argc, char **argv,
 			     int idx)
 {
 	struct kmscon_conf_t *conf = KMSCON_CONF_FROM_FIELD(opt->mem, listen);
-	int ret = -EFAULT;
 
 	if (conf->listen)
 		return 0;
 
-	if (conf->cdev_session)
-		log_error("you can use --cdev-session only in combination with --listen");
-	else
-		ret = 0;
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -569,7 +562,6 @@ int kmscon_conf_new(struct conf_ctx **out)
 		CONF_OPTION_UINT(0, "session-max", &conf->session_max, 50),
 		CONF_OPTION_BOOL(0, "session-control", &conf->session_control, false),
 		CONF_OPTION_BOOL(0, "terminal-session", &conf->terminal_session, true),
-		CONF_OPTION_BOOL(0, "cdev-session", &conf->cdev_session, false),
 
 		/* Terminal Options */
 		CONF_OPTION(0, 'l', "login", &conf_login, aftercheck_login, NULL, file_login, &conf->login, false),

@@ -78,8 +78,6 @@ struct kmscon_conf_t {
 	bool session_control;
 	/* run terminal session */
 	bool terminal_session;
-	/* cdev session */
-	bool cdev_session;
 
 	/* Terminal Options */
 	/* custom login process */

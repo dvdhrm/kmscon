@@ -191,15 +191,6 @@
                 (default: on)</para>
         </listitem>
       </varlistentry>
-
-      <varlistentry>
-        <term><option>--cdev-session</option></term>
-        <listitem>
-          <para>Start cdev-VT-emulation session after setup is done. This is
-                limited to
-                <option>--listen</option> mode. (default: off)</para>
-        </listitem>
-      </varlistentry>
     </variablelist>
 
     <para>Terminal Options:</para>
@@ -607,12 +598,6 @@
     <para>Terminal sessions provide a terminal emulator. They are the main
           session type and provide all the terminal-emulation
           functionality.</para>
-
-    <para>CDev sessions provide a way to hook-up external applications as kmscon
-          sessions. They provide fake virtual terminals on seats that don't have
-          them so you can switch between multiple graphics applications/servers
-          without needing VTs. See <emphasis>Virtual Terminals</emphasis>
-          below.</para>
   </refsect1>
 
   <refsect1>
@@ -629,31 +614,6 @@
           This is done via VT APIs on seat0. But note that if the kernel is
           compiled without CONFIG_VT (which controls whether VTs are available),
           then even seat0 does not have VTs.</para>
-
-    <para>On seats without VTs we need a replacement API. However, a new
-          API would require modifying every application that uses the VT API to
-          also support the new replacement if you want to run it on those seats.
-          Therefore, kmscon provides a backwards-compatible API. It uses the
-          linux CUSE API to create VTs for all seats that have no VTs. You need
-          to pass <option>--cdev-session</option> to kmscon to enable this.
-          kmscon will then create one cdev (<emphasis>c</emphasis>haracter
-          <emphasis>dev</emphasis>ice) for each seat and calls it
-          <filename>/dev/ttyF{seatname}</filename> ('F' for 'fake'). This
-          character device provides the same API as a VT so your X-Server (or
-          even kmscon in default-mode) can use it instead of a real VT.</para>
-
-    <para>In contrast to real VTs, each application that opens this fake VT will
-          get a different VT assigned. So you can use multiple X-Servers all
-          opening <filename>/dev/ttyF{seatname}</filename> and they will each
-          show up as different kmscon session. But note that not all TTY ioctls
-          are available on fake VTs. kmscon only emulates the API that is
-          currently used by most VT users. If you want to run an application
-          that needs more functionality, please open a bug-report.</para>
-
-    <para>Switching VTs is done by signaling the active process to go asleep and
-          signaling the new VT to wake up. If kmscon emulates VTs, it needs to
-          be able to send these signals to the processes running on fake VTs. In
-          most situations this means kmscon must have root privileges.</para>
   </refsect1>
 
   <refsect1>

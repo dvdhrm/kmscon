@@ -648,7 +648,6 @@ kmscon_SOURCES = \
 	src/kmscon_module.c \
 	src/kmscon_terminal.h \
 	src/kmscon_dummy.h \
-	src/kmscon_cdev.h \
 	src/kmscon_seat.h \
 	src/kmscon_seat.c \
 	src/kmscon_conf.h \
@@ -677,12 +676,6 @@ endif
 if BUILD_ENABLE_SESSION_TERMINAL
 kmscon_SOURCES += src/kmscon_terminal.c
 kmscon_LDADD += libtsm.la
-endif
-
-if BUILD_ENABLE_SESSION_CDEV
-kmscon_SOURCES += src/kmscon_cdev.c
-kmscon_CPPFLAGS += $(FUSE_CFLAGS)
-kmscon_LDADD += $(FUSE_LIBS)
 endif
 
 #

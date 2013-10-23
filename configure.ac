@@ -388,17 +388,14 @@ AC_ARG_WITH([sessions],
             [with_sessions="default"])
 enable_session_dummy="no"
 enable_session_terminal="no"
-enable_session_cdev="no"
 if test "x$enable_all" = "xyes" ; then
         enable_session_dummy="yes"
         enable_session_terminal="yes"
-        enable_session_cdev="yes"
-        with_sessions="dummy,terminal,cdev (all)"
+        with_sessions="dummy,terminal (all)"
 elif test "x$with_sessions" = "xdefault" ; then
         enable_session_dummy="yes (default)"
         enable_session_terminal="yes (default)"
-        enable_session_cdev="yes (default)"
-        with_sessions="dummy,terminal,cdev (default)"
+        with_sessions="dummy,terminal (default)"
 elif test ! "x$with_sessions" = "x" ; then
         SAVEIFS="$IFS"
         IFS=","
@@ -407,8 +404,6 @@ elif test ! "x$with_sessions" = "x" ; then
                         enable_session_dummy="yes"
                 elif test "x$i" = "xterminal" ; then
                         enable_session_terminal="yes"
-                elif test "x$i" = "xcdev" ; then
-                        enable_session_cdev="yes"
                 else
                         IFS="$SAVEIFS"
                         AC_ERROR([Unknown session type $i])
@@ -756,30 +751,6 @@ else
         session_terminal_missing="enable-session-terminal"
 fi
 
-# session cdev
-session_cdev_avail=no
-session_cdev_missing=""
-if test ! "x$enable_session_cdev" = "xno" ; then
-        session_cdev_avail=yes
-        if test "x$have_fuse" = "xno" ; then
-                session_cdev_avail=no
-                session_cdev_missing="libfuse,$session_cdev_missing"
-        fi
-
-        if test "x$tsm_avail" = "xno" ; then
-                session_cdev_avail=no
-                session_cdev_missing="$tsm_missing,$session_cdev_missing"
-        fi
-
-        if test "x$session_cdev_avail" = "xno" ; then
-                if test "x$enable_session_cdev" = "xyes" ; then
-                        AC_ERROR([missing for session-cdev: $session_cdev_missing])
-                fi
-        fi
-else
-        session_cdev_missing="enable-session-cdev"
-fi
-
 # kmscon
 kmscon_avail=no
 kmscon_missing=""
@@ -824,14 +795,6 @@ if test "x$kmscon_avail" = "xyes" ; then
                 kmscon_enabled=yes
                 enable_eloop=yes
                 enable_uterm=yes
-        fi
-fi
-
-# session cdev
-session_cdev_enabled=no
-if test "x$session_cdev_avail" = "xyes" ; then
-        if test "x${enable_session_cdev% *}" = "xyes" ; then
-                session_cdev_enabled=yes
         fi
 fi
 
@@ -1172,15 +1135,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_SESSION_TERMINAL],
                [test "x$session_terminal_enabled" = "xyes"])
 
-# session cdev
-if test "x$session_cdev_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_SESSION_CDEV], [1],
-                  [Build cdev session])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_SESSION_CDEV],
-               [test "x$session_cdev_enabled" = "xyes"])
-
 # kmscon
 AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
                [test "x$kmscon_enabled" = "xyes"])
@@ -1299,6 +1253,5 @@ AC_MSG_NOTICE([Build configuration:
   Session Types:
                 dummy: $session_dummy_enabled ($session_dummy_avail: $session_dummy_missing)
              terminal: $session_terminal_enabled ($session_terminal_avail: $session_terminal_missing)
-                 cdev: $session_cdev_enabled ($session_cdev_avail: $session_cdev_missing)
 
         Run "${MAKE-make}" to start compilation process])
