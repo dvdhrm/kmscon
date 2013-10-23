@@ -60,11 +60,6 @@ PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
 AC_SUBST(XKBCOMMON_CFLAGS)
 AC_SUBST(XKBCOMMON_LIBS)
 
-PKG_CHECK_MODULES([WAYLAND], [wayland-client wayland-server wayland-cursor],
-                  [have_wayland=yes], [have_wayland=no])
-AC_SUBST(WAYLAND_CFLAGS)
-AC_SUBST(WAYLAND_LIBS)
-
 PKG_CHECK_MODULES([SYSTEMD], [libsystemd-daemon libsystemd-login],
                   [have_systemd=yes], [have_systemd=no])
 AC_SUBST(SYSTEMD_CFLAGS)
@@ -201,18 +196,6 @@ elif test "x$enable_kmscon" = "x" ; then
         enable_kmscon="yes (default)"
 fi
 AC_MSG_RESULT([$enable_kmscon])
-
-# wlterm
-AC_MSG_CHECKING([whether user wants wlterm])
-AC_ARG_ENABLE([wlterm],
-              [AS_HELP_STRING([--enable-wlterm],
-                              [build wlterm])])
-if test "x$enable_all" = "xyes" ; then
-        enable_wlterm="yes"
-elif test "x$enable_wlterm" = "x" ; then
-        enable_wlterm="no (default)"
-fi
-AC_MSG_RESULT([$enable_wlterm])
 
 # uvtd
 AC_MSG_CHECKING([whether user wants uvtd])
@@ -838,40 +821,6 @@ else
         kmscon_missing="enable-kmscon"
 fi
 
-# wlterm
-wlterm_avail=no
-wlterm_missing=""
-if test ! "x$enable_wlterm" = "xno" ; then
-        wlterm_avail=yes
-        if test "x$tsm_avail" = "xno" ; then
-                wlterm_avail=no
-                wlterm_missing="$tsm_missing,$wlterm_missing"
-        fi
-
-        if test "x$eloop_avail" = "xno" ; then
-                wlterm_avail=no
-                wlterm_missing="$eloop_missing,$wlterm_missing"
-        fi
-
-        if test "x$font_pango_avail" = "xno" ; then
-                wlterm_avail=no
-                wlterm_missing="$font_pango_missing,$wlterm_missing"
-        fi
-
-        if test "x$have_wayland" = "xno" ; then
-                wlterm_avail=no
-                wlterm_missing="libwayland,$wlterm_missing"
-        fi
-
-        if test "x$wlterm_avail" = "xno" ; then
-                if test "x$enable_wlterm" = "xyes" ; then
-                        AC_ERROR([missing for wlterm: $wlterm_missing])
-                fi
-        fi
-else
-        wlterm_missing="enable-wlterm"
-fi
-
 # uvtd
 uvtd_avail=no
 uvtd_missing=""
@@ -911,17 +860,6 @@ if test "x$uvtd_avail" = "xyes" ; then
                 uvtd_enabled=yes
                 enable_eloop=yes
                 enable_uvt=yes
-        fi
-fi
-
-# wlterm
-wlterm_enabled=no
-if test "x$wlterm_avail" = "xyes" ; then
-        if test "x${enable_wlterm% *}" = "xyes" ; then
-                wlterm_enabled=yes
-                enable_eloop=yes
-                enable_tsm=yes
-                enable_font_pango=yes
         fi
 fi
 
@@ -1293,10 +1231,6 @@ AM_CONDITIONAL([BUILD_ENABLE_SESSION_CDEV],
 AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
                [test "x$kmscon_enabled" = "xyes"])
 
-# wlterm
-AM_CONDITIONAL([BUILD_ENABLE_WLTERM],
-               [test "x$wlterm_enabled" = "xyes"])
-
 # uvtd
 AM_CONDITIONAL([BUILD_ENABLE_UVTD],
                [test "x$uvtd_enabled" = "xyes"])
@@ -1384,7 +1318,6 @@ AC_MSG_NOTICE([Build configuration:
 
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
-               wlterm: $wlterm_enabled ($wlterm_avail: $wlterm_missing)
                  uvtd: $uvtd_enabled ($uvtd_avail: $uvtd_missing)
                 uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
                   tsm: $tsm_enabled ($tsm_avail: $tsm_missing)

@@ -686,45 +686,6 @@ kmscon_LDADD += $(FUSE_LIBS)
 endif
 
 #
-# Wayland Terminal
-#
-
-if BUILD_ENABLE_WLTERM
-bin_PROGRAMS += wlterm
-endif
-
-wlterm_SOURCES = \
-	src/wlt_main.h \
-	src/wlt_main.c \
-	src/wlt_toolkit.h \
-	src/wlt_toolkit.c \
-	src/wlt_theme.h \
-	src/wlt_theme.c \
-	src/wlt_terminal.h \
-	src/wlt_terminal.c \
-	src/conf.h \
-	src/conf.c \
-	src/pty.h \
-	src/pty.c \
-	src/font.h \
-	src/font.c \
-	src/font_8x16.c \
-	src/font_pango.c
-wlterm_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(WAYLAND_CFLAGS) \
-	$(PANGO_CFLAGS) \
-	$(XKBCOMMON_CFLAGS)
-wlterm_LDADD = \
-	$(WAYLAND_LIBS) \
-	$(PANGO_LIBS) \
-	$(XKBCOMMON_LIBS) \
-	libeloop.la \
-	libtsm.la \
-	libshl.la \
-	-lpthread
-
-#
 # uvtd
 #
 

@@ -93,7 +93,6 @@ Released tarballs can be found at:
   dependency-checks fail, they are disabled by default unless explicitly enabled
   on the command line:
     --enable-kmscon: Build kmscon application [default: on]
-    --enable-wlterm: Build wlterm Wayland terminal [default: off]
     --enable-eloop: Build eloop event loop library [default: off]
     --enable-tsm: Build TSM terminal state-machine library [default: off]
     --enable-uterm: Build uterm library [default: off]
