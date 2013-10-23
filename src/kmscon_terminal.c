@@ -32,6 +32,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <libtsm.h>
 #include <stdlib.h>
 #include <string.h>
 #include "conf.h"
@@ -43,8 +44,6 @@
 #include "shl_dlist.h"
 #include "shl_log.h"
 #include "text.h"
-#include "tsm_screen.h"
-#include "tsm_vte.h"
 #include "uterm_input.h"
 #include "uterm_video.h"
 
@@ -121,8 +120,11 @@ static void do_redraw_screen(struct screen *scr)
 
 	scr->pending = false;
 	do_clear_margins(scr);
-	tsm_screen_draw(scr->term->console, kmscon_text_prepare_cb,
-			kmscon_text_draw_cb, kmscon_text_render_cb, scr->txt);
+
+	kmscon_text_prepare(scr->txt);
+	tsm_screen_draw(scr->term->console, kmscon_text_draw_cb, scr->txt);
+	kmscon_text_render(scr->txt);
+
 	ret = uterm_display_swap(scr->disp, false);
 	if (ret) {
 		log_warning("cannot swap display %p", scr->disp);
@@ -613,9 +615,6 @@ int kmscon_terminal_register(struct kmscon_session **out,
 	if (ret)
 		goto err_free;
 	tsm_screen_set_max_sb(term->console, term->conf->sb_size);
-	if (term->conf->render_timing)
-		tsm_screen_set_opts(term->console,
-				    TSM_SCREEN_OPT_RENDER_TIMING);
 
 	ret = tsm_vte_new(&term->vte, term->console, write_event, term,
 			  log_llog, NULL);

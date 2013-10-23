@@ -142,8 +142,6 @@ struct kmscon_conf_t {
 	unsigned int gpus;
 	/* render engine */
 	char *render_engine;
-	/* print render-engine timing information */
-	bool render_timing;
 
 	/* Font Options */
 	/* font engine */

@@ -10,6 +10,7 @@ Website:
 == Requirements ==
 
   Kmscon requires the following software:
+    - libtsm: terminal emulator state machine
     - libudev: providing input, video, etc. device hotplug support (>=v172)
     - libxkbcommon: providing internationalized keyboard handling
 
@@ -93,7 +94,6 @@ Released tarballs can be found at:
   on the command line:
     --enable-kmscon: Build kmscon application [default: on]
     --enable-eloop: Build eloop event loop library [default: off]
-    --enable-tsm: Build TSM terminal state-machine library [default: off]
     --enable-uterm: Build uterm library [default: off]
     --enable-uvt: Build UVT library [default: off]
 

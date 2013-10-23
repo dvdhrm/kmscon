@@ -40,6 +40,7 @@
 #include <fontconfig/fontconfig.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include <libtsm.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -48,7 +49,6 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "shl_log.h"
-#include "tsm_unicode.h"
 #include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "font_freetype2"

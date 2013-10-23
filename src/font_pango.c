@@ -45,6 +45,7 @@
 
 #include <errno.h>
 #include <glib.h>
+#include <libtsm.h>
 #include <pango/pango.h>
 #include <pango/pangoft2.h>
 #include <pthread.h>
@@ -55,7 +56,6 @@
 #include "shl_dlist.h"
 #include "shl_hashtable.h"
 #include "shl_log.h"
-#include "tsm_unicode.h"
 #include "uterm_video.h"
 
 #define LOG_SUBSYSTEM "font_pango"

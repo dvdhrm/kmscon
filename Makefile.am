@@ -11,10 +11,6 @@ LIBELOOP_CURRENT = 1
 LIBELOOP_REVISION = 0
 LIBELOOP_AGE = 0
 
-LIBTSM_CURRENT = 1
-LIBTSM_REVISION = 0
-LIBTSM_AGE = 0
-
 LIBUVT_CURRENT = 1
 LIBUVT_REVISION = 0
 LIBUVT_AGE = 0
@@ -44,11 +40,9 @@ EXTRA_DIST = \
 	docs/kmscon.service \
 	docs/kmsconvt@.service \
 	docs/pc/libeloop.pc.in \
-	docs/pc/libtsm.pc.in \
 	docs/pc/libuvt.pc.in \
 	docs/pc/libuterm.pc.in \
 	docs/sym/libeloop.sym \
-	docs/sym/libtsm.sym \
 	docs/sym/libuvt.sym \
 	docs/sym/libuterm.sym
 CLEANFILES =
@@ -241,45 +235,6 @@ libeloop_la_SOURCES += \
 libeloop_la_CPPFLAGS += $(DBUS_CFLAGS)
 libeloop_la_LIBADD += $(DBUS_LIBS)
 endif
-
-#
-# libtsm
-# The Terminal-emulator State Machine is a library that implements the whole VTE
-# layer and everything related to it. It has no external dependencies so it can
-# be used to implement any kind of terminal emulator or debugger.
-#
-
-if BUILD_ENABLE_TSM
-lib_LTLIBRARIES += libtsm.la
-include_HEADERS += \
-	src/tsm_screen.h \
-	src/tsm_unicode.h \
-	src/tsm_vte.h
-pkgconfig_DATA += docs/pc/libtsm.pc
-endif
-
-libtsm_la_SOURCES = \
-	src/tsm_screen.h \
-	src/tsm_screen.c \
-	src/tsm_unicode.h \
-	src/tsm_unicode.c \
-	src/tsm_vte.h \
-	src/tsm_vte.c \
-	src/tsm_vte_charsets.c \
-	external/wcwidth.h \
-	external/wcwidth.c
-
-libtsm_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(XKBCOMMON_CFLAGS)
-libtsm_la_LIBADD = \
-	$(XKBCOMMON_LIBS) \
-	libshl.la
-EXTRA_libtsm_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libtsm.sym
-libtsm_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-version-info $(LIBTSM_CURRENT):$(LIBTSM_REVISION):$(LIBTSM_AGE) \
-	-Wl,--version-script="$(top_srcdir)/docs/sym/libtsm.sym"
 
 #
 # libuvt
@@ -506,11 +461,12 @@ mod_freetype2_la_SOURCES = \
 	src/kmscon_mod_freetype2.c
 mod_freetype2_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(FREETYPE2_CFLAGS)
+	$(FREETYPE2_CFLAGS) \
+	$(TSM_CFLAGS)
 mod_freetype2_la_LIBADD = \
 	$(FREETYPE2_LIBS) \
+	$(TSM_LIBS) \
 	-lpthread \
-	libtsm.la \
 	libshl.la
 mod_freetype2_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
@@ -527,11 +483,12 @@ mod_pango_la_SOURCES = \
 	src/kmscon_mod_pango.c
 mod_pango_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(PANGO_CFLAGS)
+	$(PANGO_CFLAGS) \
+	$(TSM_CFLAGS)
 mod_pango_la_LIBADD = \
 	$(PANGO_LIBS) \
+	$(TSM_LIBS) \
 	-lpthread \
-	libtsm.la \
 	libshl.la
 mod_pango_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
@@ -657,9 +614,11 @@ nodist_kmscon_SOURCES =
 
 kmscon_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(XKBCOMMON_CFLAGS)
+	$(XKBCOMMON_CFLAGS) \
+	$(TSM_CFLAGS)
 kmscon_LDADD = \
 	$(XKBCOMMON_LIBS) \
+	$(TSM_LIBS) \
 	libeloop.la \
 	libuterm.la \
 	libshl.la \
@@ -675,7 +634,6 @@ endif
 
 if BUILD_ENABLE_SESSION_TERMINAL
 kmscon_SOURCES += src/kmscon_terminal.c
-kmscon_LDADD += libtsm.la
 endif
 
 #

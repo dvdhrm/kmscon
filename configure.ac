@@ -120,6 +120,11 @@ PKG_CHECK_MODULES([PIXMAN], [pixman-1],
 AC_SUBST(PIXMAN_CFLAGS)
 AC_SUBST(PIXMAN_LIBS)
 
+PKG_CHECK_MODULES([TSM], [libtsm],
+                  [have_tsm=yes], [have_tsm=no])
+AC_SUBST(TSM_CFLAGS)
+AC_SUBST(TSM_LIBS)
+
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -148,18 +153,6 @@ elif test "x$enable_eloop" = "x" ; then
         enable_eloop="no (default)"
 fi
 AC_MSG_RESULT([$enable_eloop])
-
-# TSM
-AC_MSG_CHECKING([whether user wants TSM])
-AC_ARG_ENABLE([tsm],
-              [AS_HELP_STRING([--enable-tsm],
-                              [build tsm library])])
-if test "x$enable_all" = "xyes" ; then
-        enable_tsm="yes"
-elif test "x$enable_tsm" = "x" ; then
-        enable_tsm="no (default)"
-fi
-AC_MSG_RESULT([$enable_tsm])
 
 # UVT
 AC_MSG_CHECKING([whether user wants UVT])
@@ -465,25 +458,6 @@ else
         eloop_missing="enable-eloop"
 fi
 
-# TSM
-tsm_avail=no
-tsm_missing=""
-if test ! "x$enable_tsm" = "xno" ; then
-        tsm_avail=yes
-        if test "x$have_xkbcommon" = "xno" ; then
-                tsm_avail=no
-                tsm_missing="libxkbcommon"
-        fi
-
-        if test "x$tsm_avail" = "xno" ; then
-                if test "x$enable_tsm" = "xyes" ; then
-                        AC_ERROR([missing for TSM: $tsm_missing])
-                fi
-        fi
-else
-        tsm_missing="enable-tsm"
-fi
-
 # UVT
 uvt_avail=no
 uvt_missing=""
@@ -737,9 +711,9 @@ session_terminal_avail=no
 session_terminal_missing=""
 if test ! "x$enable_session_terminal" = "xno" ; then
         session_terminal_avail=yes
-        if test "x$tsm_avail" = "xno" ; then
+        if test "x$have_tsm" = "xno" ; then
                 session_terminal_avail=no
-                session_terminal_missing="$tsm_missing"
+                session_terminal_missing="libtsm"
         fi
 
         if test "x$session_terminal_avail" = "xno" ; then
@@ -761,9 +735,9 @@ if test ! "x$enable_kmscon" = "xno" ; then
                 kmscon_missing="$eloop_missing,$kmscon_missing"
         fi
 
-        if test "x$tsm_avail" = "xno" ; then
+        if test "x$have_tsm" = "xno" ; then
                 kmscon_avail=no
-                kmscon_missing="$tsm_missing,$kmscon_missing"
+                kmscon_missing="libtsm,$kmscon_missing"
         fi
 
         if test "x$uterm_avail" = "xno" ; then
@@ -803,7 +777,6 @@ session_terminal_enabled=no
 if test "x$session_terminal_avail" = "xyes" ; then
         if test "x${enable_session_terminal% *}" = "xyes" ; then
                 session_terminal_enabled=yes
-                enable_tsm=yes
         fi
 fi
 
@@ -927,14 +900,6 @@ if test "x$uvt_avail" = "xyes" ; then
         fi
 fi
 
-# tsm
-tsm_enabled=no
-if test "x$tsm_avail" = "xyes" ; then
-        if test "x${enable_tsm% *}" = "xyes" ; then
-                tsm_enabled=yes
-        fi
-fi
-
 # eloop
 eloop_enabled=no
 if test "x$eloop_avail" = "xyes" ; then
@@ -996,10 +961,6 @@ AM_CONDITIONAL([BUILD_ENABLE_ELOOP_DBUS],
 # eloop
 AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
                [test "x$eloop_enabled" = "xyes"])
-
-# TSM
-AM_CONDITIONAL([BUILD_ENABLE_TSM],
-               [test "x$tsm_enabled" = "xyes"])
 
 # UVT
 AM_CONDITIONAL([BUILD_ENABLE_UVT],
@@ -1202,7 +1163,6 @@ fi
 
 AC_CONFIG_FILES([Makefile
                  docs/pc/libeloop.pc
-                 docs/pc/libtsm.pc
                  docs/pc/libuvt.pc
                  docs/pc/libuterm.pc])
 AC_OUTPUT
@@ -1223,7 +1183,6 @@ AC_MSG_NOTICE([Build configuration:
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
                 uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
-                  tsm: $tsm_enabled ($tsm_avail: $tsm_missing)
                   uvt: $uvt_enabled ($uvt_avail: $uvt_missing)
                 eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
