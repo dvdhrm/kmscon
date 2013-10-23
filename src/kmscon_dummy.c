@@ -92,6 +92,17 @@ static int dummy_session_event(struct kmscon_session *session,
 			break;
 		}
 		break;
+	case KMSCON_SESSION_DISPLAY_REFRESH:
+		shl_dlist_for_each(iter, &dummy->displays) {
+			d = shl_dlist_entry(iter, struct display, list);
+			if (d->disp != ev->disp)
+				continue;
+
+			if (dummy->active)
+				dummy_redraw(dummy, d);
+			break;
+		}
+		break;
 	case KMSCON_SESSION_ACTIVATE:
 		dummy->active = true;
 		shl_dlist_for_each(iter, &dummy->displays) {
