@@ -197,18 +197,6 @@ elif test "x$enable_kmscon" = "x" ; then
 fi
 AC_MSG_RESULT([$enable_kmscon])
 
-# uvtd
-AC_MSG_CHECKING([whether user wants uvtd])
-AC_ARG_ENABLE([uvtd],
-              [AS_HELP_STRING([--enable-uvtd],
-                              [build uvtd])])
-if test "x$enable_all" = "xyes" ; then
-        enable_uvtd="yes"
-elif test "x$enable_uvtd" = "x" ; then
-        enable_uvtd="no (default)"
-fi
-AC_MSG_RESULT([$enable_uvtd])
-
 # debug
 AC_MSG_CHECKING([whether to build with debugging on])
 AC_ARG_ENABLE([debug],
@@ -821,30 +809,6 @@ else
         kmscon_missing="enable-kmscon"
 fi
 
-# uvtd
-uvtd_avail=no
-uvtd_missing=""
-if test ! "x$enable_uvtd" = "xno" ; then
-        uvtd_avail=yes
-        if test "x$uvt_avail" = "xno" ; then
-                uvtd_avail=no
-                uvtd_missing="$uvt_missing,$uvtd_missing"
-        fi
-
-        if test "x$eloop_avail" = "xno" ; then
-                uvtd_avail=no
-                uvtd_missing="$eloop_missing,$uvtd_missing"
-        fi
-
-        if test "x$uvtd_avail" = "xno" ; then
-                if test "x$enable_uvtd" = "xyes" ; then
-                        AC_ERROR([missing for uvtd: $uvtd_missing])
-                fi
-        fi
-else
-        uvtd_missing="enable-uvtd"
-fi
-
 #
 # Enable all required modules
 # We now know which modules can be built by checking the *_avail variables set
@@ -852,16 +816,6 @@ fi
 # and the user didn't force-enable them and no other module that is enabled
 # needs them. This is done top-down of course.
 #
-
-# uvtd
-uvtd_enabled=no
-if test "x$uvtd_avail" = "xyes" ; then
-        if test "x${enable_uvtd% *}" = "xyes" ; then
-                uvtd_enabled=yes
-                enable_eloop=yes
-                enable_uvt=yes
-        fi
-fi
 
 # kmscon
 kmscon_enabled=no
@@ -1231,10 +1185,6 @@ AM_CONDITIONAL([BUILD_ENABLE_SESSION_CDEV],
 AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
                [test "x$kmscon_enabled" = "xyes"])
 
-# uvtd
-AM_CONDITIONAL([BUILD_ENABLE_UVTD],
-               [test "x$uvtd_enabled" = "xyes"])
-
 #
 # Miscellaneous Checks
 # All checks below are independent of module checking or depend on the results
@@ -1318,7 +1268,6 @@ AC_MSG_NOTICE([Build configuration:
 
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
-                 uvtd: $uvtd_enabled ($uvtd_avail: $uvtd_missing)
                 uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
                   tsm: $tsm_enabled ($tsm_avail: $tsm_missing)
                   uvt: $uvt_enabled ($uvt_avail: $uvt_missing)

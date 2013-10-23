@@ -686,32 +686,6 @@ kmscon_LDADD += $(FUSE_LIBS)
 endif
 
 #
-# uvtd
-#
-
-if BUILD_ENABLE_UVTD
-bin_PROGRAMS += uvtd
-endif
-
-uvtd_SOURCES = \
-	src/uvtd_main.c \
-	src/uvtd_ctx.h \
-	src/uvtd_ctx.c \
-	src/uvtd_vt.h \
-	src/uvtd_vt.c \
-	src/uvtd_seat.h \
-	src/uvtd_seat.c
-uvtd_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(XKBCOMMON_CFLAGS)
-uvtd_LDADD = \
-	$(XKBCOMMON_LIBS) \
-	libeloop.la \
-	libshl.la \
-	libuterm.la \
-	libuvt.la
-
-#
 # Tests
 #
 
