@@ -11,10 +11,6 @@ LIBELOOP_CURRENT = 1
 LIBELOOP_REVISION = 0
 LIBELOOP_AGE = 0
 
-LIBUTERM_CURRENT = 1
-LIBUTERM_REVISION = 0
-LIBUTERM_AGE = 0
-
 #
 # Global Configurations and Initializations
 #
@@ -36,9 +32,7 @@ EXTRA_DIST = \
 	docs/kmscon.service \
 	docs/kmsconvt@.service \
 	docs/pc/libeloop.pc.in \
-	docs/pc/libuterm.pc.in \
-	docs/sym/libeloop.sym \
-	docs/sym/libuterm.sym
+	docs/sym/libeloop.sym
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
@@ -238,15 +232,7 @@ endif
 # abstractions and an input layer
 #
 
-if BUILD_ENABLE_UTERM
-lib_LTLIBRARIES += libuterm.la
-include_HEADERS += \
-	src/uterm_input.h \
-	src/uterm_monitor.h \
-	src/uterm_video.h \
-	src/uterm_vt.h
-pkgconfig_DATA += docs/pc/libuterm.pc
-endif
+noinst_LTLIBRARIES += libuterm.la
 
 libuterm_la_SOURCES = \
 	src/uterm_input.h \
@@ -271,11 +257,8 @@ libuterm_la_LIBADD = \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libshl.la
-EXTRA_libuterm_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libuterm.sym
 libuterm_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-version-info $(LIBUTERM_CURRENT):$(LIBUTERM_REVISION):$(LIBUTERM_AGE) \
-	-Wl,--version-script="$(top_srcdir)/docs/sym/libuterm.sym"
+	$(AM_LDFLAGS)
 
 if BUILD_ENABLE_MULTI_SEAT
 libuterm_la_SOURCES += src/uterm_systemd.c

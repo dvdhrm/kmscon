@@ -138,18 +138,6 @@ elif test "x$enable_eloop" = "x" ; then
 fi
 AC_MSG_RESULT([$enable_eloop])
 
-# uterm
-AC_MSG_CHECKING([whether user wants uterm])
-AC_ARG_ENABLE([uterm],
-              [AS_HELP_STRING([--enable-uterm],
-                              [build uterm library])])
-if test "x$enable_all" = "xyes" ; then
-        enable_uterm="yes"
-elif test "x$enable_uterm" = "x" ; then
-        enable_uterm="no (default)"
-fi
-AC_MSG_RESULT([$enable_uterm])
-
 # kmscon
 AC_MSG_CHECKING([whether user wants kmscon])
 AC_ARG_ENABLE([kmscon],
@@ -480,15 +468,6 @@ else
         video_drm3d_missing="enable-video-drm3d"
 fi
 
-# uterm
-uterm_avail=no
-uterm_missing=""
-if test ! "x$enable_uterm" = "xno" ; then
-        uterm_avail=yes
-else
-        uterm_missing="enable-uterm"
-fi
-
 # multi-seat
 multi_seat_avail=no
 multi_seat_missing=""
@@ -645,11 +624,6 @@ if test ! "x$enable_kmscon" = "xno" ; then
                 kmscon_missing="libtsm,$kmscon_missing"
         fi
 
-        if test "x$uterm_avail" = "xno" ; then
-                kmscon_avail=no
-                kmscon_missing="$uterm_missing,$kmscon_missing"
-        fi
-
         if test "x$kmscon_avail" = "xno" ; then
                 if test "x$enable_kmscon" = "xyes" ; then
                         AC_ERROR([missing for kmscon: $kmscon_missing])
@@ -673,7 +647,6 @@ if test "x$kmscon_avail" = "xyes" ; then
         if test "x${enable_kmscon% *}" = "xyes" ; then
                 kmscon_enabled=yes
                 enable_eloop=yes
-                enable_uterm=yes
         fi
 fi
 
@@ -746,14 +719,6 @@ multi_seat_enabled=no
 if test "x$multi_seat_avail" = "xyes" ; then
         if test "x${enable_multi_seat% *}" = "xyes" ; then
                 multi_seat_enabled=yes
-        fi
-fi
-
-# uterm
-uterm_enabled=no
-if test "x$uterm_avail" = "xyes" ; then
-        if test "x${enable_uterm% *}" = "xyes" ; then
-                uterm_enabled=yes
         fi
 fi
 
@@ -869,10 +834,6 @@ fi
 
 AM_CONDITIONAL([BUILD_ENABLE_VIDEO_DRM3D],
                [test "x$video_drm3d_enabled" = "xyes"])
-
-# uterm
-AM_CONDITIONAL([BUILD_ENABLE_UTERM],
-               [test "x$uterm_enabled" = "xyes"])
 
 # multi-seat
 if test "x$multi_seat_enabled" = "xyes" ; then
@@ -1021,8 +982,7 @@ fi
 #
 
 AC_CONFIG_FILES([Makefile
-                 docs/pc/libeloop.pc
-                 docs/pc/libuterm.pc])
+                 docs/pc/libeloop.pc])
 AC_OUTPUT
 
 #
@@ -1040,7 +1000,6 @@ AC_MSG_NOTICE([Build configuration:
 
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
-                uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
                 eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
   Miscellaneous Options:
