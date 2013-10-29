@@ -473,25 +473,6 @@ mod_gltex_la_LDFLAGS = \
 	-module \
 	-avoid-version
 
-if BUILD_ENABLE_RENDERER_CAIRO
-module_LTLIBRARIES += mod-cairo.la
-endif
-
-mod_cairo_la_SOURCES = \
-	src/kmscon_module_interface.h \
-	src/text_cairo.c \
-	src/kmscon_mod_cairo.c
-mod_cairo_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(CAIRO_CFLAGS)
-mod_cairo_la_LIBADD = \
-	$(CAIRO_LIBS) \
-	libshl.la
-mod_cairo_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-module \
-	-avoid-version
-
 if BUILD_ENABLE_RENDERER_PIXMAN
 module_LTLIBRARIES += mod-pixman.la
 endif

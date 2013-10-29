@@ -100,11 +100,6 @@ PKG_CHECK_MODULES([PANGO], [pango pangoft2],
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
-PKG_CHECK_MODULES([CAIRO], [cairo],
-                  [have_cairo=yes], [have_cairo=no])
-AC_SUBST(CAIRO_CFLAGS)
-AC_SUBST(CAIRO_LIBS)
-
 PKG_CHECK_MODULES([PIXMAN], [pixman-1],
                   [have_pixman=yes], [have_pixman=no])
 AC_SUBST(PIXMAN_CFLAGS)
@@ -276,18 +271,15 @@ AC_ARG_WITH([renderers],
             [with_renderers="default"])
 enable_renderer_bbulk="no"
 enable_renderer_gltex="no"
-enable_renderer_cairo="no"
 enable_renderer_pixman="no"
 if test "x$enable_all" = "xyes" ; then
         enable_renderer_bbulk="yes"
         enable_renderer_gltex="yes"
-        enable_renderer_cairo="yes"
         enable_renderer_pixman="yes"
-        with_renderers="bbulk,gltex,cairo,pixman (all)"
+        with_renderers="bbulk,gltex,pixman (all)"
 elif test "x$with_renderers" = "xdefault" ; then
         enable_renderer_bbulk="yes (default)"
         enable_renderer_gltex="yes (default)"
-        enable_renderer_cairo="no (default)"
         enable_renderer_pixman="no (default)"
         with_renderers="bbulk,gltex (default)"
 elif test ! "x$with_renderers" = "x" ; then
@@ -298,8 +290,6 @@ elif test ! "x$with_renderers" = "x" ; then
                         enable_renderer_bbulk="yes"
                 elif test "x$i" = "xgltex" ; then
                         enable_renderer_gltex="yes"
-                elif test "x$i" = "xcairo" ; then
-                        enable_renderer_cairo="yes"
                 elif test "x$i" = "xpixman" ; then
                         enable_renderer_pixman="yes"
                 else
@@ -566,25 +556,6 @@ else
         renderer_gltex_missing="enable-renderer-gltex"
 fi
 
-# renderer cairo
-renderer_cairo_avail=no
-renderer_cairo_missing=""
-if test ! "x$enable_renderer_cairo" = "xno" ; then
-        renderer_cairo_avail=yes
-        if test "x$have_cairo" = "xno" ; then
-                renderer_cairo_avail=no
-                renderer_cairo_missing="cairo"
-        fi
-
-        if test "x$renderer_cairo_avail" = "xno" ; then
-                if test "x$enable_renderer_cairo" = "xyes" ; then
-                        AC_ERROR([missing for renderer-cairo: $renderer_cairo_missing])
-                fi
-        fi
-else
-        renderer_cairo_missing="enable-renderer-cairo"
-fi
-
 # renderer pixman
 renderer_pixman_avail=no
 renderer_pixman_missing=""
@@ -744,14 +715,6 @@ renderer_gltex_enabled=no
 if test "x$renderer_gltex_avail" = "xyes" ; then
         if test "x${enable_renderer_gltex% *}" = "xyes" ; then
                 renderer_gltex_enabled=yes
-        fi
-fi
-
-# renderer cairo
-renderer_cairo_enabled=no
-if test "x$renderer_cairo_avail" = "xyes" ; then
-        if test "x${enable_renderer_cairo% *}" = "xyes" ; then
-                renderer_cairo_enabled=yes
         fi
 fi
 
@@ -948,15 +911,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_RENDERER_GLTEX],
                [test "x$renderer_gltex_enabled" = "xyes"])
 
-# renderer cairo
-if test "x$renderer_cairo_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_RENDERER_CAIRO], [1],
-                  [Build cairo rendering backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_RENDERER_CAIRO],
-               [test "x$renderer_cairo_enabled" = "xyes"])
-
 # renderer pixman
 if test "x$renderer_pixman_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_RENDERER_PIXMAN], [1],
@@ -1109,7 +1063,6 @@ AC_MSG_NOTICE([Build configuration:
   Renderers:
                 bbulk: $renderer_bbulk_enabled ($renderer_bbulk_avail: $renderer_bbulk_missing)
                 gltex: $renderer_gltex_enabled ($renderer_gltex_avail: $renderer_gltex_missing)
-                cairo: $renderer_cairo_enabled ($renderer_cairo_avail: $renderer_cairo_missing)
                pixman: $renderer_pixman_enabled ($renderer_pixman_avail: $renderer_pixman_missing)
 
   Session Types:

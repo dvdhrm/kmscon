@@ -80,7 +80,6 @@ Released tarballs can be found at:
     --with-renderers: Console rendering backends. Available are:
        - bbulk: Simple 2D software-renderer (bulk-mode)
        - gltex: OpenGLESv2 accelerated renderer
-       - cairo: cairo based renderer
        - pixman: pixman based renderer
        Default is: bbulk,gltex
        The bblit backend is always built-in.
