@@ -1,5 +1,35 @@
 = KMSCON Release News =
 
+CHANGES WITH 8:
+	* Several build-tools changes. Please adjust your build-scripts
+	  accoringly:
+	    - xz instead of bz2 tarballs
+	    - tarballs moved to: www.freedesktop.org/software/kmscon/releases
+	    - linking with ld.gold now supported
+	    - libtsm was extracted into a separate library, available at:
+	        www.freedesktop.org/wiki/Software/kmscon/libtsm
+	    - Several dependencies are mandatory now. See README.
+	    - --prefix=/usr is no longer the default. You need to pass it
+	      yourself!
+
+	* Removed wlterm. A GTK+ variant of wlterm is now available at:
+	    www.freedesktop.org/wiki/Software/kmscon/wlterm
+
+	* Removed uvtd and uvt. They were unused.
+
+	* Removed cdev-sessions
+
+	* Removed freetype2 font-backend
+
+	* Removed cairo text renderer
+
+	* eloop and uterm are now linked statically
+
+	* Dynamic font resizing is now supported. Use ctrl+'+' and ctrl+'-' as
+	  default shortcuts to resize your font on-the-fly.
+
+	* Lots of bug-fixes!
+
 CHANGES WITH 7:
 	* TSM, font and text subsystems have been extended to support
 	  multi-width fonts (via wcwidth(3)). This allows using CJK characters
