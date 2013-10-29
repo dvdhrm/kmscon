@@ -19,7 +19,6 @@ configure
 *.tar.xz
 libtool
 libeloop.pc
-libuvt.pc
 libuterm.pc
 m4/
 stamp-*

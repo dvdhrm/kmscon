@@ -100,11 +100,6 @@ PKG_CHECK_MODULES([PANGO], [pango pangoft2],
 AC_SUBST(PANGO_CFLAGS)
 AC_SUBST(PANGO_LIBS)
 
-PKG_CHECK_MODULES([FUSE], [fuse >= 2.9.0],
-                  [have_fuse=yes], [have_fuse=no])
-AC_SUBST(FUSE_CFLAGS)
-AC_SUBST(FUSE_LIBS)
-
 PKG_CHECK_MODULES([CAIRO], [cairo],
                   [have_cairo=yes], [have_cairo=no])
 AC_SUBST(CAIRO_CFLAGS)
@@ -148,18 +143,6 @@ elif test "x$enable_eloop" = "x" ; then
         enable_eloop="no (default)"
 fi
 AC_MSG_RESULT([$enable_eloop])
-
-# UVT
-AC_MSG_CHECKING([whether user wants UVT])
-AC_ARG_ENABLE([uvt],
-              [AS_HELP_STRING([--enable-uvt],
-                              [build uvt library])])
-if test "x$enable_all" = "xyes" ; then
-        enable_uvt="yes"
-elif test "x$enable_uvt" = "x" ; then
-        enable_uvt="no (default)"
-fi
-AC_MSG_RESULT([$enable_uvt])
 
 # uterm
 AC_MSG_CHECKING([whether user wants uterm])
@@ -446,25 +429,6 @@ if test ! "x$enable_eloop" = "xno" ; then
         eloop_avail=yes
 else
         eloop_missing="enable-eloop"
-fi
-
-# UVT
-uvt_avail=no
-uvt_missing=""
-if test ! "x$enable_uvt" = "xno" ; then
-        uvt_avail=yes
-        if test "x$have_fuse" = "xno" ; then
-                uvt_avail=no
-                uvt_missing="fuse"
-        fi
-
-        if test "x$uvt_avail" = "xno" ; then
-                if test "x$enable_uvt" = "xyes" ; then
-                        AC_ERROR([missing for UVT: $uvt_missing])
-                fi
-        fi
-else
-        uvt_missing="enable-uvt"
 fi
 
 # video fbdev
@@ -855,14 +819,6 @@ if test "x$video_fbdev_avail" = "xyes" ; then
         fi
 fi
 
-# UVT
-uvt_enabled=no
-if test "x$uvt_avail" = "xyes" ; then
-        if test "x${enable_uvt% *}" = "xyes" ; then
-                uvt_enabled=yes
-        fi
-fi
-
 # eloop
 eloop_enabled=no
 if test "x$eloop_avail" = "xyes" ; then
@@ -924,10 +880,6 @@ AM_CONDITIONAL([BUILD_ENABLE_ELOOP_DBUS],
 # eloop
 AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
                [test "x$eloop_enabled" = "xyes"])
-
-# UVT
-AM_CONDITIONAL([BUILD_ENABLE_UVT],
-               [test "x$uvt_enabled" = "xyes"])
 
 # video fbdev
 if test "x$video_fbdev_enabled" = "xyes" ; then
@@ -1117,7 +1069,6 @@ fi
 
 AC_CONFIG_FILES([Makefile
                  docs/pc/libeloop.pc
-                 docs/pc/libuvt.pc
                  docs/pc/libuterm.pc])
 AC_OUTPUT
 
@@ -1137,7 +1088,6 @@ AC_MSG_NOTICE([Build configuration:
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
                 uterm: $uterm_enabled ($uterm_avail: $uterm_missing)
-                  uvt: $uvt_enabled ($uvt_avail: $uvt_missing)
                 eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
   Miscellaneous Options:

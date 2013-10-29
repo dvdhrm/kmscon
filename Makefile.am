@@ -11,10 +11,6 @@ LIBELOOP_CURRENT = 1
 LIBELOOP_REVISION = 0
 LIBELOOP_AGE = 0
 
-LIBUVT_CURRENT = 1
-LIBUVT_REVISION = 0
-LIBUVT_AGE = 0
-
 LIBUTERM_CURRENT = 1
 LIBUTERM_REVISION = 0
 LIBUTERM_AGE = 0
@@ -40,10 +36,8 @@ EXTRA_DIST = \
 	docs/kmscon.service \
 	docs/kmsconvt@.service \
 	docs/pc/libeloop.pc.in \
-	docs/pc/libuvt.pc.in \
 	docs/pc/libuterm.pc.in \
 	docs/sym/libeloop.sym \
-	docs/sym/libuvt.sym \
 	docs/sym/libuterm.sym
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
@@ -235,39 +229,6 @@ libeloop_la_SOURCES += \
 libeloop_la_CPPFLAGS += $(DBUS_CFLAGS)
 libeloop_la_LIBADD += $(DBUS_LIBS)
 endif
-
-#
-# libuvt
-# Implementation of Virtual Terminals in user-space with the help of CUSE/FUSE
-# so we can provide character-device drivers in user-space. Aims to be 100%
-# compatible but also provides many other use-cases.
-#
-
-if BUILD_ENABLE_UVT
-lib_LTLIBRARIES += libuvt.la
-include_HEADERS += src/uvt.h
-pkgconfig_DATA += docs/pc/libuvt.pc
-endif
-
-libuvt_la_SOURCES = \
-	src/uvt.h \
-	src/uvt_internal.h \
-	src/uvt_ctx.c \
-	src/uvt_cdev.c \
-	src/uvt_client.c \
-	src/uvt_tty_null.c
-libuvt_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(FUSE_CFLAGS) \
-	-DFUSE_USE_VERSION=29
-libuvt_la_LIBADD = \
-	$(FUSE_LIBS) \
-	libshl.la
-EXTRA_libuvt_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libuvt.sym
-libuvt_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-version-info $(LIBUVT_CURRENT):$(LIBUVT_REVISION):$(LIBUVT_AGE) \
-	-Wl,--version-script="$(top_srcdir)/docs/sym/libuvt.sym"
 
 #
 # libuterm

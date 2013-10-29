@@ -94,7 +94,6 @@ Released tarballs can be found at:
     --enable-kmscon: Build kmscon application [default: on]
     --enable-eloop: Build eloop event loop library [default: off]
     --enable-uterm: Build uterm library [default: off]
-    --enable-uvt: Build UVT library [default: off]
 
 == Running ==
 
