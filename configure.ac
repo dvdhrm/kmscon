@@ -6,7 +6,7 @@
 AC_PREREQ(2.68)
 
 AC_INIT([kmscon],
-        [7],
+        [8],
         [http://bugs.freedesktop.org/enter_bug.cgi?product=kmscon],
         [kmscon],
         [http://www.freedesktop.org/wiki/Software/kmscon])
