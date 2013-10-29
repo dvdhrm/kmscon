@@ -224,8 +224,10 @@ nodist_libuterm_la_SOURCES =
 
 libuterm_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	$(UDEV_CFLAGS) \
 	$(XKBCOMMON_CFLAGS)
 libuterm_la_LIBADD = \
+	$(UDEV_LIBS) \
 	$(XKBCOMMON_LIBS) \
 	libeloop.la \
 	libshl.la
@@ -236,11 +238,6 @@ if BUILD_ENABLE_MULTI_SEAT
 libuterm_la_SOURCES += src/uterm_systemd.c
 libuterm_la_CPPFLAGS += $(SYSTEMD_CFLAGS)
 libuterm_la_LIBADD += $(SYSTEMD_LIBS)
-endif
-
-if BUILD_ENABLE_HOTPLUG
-libuterm_la_CPPFLAGS += $(UDEV_CFLAGS)
-libuterm_la_LIBADD += $(UDEV_LIBS)
 endif
 
 if BUILD_ENABLE_VIDEO_FBDEV
@@ -454,7 +451,6 @@ mod_pixman_la_LDFLAGS = \
 # built as part of kmscon.
 #
 
-if BUILD_ENABLE_KMSCON
 bin_PROGRAMS += kmscon
 check_PROGRAMS += \
 	test_output \
@@ -462,7 +458,6 @@ check_PROGRAMS += \
 	test_input \
 	test_key
 MANPAGES += docs/man/kmscon.1
-endif
 
 kmscon_SOURCES = \
 	src/conf.h \

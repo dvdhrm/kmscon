@@ -13,6 +13,8 @@ Website:
     - libtsm: terminal emulator state machine
     - libudev: providing input, video, etc. device hotplug support (>=v172)
     - libxkbcommon: providing internationalized keyboard handling
+    - libdrm: graphics access to DRM/KMS subsystem
+    - linux-headers: linux kernel headers for ABI definitions
 
   Everything else is optional:
 
@@ -59,8 +61,6 @@ Released tarballs can be found at:
   explicitly enable it via command line:
     --enable-multi-seat: This requires the systemd-logind library to provide
                          multi-seat support for kmscon. [default: on]
-    --enable-hotplug: This requires libudev for hotplugging support. This is
-                      currently mandatory and cannot be disabled. [default: on]
     --enable-debug: Enable debug mode/messages [default: on]
     --enable-optimizations: Enable code optimizations [default: on]
 
@@ -85,11 +85,6 @@ Released tarballs can be found at:
     --with-sessions: Built in sessions. Available sessions are:
        - dummy: Dummy fallback session
        - terminal: Terminal-emulator sessions
-
-  The following options select which applications are built. If
-  dependency-checks fail, they are disabled by default unless explicitly enabled
-  on the command line:
-    --enable-kmscon: Build kmscon application [default: on]
 
 == Running ==
 

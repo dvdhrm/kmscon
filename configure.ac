@@ -44,6 +44,26 @@ LT_PREREQ(2.2)
 LT_INIT
 
 #
+# Required pkg-config dependencies
+#
+
+PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
+AC_SUBST(XKBCOMMON_CFLAGS)
+AC_SUBST(XKBCOMMON_LIBS)
+
+PKG_CHECK_MODULES([TSM], [libtsm])
+AC_SUBST(TSM_CFLAGS)
+AC_SUBST(TSM_LIBS)
+
+PKG_CHECK_MODULES([UDEV], [libudev >= 172])
+AC_SUBST(UDEV_CFLAGS)
+AC_SUBST(UDEV_LIBS)
+
+PKG_CHECK_MODULES([DRM], [libdrm])
+AC_SUBST(DRM_CFLAGS)
+AC_SUBST(DRM_LIBS)
+
+#
 # pkg-config dependencies
 # This unconditionally checks for all dependencies even if they are disabled. We
 # later look whether all required depedencies are met and finish the
@@ -54,30 +74,10 @@ LT_INIT
 # ourself.
 #
 
-PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon],
-                  [have_xkbcommon=yes], [have_xkbcommon=no])
-AC_SUBST(XKBCOMMON_CFLAGS)
-AC_SUBST(XKBCOMMON_LIBS)
-
 PKG_CHECK_MODULES([SYSTEMD], [libsystemd-daemon libsystemd-login],
                   [have_systemd=yes], [have_systemd=no])
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)
-
-PKG_CHECK_MODULES([UDEV], [libudev >= 172],
-                  [have_udev=yes], [have_udev=no])
-AC_SUBST(UDEV_CFLAGS)
-AC_SUBST(UDEV_LIBS)
-
-PKG_CHECK_MODULES([DBUS], [dbus-1],
-                  [have_dbus=yes], [have_dbus=no])
-AC_SUBST(DBUS_CFLAGS)
-AC_SUBST(DBUS_LIBS)
-
-PKG_CHECK_MODULES([DRM], [libdrm],
-                  [have_drm=yes], [have_drm=no])
-AC_SUBST(DRM_CFLAGS)
-AC_SUBST(DRM_LIBS)
 
 PKG_CHECK_MODULES([GBM], [gbm],
                   [have_gbm=yes], [have_gbm=no])
@@ -104,11 +104,6 @@ PKG_CHECK_MODULES([PIXMAN], [pixman-1],
 AC_SUBST(PIXMAN_CFLAGS)
 AC_SUBST(PIXMAN_LIBS)
 
-PKG_CHECK_MODULES([TSM], [libtsm],
-                  [have_tsm=yes], [have_tsm=no])
-AC_SUBST(TSM_CFLAGS)
-AC_SUBST(TSM_LIBS)
-
 #
 # Parse arguments
 # This parses all arguments that are given via "--enable-XY" or "--with-XY" and
@@ -125,18 +120,6 @@ if test "x$enable_all" = "x" ; then
         enable_all="no"
 fi
 AC_MSG_RESULT([$enable_all])
-
-# kmscon
-AC_MSG_CHECKING([whether user wants kmscon])
-AC_ARG_ENABLE([kmscon],
-              [AS_HELP_STRING([--disable-kmscon],
-                              [do not build kmscon])])
-if test "x$enable_all" = "xyes" ; then
-        enable_kmscon="yes"
-elif test "x$enable_kmscon" = "x" ; then
-        enable_kmscon="yes (default)"
-fi
-AC_MSG_RESULT([$enable_kmscon])
 
 # debug
 AC_MSG_CHECKING([whether to build with debugging on])
@@ -173,18 +156,6 @@ elif test "x$enable_multi_seat" = "x" ; then
         enable_multi_seat="yes (default)"
 fi
 AC_MSG_RESULT([$enable_multi_seat])
-
-# hotplug
-AC_MSG_CHECKING([whether user wants udev for device hotplug support])
-AC_ARG_ENABLE([hotplug],
-              [AS_HELP_STRING([--enable-hotplug],
-                              [enable device hotplug support with udev])])
-if test "x$enable_all" = "xyes" ; then
-        enable_hotplug="yes"
-elif test "x$enable_hotplug" = "x" ; then
-        enable_hotplug="yes (default)"
-fi
-AC_MSG_RESULT([$enable_hotplug])
 
 # video backends
 AC_MSG_CHECKING([which video backends the user wants])
@@ -371,16 +342,6 @@ video_drm2d_avail=no
 video_drm2d_missing=""
 if test ! "x$enable_video_drm2d" = "xno" ; then
         video_drm2d_avail=yes
-        if test "x$have_drm3d" = "xno" ; then
-                video_drm2d_avail=no
-                video_drm2d_missing="libdrm3d"
-        fi
-
-        if test "x$video_drm2d_avail" = "xno" ; then
-                if test "x$enable_video_drm2d" = "xyes" ; then
-                        AC_ERROR([missing for drm2d video backend: $video_drm2d_missing])
-                fi
-        fi
 else
         video_drm2d_missing="enable-video-drm2d"
 fi
@@ -390,10 +351,6 @@ video_drm3d_avail=no
 video_drm3d_missing=""
 if test ! "x$enable_video_drm3d" = "xno" ; then
         video_drm3d_avail=yes
-        if test "x$have_drm3d" = "xno" ; then
-                video_drm3d_avail=no
-                video_drm3d_missing="libdrm3d,$video_drm3d_missing"
-        fi
         if test "x$have_gbm" = "xno" ; then
                 video_drm3d_avail=no
                 video_drm3d_missing="libgbm,$video_drm3d_missing"
@@ -433,25 +390,6 @@ if test ! "x$enable_multi_seat" = "xno" ; then
         fi
 else
         multi_seat_missing="enable-multi-seat"
-fi
-
-# hotplug
-hotplug_avail=no
-hotplug_missing=""
-if test ! "x$enable_hotplug" = "xno" ; then
-        hotplug_avail=yes
-        if test "x$have_udev" = "xno" ; then
-                hotplug_avail=no
-                hotplug_missing="libudev"
-        fi
-
-        if test "x$hotplug_avail" = "xno" ; then
-                if test "x$enable_hotplug" = "xyes" ; then
-                        AC_ERROR([missing for hotplug-support: $hotplug_missing])
-                fi
-        fi
-else
-        hotplug_missing="enable-hotplug"
 fi
 
 # renderer bbulk
@@ -543,37 +481,8 @@ session_terminal_avail=no
 session_terminal_missing=""
 if test ! "x$enable_session_terminal" = "xno" ; then
         session_terminal_avail=yes
-        if test "x$have_tsm" = "xno" ; then
-                session_terminal_avail=no
-                session_terminal_missing="libtsm"
-        fi
-
-        if test "x$session_terminal_avail" = "xno" ; then
-                if test "x$enable_session_terminal" = "xyes" ; then
-                        AC_ERROR([missing for session-terminal: $session_terminal_missing])
-                fi
-        fi
 else
         session_terminal_missing="enable-session-terminal"
-fi
-
-# kmscon
-kmscon_avail=no
-kmscon_missing=""
-if test ! "x$enable_kmscon" = "xno" ; then
-        kmscon_avail=yes
-        if test "x$have_tsm" = "xno" ; then
-                kmscon_avail=no
-                kmscon_missing="libtsm,$kmscon_missing"
-        fi
-
-        if test "x$kmscon_avail" = "xno" ; then
-                if test "x$enable_kmscon" = "xyes" ; then
-                        AC_ERROR([missing for kmscon: $kmscon_missing])
-                fi
-        fi
-else
-        kmscon_missing="enable-kmscon"
 fi
 
 #
@@ -583,14 +492,6 @@ fi
 # and the user didn't force-enable them and no other module that is enabled
 # needs them. This is done top-down of course.
 #
-
-# kmscon
-kmscon_enabled=no
-if test "x$kmscon_avail" = "xyes" ; then
-        if test "x${enable_kmscon% *}" = "xyes" ; then
-                kmscon_enabled=yes
-        fi
-fi
 
 # session terminal
 session_terminal_enabled=no
@@ -645,14 +546,6 @@ renderer_bbulk_enabled=no
 if test "x$renderer_bbulk_avail" = "xyes" ; then
         if test "x${enable_renderer_bbulk% *}" = "xyes" ; then
                 renderer_bbulk_enabled=yes
-        fi
-fi
-
-# hotplug
-hotplug_enabled=no
-if test "x$hotplug_avail" = "xyes" ; then
-        if test "x${enable_hotplug% *}" = "xyes" ; then
-                hotplug_enabled=yes
         fi
 fi
 
@@ -762,15 +655,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_MULTI_SEAT],
                [test "x$multi_seat_enabled" = "xyes"])
 
-# hotplug
-if test "x$hotplug_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_HOTPLUG], [1],
-                  [Use udev for hotplug support])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_HOTPLUG],
-               [test "x$hotplug_enabled" = "xyes"])
-
 # renderer bbulk
 if test "x$renderer_bbulk_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_RENDERER_BBULK], [1],
@@ -833,10 +717,6 @@ fi
 
 AM_CONDITIONAL([BUILD_ENABLE_SESSION_TERMINAL],
                [test "x$session_terminal_enabled" = "xyes"])
-
-# kmscon
-AM_CONDITIONAL([BUILD_ENABLE_KMSCON],
-               [test "x$kmscon_enabled" = "xyes"])
 
 #
 # Miscellaneous Checks
@@ -915,14 +795,10 @@ AC_MSG_NOTICE([Build configuration:
                libdir: $libdir
            includedir: $includedir
 
-  Applications and Libraries:
-               kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
-
   Miscellaneous Options:
                 debug: $debug_enabled ($debug_avail: $debug_missing)
         optimizations: $optimizations_enabled ($optimizations_avail: $optimizations_missing)
            multi-seat: $multi_seat_enabled ($multi_seat_avail: $multi_seat_missing)
-              hotplug: $hotplug_enabled ($hotplug_avail: $hotplug_missing)
 
   Video Backends:
                 fbdev: $video_fbdev_enabled ($video_fbdev_avail: $video_fbdev_missing)
