@@ -11,8 +11,11 @@ Website:
 
   Kmscon requires the following software:
     - libtsm: terminal emulator state machine
+        http://www.freedesktop.org/wiki/Software/kmscon/libtsm/
     - libudev: providing input, video, etc. device hotplug support (>=v172)
+        http://www.freedesktop.org/wiki/Software/systemd/
     - libxkbcommon: providing internationalized keyboard handling
+        http://xkbcommon.org/
     - libdrm: graphics access to DRM/KMS subsystem
     - linux-headers: linux kernel headers for ABI definitions
 
