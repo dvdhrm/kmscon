@@ -476,7 +476,7 @@
       <varlistentry>
         <term><option>--font-engine {engine}</option></term>
         <listitem>
-          <para>Select font-engine. Available engines are 'pango', 'freetype2',
+          <para>Select font-engine. Available engines are 'pango',
                 'unifont' and '8x16'. (default: pango)</para>
         </listitem>
       </varlistentry>

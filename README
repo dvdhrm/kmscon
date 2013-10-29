@@ -74,7 +74,6 @@ Released tarballs can be found at:
        Default is: fbdev,drm2d,drm3d
     --with-fonts: Font renderers. Available backends are:
        - unifont: Static built-in non-scalable font (Unicode Unifont)
-       - freetype2: Freetype2+fontconfig based scalable font renderer
        - pango: Pango based scalable font renderer
        Default is: unifont,pango
        The 8x16 backend is always built-in.

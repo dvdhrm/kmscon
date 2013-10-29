@@ -451,28 +451,6 @@ mod_unifont_la_LDFLAGS = \
 	-module \
 	-avoid-version
 
-if BUILD_ENABLE_FONT_FREETYPE2
-module_LTLIBRARIES += mod-freetype2.la
-endif
-
-mod_freetype2_la_SOURCES = \
-	src/kmscon_module_interface.h \
-	src/font_freetype2.c \
-	src/kmscon_mod_freetype2.c
-mod_freetype2_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	$(FREETYPE2_CFLAGS) \
-	$(TSM_CFLAGS)
-mod_freetype2_la_LIBADD = \
-	$(FREETYPE2_LIBS) \
-	$(TSM_LIBS) \
-	-lpthread \
-	libshl.la
-mod_freetype2_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-module \
-	-avoid-version
-
 if BUILD_ENABLE_FONT_PANGO
 module_LTLIBRARIES += mod-pango.la
 endif

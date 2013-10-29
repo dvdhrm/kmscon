@@ -111,7 +111,6 @@ int kmscon_font_render_inval(struct kmscon_font *font,
 
 extern struct kmscon_font_ops kmscon_font_8x16_ops;
 extern struct kmscon_font_ops kmscon_font_unifont_ops;
-extern struct kmscon_font_ops kmscon_font_freetype2_ops;
 extern struct kmscon_font_ops kmscon_font_pango_ops;
 
 #endif /* KMSCON_FONT_H */

@@ -95,11 +95,6 @@ PKG_CHECK_MODULES([GLES2], [glesv2],
 AC_SUBST(GLES2_CFLAGS)
 AC_SUBST(GLES2_LIBS)
 
-PKG_CHECK_MODULES([FREETYPE2], [freetype2 fontconfig],
-                  [have_freetype2=yes], [have_freetype2=no])
-AC_SUBST(FREETYPE2_CFLAGS)
-AC_SUBST(FREETYPE2_LIBS)
-
 PKG_CHECK_MODULES([PANGO], [pango pangoft2],
                   [have_pango=yes], [have_pango=no])
 AC_SUBST(PANGO_CFLAGS)
@@ -341,16 +336,13 @@ AC_ARG_WITH([fonts],
             [],
             [with_fonts="default"])
 enable_font_unifont="no"
-enable_font_freetype2="no"
 enable_font_pango="no"
 if test "x$enable_all" = "xyes" ; then
         enable_font_unifont="yes"
-        enable_font_freetype2="yes"
         enable_font_pango="yes"
-        with_fonts="unifont,freetype2,pango (all)"
+        with_fonts="unifont,pango (all)"
 elif test "x$with_fonts" = "xdefault" ; then
         enable_font_unifont="yes (default)"
-        enable_font_freetype2="no (default)"
         enable_font_pango="yes (default)"
         with_fonts="unifont,pango (default)"
 elif test ! "x$with_fonts" = "x" ; then
@@ -359,8 +351,6 @@ elif test ! "x$with_fonts" = "x" ; then
         for i in $with_fonts ; do
                 if test "x$i" = "xunifont" ; then
                         enable_font_unifont="yes"
-                elif test "x$i" = "xfreetype2" ; then
-                        enable_font_freetype2="yes"
                 elif test "x$i" = "xpango" ; then
                         enable_font_pango="yes"
                 else
@@ -659,25 +649,6 @@ else
         font_unifont_missing="enable-font-unifont"
 fi
 
-# font freetype2
-font_freetype2_avail=no
-font_freetype2_missing=""
-if test ! "x$enable_font_freetype2" = "xno" ; then
-        font_freetype2_avail=yes
-        if test "x$have_freetype2" = "xno" ; then
-                font_freetype2_avail=no
-                font_freetype2_missing="libfontconfig,libfreetype2"
-        fi
-
-        if test "x$font_freetype2_avail" = "xno" ; then
-                if test "x$enable_font_freetype2" = "xyes" ; then
-                        AC_ERROR([missing for font-freetype2: $font_freetype2_missing])
-                fi
-        fi
-else
-        font_freetype2_missing="enable-font-freetype2"
-fi
-
 # font pango
 font_pango_avail=no
 font_pango_missing=""
@@ -793,14 +764,6 @@ font_pango_enabled=no
 if test "x$font_pango_avail" = "xyes" ; then
         if test "x${enable_font_pango% *}" = "xyes" ; then
                 font_pango_enabled=yes
-        fi
-fi
-
-# font freetype2
-font_freetype2_enabled=no
-if test "x$font_freetype2_avail" = "xyes" ; then
-        if test "x${enable_font_freetype2% *}" = "xyes" ; then
-                font_freetype2_enabled=yes
         fi
 fi
 
@@ -1060,15 +1023,6 @@ fi
 AM_CONDITIONAL([BUILD_ENABLE_FONT_UNIFONT],
                [test "x$font_unifont_enabled" = "xyes"])
 
-# font freetype2
-if test "x$font_freetype2_enabled" = "xyes" ; then
-        AC_DEFINE([BUILD_ENABLE_FONT_FREETYPE2], [1],
-                  [Build freetype2 font backend])
-fi
-
-AM_CONDITIONAL([BUILD_ENABLE_FONT_FREETYPE2],
-               [test "x$font_freetype2_enabled" = "xyes"])
-
 # font pango
 if test "x$font_pango_enabled" = "xyes" ; then
         AC_DEFINE([BUILD_ENABLE_FONT_PANGO], [1],
@@ -1200,7 +1154,6 @@ AC_MSG_NOTICE([Build configuration:
 
   Font Backends:
               unifont: $font_unifont_enabled ($font_unifont_avail: $font_unifont_missing)
-            freetype2: $font_freetype2_enabled ($font_freetype2_avail: $font_freetype2_missing)
                 pango: $font_pango_enabled ($font_pango_avail: $font_pango_missing)
 
   Renderers:
