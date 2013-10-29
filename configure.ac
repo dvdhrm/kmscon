@@ -16,7 +16,6 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER(config.h)
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
-AC_PREFIX_DEFAULT([/usr])
 AC_CANONICAL_SYSTEM
 
 AM_INIT_AUTOMAKE([foreign 1.11 subdir-objects dist-xz no-dist-gzip tar-pax -Wall -Werror -Wno-portability])
