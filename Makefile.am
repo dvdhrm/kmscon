@@ -4,14 +4,6 @@
 #
 
 #
-# Library Version Numbers
-#
-
-LIBELOOP_CURRENT = 1
-LIBELOOP_REVISION = 0
-LIBELOOP_AGE = 0
-
-#
 # Global Configurations and Initializations
 #
 
@@ -30,9 +22,7 @@ EXTRA_DIST = \
 	COPYING \
 	NEWS \
 	docs/kmscon.service \
-	docs/kmsconvt@.service \
-	docs/pc/libeloop.pc.in \
-	docs/sym/libeloop.sym
+	docs/kmsconvt@.service
 CLEANFILES =
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
@@ -196,11 +186,7 @@ libshl_la_LIBADD = \
 # compiled into a separate object to allow using it in several other programs.
 #
 
-if BUILD_ENABLE_ELOOP
-lib_LTLIBRARIES += libeloop.la
-include_HEADERS += src/eloop.h
-pkgconfig_DATA += docs/pc/libeloop.pc
-endif
+noinst_LTLIBRARIES += libeloop.la
 
 libeloop_la_SOURCES = \
 	src/eloop.h \
@@ -208,21 +194,7 @@ libeloop_la_SOURCES = \
 
 libeloop_la_LIBADD = libshl.la
 libeloop_la_CPPFLAGS = $(AM_CPPFLAGS)
-EXTRA_libeloop_la_DEPENDENCIES = ${top_srcdir}/docs/sym/libeloop.sym
-libeloop_la_LDFLAGS = \
-	$(AM_LDFLAGS) \
-	-version-info $(LIBELOOP_CURRENT):$(LIBELOOP_REVISION):$(LIBELOOP_AGE) \
-	-Wl,--version-script=$(top_srcdir)/docs/sym/libeloop.sym
-
-
-if BUILD_ENABLE_ELOOP_DBUS
-libeloop_la_SOURCES += \
-	external/dbus-common.h \
-	external/dbus-loop.h \
-	external/dbus-loop.c
-libeloop_la_CPPFLAGS += $(DBUS_CFLAGS)
-libeloop_la_LIBADD += $(DBUS_LIBS)
-endif
+libeloop_la_LDFLAGS = $(AM_LDFLAGS)
 
 #
 # libuterm

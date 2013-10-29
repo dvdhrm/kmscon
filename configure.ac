@@ -126,18 +126,6 @@ if test "x$enable_all" = "x" ; then
 fi
 AC_MSG_RESULT([$enable_all])
 
-# eloop
-AC_MSG_CHECKING([whether user wants eloop])
-AC_ARG_ENABLE([eloop],
-              [AS_HELP_STRING([--enable-eloop],
-                              [build eloop library])])
-if test "x$enable_all" = "xyes" ; then
-        enable_eloop="yes"
-elif test "x$enable_eloop" = "x" ; then
-        enable_eloop="no (default)"
-fi
-AC_MSG_RESULT([$enable_eloop])
-
 # kmscon
 AC_MSG_CHECKING([whether user wants kmscon])
 AC_ARG_ENABLE([kmscon],
@@ -197,18 +185,6 @@ elif test "x$enable_hotplug" = "x" ; then
         enable_hotplug="yes (default)"
 fi
 AC_MSG_RESULT([$enable_hotplug])
-
-# eloop-dbus
-AC_MSG_CHECKING([whether user wants eloop dbus support])
-AC_ARG_ENABLE([eloop-dbus],
-              [AS_HELP_STRING([--enable-eloop-dbus],
-                              [enable eloop dbus support])])
-if test "x$enable_all" = "xyes" ; then
-        enable_eloop_dbus="yes"
-elif test "x$enable_eloop_dbus" = "x" ; then
-        enable_eloop_dbus="no (default)"
-fi
-AC_MSG_RESULT([$enable_eloop_dbus])
 
 # video backends
 AC_MSG_CHECKING([which video backends the user wants])
@@ -378,34 +354,6 @@ if test ! "x$enable_optimizations" = "xno" ; then
         optimizations_avail=yes
 else
         optimizations_missing="enable-optimizations"
-fi
-
-# eloop-dbus
-eloop_dbus_avail=no
-eloop_dbus_missing=""
-if test ! "x$enable_eloop_dbus" = "xno" ; then
-        eloop_dbus_avail=yes
-        if test "x$have_dbus" = "xno" ; then
-                eloop_dbus_avail=no
-                eloop_dbus_missing="libdbus"
-        fi
-
-        if test "x$eloop_dbus_avail" = "xno" ; then
-                if test "x$enable_eloop_dbus" = "xyes" ; then
-                        AC_ERROR([missing for eloop-dbus: $eloop_dbus_missing])
-                fi
-        fi
-else
-        eloop_dbus_missing="enable-eloop-dbus"
-fi
-
-# eloop
-eloop_avail=no
-eloop_missing=""
-if test ! "x$enable_eloop" = "xno" ; then
-        eloop_avail=yes
-else
-        eloop_missing="enable-eloop"
 fi
 
 # video fbdev
@@ -614,11 +562,6 @@ kmscon_avail=no
 kmscon_missing=""
 if test ! "x$enable_kmscon" = "xno" ; then
         kmscon_avail=yes
-        if test "x$eloop_avail" = "xno" ; then
-                kmscon_avail=no
-                kmscon_missing="$eloop_missing,$kmscon_missing"
-        fi
-
         if test "x$have_tsm" = "xno" ; then
                 kmscon_avail=no
                 kmscon_missing="libtsm,$kmscon_missing"
@@ -646,7 +589,6 @@ kmscon_enabled=no
 if test "x$kmscon_avail" = "xyes" ; then
         if test "x${enable_kmscon% *}" = "xyes" ; then
                 kmscon_enabled=yes
-                enable_eloop=yes
         fi
 fi
 
@@ -746,22 +688,6 @@ if test "x$video_fbdev_avail" = "xyes" ; then
         fi
 fi
 
-# eloop
-eloop_enabled=no
-if test "x$eloop_avail" = "xyes" ; then
-        if test "x${enable_eloop% *}" = "xyes" ; then
-                eloop_enabled=yes
-        fi
-fi
-
-# eloop-dbus
-eloop_dbus_enabled=no
-if test "x$eloop_dbus_avail" = "xyes" ; then
-        if test "x${enable_eloop_dbus% *}" = "xyes" ; then
-                eloop_dbus_enabled=yes
-        fi
-fi
-
 # optimizations
 optimizations_enabled=no
 if test "x$optimizations_avail" = "xyes" ; then
@@ -799,14 +725,6 @@ AM_CONDITIONAL([BUILD_ENABLE_DEBUG],
 # optimizations
 AM_CONDITIONAL([BUILD_ENABLE_OPTIMIZATIONS],
                [test "x$optimizations_enabled" = "xyes"])
-
-# eloop-dbus
-AM_CONDITIONAL([BUILD_ENABLE_ELOOP_DBUS],
-               [test "x$eloop_dbus_enabled" = "xyes"])
-
-# eloop
-AM_CONDITIONAL([BUILD_ENABLE_ELOOP],
-               [test "x$eloop_enabled" = "xyes"])
 
 # video fbdev
 if test "x$video_fbdev_enabled" = "xyes" ; then
@@ -981,8 +899,7 @@ fi
 # makefiles.
 #
 
-AC_CONFIG_FILES([Makefile
-                 docs/pc/libeloop.pc])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
 #
@@ -1000,14 +917,12 @@ AC_MSG_NOTICE([Build configuration:
 
   Applications and Libraries:
                kmscon: $kmscon_enabled ($kmscon_avail: $kmscon_missing)
-                eloop: $eloop_enabled ($eloop_avail: $eloop_missing)
 
   Miscellaneous Options:
                 debug: $debug_enabled ($debug_avail: $debug_missing)
         optimizations: $optimizations_enabled ($optimizations_avail: $optimizations_missing)
            multi-seat: $multi_seat_enabled ($multi_seat_avail: $multi_seat_missing)
               hotplug: $hotplug_enabled ($hotplug_avail: $hotplug_missing)
-           eloop-dbus: $eloop_dbus_enabled ($eloop_dbus_avail: $eloop_dbus_missing)
 
   Video Backends:
                 fbdev: $video_fbdev_enabled ($video_fbdev_avail: $video_fbdev_missing)

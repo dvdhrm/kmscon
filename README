@@ -63,7 +63,6 @@ Released tarballs can be found at:
                       currently mandatory and cannot be disabled. [default: on]
     --enable-debug: Enable debug mode/messages [default: on]
     --enable-optimizations: Enable code optimizations [default: on]
-    --enable-eloop-dbus: Build dbus extension for eloop library [default: off]
 
   Backends for several subsystems in kmscon can be selected with the following
   options (all of them take a comma-separated list of backend names):
@@ -91,8 +90,6 @@ Released tarballs can be found at:
   dependency-checks fail, they are disabled by default unless explicitly enabled
   on the command line:
     --enable-kmscon: Build kmscon application [default: on]
-    --enable-eloop: Build eloop event loop library [default: off]
-    --enable-uterm: Build uterm library [default: off]
 
 == Running ==
 
