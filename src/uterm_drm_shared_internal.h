@@ -108,7 +108,8 @@ int uterm_drm_video_init(struct uterm_video *video, const char *node,
 void uterm_drm_video_destroy(struct uterm_video *video);
 int uterm_drm_video_find_crtc(struct uterm_video *video, drmModeRes *res,
 			      drmModeEncoder *enc);
-int uterm_drm_video_hotplug(struct uterm_video *video, bool read_dpms);
+int uterm_drm_video_hotplug(struct uterm_video *video, bool read_dpms,
+			    bool modeset);
 int uterm_drm_video_wake_up(struct uterm_video *video);
 void uterm_drm_video_sleep(struct uterm_video *video);
 int uterm_drm_video_poll(struct uterm_video *video);

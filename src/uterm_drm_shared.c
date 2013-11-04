@@ -645,7 +645,7 @@ err_unref:
 }
 
 int uterm_drm_video_hotplug(struct uterm_video *video,
-			    bool read_dpms)
+			    bool read_dpms, bool modeset)
 {
 	struct uterm_drm_video *vdrm = video->data;
 	drmModeRes *res;
@@ -689,15 +689,23 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 				continue;
 
 			disp->flags |= DISPLAY_AVAILABLE;
-			if (!read_dpms || !display_is_online(disp))
+			if (!display_is_online(disp))
 				break;
 
-			dpms = uterm_drm_get_dpms(vdrm->fd, conn);
-			if (dpms != disp->dpms) {
-				log_debug("DPMS state for display %p changed",
-					  disp);
-				uterm_drm_display_set_dpms(disp, disp->dpms);
+			if (read_dpms) {
+				dpms = uterm_drm_get_dpms(vdrm->fd, conn);
+				if (dpms != disp->dpms) {
+					log_debug("DPMS state for display %p changed",
+						  disp);
+					uterm_drm_display_set_dpms(disp, disp->dpms);
+				}
 			}
+
+			if (modeset) {
+				log_debug("re-activate display %p", disp);
+				uterm_display_swap(disp, true);
+			}
+
 			break;
 		}
 
@@ -731,7 +739,7 @@ int uterm_drm_video_wake_up(struct uterm_video *video)
 	}
 
 	video->flags |= VIDEO_AWAKE | VIDEO_HOTPLUG;
-	ret = uterm_drm_video_hotplug(video, true);
+	ret = uterm_drm_video_hotplug(video, true, true);
 	if (ret) {
 		drmDropMaster(vdrm->fd);
 		return ret;
@@ -752,7 +760,7 @@ void uterm_drm_video_sleep(struct uterm_video *video)
 int uterm_drm_video_poll(struct uterm_video *video)
 {
 	video->flags |= VIDEO_HOTPLUG;
-	return uterm_drm_video_hotplug(video, false);
+	return uterm_drm_video_hotplug(video, false, false);
 }
 
 /* Waits for events on DRM fd for \mtimeout milliseconds and returns 0 if the
