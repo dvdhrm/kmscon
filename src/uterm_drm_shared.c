@@ -703,6 +703,7 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 
 			if (modeset) {
 				log_debug("re-activate display %p", disp);
+				uterm_display_use(disp, NULL);
 				uterm_display_swap(disp, true);
 			}
 
