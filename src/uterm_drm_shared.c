@@ -658,6 +658,8 @@ int uterm_drm_video_hotplug(struct uterm_video *video,
 	if (!video_is_awake(video) || !video_need_hotplug(video))
 		return 0;
 
+	log_debug("testing DRM hotplug status");
+
 	res = drmModeGetResources(vdrm->fd);
 	if (!res) {
 		log_err("cannot retrieve drm resources");
@@ -728,7 +730,7 @@ int uterm_drm_video_wake_up(struct uterm_video *video)
 		return -EACCES;
 	}
 
-	video->flags |= VIDEO_AWAKE;
+	video->flags |= VIDEO_AWAKE | VIDEO_HOTPLUG;
 	ret = uterm_drm_video_hotplug(video, true);
 	if (ret) {
 		drmDropMaster(vdrm->fd);
