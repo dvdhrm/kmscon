@@ -214,9 +214,7 @@ libshl_la_SOURCES = \
 	src/shl_hook.h \
 	src/shl_misc.h \
 	src/shl_register.h \
-	src/shl_flagset.h \
-	src/shl_gl.h \
-	src/shl_gl_math.c
+	src/shl_flagset.h
 libshl_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
 	$(XKBCOMMON_CFLAGS) \
@@ -229,7 +227,7 @@ libshl_la_LIBADD = \
 	$(XKBCOMMON_LIBS)
 
 if BUILD_HAVE_GLES2
-libshl_la_SOURCES += src/shl_gl_shader.c
+libshl_la_SOURCES += src/shl_gl.h src/shl_gl_shader.c src/shl_gl_math.c
 libshl_la_CPPFLAGS += $(GLES2_CFLAGS)
 libshl_la_LIBADD += $(GLES2_LIBS)
 endif
