@@ -415,7 +415,12 @@ mod_bbulk_la_SOURCES = \
 	src/kmscon_module_interface.h \
 	src/text_bbulk.c \
 	src/kmscon_mod_bbulk.c
-mod_bbulk_la_LIBADD = libshl.la
+mod_bbulk_la_CPPFLAGS = \
+	$(AM_CPPFLAGS) \
+	$(TSM_CFLAGS)
+mod_bbulk_la_LIBADD = \
+	$(TSM_LIBS) \
+	libshl.la
 mod_bbulk_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
 	-module \
@@ -431,9 +436,11 @@ mod_gltex_la_SOURCES = \
 	src/kmscon_mod_gltex.c
 mod_gltex_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	$(TSM_CFLAGS) \
 	$(GLES2_CFLAGS)
 mod_gltex_la_LIBADD = \
 	$(GLES2_LIBS) \
+	$(TSM_LIBS) \
 	libshl.la \
 	src/text_gltex_atlas.vert.bin.lo \
 	src/text_gltex_atlas.frag.bin.lo
