@@ -52,9 +52,13 @@ static inline int shl_dirent(const char *path, struct dirent **ent)
 {
 	size_t len;
 	struct dirent *tmp;
+	long name_max;
 
-	len = offsetof(struct dirent, d_name) +
-					pathconf(path, _PC_NAME_MAX) + 1;
+	name_max = pathconf(path, _PC_NAME_MAX);
+	if (name_max < 0)
+		return -errno;
+
+	len = offsetof(struct dirent, d_name) + name_max + 1;
 	tmp = malloc(len);
 	if (!tmp)
 		return -ENOMEM;

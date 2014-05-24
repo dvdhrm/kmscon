@@ -181,7 +181,7 @@ void kmscon_load_modules(void)
 {
 	int ret;
 	DIR *ent;
-	struct dirent *buf, *de;
+	struct dirent *buf = NULL, *de;
 	char *file;
 	struct kmscon_module *mod;
 
