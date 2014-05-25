@@ -54,9 +54,15 @@ static inline int shl_dirent(const char *path, struct dirent **ent)
 	struct dirent *tmp;
 	long name_max;
 
+	/* errno may be left unchanged, see pathconf(3p) */
+	errno = 0;
 	name_max = pathconf(path, _PC_NAME_MAX);
-	if (name_max < 0)
-		return -errno;
+	if (name_max < 0) {
+		if (errno)
+			return -errno;
+		else
+			return -EINVAL;
+	}
 
 	len = offsetof(struct dirent, d_name) + name_max + 1;
 	tmp = malloc(len);
