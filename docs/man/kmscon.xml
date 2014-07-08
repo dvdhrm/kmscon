@@ -157,7 +157,7 @@
 
           <para>If kmscon runs on multiple seats, all seats are independent of
                 each other. You can either run a different kmscon process on
-                ecah seat or make a single kmscon process run on multiple seats.
+                each seat or make a single kmscon process run on multiple seats.
                 In the latter case, global state can be shared to reduce memory
                 consumption (like glyph-caches).</para>
         </listitem>
