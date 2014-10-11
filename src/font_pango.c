@@ -110,7 +110,7 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     uint32_t id, const uint32_t *ch, size_t len)
+		     uint32_t id, const uint32_t *ch, size_t len, bool underline)
 {
 	struct kmscon_glyph *glyph;
 	PangoLayout *layout;
@@ -156,6 +156,23 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
+
+    /* underline if requested */
+	PangoAttrList* attrlist = pango_layout_get_attributes(layout);
+	if (underline) {
+		if (attrlist == NULL) {
+			attrlist = pango_attr_list_new();
+			pango_layout_set_attributes(layout, attrlist);
+			pango_attr_list_unref(attrlist);
+		}
+        pango_attr_list_change(attrlist,
+                               pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
+	} else {
+		if (attrlist != NULL) {
+			pango_attr_list_change(attrlist,
+								   pango_attr_underline_new(PANGO_UNDERLINE_NONE));
+		}
+	}
 
 	val = tsm_ucs4_to_utf8_alloc(ch, len, &ulen);
 	if (!val) {
@@ -405,7 +422,7 @@ static int kmscon_font_pango_render(struct kmscon_font *font, uint32_t id,
 	struct kmscon_glyph *glyph;
 	int ret;
 
-	ret = get_glyph(font->data, &glyph, id, ch, len);
+	ret = get_glyph(font->data, &glyph, id, ch, len, font->underline);
 	if (ret)
 		return ret;
 

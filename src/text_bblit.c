@@ -79,6 +79,11 @@ static int bblit_draw(struct kmscon_text *txt,
 	else
 		font = txt->font;
 
+	if (attr->underline)
+		font->underline = true;
+	else
+		font->underline = false;
+
 	if (!len) {
 		ret = kmscon_font_render_empty(font, &glyph);
 	} else {
