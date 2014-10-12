@@ -498,6 +498,14 @@ int uterm_drm3d_display_fill(struct uterm_display *disp,
 	if (tmp > sh)
 		height = sh - y;
 
+	/* Caution:
+	 * opengl uses a coordinate system with the origin at _lower-left_ corner
+	 * and positive y-axis up, while other parts uses a coordinate system
+	 * with the origin at _upper-left_ corner and positive y-axis down.
+	 */
+	y = sh - y; // invert y-axis
+	y -= height; // move origin to lower left corner
+
 	glViewport(x, y, width, height);
 	glDisable(GL_BLEND);
 
