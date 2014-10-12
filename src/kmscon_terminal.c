@@ -88,6 +88,7 @@ static void do_clear_margins(struct screen *scr)
 {
 	unsigned int w, h, sw, sh;
 	struct uterm_mode *mode;
+	struct tsm_screen_attr attr;
 	int dw, dh;
 
 	mode = uterm_display_get_current(scr->disp);
@@ -101,12 +102,14 @@ static void do_clear_margins(struct screen *scr)
 	dw = sw - w;
 	dh = sh - h;
 
+	tsm_vte_get_def_attr(scr->term->vte, &attr);
+
 	if (dw > 0)
-		uterm_display_fill(scr->disp, 0, 0, 0,
+		uterm_display_fill(scr->disp, attr.br, attr.bg, attr.bb,
 				   w, 0,
 				   dw, h);
 	if (dh > 0)
-		uterm_display_fill(scr->disp, 0, 0, 0,
+		uterm_display_fill(scr->disp, attr.br, attr.bg, attr.bb,
 				   0, h,
 				   sw, dh);
 }
