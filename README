@@ -47,7 +47,8 @@ Released tarballs can be found at:
 == Install ==
 
   To compile the kmscon binary, run the standard autotools commands:
-    $ test -f ./configure || NOCONFIGURE=1 ./autogen.sh
+    $ test -f ./configure || NOCONFIGURE=1 
+    $ ./autogen.sh
     $ ./configure
     $ make
     $ make install
