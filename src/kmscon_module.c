@@ -181,7 +181,7 @@ void kmscon_load_modules(void)
 {
 	int ret;
 	DIR *ent;
-	struct dirent *buf, *de;
+	struct dirent *de;
 	char *file;
 	struct kmscon_module *mod;
 
@@ -203,18 +203,13 @@ void kmscon_load_modules(void)
 		return;
 	}
 
-	ret = shl_dirent(BUILD_MODULE_DIR, &buf);
-	if (ret) {
-		log_error("cannot allocate dirent object");
-		closedir(ent);
-		return;
-	}
-
 	while (true) {
-		ret = readdir_r(ent, buf, &de);
-		if (ret != 0) {
+        errno = 0;
+        de = readdir(ent);
+		if (!de && errno != 0) {
+            int errsv = errno;
 			log_error("cannot read directory %s: %d",
-				  BUILD_MODULE_DIR, ret);
+				  BUILD_MODULE_DIR, errsv);
 			break;
 		} else if (!de) {
 			break;
@@ -255,7 +250,6 @@ void kmscon_load_modules(void)
 		shl_dlist_link(&module_list, &mod->list);
 	}
 
-	free(buf);
 	closedir(ent);
 }
 
