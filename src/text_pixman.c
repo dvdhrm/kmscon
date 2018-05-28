@@ -283,9 +283,14 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 	}
 
 	if (attr->underline)
-		font->underline = true;
+		font->attr.underline = true;
 	else
-		font->underline = false;
+		font->attr.underline = false;
+
+	if (attr->italic)
+		font->attr.italic = true;
+	else
+		font->attr.italic = false;
 
 	res = shl_hashtable_find(gtable, (void**)&glyph,
 				 (void*)(unsigned long)id);

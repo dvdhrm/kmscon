@@ -110,10 +110,11 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     uint32_t id, const uint32_t *ch, size_t len, bool underline)
+		     uint32_t id, const uint32_t *ch, size_t len, const struct kmscon_font_attr *attr)
 {
 	struct kmscon_glyph *glyph;
 	PangoLayout *layout;
+	PangoAttrList *attrlist;
 	PangoRectangle rec;
 	PangoLayoutLine *line;
 	FT_Bitmap bitmap;
@@ -150,6 +151,12 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	glyph->width = cwidth;
 
 	layout = pango_layout_new(face->ctx);
+	attrlist = pango_layout_get_attributes(layout);
+	if (attrlist == NULL) {
+		attrlist = pango_attr_list_new();
+		pango_layout_set_attributes(layout, attrlist);
+		pango_attr_list_unref(attrlist);
+	}
 
 	/* render one line only */
 	pango_layout_set_height(layout, 0);
@@ -157,21 +164,22 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
 
-    /* underline if requested */
-	PangoAttrList* attrlist = pango_layout_get_attributes(layout);
-	if (underline) {
-		if (attrlist == NULL) {
-			attrlist = pango_attr_list_new();
-			pango_layout_set_attributes(layout, attrlist);
-			pango_attr_list_unref(attrlist);
-		}
-        pango_attr_list_change(attrlist,
-                               pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
+	/* underline if requested */
+	if (attr->underline) {
+		pango_attr_list_change(attrlist,
+							   pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
 	} else {
-		if (attrlist != NULL) {
-			pango_attr_list_change(attrlist,
-								   pango_attr_underline_new(PANGO_UNDERLINE_NONE));
-		}
+		pango_attr_list_change(attrlist,
+							   pango_attr_underline_new(PANGO_UNDERLINE_NONE));
+	}
+
+	/* italic if requested */
+	if (attr->italic) {
+		pango_attr_list_change(attrlist,
+							   pango_attr_style_new(PANGO_STYLE_ITALIC));
+	} else {
+		pango_attr_list_change(attrlist,
+							   pango_attr_style_new(PANGO_STYLE_NORMAL));
 	}
 
 	val = tsm_ucs4_to_utf8_alloc(ch, len, &ulen);
@@ -422,7 +430,7 @@ static int kmscon_font_pango_render(struct kmscon_font *font, uint32_t id,
 	struct kmscon_glyph *glyph;
 	int ret;
 
-	ret = get_glyph(font->data, &glyph, id, ch, len, font->underline);
+	ret = get_glyph(font->data, &glyph, id, ch, len, &font->attr);
 	if (ret)
 		return ret;
 

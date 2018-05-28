@@ -52,6 +52,7 @@ struct kmscon_font_attr {
 	unsigned int points;
 	bool bold;
 	bool italic;
+	bool underline;
 	unsigned int height;
 	unsigned int width;
 };
@@ -72,7 +73,6 @@ struct kmscon_font {
 	const struct kmscon_font_ops *ops;
 	struct kmscon_font_attr attr;
 	unsigned int baseline;
-    bool underline;
 	void *data;
 };
 

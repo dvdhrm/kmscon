@@ -133,9 +133,14 @@ static int bbulk_draw(struct kmscon_text *txt,
 		font = txt->font;
 
 	if (attr->underline)
-		font->underline = true;
+		font->attr.underline = true;
 	else
-		font->underline = false;
+		font->attr.underline = false;
+
+	if (attr->italic)
+		font->attr.italic = true;
+	else
+		font->attr.italic = false;
 
 	if (!len) {
 		ret = kmscon_font_render_empty(font, &glyph);
