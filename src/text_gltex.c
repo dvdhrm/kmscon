@@ -381,7 +381,7 @@ err_free:
 }
 
 static int find_glyph(struct kmscon_text *txt, struct glyph **out,
-		      uint32_t id, const uint32_t *ch, size_t len, const struct tsm_screen_attr *attr)
+		      uint64_t id, const uint32_t *ch, size_t len, const struct tsm_screen_attr *attr)
 {
 	struct gltex *gt = txt->data;
 	struct atlas *atlas;
@@ -402,12 +402,17 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	}
 
 	if (attr->underline)
-		font->underline = true;
+		font->attr.underline = true;
 	else
-		font->underline = false;
+		font->attr.underline = false;
+
+	if (attr->italic)
+		font->attr.italic = true;
+	else
+		font->attr.italic = false;
 
 	res = shl_hashtable_find(gtable, (void**)&glyph,
-				 (void*)(unsigned long)id);
+				 (void*)(uint64_t)id);
 	if (res) {
 		*out = glyph;
 		return 0;
@@ -510,7 +515,7 @@ static int find_glyph(struct kmscon_text *txt, struct glyph **out,
 	glyph->atlas = atlas;
 	glyph->texoff = atlas->fill;
 
-	ret = shl_hashtable_insert(gtable, (void*)(long)id, glyph);
+	ret = shl_hashtable_insert(gtable, (void*)(uint64_t)id, glyph);
 	if (ret)
 		goto err_free;
 
@@ -548,7 +553,7 @@ static int gltex_prepare(struct kmscon_text *txt)
 }
 
 static int gltex_draw(struct kmscon_text *txt,
-		      uint32_t id, const uint32_t *ch, size_t len,
+		      uint64_t id, const uint32_t *ch, size_t len,
 		      unsigned int width,
 		      unsigned int posx, unsigned int posy,
 		      const struct tsm_screen_attr *attr)

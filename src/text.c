@@ -381,7 +381,7 @@ int kmscon_text_prepare(struct kmscon_text *txt)
  * Returns: 0 on success or negative error code if this glyph couldn't be drawn.
  */
 int kmscon_text_draw(struct kmscon_text *txt,
-		     uint32_t id, const uint32_t *ch, size_t len,
+		     uint64_t id, const uint32_t *ch, size_t len,
 		     unsigned int width,
 		     unsigned int posx, unsigned int posy,
 		     const struct tsm_screen_attr *attr)
@@ -438,7 +438,7 @@ void kmscon_text_abort(struct kmscon_text *txt)
 }
 
 int kmscon_text_draw_cb(struct tsm_screen *con,
-			uint32_t id, const uint32_t *ch, size_t len,
+			uint64_t id, const uint32_t *ch, size_t len,
 			unsigned int width,
 			unsigned int posx, unsigned int posy,
 			const struct tsm_screen_attr *attr,
