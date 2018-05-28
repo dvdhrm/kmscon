@@ -42,6 +42,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libtsm.h>
 #include "font.h"
 #include "shl_hashtable.h"
 #include "shl_log.h"
@@ -105,7 +106,7 @@ static void unfold(uint8_t *dst, uint8_t val)
 	*dst = 0xff * !!val;
 }
 
-static int find_glyph(uint32_t id, const struct kmscon_glyph **out)
+static int find_glyph(uint32_t ch, const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *g;
 	int ret;
@@ -124,21 +125,21 @@ static int find_glyph(uint32_t id, const struct kmscon_glyph **out)
 		}
 	} else {
 		res = shl_hashtable_find(cache, (void**)out,
-					 (void*)(long)id);
+					 (void*)(uint64_t)ch);
 		if (res) {
 			ret = 0;
 			goto out_unlock;
 		}
 	}
 
-	if (id > 0xffff) {
+	if (ch > 0xffff) {
 		ret = -ERANGE;
 		goto out_unlock;
 	}
 
 	start = _binary_src_font_unifont_data_bin_start;
 	end = _binary_src_font_unifont_data_bin_end;
-	d = &start[id];
+	d = &start[ch];
 
 	if (d >= end) {
 		ret = -ERANGE;
@@ -186,7 +187,7 @@ static int find_glyph(uint32_t id, const struct kmscon_glyph **out)
 		unfold(&g->buf.data[i * 8 + 7], d->data[i] & 0x01);
 	}
 
-	ret = shl_hashtable_insert(cache, (void*)(long)id, g);
+	ret = shl_hashtable_insert(cache, (void*)(uint64_t)ch, g);
 	if (ret) {
 		log_error("cannot insert glyph into glyph-cache: %d", ret);
 		goto err_data;
@@ -240,14 +241,14 @@ static void kmscon_font_unifont_destroy(struct kmscon_font *font)
 	cache_unref();
 }
 
-static int kmscon_font_unifont_render(struct kmscon_font *font, uint32_t id,
+static int kmscon_font_unifont_render(struct kmscon_font *font, uint64_t id,
 				      const uint32_t *ch, size_t len,
 				      const struct kmscon_glyph **out)
 {
 	if (len > 1)
 		return -ERANGE;
 
-	return find_glyph(id, out);
+	return find_glyph(id & TSM_UCS4_MAX, out);
 }
 
 static int kmscon_font_unifont_render_inval(struct kmscon_font *font,

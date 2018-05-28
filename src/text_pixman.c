@@ -262,7 +262,7 @@ static void tp_unset(struct kmscon_text *txt)
 }
 
 static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
-		      uint32_t id, const uint32_t *ch, size_t len, const struct tsm_screen_attr *attr)
+		      uint64_t id, const uint32_t *ch, size_t len, const struct tsm_screen_attr *attr)
 {
 	struct tp_pixman *tp = txt->data;
 	struct tp_glyph *glyph;
@@ -293,7 +293,7 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 		font->attr.italic = false;
 
 	res = shl_hashtable_find(gtable, (void**)&glyph,
-				 (void*)(unsigned long)id);
+				 (void*)(uint64_t)id);
 	if (res) {
 		*out = glyph;
 		return 0;
@@ -361,7 +361,7 @@ static int find_glyph(struct kmscon_text *txt, struct tp_glyph **out,
 		goto err_free;
 	}
 
-	ret = shl_hashtable_insert(gtable, (void*)(long)id, glyph);
+	ret = shl_hashtable_insert(gtable, (void*)(uint64_t)id, glyph);
 	if (ret)
 		goto err_pixman;
 
@@ -397,7 +397,7 @@ static int tp_prepare(struct kmscon_text *txt)
 }
 
 static int tp_draw(struct kmscon_text *txt,
-		   uint32_t id, const uint32_t *ch, size_t len,
+		   uint64_t id, const uint32_t *ch, size_t len,
 		   unsigned int width,
 		   unsigned int posx, unsigned int posy,
 		   const struct tsm_screen_attr *attr)

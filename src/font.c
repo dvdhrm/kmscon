@@ -396,7 +396,7 @@ void kmscon_font_unref(struct kmscon_font *font)
  */
 SHL_EXPORT
 int kmscon_font_render(struct kmscon_font *font,
-		       uint32_t id, const uint32_t *ch, size_t len,
+		       uint64_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out)
 {
 	if (!font || !out || !ch || !len)
