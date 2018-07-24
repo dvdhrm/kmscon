@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # Copyright (c) 2018 Aetf <aetf@unlimitedcodeworks.xyz>
+# Copyright (c) 2018 Fabian Vogt <fvogt@suse.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,9 +21,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# configuration path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libexecdir=@libexecdir@
+
 # Get a property from org.freedesktop.locale1
 queryLocale1() {
-    dbus-send --system --print-reply=literal --dest=org.freedesktop.locale1 /org/freedesktop/locale1 org.freedesktop.DBus.Properties.Get "string:org.freedesktop.locale1" "string:$1" | awk '{print $1}'
+    dbus-send --system --print-reply=literal --dest=org.freedesktop.locale1 /org/freedesktop/locale1 org.freedesktop.DBus.Properties.Get "string:org.freedesktop.locale1" "string:$1" | awk '{print $2}'
 }
 
 # Query and setup system locale settings before start kmscon
@@ -49,4 +55,4 @@ setupLocale() {
 }
 
 setupLocale
-exec kmscon "$@"
+exec ${libexecdir}/kmscon "$@"

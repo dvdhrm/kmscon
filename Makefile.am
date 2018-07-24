@@ -31,6 +31,7 @@ MANPAGES_ALIASES =
 TPHONY =
 
 bin_PROGRAMS =
+libexec_PROGRAMS =
 check_PROGRAMS =
 noinst_PROGRAMS =
 lib_LTLIBRARIES =
@@ -476,8 +477,8 @@ mod_pixman_la_LDFLAGS = \
 # built as part of kmscon.
 #
 
-bin_SCRIPTS += docs/kmscon.sh
-bin_PROGRAMS += kmscon
+bin_SCRIPTS += scripts/kmscon
+libexec_PROGRAMS += kmscon
 check_PROGRAMS += \
 	test_output \
 	test_vt \
