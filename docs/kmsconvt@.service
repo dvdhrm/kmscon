@@ -37,7 +37,7 @@ IgnoreOnIsolate=yes
 ConditionPathExists=/dev/tty0
 
 [Service]
-ExecStart=/usr/bin/kmscon.sh "--vt=%I" --seats=seat0 --no-switchvt
+ExecStart=/usr/bin/kmscon "--vt=%I" --seats=seat0 --no-switchvt
 UtmpIdentifier=%I
 TTYPath=/dev/%I
 TTYReset=yes
