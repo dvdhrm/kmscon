@@ -100,6 +100,21 @@ static uint_fast32_t xrgb32_to_device(struct uterm_display *disp,
 	return res;
 }
 
+static void write_24bit(uint8_t *dst, uint_fast32_t value)
+{
+	#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+		dst[0] = value;
+		dst[1] = value >> 8;
+		dst[2] = value >> 16;
+	#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+		dst[0] = value >> 16;
+		dst[1] = value >> 8;
+		dst[2] = value;
+	#else
+		#error "Unknown endianness"
+	#endif
+}
+
 int uterm_fbdev_display_blit(struct uterm_display *disp,
 			     const struct uterm_video_buffer *buf,
 			     unsigned int x, unsigned int y)
@@ -147,6 +162,16 @@ int uterm_fbdev_display_blit(struct uterm_display *disp,
 			for (i = 0; i < width; ++i) {
 				val = ((uint32_t*)src)[i];
 				((uint16_t*)dst)[i] = xrgb32_to_device(disp, val);
+			}
+			dst += fbdev->stride;
+			src += buf->stride;
+		}
+	} else if (fbdev->Bpp == 3) {
+		while (height--) {
+			for (i = 0; i < width; ++i) {
+				val = ((uint32_t*)src)[i];
+				uint_fast32_t full = xrgb32_to_device(disp, val);
+				write_24bit(&dst[i * 3], full);
 			}
 			dst += fbdev->stride;
 			src += buf->stride;
@@ -272,6 +297,35 @@ int uterm_fbdev_display_fake_blendv(struct uterm_display *disp,
 				dst += fbdev->stride;
 				src += req->buf->stride;
 			}
+		} else if (fbdev->Bpp == 3) {
+			while (height--) {
+				for (i = 0; i < width; ++i) {
+					if (src[i] == 0) {
+						r = req->br;
+						g = req->bg;
+						b = req->bb;
+					} else if (src[i] == 255) {
+						r = req->fr;
+						g = req->fg;
+						b = req->fb;
+					} else {
+						r = req->fr * src[i] +
+						    req->br * (255 - src[i]);
+						r /= 256;
+						g = req->fg * src[i] +
+						    req->bg * (255 - src[i]);
+						g /= 256;
+						b = req->fb * src[i] +
+						    req->bb * (255 - src[i]);
+						b /= 256;
+					}
+					val = (r << 16) | (g << 8) | b;
+					uint_fast32_t full = xrgb32_to_device(disp, val);
+					write_24bit(&dst[i * 3], full);
+				}
+				dst += fbdev->stride;
+				src += req->buf->stride;
+			}
 		} else if (fbdev->Bpp == 4) {
 			while (height--) {
 				for (i = 0; i < width; ++i) {
@@ -357,6 +411,13 @@ int uterm_fbdev_display_fill(struct uterm_display *disp,
 					((uint16_t*)dst)[i] = full_val;
 				dst += fbdev->stride;
 			}
+		}
+	} else if (fbdev->Bpp == 3) {
+		while (height--) {
+			for (i = 0; i < width * 3; i += 3) {
+				write_24bit(&dst[i], full_val);
+			}
+			dst += fbdev->stride;
 		}
 	} else if (fbdev->Bpp == 4) {
 		while (height--) {

@@ -132,9 +132,7 @@ static int display_activate_force(struct uterm_display *disp,
 				  struct uterm_mode *mode,
 				  bool force)
 {
-	/* TODO: Add support for 24-bpp. However, we need to check how 3-bytes
-	 * integers are assembled in big/little/mixed endian systems. */
-	static const char depths[] = { 32, 16, 0 };
+	static const char depths[] = { 32, 24, 16, 0 };
 	struct fbdev_display *dfb = disp->data;
 	struct uterm_mode *m;
 	struct fbdev_mode *mfb;
@@ -217,13 +215,18 @@ static int display_activate_force(struct uterm_display *disp,
 	if (finfo->visual != FB_VISUAL_TRUECOLOR ||
 	    vinfo->bits_per_pixel != 32) {
 		for (i = 0; depths[i]; ++i) {
-			vinfo->bits_per_pixel = depths[i];
-			vinfo->activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+			/* Try to set a new mode and if it's successful... */
+			struct fb_var_screeninfo vinfo_new = *vinfo;
+			vinfo_new.bits_per_pixel = depths[i];
+			vinfo_new.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 
 			ret = ioctl(dfb->fd, FBIOPUT_VSCREENINFO,
-				    vinfo);
+				    &vinfo_new);
 			if (ret < 0)
 				continue;
+
+			/* ... keep it. */
+                        *vinfo = vinfo_new;
 
 			ret = refresh_info(disp);
 			if (ret)
@@ -235,6 +238,7 @@ static int display_activate_force(struct uterm_display *disp,
 	}
 
 	if (vinfo->bits_per_pixel != 32 &&
+	    vinfo->bits_per_pixel != 24 &&
 	    vinfo->bits_per_pixel != 16) {
 		log_error("device %s does not support 16/32 bpp but: %u",
 			  dfb->node, vinfo->bits_per_pixel);
@@ -333,6 +337,10 @@ static int display_activate_force(struct uterm_display *disp,
 		 dfb->off_r == 11 && dfb->off_g == 5 && dfb->off_b == 0 &&
 		 dfb->Bpp == 2)
 		dfb->rgb16 = true;
+	else if (dfb->len_r == 8 && dfb->len_g == 8 && dfb->len_b == 8 &&
+		 dfb->off_r == 16 && dfb->off_g == 8 && dfb->off_b == 0 &&
+		 dfb->Bpp == 3)
+		dfb->rgb24 = true;
 
 	/* TODO: make dithering configurable */
 	disp->flags |= DISPLAY_DITHERING;
@@ -455,6 +463,8 @@ static int display_get_buffers(struct uterm_display *disp,
 		f = UTERM_FORMAT_XRGB32;
 	else if (dfb->rgb16)
 		f = UTERM_FORMAT_RGB16;
+	else if (dfb->rgb24)
+		f = UTERM_FORMAT_RGB24;
 
 	if (!(formats & f))
 		return -EOPNOTSUPP;
