@@ -30,8 +30,6 @@ MANPAGES =
 MANPAGES_ALIASES =
 TPHONY =
 
-bin_PROGRAMS =
-libexec_PROGRAMS =
 check_PROGRAMS =
 noinst_PROGRAMS =
 lib_LTLIBRARIES =
@@ -40,6 +38,9 @@ bin_SCRIPTS =
 
 moduledir = $(libdir)/kmscon
 module_LTLIBRARIES =
+
+helperdir = $(libexecdir)/kmscon
+helper_PROGRAMS =
 
 #
 # Default CFlags
@@ -478,7 +479,7 @@ mod_pixman_la_LDFLAGS = \
 #
 
 bin_SCRIPTS += scripts/kmscon
-libexec_PROGRAMS += kmscon
+helper_PROGRAMS += kmscon
 check_PROGRAMS += \
 	test_output \
 	test_vt \
