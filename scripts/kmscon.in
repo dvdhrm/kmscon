@@ -25,6 +25,7 @@
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libexecdir=@libexecdir@
+helperdir=${libexecdir}/kmscon
 
 # Get a property from org.freedesktop.locale1
 queryLocale1() {
@@ -55,4 +56,4 @@ setupLocale() {
 }
 
 setupLocale
-exec ${libexecdir}/kmscon "$@"
+exec ${helperdir}/kmscon "$@"
