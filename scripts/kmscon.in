@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# Copyright (c) 2018 Aetf <aetf@unlimitedcodeworks.xyz>
+# Copyright (c) 2018 Fabian Vogt <fvogt@suse.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# configuration path
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libexecdir=@libexecdir@
+helperdir=${libexecdir}/kmscon
+
+# Get a property from org.freedesktop.locale1
+queryLocale1() {
+    dbus-send --system --print-reply=literal --dest=org.freedesktop.locale1 /org/freedesktop/locale1 org.freedesktop.DBus.Properties.Get "string:org.freedesktop.locale1" "string:$1" | awk '{print $2}'
+}
+
+# Query and setup system locale settings before start kmscon
+setupLocale() {
+    # Fallback to do nothing if we don't have the command
+    if ! command -v dbus-send >/dev/null 2>/dev/null; then
+        return
+    fi
+
+    # Don't override existing values. Also there is no point in setting only some of them
+    # as then they would not match anymore.
+    if test -n "${XKB_DEFAULT_MODEL}" -o -n "${XKB_DEFAULT_LAYOUT}" -o -n "${XKB_DEFAULT_VARIANT}" -o -n "${XKB_DEFAULT_OPTIONS}"; then
+        return
+    fi
+
+    X11MODEL="$(queryLocale1 X11Model)"
+    X11LAYOUT="$(queryLocale1 X11Layout)"
+    X11VARIANT="$(queryLocale1 X11Variant)"
+    X11OPTIONS="$(queryLocale1 X11Options)"
+    [ -n "${X11MODEL}" ] && export XKB_DEFAULT_MODEL="${X11MODEL}"
+    [ -n "${X11LAYOUT}" ] && export XKB_DEFAULT_LAYOUT="${X11LAYOUT}"
+    [ -n "${X11VARIANT}" ] && export XKB_DEFAULT_VARIANT="${X11VARIANT}"
+    [ -n "${X11OPTIONS}" ] && export XKB_DEFAULT_OPTIONS="${X11OPTIONS}"
+}
+
+setupLocale
+exec ${helperdir}/kmscon "$@"

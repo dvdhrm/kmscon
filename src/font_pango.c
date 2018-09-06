@@ -110,10 +110,11 @@ static void manager__unref()
 }
 
 static int get_glyph(struct face *face, struct kmscon_glyph **out,
-		     uint32_t id, const uint32_t *ch, size_t len)
+		     uint64_t id, const uint32_t *ch, size_t len, const struct kmscon_font_attr *attr)
 {
 	struct kmscon_glyph *glyph;
 	PangoLayout *layout;
+	PangoAttrList *attrlist;
 	PangoRectangle rec;
 	PangoLayoutLine *line;
 	FT_Bitmap bitmap;
@@ -131,7 +132,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 
 	pthread_mutex_lock(&face->glyph_lock);
 	res = shl_hashtable_find(face->glyphs, (void**)&glyph,
-				 (void*)(long)id);
+				 (void*)(uint64_t)id);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (res) {
 		*out = glyph;
@@ -150,12 +151,36 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	glyph->width = cwidth;
 
 	layout = pango_layout_new(face->ctx);
+	attrlist = pango_layout_get_attributes(layout);
+	if (attrlist == NULL) {
+		attrlist = pango_attr_list_new();
+		pango_layout_set_attributes(layout, attrlist);
+		pango_attr_list_unref(attrlist);
+	}
 
 	/* render one line only */
 	pango_layout_set_height(layout, 0);
 
 	/* no line spacing */
 	pango_layout_set_spacing(layout, 0);
+
+	/* underline if requested */
+	if (attr->underline) {
+		pango_attr_list_change(attrlist,
+							   pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
+	} else {
+		pango_attr_list_change(attrlist,
+							   pango_attr_underline_new(PANGO_UNDERLINE_NONE));
+	}
+
+	/* italic if requested */
+	if (attr->italic) {
+		pango_attr_list_change(attrlist,
+							   pango_attr_style_new(PANGO_STYLE_ITALIC));
+	} else {
+		pango_attr_list_change(attrlist,
+							   pango_attr_style_new(PANGO_STYLE_NORMAL));
+	}
 
 	val = tsm_ucs4_to_utf8_alloc(ch, len, &ulen);
 	if (!val) {
@@ -202,7 +227,7 @@ static int get_glyph(struct face *face, struct kmscon_glyph **out,
 	pango_ft2_render_layout_line(&bitmap, line, -rec.x, face->baseline);
 
 	pthread_mutex_lock(&face->glyph_lock);
-	ret = shl_hashtable_insert(face->glyphs, (void*)(long)id, glyph);
+	ret = shl_hashtable_insert(face->glyphs, (void*)(uint64_t)id, glyph);
 	pthread_mutex_unlock(&face->glyph_lock);
 	if (ret) {
 		log_error("cannot add glyph to hashtable");
@@ -398,14 +423,14 @@ static void kmscon_font_pango_destroy(struct kmscon_font *font)
 	manager_put_face(face);
 }
 
-static int kmscon_font_pango_render(struct kmscon_font *font, uint32_t id,
+static int kmscon_font_pango_render(struct kmscon_font *font, uint64_t id,
 				    const uint32_t *ch, size_t len,
 				    const struct kmscon_glyph **out)
 {
 	struct kmscon_glyph *glyph;
 	int ret;
 
-	ret = get_glyph(font->data, &glyph, id, ch, len);
+	ret = get_glyph(font->data, &glyph, id, ch, len, &font->attr);
 	if (ret)
 		return ret;
 

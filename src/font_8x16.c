@@ -81,7 +81,7 @@ static void kmscon_font_8x16_destroy(struct kmscon_font *font)
 }
 
 static int kmscon_font_8x16_render(struct kmscon_font *font,
-				   uint32_t id, const uint32_t *ch, size_t len,
+				   uint64_t id, const uint32_t *ch, size_t len,
 				   const struct kmscon_glyph **out)
 {
 	if (len > 1 || *ch >= 256)

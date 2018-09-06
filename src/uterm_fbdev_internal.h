@@ -55,6 +55,7 @@ struct fbdev_display {
 	unsigned int stride;
 
 	bool xrgb32;
+	bool rgb24;
 	bool rgb16;
 	unsigned int Bpp;
 	unsigned int off_r;

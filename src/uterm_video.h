@@ -100,6 +100,7 @@ enum uterm_video_format {
 	UTERM_FORMAT_GREY	= 0x01,
 	UTERM_FORMAT_XRGB32	= 0x02,
 	UTERM_FORMAT_RGB16	= 0x04,
+	UTERM_FORMAT_RGB24	= 0x08,
 };
 
 struct uterm_video_buffer {

@@ -62,7 +62,7 @@ static int bblit_set(struct kmscon_text *txt)
 }
 
 static int bblit_draw(struct kmscon_text *txt,
-		      uint32_t id, const uint32_t *ch, size_t len,
+		      uint64_t id, const uint32_t *ch, size_t len,
 		      unsigned int width,
 		      unsigned int posx, unsigned int posy,
 		      const struct tsm_screen_attr *attr)
@@ -78,6 +78,16 @@ static int bblit_draw(struct kmscon_text *txt,
 		font = txt->bold_font;
 	else
 		font = txt->font;
+
+	if (attr->underline)
+		font->attr.underline = true;
+	else
+		font->attr.underline = false;
+
+	if (attr->italic)
+		font->attr.italic = true;
+	else
+		font->attr.italic = false;
 
 	if (!len) {
 		ret = kmscon_font_render_empty(font, &glyph);

@@ -130,6 +130,8 @@ bool kmscon_font_attr_match(const struct kmscon_font_attr *a1,
 		return false;
 	if (a1->italic != a2->italic)
 		return false;
+	if (a1->underline != a2->underline)
+		return false;
 	if (*a1->name && *a2->name && strcmp(a1->name, a2->name))
 		return false;
 
@@ -396,7 +398,7 @@ void kmscon_font_unref(struct kmscon_font *font)
  */
 SHL_EXPORT
 int kmscon_font_render(struct kmscon_font *font,
-		       uint32_t id, const uint32_t *ch, size_t len,
+		       uint64_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out)
 {
 	if (!font || !out || !ch || !len)

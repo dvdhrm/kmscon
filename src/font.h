@@ -52,6 +52,7 @@ struct kmscon_font_attr {
 	unsigned int points;
 	bool bold;
 	bool italic;
+	bool underline;
 	unsigned int height;
 	unsigned int width;
 };
@@ -82,7 +83,7 @@ struct kmscon_font_ops {
 		     const struct kmscon_font_attr *attr);
 	void (*destroy) (struct kmscon_font *font);
 	int (*render) (struct kmscon_font *font,
-		       uint32_t id, const uint32_t *ch, size_t len,
+		       uint64_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out);
 	int (*render_empty) (struct kmscon_font *font,
 			     const struct kmscon_glyph **out);
@@ -100,7 +101,7 @@ void kmscon_font_ref(struct kmscon_font *font);
 void kmscon_font_unref(struct kmscon_font *font);
 
 int kmscon_font_render(struct kmscon_font *font,
-		       uint32_t id, const uint32_t *ch, size_t len,
+		       uint64_t id, const uint32_t *ch, size_t len,
 		       const struct kmscon_glyph **out);
 int kmscon_font_render_empty(struct kmscon_font *font,
 			     const struct kmscon_glyph **out);

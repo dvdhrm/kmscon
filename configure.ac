@@ -51,7 +51,7 @@ PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
 AC_SUBST(XKBCOMMON_CFLAGS)
 AC_SUBST(XKBCOMMON_LIBS)
 
-PKG_CHECK_MODULES([TSM], [libtsm])
+PKG_CHECK_MODULES([TSM], [libtsm >= 4.0.0])
 AC_SUBST(TSM_CFLAGS)
 AC_SUBST(TSM_LIBS)
 
@@ -791,7 +791,7 @@ fi
 # makefiles.
 #
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile scripts/kmscon])
 AC_OUTPUT
 
 #
