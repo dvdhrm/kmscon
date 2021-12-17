@@ -299,7 +299,7 @@ static void setup_child(int master, struct winsize *ws)
 	if (ret)
 		log_warn("cannot reset blocked signals: %m");
 
-	for (i = 1; i < SIGUNUSED; ++i)
+	for (i = 1; i < SIGSYS; ++i)
 		signal(i, SIG_DFL);
 
 	ret = grantpt(master);
