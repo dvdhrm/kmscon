@@ -50,6 +50,7 @@
 #include "shl_misc.h"
 #include "uterm_input.h"
 #include "uterm_vt.h"
+#include <sys/sysmacros.h>
 
 #define LOG_SUBSYSTEM "vt"
 
